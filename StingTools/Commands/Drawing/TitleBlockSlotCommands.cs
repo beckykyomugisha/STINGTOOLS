@@ -87,10 +87,11 @@ namespace StingTools.Commands.Drawing
                 return Result.Failed;
             }
             // The slot bounds come from the family doc (origin = bottom-left
-            // corner of the paper). On the sheet, the title-block instance's
-            // location is the same origin, so slot bounds map 1:1.
-            // (Title-block instances in Revit are anchored at the family
-            // origin which by convention sits at the sheet's bottom-left.)
+            // corner of the paper). DTW-158: on the sheet they are offset by the
+            // title-block instance's LocationPoint — the same offset
+            // SheetPlacementBridge applies (P12.C). A title block moved off the
+            // sheet origin used to put every viewport off by that move.
+            var tbOrigin = StingTools.Core.Drawing.SheetPlacementBridge.GetTitleBlockOrigin(titleBlock);
 
             // 3. Survey selected views (or every unplaced view if none selected).
             var selectedIds = uiApp.ActiveUIDocument.Selection.GetElementIds();
@@ -138,8 +139,8 @@ namespace StingTools.Commands.Drawing
                             continue;
                         }
                         var bbox = slotMap[slotId];
-                        var centre = new XYZ((bbox.Min.X + bbox.Max.X) / 2.0,
-                                             (bbox.Min.Y + bbox.Max.Y) / 2.0, 0);
+                        var centre = new XYZ((bbox.Min.X + bbox.Max.X) / 2.0 + tbOrigin.X,
+                                             (bbox.Min.Y + bbox.Max.Y) / 2.0 + tbOrigin.Y, 0);
 
                         // Apply scaleHint BEFORE placing — so the viewport
                         // adopts the right scale at creation time. Wrap in
@@ -268,6 +269,14 @@ namespace StingTools.Commands.Drawing
                 TaskDialog.Show("STING — Toggle BIM Mode", "Active sheet has no title block.");
                 return Result.Cancelled;
             }
+            // DTW-153: a locked title block (instance, type or sheet) is not swapped.
+            if (StingTools.Core.Drawing.TitleBlockParamApplier.IsTitleBlockLocked(titleBlock, sheet))
+            {
+                TaskDialog.Show("STING — Toggle BIM Mode",
+                    $"Sheet {sheet.SheetNumber}'s title block is locked (PRJ_TB_LOCK_BOOL on the title block, " +
+                    "its type or the sheet). Unlock it first to change its BIM mode.");
+                return Result.Cancelled;
+            }
             var sym = doc.GetElement(titleBlock.GetTypeId()) as FamilySymbol;
             var currentName = sym?.Family?.Name ?? "";
             var bimModeParam = titleBlock.LookupParameter("PRJ_SHEET_BIM_MODE_TXT");
@@ -297,13 +306,8 @@ namespace StingTools.Commands.Drawing
                 return Result.Failed;
             }
 
-            // Pick the first FamilySymbol of the target family.
-            FamilySymbol targetSym = null;
-            foreach (var symId in targetFamily.GetFamilySymbolIds())
-            {
-                targetSym = doc.GetElement(symId) as FamilySymbol;
-                if (targetSym != null) break;
-            }
+            // DTW-160: the target type with the CURRENT type's name, else the first.
+            FamilySymbol targetSym = TitleBlockSlotUtils.PickSymbolByName(doc, targetFamily, sym?.Name);
             if (targetSym == null)
             {
                 TaskDialog.Show("STING — Toggle BIM Mode",
@@ -443,6 +447,14 @@ namespace StingTools.Commands.Drawing
         [JsonProperty("purposeTagAliases")]  public Dictionary<string, List<string>> PurposeTagAliases { get; set; }
             = new Dictionary<string, List<string>>();
 
+        /// <summary>DTW-157 — fit-to-slot grows the view's measured crop extent by
+        /// this factor before choosing a scale, to leave room for what the crop does
+        /// not measure (grid/level heads, annotation crop, viewport title). Absent
+        /// from the JSON = <see cref="StingTools.Core.Drawing.SlotFitScale.DefaultAnnotationMarginFactor"/>;
+        /// clamped to 1.0–2.0.</summary>
+        [JsonProperty("annotationMarginFactor")] public double AnnotationMarginFactor { get; set; }
+            = StingTools.Core.Drawing.SlotFitScale.DefaultAnnotationMarginFactor;
+
         // P6: Load() ran File.ReadAllText + a JSON parse for every viewport placed
         // (SheetPlacementBridge.BuildFamilySlotContext calls it per placement). The
         // parsed rules are kept per file and re-read when the file's last-write time
@@ -520,6 +532,26 @@ namespace StingTools.Commands.Drawing
                     .FirstOrDefault();
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
+        }
+
+        /// <summary>DTW-160 — the type of <paramref name="family"/> named
+        /// <paramref name="preferredTypeName"/> (case-insensitive), else the first
+        /// type. A swap between sibling families (BIM ↔ NONBIM, legacy → v2.0)
+        /// keeps the sheet on the same-named type instead of whichever type
+        /// happens to be listed first. Null when the family has no types.</summary>
+        public static FamilySymbol PickSymbolByName(Document doc, Family family, string preferredTypeName)
+        {
+            if (doc == null || family == null) return null;
+            FamilySymbol first = null;
+            foreach (var symId in family.GetFamilySymbolIds())
+            {
+                if (!(doc.GetElement(symId) is FamilySymbol fs)) continue;
+                if (first == null) first = fs;
+                if (!string.IsNullOrEmpty(preferredTypeName)
+                    && string.Equals(fs.Name, preferredTypeName, StringComparison.OrdinalIgnoreCase))
+                    return fs;
+            }
+            return first;
         }
 
         public static string GetFamilyName(Document doc, Element titleBlock)

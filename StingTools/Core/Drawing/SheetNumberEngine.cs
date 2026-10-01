@@ -98,6 +98,100 @@ namespace StingTools.Core.Drawing
             return new string(s.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-').Take(8).ToArray());
         }
 
+        // ── DTW-198: names are not numbers ────────────────────────────
+
+        /// <summary>Characters Revit refuses in a view or sheet name.</summary>
+        private static readonly char[] RevitNameIllegal = { '\\', ':', '{', '}', '[', ']', '|', ';', '<', '>', '?', '`', '~' };
+
+        /// <summary>
+        /// A value for a sheet NAME: kept whole, with only the characters Revit refuses
+        /// in a name replaced (and the spacing tidied). <see cref="SafeShort"/> is number
+        /// shaping — it stripped spaces and cut at eight, so "Ground Floor" printed
+        /// "GroundFl" on the sheet's name. Empty is "XX", as in a number.
+        /// </summary>
+        public static string SheetNameSafe(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return "XX";
+            var chars = s.Select(c => RevitNameIllegal.Contains(c) || char.IsControl(c) ? ' ' : c).ToArray();
+            var tidy = Regex.Replace(new string(chars), @"\s+", " ").Trim();
+            return tidy.Length == 0 ? "XX" : tidy;
+        }
+
+        /// <summary>
+        /// A sheet NAME from <paramref name="pattern"/>: {lvl}, {mark}, {spool}, {sys} and
+        /// {disc} take the full values (<see cref="SheetNameSafe"/>), everything else —
+        /// the ISO extras, {seq} — exactly as <see cref="ApplyTokenPattern"/> resolves
+        /// them for the number. <paramref name="levelName"/> is the level's NAME, never
+        /// its code.
+        /// </summary>
+        public static string ApplyNamePattern(string pattern,
+            string disc, string levelName, string sys, string mark, string spool, string purpose,
+            int seq, IDictionary<string, string> extras)
+        {
+            if (string.IsNullOrEmpty(pattern)) return pattern;
+            var p = pattern;
+            if (p.IndexOf("{lvl}", StringComparison.Ordinal) >= 0) p = p.Replace("{lvl}", SheetNameSafe(levelName));
+            if (p.IndexOf("{mark}", StringComparison.Ordinal) >= 0) p = p.Replace("{mark}", SheetNameSafe(mark));
+            if (p.IndexOf("{spool}", StringComparison.Ordinal) >= 0) p = p.Replace("{spool}", SheetNameSafe(spool));
+            if (p.IndexOf("{sys}", StringComparison.Ordinal) >= 0) p = p.Replace("{sys}", SheetNameSafe(sys));
+            if (p.IndexOf("{disc}", StringComparison.Ordinal) >= 0) p = p.Replace("{disc}", SheetNameSafe(disc));
+            return ApplyTokenPattern(p, disc, levelName, sys, mark, spool, purpose, seq, extras);
+        }
+
+        /// <summary>
+        /// A level for a sheet NUMBER when no code is known: <see cref="SafeShort"/>, but
+        /// a trailing number survives the eight-character cut — "Basement 1" is
+        /// "Basemen1", not "Basement" (which "Basement 2" also became).
+        /// </summary>
+        public static string ShortLevel(string levelName)
+        {
+            if (string.IsNullOrWhiteSpace(levelName)) return "XX";
+            var clean = new string(levelName.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-').ToArray());
+            if (clean.Length == 0) return "XX";
+            if (clean.Length <= 8) return clean;
+            var digits = Regex.Match(clean, @"\d+$").Value;
+            if (digits.Length == 0 || digits.Length >= 8) return clean.Substring(0, 8);
+            return clean.Substring(0, 8 - digits.Length) + digits;
+        }
+
+        /// <summary>
+        /// {lvl} for a sheet NUMBER: the level's CODE (ScopeBoxRevit.LevelCodes, or the
+        /// ISO level code under an ISO pattern) when the caller has one, else
+        /// <see cref="ShortLevel"/> of the name. Two levels never share a code; two
+        /// truncated names did.
+        /// </summary>
+        public static string NumberLevelToken(string levelCode, string levelName)
+        {
+            if (!string.IsNullOrWhiteSpace(levelCode))
+            {
+                var code = SafeShort(levelCode);
+                if (!string.IsNullOrEmpty(code)) return code;
+            }
+            return ShortLevel(levelName);
+        }
+
+        // ── DTW-210: an existing sheet's {lvl} follows its own number ──
+
+        /// <summary>True when <paramref name="sheetNumber"/> is a full ISO 19650 identifier,
+        /// with or without its suitability / revision tail.</summary>
+        public static bool IsIsoShapedNumber(string sheetNumber)
+            => Iso19650DocumentCode.LooksAssembled(sheetNumber)
+            || Iso19650DocumentCode.LooksAssembled(SheetNumberPolicy.StripStatusSuffix(sheetNumber));
+
+        /// <summary>
+        /// {lvl} for re-stamping an EXISTING sheet's title block. Decided by the shape of
+        /// the sheet's own number — an ISO-shaped number carries the ISO level code, any
+        /// other the level name — not by the policy in force today. After a policy switch
+        /// the current policy described sheets numbered under the old one, and their
+        /// title blocks stopped matching their numbers. <paramref name="levelIsName"/>
+        /// false (a value from the profile, not a level name) is returned unchanged.
+        /// </summary>
+        public static string ExistingSheetLevel(string sheetNumber, string level, bool levelIsName,
+            IDictionary<string, string> isoCodesByName)
+            => SheetNumberPolicy.ExistingSheetLevelToken(
+                IsIsoShapedNumber(sheetNumber) ? SheetNumberPolicy.IsoPattern : null,
+                level, levelIsName, isoCodesByName);
+
         /// <summary>
         /// The pattern resolved in every token except the sequence, which is
         /// left as <see cref="SeqSentinel"/>, then tidied. The shape every
@@ -227,6 +321,12 @@ namespace StingTools.Core.Drawing
             public string Bucket;
             public int? CurrentSeq;
             public bool Locked;
+            /// <summary>DTW-211: the current number is not in the shape of the pattern the
+            /// policy now gives this sheet (e.g. a profile-era number under the ISO policy) —
+            /// renumbering it CONVERTS it rather than closing a gap.</summary>
+            public bool ShapeChange;
+            /// <summary>DTW-211: the sheet carries an issued revision.</summary>
+            public bool Issued;
             /// <summary>This sheet's number for a given sequence, built from its
             /// OWN tokens (level, mark), so compaction never erases identity.</summary>
             public Func<int, string> NumberFor;
@@ -253,6 +353,12 @@ namespace StingTools.Core.Drawing
             /// <summary>DTW-7: sheets kept on their number because it is a full
             /// ISO 19650 identifier and the policy is not ISO. Reported, never moved.</summary>
             public List<string> IsoPreserved { get; } = new List<string>();
+            /// <summary>DTW-211: the moves that change a sheet's number SHAPE (a conversion
+            /// to the policy's pattern), listed apart from gap-closing moves.</summary>
+            public List<RenumberMove> Conversions { get; } = new List<RenumberMove>();
+            /// <summary>DTW-211: issued sheets a conversion would have renumbered, kept
+            /// because the caller did not opt in to converting issued sheets.</summary>
+            public List<string> IssuedKept { get; } = new List<string>();
         }
 
         /// <summary>
@@ -273,13 +379,36 @@ namespace StingTools.Core.Drawing
         /// mover in place instead; pinning repeats until the plan is conflict-free,
         /// so what is returned can be applied without Revit rejecting any of it.
         /// </summary>
+        /// <para>DTW-211: a sheet whose number is not in its pattern's shape
+        /// (<see cref="RenumberItem.ShapeChange"/>) is converted, not compacted; such moves
+        /// are listed in <see cref="RenumberPlan.Conversions"/>. An ISSUED sheet is never
+        /// converted unless <paramref name="convertIssued"/> — its number is on drawings
+        /// already sent out; it is pinned and listed in <see cref="RenumberPlan.IssuedKept"/>.</para>
         public static RenumberPlan PlanRenumber(IReadOnlyList<RenumberItem> items, IEnumerable<string> allNumbers,
-            SheetNumberPolicyKind policy = SheetNumberPolicyKind.Profile)
+            SheetNumberPolicyKind policy = SheetNumberPolicyKind.Profile, bool convertIssued = false)
+        {
+            var plan = PlanRenumberCore(items, allNumbers, policy, convertIssued);
+            if (items == null) return plan;
+            var shape = new HashSet<string>(items.Where(i => i.ShapeChange).Select(i => i.Id), StringComparer.Ordinal);
+            plan.Conversions.AddRange(plan.Moves.Where(m => shape.Contains(m.Id)));
+            return plan;
+        }
+
+        private static RenumberPlan PlanRenumberCore(IReadOnlyList<RenumberItem> items, IEnumerable<string> allNumbers,
+            SheetNumberPolicyKind policy, bool convertIssued)
         {
             var plan = new RenumberPlan();
             if (items == null || items.Count == 0) return plan;
 
             var pinned = new HashSet<string>(items.Where(i => i.Locked).Select(i => i.Id), StringComparer.Ordinal);
+            if (!convertIssued)
+                foreach (var i in items)
+                {
+                    if (i.Locked || !i.ShapeChange || !i.Issued || PinsIsoIdentifier(i.CurrentNumber, policy)) continue;
+                    pinned.Add(i.Id);
+                    plan.IssuedKept.Add($"{i.CurrentNumber}: issued (has an issued revision); kept — converting it to the " +
+                                        $"{policy} numbering would change the number on drawings already sent out.");
+                }
             foreach (var i in items)
             {
                 if (i.Locked || !PinsIsoIdentifier(i.CurrentNumber, policy)) continue;

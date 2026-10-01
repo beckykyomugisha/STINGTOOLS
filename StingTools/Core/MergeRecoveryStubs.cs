@@ -578,15 +578,57 @@ namespace StingTools.Core.Drawing
                 return m;
             }, el => el is ParameterFilterElement);
 
+        /// <summary>
+        /// DTW-165: resolve a fill pattern named in the data. Solid is recognised by
+        /// meaning (FillPattern.IsSolidFill) whatever it is called — "Solid fill"
+        /// never matched Revit's "&lt;Solid fill&gt;" — and other names are tried as
+        /// written, then by the aliases in <see cref="FillPatternNames"/> (Revit
+        /// default-template spellings, then the STING patterns CreateFillPatterns
+        /// makes). InvalidElementId on a miss; the caller reports it.
+        /// </summary>
         internal static ElementId ResolveFillPattern(Document doc, string name)
-            => LookupCached(_fillPatternByDoc, doc, name, d =>
+        {
+            if (doc == null || string.IsNullOrWhiteSpace(name)) return ElementId.InvalidElementId;
+            if (FillPatternNames.IsSolidName(name)) return ResolveSolidFill(doc);
+            foreach (var candidate in FillPatternNames.Candidates(name))
             {
-                var m = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
-                foreach (var el in new FilteredElementCollector(d).OfClass(typeof(FillPatternElement)))
-                    if (el is FillPatternElement f && !string.IsNullOrEmpty(f.Name) && !m.ContainsKey(f.Name))
-                        m[f.Name] = f.Id;
-                return m;
-            }, el => el is FillPatternElement);
+                var id = LookupCached(_fillPatternByDoc, doc, candidate, d =>
+                {
+                    var m = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var el in new FilteredElementCollector(d).OfClass(typeof(FillPatternElement)))
+                        if (el is FillPatternElement f && !string.IsNullOrEmpty(f.Name) && !m.ContainsKey(f.Name))
+                            m[f.Name] = f.Id;
+                    return m;
+                }, el => el is FillPatternElement);
+                if (id != ElementId.InvalidElementId) return id;
+            }
+            return ElementId.InvalidElementId;
+        }
+
+        /// <summary>The project's solid fill (drafting target preferred), found by IsSolidFill.</summary>
+        internal static ElementId ResolveSolidFill(Document doc)
+        {
+            if (doc == null) return ElementId.InvalidElementId;
+            ElementId model = ElementId.InvalidElementId;
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(FillPatternElement)))
+                {
+                    if (!(el is FillPatternElement fpe)) continue;
+                    FillPattern fp = null;
+                    try { fp = fpe.GetFillPattern(); }
+                    catch (Exception ex) { StingTools.Core.StingLog.WarnRateLimited("ResolveSolidFill.Read", $"Fill pattern '{fpe.Name}' unreadable: {ex.Message}"); }
+                    if (fp == null || !fp.IsSolidFill) continue;
+                    if (fp.Target == FillPatternTarget.Drafting) return fpe.Id;
+                    if (model == ElementId.InvalidElementId) model = fpe.Id;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"ResolveSolidFill: {ex.Message}");
+            }
+            return model;
+        }
     }
 }
 

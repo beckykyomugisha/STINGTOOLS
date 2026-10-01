@@ -103,7 +103,7 @@ namespace StingTools.Core.Drawing
         public static string SavePlan(Document doc, ScopeBoxPlanFile plan)
         {
             var p = StingPaths.MetaFile(doc, "_BIM_COORD", PlanFileName);
-            File.WriteAllText(p, plan.ToJson());
+            OutputLocationHelper.WriteAllTextAtomic(p, plan.ToJson());
             return p;
         }
 

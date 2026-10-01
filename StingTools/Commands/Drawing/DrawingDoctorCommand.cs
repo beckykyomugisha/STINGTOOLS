@@ -110,6 +110,12 @@ namespace StingTools.Commands.Drawing
                 // ZONE and the planner skips them; this names them.
                 var badBoxNames = SpatialAutoDetect.AuditScopeBoxNames(doc);
 
+                // DTW-203: views and sheets stamped with a drawing-type id the catalogue no
+                // longer has. A renamed type minted a parallel set and left these behind;
+                // a type whose `replaces` names the old id adopts them on the next run.
+                var unknownTypeIds = new List<ElementId>();
+                var unknownType = FindUnknownTypeStamps(doc, sheets, unknownTypeIds);
+
                 var sb = new StringBuilder();
                 sb.AppendLine($"STING — Drawing Doctor");
                 sb.AppendLine($"  Total sheets: {totalSheets}");
@@ -122,6 +128,8 @@ namespace StingTools.Commands.Drawing
                 sb.AppendLine($"  Stale CSV sync (>30d):  {staleSync.Count}");
                 sb.AppendLine($"  Context deleted:        {orphaned.Count}    (level / room / box gone)");
                 sb.AppendLine($"  Unparsed box names:     {badBoxNames.Count}    (STING-LOC / ZONE / AREA name refused)");
+                sb.AppendLine($"  Unknown type stamps:    {unknownType.Count}    (drawing-type id not in the catalogue)");
+                AppendList(sb, "Views and sheets stamped with a drawing-type id the catalogue does not have (add the old id to the new type's \"replaces\" so production adopts them, or delete them)", unknownType);
                 AppendList(sb, "Views and sheets whose production context was deleted (not removed — review, then delete or re-produce)", orphaned);
                 AppendList(sb, "Scope boxes whose STING-LOC / ZONE / AREA name does not parse (elements inside take the fallback LOC / ZONE; rename, e.g. STING-LOC::BLOCK-A)", badBoxNames);
                 AppendList(sb, "Cross-stamped sheets", crossStamped);
@@ -133,7 +141,8 @@ namespace StingTools.Commands.Drawing
                 var dlg = new TaskDialog("STING — Drawing Doctor")
                 {
                     MainInstruction = $"{crossStamped.Count} cross-stamp(s), {familySwap.Count} family swap(s), {missingTb.Count} missing TB, {orphaned.Count} with a deleted context"
-                                    + (badBoxNames.Count > 0 ? $", {badBoxNames.Count} scope-box name(s) refused" : ""),
+                                    + (badBoxNames.Count > 0 ? $", {badBoxNames.Count} scope-box name(s) refused" : "")
+                                    + (unknownType.Count > 0 ? $", {unknownType.Count} with an unknown drawing type" : ""),
                     MainContent = "Doctor inspects the title-block layer for divergence between the CSV-populate path and the recipe-binding path. " +
                                   "Cross-stamped sheets carry stamps from both paths — values may have diverged." +
                                   (orphaned.Count > 0
@@ -221,6 +230,41 @@ namespace StingTools.Commands.Drawing
                 catch (Exception ex) { StingLog.Warn($"DrawingDoctor context of {el.Id}: {ex.Message}"); continue; }
                 if (gone.Count == 0) continue;
                 lines.Add($"{label} [id {el.Id.Value}] - {string.Join(", ", gone)} deleted");
+                ids.Add(el.Id);
+            }
+            return lines;
+        }
+
+        /// <summary>
+        /// DTW-203 — every view and sheet whose drawing-type stamp names an id the catalogue
+        /// (corporate + project override) does not have, with the type that replaces it
+        /// when one's `replaces` list names the old id.
+        /// </summary>
+        private static List<string> FindUnknownTypeStamps(Document doc, List<ViewSheet> sheets, List<ElementId> ids)
+        {
+            var lines = new List<string>();
+            IReadOnlyList<DrawingType> catalogue;
+            try { catalogue = DrawingTypeRegistry.ListAll(doc); }
+            catch (Exception ex) { StingLog.Warn($"DrawingDoctor catalogue: {ex.Message}"); return lines; }
+            if (catalogue == null || catalogue.Count == 0) return lines;   // no catalogue: cannot judge
+
+            var stamped = new List<(Element El, string Label)>();
+            foreach (var s in sheets) stamped.Add((s, $"Sheet {s.SheetNumber} - {s.Name}"));
+            try
+            {
+                foreach (var v in new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>())
+                    if (v != null && !v.IsTemplate && !(v is ViewSheet)) stamped.Add((v, $"View '{v.Name}'"));
+            }
+            catch (Exception ex) { StingLog.Warn($"DrawingDoctor unknown-type views: {ex.Message}"); }
+
+            foreach (var (el, label) in stamped)
+            {
+                var id = SafeRead(el, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID);
+                var replacement = ProductionEdgeDecisions.ReplacementFor(id, catalogue);
+                if (replacement == null) continue;
+                lines.Add(replacement.Length > 0
+                    ? $"{label} [id {el.Id.Value}] - stamped '{id}', replaced by '{replacement}' (adopted on its next production run)"
+                    : $"{label} [id {el.Id.Value}] - stamped '{id}', which no drawing type has or replaces");
                 ids.Add(el.Id);
             }
             return lines;

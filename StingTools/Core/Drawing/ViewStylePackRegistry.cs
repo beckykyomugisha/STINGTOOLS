@@ -210,7 +210,7 @@ namespace StingTools.Core.Drawing
         {
             if (p?.Appearance == null) return;
             var a = p.Appearance;
-            if (a.LineWeightScale.HasValue && p.LineWeightScale == 1.0) p.LineWeightScale = a.LineWeightScale.Value;
+            if (a.LineWeightScale.HasValue && !p.LineWeightScaleStated) p.LineWeightScale = a.LineWeightScale.Value;
             if (string.IsNullOrEmpty(p.TextStyle)      && !string.IsNullOrEmpty(a.TextStyleName))      p.TextStyle = a.TextStyleName;
             if (string.IsNullOrEmpty(p.DimensionStyle) && !string.IsNullOrEmpty(a.DimensionStyleName)) p.DimensionStyle = a.DimensionStyleName;
             if (string.IsNullOrEmpty(p.HatchPalette)   && !string.IsNullOrEmpty(a.HatchPalette))       p.HatchPalette = a.HatchPalette;
@@ -293,7 +293,9 @@ namespace StingTools.Core.Drawing
                 // IsManaged never survived to DrawingTypePresentation.
                 ExtendsMerge.Overlay(p, merged, _overlayProps);
 
-                if (p.LineWeightScale != 0) merged.LineWeightScale = p.LineWeightScale;
+                // DTW-174: only a scale the link actually states — a child's
+                // unstated default 1.0 used to overwrite its parent's 0.6.
+                if (p.LineWeightScaleStated && p.LineWeightScale > 0) merged.LineWeightScale = p.LineWeightScale;
                 if (!string.IsNullOrEmpty(p.TextStyle))      merged.TextStyle      = p.TextStyle;
                 if (!string.IsNullOrEmpty(p.DimensionStyle)) merged.DimensionStyle = p.DimensionStyle;
                 if (!string.IsNullOrEmpty(p.HatchPalette))   merged.HatchPalette   = p.HatchPalette;

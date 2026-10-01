@@ -36,6 +36,19 @@ namespace StingTools.Commands.Drawing
 {
     internal static class BatchProduceCommons
     {
+        /// <summary>
+        /// An item's production result into the run's warnings. A result the producer
+        /// refused to stand behind (<see cref="ProduceResult.Failure"/> — a sheet it could
+        /// not number, DTW-194; an area view its box could not crop, DTW-206) throws, so
+        /// the item runner rolls the item back and reports the reason once.
+        /// </summary>
+        internal static void Take(ProduceResult pr, List<string> warnings)
+        {
+            if (pr == null) return;
+            warnings?.AddRange(pr.Failure == null ? pr.Warnings : pr.Warnings.Where(w => w != pr.Failure));
+            if (pr.Failure != null) throw new InvalidOperationException(pr.Failure);
+        }
+
         internal static ProduceOptions BuildOptions(DrawingProductionPreset preset)
         {
             var o = new ProduceOptions();
@@ -295,11 +308,14 @@ namespace StingTools.Commands.Drawing
         private static List<double> OccupiedLevelElevations(Document linkDoc)
         {
             var levelIds = new HashSet<long>();
-            foreach (var e in new FilteredElementCollector(linkDoc).WhereElementIsNotElementType())
+            // DTW-207: main model + primary options; demolished elements do not count.
+            foreach (var e in StingTools.Core.Mep.ModelPresenceFilter.MainAndPrimary(
+                         new FilteredElementCollector(linkDoc).WhereElementIsNotElementType(), linkDoc))
             {
                 try
                 {
                     if (e is View || e.Category == null || e.Category.CategoryType != CategoryType.Model) continue;
+                    if (StingTools.Core.Mep.ModelPresenceFilter.IsDemolished(e)) continue;
                     var lid = e.LevelId;
                     if (lid != null && lid != ElementId.InvalidElementId) levelIds.Add(lid.Value);
                 }
@@ -315,10 +331,13 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                return new FilteredElementCollector(doc)
-                    .WherePasses(new ElementLevelFilter(lvl.Id))
-                    .WhereElementIsNotElementType()
-                    .Any(e => !(e is View) && e.Category != null && e.Category.CategoryType == CategoryType.Model);
+                // DTW-207: a secondary design option or a demolished element does not make
+                // a level "modelled".
+                return StingTools.Core.Mep.ModelPresenceFilter.MainAndPrimary(new FilteredElementCollector(doc)
+                        .WherePasses(new ElementLevelFilter(lvl.Id))
+                        .WhereElementIsNotElementType(), doc)
+                    .Any(e => !(e is View) && e.Category != null && e.Category.CategoryType == CategoryType.Model
+                              && !StingTools.Core.Mep.ModelPresenceFilter.IsDemolished(e));
             }
             catch (Exception ex)
             {
@@ -450,8 +469,13 @@ namespace StingTools.Commands.Drawing
             return parts.Count == 0 ? null : "Preset overrides applied to every produced view: " + string.Join(", ", parts) + ".";
         }
 
+        /// <summary>
+        /// The result dialog. DTW-205: every warning goes to the STING log, and with a
+        /// document a run with more than the dialog shows writes them all to a CSV
+        /// (Validation route) the dialog names — the 21st onwards were simply lost.
+        /// </summary>
         internal static void ShowResult(string title, int views, int sheets, IList<string> warnings,
-            DrawingProductionPreset preset = null)
+            DrawingProductionPreset preset = null, Document doc = null)
         {
             var msg = new System.Text.StringBuilder();
             msg.AppendLine($"Views created: {views}");
@@ -460,12 +484,31 @@ namespace StingTools.Commands.Drawing
             if (presetLine != null) msg.AppendLine(presetLine);
             if (warnings != null && warnings.Count > 0)
             {
+                foreach (var w in warnings) StingLog.Info($"{title} warning: {w}");
+                string csv = warnings.Count > ProductionRunReport.DialogWarningLimit ? WriteWarningsCsv(doc, title, warnings) : null;
                 msg.AppendLine();
-                msg.AppendLine($"Warnings ({warnings.Count}):");
-                foreach (var w in warnings.Take(20)) msg.AppendLine("  • " + w);
-                if (warnings.Count > 20) msg.AppendLine($"  …and {warnings.Count - 20} more");
+                msg.Append(ProductionRunReport.WarningBlock(warnings, csv));
             }
             TaskDialog.Show(title, msg.ToString());
+        }
+
+        /// <summary>DTW-205: every warning to a routed CSV; null (and logged) when it cannot be written.</summary>
+        private static string WriteWarningsCsv(Document doc, string title, IList<string> warnings)
+        {
+            if (doc == null) return null;
+            try
+            {
+                var safe = new string((title ?? "Production").Where(c => char.IsLetterOrDigit(c)).ToArray());
+                var path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Validation",
+                    "STING_" + (safe.Length == 0 ? "Production" : safe) + "_Warnings", ".csv");
+                File.WriteAllText(path, ProductionRunReport.Csv(warnings), new UTF8Encoding(true));
+                return path;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"{title}: the warnings CSV could not be written: {ex.Message} — every warning is in this log.");
+                return null;
+            }
         }
     }
 
@@ -518,7 +561,7 @@ namespace StingTools.Commands.Drawing
                     warnings.Insert(0, $"Skipped {skippedEmpty.Count} drawing type / level pair(s) with nothing modelled "
                         + "('Skip levels with nothing modelled'): " + string.Join("; ", skippedEmpty.Take(12))
                         + (skippedEmpty.Count > 12 ? " …" : ""));
-                BatchProduceCommons.ShowResult("Produce Per Level", views, sheets, warnings, res.Preset);
+                BatchProduceCommons.ShowResult("Produce Per Level", views, sheets, warnings, res.Preset, doc);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceViewsPerLevel", ex); return Result.Failed; }
@@ -560,9 +603,11 @@ namespace StingTools.Commands.Drawing
                 return go;
             };
             DrawingTypePresentation.Prewarm(doc);
+            bool stopped;
             using (DrawingProducer.PrimeBatchScope(doc))
-                Produce(doc, types, picked, opts, packageId, ref views, ref sheets, warnings, include);
+                Produce(doc, types, picked, opts, packageId, ref views, ref sheets, warnings, include, out stopped);
             message = BatchProduceCommons.StepSummary("Produce Per Level", views, sheets, warnings);
+            if (stopped) { message += " " + warnings[0]; return Result.Cancelled; }   // DTW-204
             var coveredLine = BatchProduceCommons.CoveredSummary(covered);
             if (coveredLine != null) { StingLog.Info("Produce Per Level: " + coveredLine); message += " " + coveredLine + "."; }
             if (attempted == 0 && covered.Count > 0)
@@ -572,61 +617,71 @@ namespace StingTools.Commands.Drawing
         }
 
         /// <summary>
-        /// One transaction per level, every picked type on it — shared by the dialog, the
-        /// workflow, the Project Setup Wizard and the HVAC panel's per-level button.
+        /// One transaction per (level, type) — shared by the dialog, the workflow, the
+        /// Project Setup Wizard and the HVAC panel's per-level button.
         /// <paramref name="include"/> (optional) skips a (type, level) pair, e.g. a
         /// discipline with nothing modelled on that level. Must be called with no
         /// transaction open.
+        ///
+        /// DTW-195: each pair is its own item. In a workshared model the views and sheet
+        /// it would reuse are checked first (owned by someone else, or not up to date:
+        /// skipped with that reason, nothing opened), and a refusal at commit rolls back
+        /// that pair only, as a report line rather than a Revit dialog. One owned view
+        /// used to roll back every type on its level.
         /// </summary>
         internal static void Produce(Document doc, List<DrawingType> types, List<Level> levels, ProduceOptions opts,
             string packageId, ref int views, ref int sheets, List<string> warnings,
             Func<DrawingType, Level, bool> include = null)
+            => Produce(doc, types, levels, opts, packageId, ref views, ref sheets, warnings, include, out _);
+
+        /// <summary>As above; <paramref name="stopped"/> is true when the user pressed
+        /// Escape (DTW-204) — what was committed before is kept and a warning says how far
+        /// the run got.</summary>
+        internal static void Produce(Document doc, List<DrawingType> types, List<Level> levels, ProduceOptions opts,
+            string packageId, ref int views, ref int sheets, List<string> warnings,
+            Func<DrawingType, Level, bool> include, out bool stopped)
         {
+            // The pairs to produce, decided once (include records its own skips), so the
+            // run knows its length for the progress window.
+            var pairs = new List<(Level Level, DrawingType Type)>();
+            foreach (var level in levels)
+                foreach (var dt in types)
+                    if (include == null || include(dt, level)) pairs.Add((level, dt));
+
+            int made = 0, madeSheets = 0;
+            using (var runner = new ProductionItemRunner(doc, "Produce Per Level", pairs.Count) { RequiresSheetCounters = opts?.CreateSheet == true })
             using (var tg = new TransactionGroup(doc, "STING Produce Per Level"))
             {
                 tg.Start();
-                foreach (var level in levels)
+                foreach (var (level, dt) in pairs)
                 {
-                    using (var t = new Transaction(doc, $"STING Produce Per Level - {level.Name}"))
+                    if (runner.ShouldStop()) break;   // DTW-204: between items, never inside one
                     {
-                        t.Start();
-                        try
-                        {
-                            // Counted per transaction and added to the totals only once
-                            // Revit has committed it: a commit a failure handler rolls
-                            // back produced nothing, and must not read as production.
-                            int levelViews = 0, levelSheets = 0;
-                            var levelTypes = new List<string>();
-                            foreach (var dt in types)
+                        var dctx = new DrawingContext { Level = level, PackageId = packageId };
+                        // Counted only once Revit has committed it: a commit a failure
+                        // handler rolls back produced nothing, and must not read as production.
+                        ProduceResult pr = null;
+                        var outcome = runner.Run($"STING Produce Per Level - {level.Name} - {dt.Id}", $"{level.Name} / {dt.Id}",
+                            () => runner.Preflight.CheckItem(new[] { dt }, dctx),
+                            () =>
                             {
-                                if (include != null && !include(dt, level)) continue;
-                                var dctx = new DrawingContext { Level = level, PackageId = packageId };
-                                var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
-                                levelViews += pr.ViewIds.Count;
-                                if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) levelSheets++;   // P-9: reuse is not production
-                                warnings.AddRange(pr.Warnings);
-                                levelTypes.Add(dt.Id);
-                            }
-                            var status = t.Commit();
-                            if (status == TransactionStatus.Committed) { views += levelViews; sheets += levelSheets; }
-                            else if (levelTypes.Count > 0)
-                            {
-                                var w = $"{level.Name}: the transaction did not commit ({status}); {levelViews} view(s) of "
-                                      + $"{string.Join(", ", levelTypes)} were not kept.";
-                                StingLog.Warn("ProduceViewsPerLevel " + w);
-                                warnings.Add(w);
-                            }
-                        }
-                        catch (Exception innerEx)
+                                pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
+                                BatchProduceCommons.Take(pr, warnings);   // DTW-194: a refused item rolls back
+                            },
+                            st => $"{level.Name}: the transaction did not commit ({st}); {pr?.ViewIds.Count ?? 0} view(s) of {dt.Id} were not kept.",
+                            warnings);
+                        if (outcome == ProductionItemRunner.ItemResult.Committed && pr != null)
                         {
-                            StingLog.Warn($"ProduceViewsPerLevel level={level.Name}: {innerEx.Message}");
-                            warnings.Add($"{level.Name}: {innerEx.Message} — rolled back.");
-                            if (t.HasStarted() && !t.HasEnded()) t.RollBack();   // DTW-107
+                            made += pr.ViewIds.Count;
+                            if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) madeSheets++;   // P-9: reuse is not production
                         }
                     }
                 }
-                tg.Assimilate();
+                tg.Assimilate();   // a stopped run keeps what it committed
+                stopped = runner.Stopped;
+                if (stopped) warnings.Insert(0, runner.StoppedLine("level / drawing-type pair(s)"));
             }
+            views += made; sheets += madeSheets;
         }
     }
 
@@ -710,7 +765,7 @@ namespace StingTools.Commands.Drawing
                 if (boxesLeftOut > 0)
                     warnings.Add($"{boxesLeftOut} ticked box(es) are bound to a drawing type that is not ticked — not produced.");
                 Produce(doc, picked, bindingByName, tickedTypes, levels, opts, res.Preset?.PackageId, ref views, ref sheets, warnings);
-                BatchProduceCommons.ShowResult("Produce From Scope Boxes", views, sheets, warnings, res.Preset);
+                BatchProduceCommons.ShowResult("Produce From Scope Boxes", views, sheets, warnings, res.Preset, doc);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceFromScopeBoxes", ex); return Result.Failed; }
@@ -764,15 +819,18 @@ namespace StingTools.Commands.Drawing
 
             int views = 0, sheets = 0; var warnings = new List<string>();
             DrawingTypePresentation.Prewarm(doc);
+            bool stopped;
             using (DrawingProducer.PrimeBatchScope(doc))
-                Produce(doc, scopes, bindingByName, types, levels, opts, packageId, ref views, ref sheets, warnings);
+                stopped = Produce(doc, scopes, bindingByName, types, levels, opts, packageId, ref views, ref sheets, warnings);
             message = BatchProduceCommons.StepSummary("Produce From Scope Boxes", views, sheets, warnings);
+            if (stopped) { message += " " + warnings[0]; return Result.Cancelled; }   // DTW-204
             if (views == 0) { message += " Nothing was produced."; return Result.Failed; }
             return Result.Succeeded;
         }
 
-        /// <summary>One transaction per box — shared by the dialog and the workflow.</summary>
-        private static void Produce(Document doc, List<Element> scopes, Dictionary<string, ScopeBoxBinding> bindingByName,
+        /// <summary>One transaction per box — shared by the dialog and the workflow. True
+        /// when the user stopped the run with Escape (DTW-204).</summary>
+        private static bool Produce(Document doc, List<Element> scopes, Dictionary<string, ScopeBoxBinding> bindingByName,
             List<DrawingType> types, List<Level> levels, ProduceOptions opts, string packageId,
             ref int views, ref int sheets, List<string> warnings)
         {
@@ -786,11 +844,15 @@ namespace StingTools.Commands.Drawing
                 Id = l.Id.Value, Name = l.Name,
                 Code = codes.TryGetValue(l.Id.Value, out var c) ? c : null,
             }).ToList();
+            int total = scopes.Count(sc => bindingByName.TryGetValue(sc.Name ?? "", out var b0)
+                && types.Any(t => string.Equals(t.Id, b0.DrawingTypeId, StringComparison.OrdinalIgnoreCase)));
+            using (var runner = new ProductionItemRunner(doc, "Produce From Scope Boxes", total) { RequiresSheetCounters = opts?.CreateSheet == true })
             using (var tg = new TransactionGroup(doc, "STING Produce From Scope Boxes"))
             {
                 tg.Start();
                 foreach (var scope in scopes)
                 {
+                    if (runner.ShouldStop()) break;   // DTW-204
                     if (!bindingByName.TryGetValue(scope.Name ?? "", out var bnd)) continue;
                     var dt = types.FirstOrDefault(t => string.Equals(t.Id, bnd.DrawingTypeId, StringComparison.OrdinalIgnoreCase));
                     if (dt == null) continue;
@@ -817,51 +879,53 @@ namespace StingTools.Commands.Drawing
                         warnings.Add(w);
                     }
 
-                    using (var t = new Transaction(doc, $"STING Scope {scope.Name}"))
-                    {
-                        t.Start();
-                        try
+                    var dctx = new DrawingContext { Level = lvl, ScopeBox = scope, Tag = bnd.Tag, PackageId = packageId };
+                    bnd.ScopeBox = scope;
+                    // DTW-41: a view the retired DrawingTypes_FromScopeBoxes producer made
+                    // for this box (stamped with the type, cropped to the box, no
+                    // production context) is adopted, not duplicated.
+                    var legacyView = ScopeBoxBinder.FindExistingView(doc, bnd);
+                    if (legacyView != null
+                        && !string.IsNullOrEmpty(ParameterHelpers.GetString(legacyView, ParamRegistry.STING_VIEW_CONTEXT_TAG)))
+                        legacyView = null;
+                    ProduceResult pr = null;
+                    // DTW-195: pre-flight the box's views and sheet (and the legacy view it
+                    // would adopt); a refusal at commit is a report line, not a dialog.
+                    var outcome = runner.Run($"STING Scope {scope.Name}", $"{scope.Name} ({dt.Id})",
+                        () => runner.Preflight.Active
+                            ? runner.Preflight.Check(WithLegacy(runner.Preflight.ProductionElements(new[] { dt }, dctx), legacyView))
+                            : null,
+                        () =>
                         {
-                            var dctx = new DrawingContext { Level = lvl, ScopeBox = scope, Tag = bnd.Tag, PackageId = packageId };
-                            // DTW-41: a view the retired DrawingTypes_FromScopeBoxes producer made
-                            // for this box (stamped with the type, cropped to the box, no
-                            // production context) is adopted, not duplicated.
-                            bnd.ScopeBox = scope;
-                            var legacyView = ScopeBoxBinder.FindExistingView(doc, bnd);
-                            if (legacyView != null
-                                && string.IsNullOrEmpty(ParameterHelpers.GetString(legacyView, ParamRegistry.STING_VIEW_CONTEXT_TAG)))
+                            if (legacyView != null)
                             {
                                 var firstRule = (dt.ProductionRules ?? new List<ProductionRule>()).OrderBy(r => r.Idx).FirstOrDefault()
                                              ?? new ProductionRule { Idx = 0 };
                                 if (DrawingProducer.AdoptView(doc, dt, dctx, firstRule, legacyView))
                                     warnings.Add($"{scope.Name}: '{legacyView.Name}' (made by the old Generate from Scope Boxes) was adopted, not duplicated.");
                             }
-                            var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
-                            warnings.AddRange(pr.Warnings);
-                            var status = t.Commit();
-                            if (status == TransactionStatus.Committed)
-                            {
-                                views += pr.ViewIds.Count;
-                                if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;   // P-9: reuse is not production
-                            }
-                            else
-                            {
-                                var w = $"{scope.Name} ({dt.Id}): the transaction did not commit ({status}); "
-                                      + $"{pr.ViewIds.Count} view(s) were not kept.";
-                                StingLog.Warn("ProduceFromScopeBoxes " + w);
-                                warnings.Add(w);
-                            }
-                        }
-                        catch (Exception innerEx)
-                        {
-                            StingLog.Warn($"ProduceFromScopeBoxes box={scope.Name}: {innerEx.Message}");
-                            warnings.Add($"{scope.Name}: {innerEx.Message} — rolled back.");
-                            if (t.HasStarted() && !t.HasEnded()) t.RollBack();   // DTW-107
-                        }
+                            pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
+                            BatchProduceCommons.Take(pr, warnings);   // DTW-194: a refused item rolls back
+                        },
+                        st => $"{scope.Name} ({dt.Id}): the transaction did not commit ({st}); "
+                            + $"{pr?.ViewIds.Count ?? 0} view(s) were not kept.",
+                        warnings);
+                    if (outcome == ProductionItemRunner.ItemResult.Committed && pr != null)
+                    {
+                        views += pr.ViewIds.Count;
+                        if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;   // P-9: reuse is not production
                     }
                 }
-                tg.Assimilate();
+                tg.Assimilate();   // a stopped run keeps what it committed
+                if (runner.Stopped) warnings.Insert(0, runner.StoppedLine("scope box(es)"));
+                return runner.Stopped;
             }
+        }
+
+        private static ICollection<ElementId> WithLegacy(ICollection<ElementId> ids, View legacy)
+        {
+            if (legacy != null) ids.Add(legacy.Id);
+            return ids;
         }
     }
 
@@ -903,11 +967,13 @@ namespace StingTools.Commands.Drawing
                 int views = 0, sheets = 0; var warnings = new List<string>();
                 var pickedTypes = BatchProduceCommons.ResolveSelectedTypes(doc, res.SelectedDrawingTypeIds);
 
+                using (var runner = new ProductionItemRunner(doc, "Produce Interior Elevations", res.SelectedContexts.Count) { RequiresSheetCounters = opts.CreateSheet })
                 using (var tg = new TransactionGroup(doc, "STING Interior Elevations"))
                 {
                     tg.Start();
                     foreach (var roomLabel in res.SelectedContexts)
                     {
+                        if (runner.ShouldStop()) break;   // DTW-204
                         var room = rooms.FirstOrDefault(r =>
                         {
                             var n = ParameterHelpers.GetString(r, "Name") ?? "";
@@ -915,35 +981,30 @@ namespace StingTools.Commands.Drawing
                             return $"{n} ({num})" == roomLabel;
                         });
                         if (room == null) continue;
-                        using (var t = new Transaction(doc, $"STING Interior Elev {roomLabel}"))
-                        {
-                            t.Start();
-                            try
+                        var dctx = new DrawingContext { Room = room, Tag = roomLabel, PackageId = res.Preset?.PackageId };
+                        int tv = 0, ts = 0;
+                        // DTW-195: pre-flight the room's views and sheets; a refusal at
+                        // commit rolls back this room only, as a report line.
+                        var outcome = runner.Run($"STING Interior Elev {roomLabel}", roomLabel,
+                            () => runner.Preflight.CheckItem(pickedTypes, dctx),
+                            () =>
                             {
-                                int tv = 0, ts = 0;
                                 foreach (var dt in pickedTypes)
                                 {
-                                    var dctx = new DrawingContext { Room = room, Tag = roomLabel, PackageId = res.Preset?.PackageId };
                                     var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
                                     tv += pr.ViewIds.Count;
                                     if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) ts++;   // P-9: reuse is not production
-                                    warnings.AddRange(pr.Warnings);
+                                    BatchProduceCommons.Take(pr, warnings);   // DTW-194: a refused item rolls back
                                 }
-                                var status = t.Commit();
-                                if (status == TransactionStatus.Committed) { views += tv; sheets += ts; }
-                                else warnings.Add($"{roomLabel}: the transaction did not commit ({status}); {tv} view(s) were not kept.");
-                            }
-                            catch (Exception innerEx)
-                            {
-                                StingLog.Warn($"ProduceInteriorElevations room={roomLabel}: {innerEx.Message}");
-                                warnings.Add($"{roomLabel}: {innerEx.Message} — rolled back.");
-                                if (t.HasStarted() && !t.HasEnded()) t.RollBack();   // DTW-107
-                            }
-                        }
+                            },
+                            st => $"{roomLabel}: the transaction did not commit ({st}); {tv} view(s) were not kept.",
+                            warnings);
+                        if (outcome == ProductionItemRunner.ItemResult.Committed) { views += tv; sheets += ts; }
                     }
-                    tg.Assimilate();
+                    tg.Assimilate();   // a stopped run keeps what it committed
+                    if (runner.Stopped) warnings.Insert(0, runner.StoppedLine("room(s)"));
                 }
-                BatchProduceCommons.ShowResult("Produce Interior Elevations", views, sheets, warnings, res.Preset);
+                BatchProduceCommons.ShowResult("Produce Interior Elevations", views, sheets, warnings, res.Preset, doc);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceInteriorElevations", ex); return Result.Failed; }
@@ -1043,39 +1104,37 @@ namespace StingTools.Commands.Drawing
                     }).Where(x => x != null).ToList();
                 }
 
+                var sectionContexts = contextsToProduce.ToList();
+                using (var runner = new ProductionItemRunner(doc, "Produce Sections", sectionContexts.Count) { RequiresSheetCounters = opts.CreateSheet })
                 using (var tg = new TransactionGroup(doc, "STING Produce Sections"))
                 {
                     tg.Start();
-                    foreach (var dctx in contextsToProduce)
+                    foreach (var dctx in sectionContexts)
                     {
-                        using (var t = new Transaction(doc, $"STING Section {dctx.Tag}"))
-                        {
-                            t.Start();
-                            try
+                        if (runner.ShouldStop()) break;   // DTW-204
+                        int tv = 0, ts = 0;
+                        // DTW-195: pre-flight the grid's sections and sheets; a refusal at
+                        // commit rolls back this grid only, as a report line.
+                        var outcome = runner.Run($"STING Section {dctx.Tag}", dctx.Tag,
+                            () => runner.Preflight.CheckItem(pickedTypes, dctx),
+                            () =>
                             {
-                                int tv = 0, ts = 0;
                                 foreach (var dt in pickedTypes)
                                 {
                                     var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
                                     tv += pr.ViewIds.Count;
                                     if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) ts++;   // P-9: reuse is not production
-                                    warnings.AddRange(pr.Warnings);
+                                    BatchProduceCommons.Take(pr, warnings);   // DTW-194: a refused item rolls back
                                 }
-                                var status = t.Commit();
-                                if (status == TransactionStatus.Committed) { views += tv; sheets += ts; }
-                                else warnings.Add($"{dctx.Tag}: the transaction did not commit ({status}); {tv} view(s) were not kept.");
-                            }
-                            catch (Exception innerEx)
-                            {
-                                StingLog.Warn($"ProduceSections context={dctx.Tag}: {innerEx.Message}");
-                                warnings.Add($"{dctx.Tag}: {innerEx.Message} — rolled back.");
-                                if (t.HasStarted() && !t.HasEnded()) t.RollBack();   // DTW-107
-                            }
-                        }
+                            },
+                            st => $"{dctx.Tag}: the transaction did not commit ({st}); {tv} view(s) were not kept.",
+                            warnings);
+                        if (outcome == ProductionItemRunner.ItemResult.Committed) { views += tv; sheets += ts; }
                     }
-                    tg.Assimilate();
+                    tg.Assimilate();   // a stopped run keeps what it committed
+                    if (runner.Stopped) warnings.Insert(0, runner.StoppedLine("grid section(s)"));
                 }
-                BatchProduceCommons.ShowResult("Produce Sections", views, sheets, warnings, res.Preset);
+                BatchProduceCommons.ShowResult("Produce Sections", views, sheets, warnings, res.Preset, doc);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceSections", ex); return Result.Failed; }
@@ -1137,7 +1196,7 @@ namespace StingTools.Commands.Drawing
 
                 string blocker = Produce(doc, pickedTypes, host, elev, opts, res.Preset?.PackageId, ref views, ref sheets, warnings);
                 if (blocker != null) { TaskDialog.Show("STING", blocker); return Result.Succeeded; }
-                BatchProduceCommons.ShowResult("Produce Exterior Elevations", views, sheets, warnings, res.Preset);
+                BatchProduceCommons.ShowResult("Produce Exterior Elevations", views, sheets, warnings, res.Preset, doc);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceExteriorElevations", ex); return Result.Failed; }
@@ -1201,6 +1260,7 @@ namespace StingTools.Commands.Drawing
             }
             Snapshot();
 
+            var runner = new ProductionItemRunner(doc, "ProduceExteriorElevations") { RequiresSheetCounters = opts.CreateSheet };
             using (var tg = new TransactionGroup(doc, "STING Exterior Elevations"))
             {
                 tg.Start();
@@ -1240,6 +1300,7 @@ namespace StingTools.Commands.Drawing
 
                     foreach (var job in jobs)
                     {
+                        if (runner.Stopped) break;   // DTW-194: the counters cannot be written
                         var ctx = new DrawingContext
                         {
                             Tag = job.Tag, PackageId = packageId, OwnerLevel = host,
@@ -1250,30 +1311,43 @@ namespace StingTools.Commands.Drawing
                             }).ToList(),
                             ElevationStations = job.Faces.ToDictionary(f => f.RuleIdx, f => f.St),
                         };
-                        using (var t = new Transaction(doc, $"STING Exterior Elev {job.Tag} {dt.Id}"))
+                        // The views each face would adopt (DTW-27 legacy stamp, DTW-80 per-face
+                        // view on no sheet) — part of what the job edits.
+                        var adopt = new List<(ProductionRule Rule, View View, string Note)>();
+                        foreach (var f in job.Faces)
                         {
-                            t.Start();
-                            try
+                            var rule = ctx.RulesOverride.First(r => r.Idx == f.RuleIdx);
+                            var old = legacy.FirstOrDefault(x => string.Equals(x.Type, dt.Id, StringComparison.OrdinalIgnoreCase)
+                                && ExteriorElevationTags.IsLegacyFor(x.Tag, f.Face));
+                            if (old.View != null)
+                                adopt.Add((rule, old.View, $"'{old.View.Name}' (stamped {ExteriorElevationTags.Legacy(f.Face)}) was adopted as {dt.Id} {job.Tag}, not duplicated."));
+                            // DTW-80: a 1+4 run adopts the per-face view a views-only run
+                            // (the Setup Wizard, or sheets off) made for this face, while it
+                            // is on no sheet — a view cannot be on two sheets.
+                            if (onePlusFour)
                             {
-                                foreach (var f in job.Faces)
-                                {
-                                    var rule = ctx.RulesOverride.First(r => r.Idx == f.RuleIdx);
-                                    var old = legacy.FirstOrDefault(x => string.Equals(x.Type, dt.Id, StringComparison.OrdinalIgnoreCase)
-                                        && ExteriorElevationTags.IsLegacyFor(x.Tag, f.Face));
-                                    if (old.View != null && DrawingProducer.AdoptView(doc, dt, ctx, rule, old.View))
-                                        warnings.Add($"'{old.View.Name}' (stamped {ExteriorElevationTags.Legacy(f.Face)}) was adopted as {dt.Id} {job.Tag}, not duplicated.");
-                                    // DTW-80: a 1+4 run adopts the per-face view a views-only run
-                                    // (the Setup Wizard, or sheets off) made for this face, while it
-                                    // is on no sheet — a view cannot be on two sheets.
-                                    if (onePlusFour)
-                                    {
-                                        var solo = elevViews.FirstOrDefault(x => string.Equals(x.Type, dt.Id, StringComparison.OrdinalIgnoreCase)
-                                            && ExteriorElevationTags.IsPerFaceStamp(x.Tag, f.Face) && !placed.Contains(x.View.Id.Value));
-                                        if (solo.View != null && DrawingProducer.AdoptView(doc, dt, ctx, rule, solo.View))
-                                            warnings.Add($"'{solo.View.Name}' ({ExteriorElevationTags.PerFace(f.Face)}, on no sheet) was adopted into the 1+4 set of {dt.Id}, not duplicated.");
-                                    }
-                                }
-                                var pr = DrawingProducer.ProduceAllViews(doc, dt, ctx, opts);
+                                var solo = elevViews.FirstOrDefault(x => string.Equals(x.Type, dt.Id, StringComparison.OrdinalIgnoreCase)
+                                    && ExteriorElevationTags.IsPerFaceStamp(x.Tag, f.Face) && !placed.Contains(x.View.Id.Value));
+                                if (solo.View != null)
+                                    adopt.Add((rule, solo.View, $"'{solo.View.Name}' ({ExteriorElevationTags.PerFace(f.Face)}, on no sheet) was adopted into the 1+4 set of {dt.Id}, not duplicated."));
+                            }
+                        }
+                        ProduceResult pr = null;
+                        var label = $"{job.Tag} ({dt.Id})";
+                        // DTW-195: pre-flight; a refusal at commit is a report line, not a dialog.
+                        var outcome = runner.Run($"STING Exterior Elev {job.Tag} {dt.Id}", label,
+                            () =>
+                            {
+                                if (!runner.Preflight.Active) return null;
+                                var ids = runner.Preflight.ProductionElements(new[] { dt }, ctx);
+                                foreach (var a in adopt) ids.Add(a.View.Id);
+                                return runner.Preflight.Check(ids);
+                            },
+                            () =>
+                            {
+                                foreach (var a in adopt)
+                                    if (DrawingProducer.AdoptView(doc, dt, ctx, a.Rule, a.View)) warnings.Add(a.Note);
+                                pr = DrawingProducer.ProduceAllViews(doc, dt, ctx, opts);
                                 foreach (var vid in pr.ViewIds)
                                 {
                                     try
@@ -1283,27 +1357,21 @@ namespace StingTools.Commands.Drawing
                                     }
                                     catch (Exception ex) { warnings.Add($"{job.Tag}: far clip {elev.FarClipMm} mm not set — {ex.Message}"); }
                                 }
-                                warnings.AddRange(pr.Warnings);
-                                var status = t.Commit();
-                                if (status == TransactionStatus.Committed)
-                                {
-                                    views += pr.ViewIds.Count;
-                                    if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;
-                                }
-                                else warnings.Add($"{job.Tag} ({dt.Id}): the transaction did not commit ({status}); {pr.ViewIds.Count} view(s) were not kept.");
-                            }
-                            catch (Exception innerEx)
-                            {
-                                StingLog.Warn($"ProduceExteriorElevations {job.Tag}: {innerEx.Message}");
-                                warnings.Add($"{job.Tag} ({dt.Id}): {innerEx.Message} — rolled back.");
-                                if (t.GetStatus() == TransactionStatus.Started) t.RollBack();
-                            }
+                                BatchProduceCommons.Take(pr, warnings);   // DTW-194: a refused item rolls back
+                            },
+                            st => $"{label}: the transaction did not commit ({st}); {pr?.ViewIds.Count ?? 0} view(s) were not kept.",
+                            warnings);
+                        if (outcome == ProductionItemRunner.ItemResult.Committed && pr != null)
+                        {
+                            views += pr.ViewIds.Count;
+                            if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;
                         }
                         try { Snapshot(); }   // DTW-110
                         catch (Exception ex) { StingLog.Warn($"ProduceExteriorElevations snapshot after {job.Tag}: {ex.Message}"); }
                     }
                 }
                 tg.Assimilate();
+                if (runner.BlockedLine != null) warnings.Insert(0, runner.BlockedLine);   // DTW-194
             }
             return null;
         }
@@ -1403,7 +1471,7 @@ namespace StingTools.Commands.Drawing
                     if (updated == 0) { message += " No template was regenerated."; return Result.Failed; }
                     return Result.Succeeded;
                 }
-                BatchProduceCommons.ShowResult("Regenerate Pack Templates", updated, 0, warnings);
+                BatchProduceCommons.ShowResult("Regenerate Pack Templates", updated, 0, warnings, null, doc);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("RegeneratePackTemplates", ex); return Result.Failed; }
@@ -1427,7 +1495,7 @@ namespace StingTools.Commands.Drawing
 
                 var outDir = OutputLocationHelper.GetRoutedDirectory(doc, "PDF");
                 var result = DrawingPackageManager.ExportPackage(doc, pkgId, outDir);
-                BatchProduceCommons.ShowResult("Export Drawing Package", result.SheetCount, 0, result.Warnings);
+                BatchProduceCommons.ShowResult("Export Drawing Package", result.SheetCount, 0, result.Warnings, null, doc);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ExportPackage", ex); return Result.Failed; }

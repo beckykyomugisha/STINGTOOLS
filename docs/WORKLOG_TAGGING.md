@@ -69,13 +69,17 @@ second Revit; the Claude desktop window can sit over Revit and swallow clicks.
 2. **TAGFAM-2 second run** — *Create Tag Fams* in a throwaway project on the KUT build (now main through #1028).
 3. **TAGACC-12** — Part A **ran 2026-10-01** on origin/main `a7b7cff50` (`tools/run_revit_smoke.ps1`, add-in manifest
    moved aside for the run and restored): **all 4 tagging-accuracy tests pass**, harness integrity passes. 4 annotation
-   smoke tests did not: drainage-invert moved-pipe notes, wall-length curved-wall warning (both real, being fixed on
-   `claude/annotation-smoke-fixes`), and 2 spot-slope tests inconclusive (the metric template's slope type cannot be
-   applied / deleted). Part B (two users on a central model) still needs two people.
+   smoke tests did not; the two real ones (drainage invert, wall-length) were fixed in #1043 (DRAW-9) and the re-run on
+   `f39abffa1` passed **11/13** — only the 2 spot-slope tests remain, inconclusive because the metric template's slope type
+   cannot be applied / deleted. Part B (two users on a central model) still needs two people.
 4. ~~TAGFAM-6 timing~~ **Measured 2026-10-01**: 124 s per door tag, ~0.78 s per parameter in Revit's `AddParameter`;
    see TAGFAM-6 / TAGFAM-9.
 
 ## Decisions
+
+- *Style switches (TAGFAM-9)* — `tools/pyrevit/headless/audit_style_switches.py` (2026-10-01): all 211 shipped tag
+  families carry the 128 `TAG_*_BOOL` switches and in **none** is any switch associated with a family element; they cannot
+  change what a tag shows. New builds stop adding them (architect decision, delegated by Sting).
 
 - *Size copies via pyRevit now, plugin command later* — the live add-in slot belongs to the KUT build and
   this agent cannot redeploy it; pyRevit runs against the open family with no deploy. The same logic goes
