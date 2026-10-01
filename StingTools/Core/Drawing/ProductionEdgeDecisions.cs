@@ -51,6 +51,31 @@ namespace StingTools.Core.Drawing
         internal static bool DiscardNewSheet(bool createdThisRequest, bool placeOnSheet, int placed, int reused)
             => createdThisRequest && placeOnSheet && placed <= 0 && reused <= 0;
 
+        // ── DTW-196: a re-run keeps a fitted scale, reports a template swap ──
+
+        /// <summary>
+        /// The scale a re-run keeps for a view production fitted to its slot, or 0 to apply
+        /// the drawing type's. Kept while the type's scale is still the one the fit started
+        /// from; after the type's scale changes the view takes the new scale and is fitted
+        /// again (<see cref="RefitOnRerun"/>).
+        /// </summary>
+        internal static int ScaleOnRefresh(int typeScale, int fittedScale, int fitBaseScale)
+            => fittedScale > 0 && fitBaseScale == typeScale ? fittedScale : 0;
+
+        /// <summary>
+        /// Fit a view that is already on its sheet again? When nothing pins its scale and
+        /// either no fit was recorded (a view produced before the record existed) or the
+        /// type's scale has changed since.
+        /// </summary>
+        internal static bool RefitOnRerun(bool scalePinned, bool fitRecorded, int fitBaseScale, int typeScale)
+            => !scalePinned && (!fitRecorded || fitBaseScale != typeScale);
+
+        /// <summary>The report line for a view template a re-run replaced.</summary>
+        internal static string TemplateReplacedLine(string viewName, string oldTemplate, string newTemplate, string drawingTypeId)
+            => $"'{viewName}': view template '{(string.IsNullOrWhiteSpace(oldTemplate) ? "(unnamed)" : oldTemplate)}' was replaced by "
+             + $"{(string.IsNullOrWhiteSpace(newTemplate) ? "none" : "'" + newTemplate + "'")} (drawing type '{drawingTypeId}'). "
+             + "Lock the view's style to keep a template chosen by hand.";
+
         // ── DTW-199: a view moved to another sheet stays there ─────────
 
         /// <summary>The report line for a view kept on the sheet someone moved it to.</summary>

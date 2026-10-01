@@ -62,6 +62,37 @@ namespace StingTools.Tags.Tests
         public void An_empty_new_sheet_is_removed(bool created, bool place, int placed, int reused, bool expected)
             => Assert.Equal(expected, ProductionEdgeDecisions.DiscardNewSheet(created, place, placed, reused));
 
+        // ── DTW-196 ───────────────────────────────────────────────────
+
+        [Fact]
+        public void A_fitted_view_keeps_its_fitted_scale_on_a_rerun()
+            => Assert.Equal(200, ProductionEdgeDecisions.ScaleOnRefresh(typeScale: 100, fittedScale: 200, fitBaseScale: 100));
+
+        [Fact]
+        public void A_changed_type_scale_wins_over_an_old_fit()
+            => Assert.Equal(0, ProductionEdgeDecisions.ScaleOnRefresh(typeScale: 50, fittedScale: 200, fitBaseScale: 100));
+
+        [Fact]
+        public void No_record_means_the_type_scale()
+            => Assert.Equal(0, ProductionEdgeDecisions.ScaleOnRefresh(100, 0, 0));
+
+        [Theory]
+        [InlineData(false, false, 0, 100, true)]    // produced before the record: fit again
+        [InlineData(false, true, 100, 100, false)]  // recorded, type unchanged: kept
+        [InlineData(false, true, 100, 50, true)]    // type scale changed: fit again
+        [InlineData(true, false, 0, 100, false)]    // a pinned scale is never fitted
+        public void A_placed_view_is_fitted_again_only_when_its_fit_is_missing_or_stale(
+            bool pinned, bool recorded, int fitBase, int typeScale, bool expected)
+            => Assert.Equal(expected, ProductionEdgeDecisions.RefitOnRerun(pinned, recorded, fitBase, typeScale));
+
+        [Fact]
+        public void A_replaced_template_is_named_with_the_way_to_keep_it()
+        {
+            var line = ProductionEdgeDecisions.TemplateReplacedLine("Level 1 Power", "My Power", "STING - Electrical Plan", "elec-power-A1-1to100");
+            Assert.Contains("'My Power' was replaced by 'STING - Electrical Plan'", line);
+            Assert.Contains("Lock the view's style", line);
+        }
+
         // ── DTW-199 ───────────────────────────────────────────────────
 
         [Fact]

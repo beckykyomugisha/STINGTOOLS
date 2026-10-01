@@ -963,13 +963,23 @@ namespace StingTools.Core.Drawing
             if (_refreshedViews != null && CacheMatchesDoc(doc) && !_refreshedViews.Add(view.Id.Value)) return;
             try
             {
+                // DTW-196: a view production fitted to its slot keeps that scale (until the
+                // type's own scale changes); a rule's scaleOverride is applied after Apply.
+                int keepScale = 0;
+                if (rule?.ScaleOverride.HasValue != true)
+                {
+                    var st = ProducedViewState.Read(view);
+                    if (st != null) keepScale = ProductionEdgeDecisions.ScaleOnRefresh(dt.Scale, st.FittedScale, st.FitBaseScale);
+                }
                 var refreshOpts = new DrawingTypePresentation.ApplyOptions
                 {
                     AnnotationOptions = BuildAnnotationOptions(view, dt, rule, opts, refresh: true, out var heldBack),
                     SkipSymbolDriftCheck = true, // idempotent refresh — batch path
                     // The box this view is produced for: without it the
                     // refresh re-ran the profile's own crop over the box crop.
-                    ContextScopeBox = contextBox
+                    ContextScopeBox = contextBox,
+                    KeepScale = keepScale,
+                    ReportTemplateReplacement = true,   // DTW-196
                 };
                 var refreshed = DrawingTypePresentation.Apply(doc, view, dt, refreshOpts);
                 result.Warnings.AddRange(refreshed.Warnings);
@@ -1970,6 +1980,24 @@ namespace StingTools.Core.Drawing
                 if (IsViewAlreadyOnSheet(doc, sheetId, viewId, out var existingVpId))
                 {
                     result.ViewportsReused++;
+                    // DTW-196: a view whose fit was never recorded (produced before the
+                    // record existed), or whose type scale has changed since, is fitted
+                    // again; otherwise the refresh kept its fitted scale already.
+                    if (doc.GetElement(viewId) is View vOn && !(vOn is ViewSchedule) && PrimaryViewIdValue(vOn) < 0)
+                    {
+                        var st = ProducedViewState.Read(vOn);
+                        if (ProductionEdgeDecisions.RefitOnRerun(rule.ScaleOverride.HasValue || pinScale,
+                                st != null && st.FittedScale > 0, st?.FitBaseScale ?? 0, dt.Scale))
+                        {
+                            var spOn = SheetPlacementBridge.ResolveSlot(doc, sheetId, dt,
+                                rule.SlotIndex >= 0 ? rule.SlotIndex : 0, result, famCtx);
+                            if (spOn != null)
+                            {
+                                SheetPlacementBridge.ApplyFitScale(doc, vOn, spOn, dt.Scale, result.Warnings);
+                                ProducedViewState.RecordFit(vOn, SafeScale(vOn) ?? 0, dt.Scale);
+                            }
+                        }
+                    }
                     return existingVpId;
                 }
 
@@ -2001,7 +2029,11 @@ namespace StingTools.Core.Drawing
                 if (sp != null && !rule.ScaleOverride.HasValue && !pinScale
                     && doc.GetElement(viewId) is View vFit
                     && PrimaryViewIdValue(vFit) < 0)
+                {
                     SheetPlacementBridge.ApplyFitScale(doc, vFit, sp, dt.Scale, result.Warnings);
+                    // DTW-196: remembered, so a re-run keeps the fitted scale.
+                    if (!(vFit is ViewSchedule)) ProducedViewState.RecordFit(vFit, SafeScale(vFit) ?? 0, dt.Scale);
+                }
 
                 // SLOT-3: warn on a view/slot type mismatch rather than
                 // placing it silently into the wrong slot. DTW-63: slot terms
