@@ -12,6 +12,13 @@
 // field spelling: pset_name / property_name — a row spelled ifc_pset / ifc_property
 // is refused and logged, never guessed at.
 //
+// DSCH-38: a row may declare a value_map (STING value -> IFC value), e.g. the
+// Pset_*Common.Status rows translate DEMOLISHED <-> DEMOLISH. The map is applied in
+// both directions (TryToIfc on export, TryFromIfc on import). A value the map does
+// not list is reported (false + reason), never passed through or guessed. A map that
+// sends two STING values to one IFC value is refused at parse, because import could
+// not tell them apart.
+//
 // Revit-free: parsed and tested in StingTools.Tags.Tests.
 
 using System;
@@ -34,12 +41,44 @@ namespace StingTools.V6
         public string Direction { get; set; } = "both";           // both | export | import
         public string Notes { get; set; } = string.Empty;
         public string Verify { get; set; } = string.Empty;        // non-empty = unconfirmed target
+        /// <summary>DSCH-38: STING value -> IFC value. Null = values pass through unchanged.</summary>
+        public IReadOnlyDictionary<string, string> ValueMap { get; set; }
 
         public bool IsExport => !string.Equals(Direction, "import", StringComparison.OrdinalIgnoreCase);
 
         public bool AppliesTo(string ifcEntity) =>
             string.IsNullOrEmpty(ifcEntity) || ElementTypes == null || ElementTypes.Length == 0
             || ElementTypes.Any(t => string.Equals(t, ifcEntity, StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>Export: the IFC value for a STING value. With no value_map the value
+        /// passes through. With one, a value it does not list returns false and
+        /// <paramref name="reason"/> says why; nothing is guessed.</summary>
+        public bool TryToIfc(string stingValue, out string ifcValue, out string reason)
+        {
+            ifcValue = null; reason = null;
+            if (ValueMap == null) { ifcValue = stingValue; return true; }
+            foreach (var kv in ValueMap)
+                if (string.Equals(kv.Key, (stingValue ?? "").Trim(), StringComparison.OrdinalIgnoreCase))
+                { ifcValue = kv.Value; return true; }
+            reason = $"{StingParam} = '{stingValue}' has no IFC value in the value_map of {IfcPsetName}.{IfcPropertyName} "
+                   + $"(known: {string.Join(", ", ValueMap.Keys)})";
+            return false;
+        }
+
+        /// <summary>Import: the STING value for an IFC value (the inverse of the
+        /// value_map). An IFC value the map does not list (e.g. OTHER / NOTKNOWN /
+        /// UNSET for Status) returns false with a reason.</summary>
+        public bool TryFromIfc(string ifcValue, out string stingValue, out string reason)
+        {
+            stingValue = null; reason = null;
+            if (ValueMap == null) { stingValue = ifcValue; return true; }
+            foreach (var kv in ValueMap)
+                if (string.Equals(kv.Value, (ifcValue ?? "").Trim(), StringComparison.OrdinalIgnoreCase))
+                { stingValue = kv.Key; return true; }
+            reason = $"{IfcPsetName}.{IfcPropertyName} = '{ifcValue}' has no STING value in the value_map for {StingParam} "
+                   + $"(known: {string.Join(", ", ValueMap.Values)})";
+            return false;
+        }
     }
 
     public static class IfcPsetMapping
@@ -106,6 +145,7 @@ namespace StingTools.V6
                     Direction       = (string)t["direction"] ?? "both",
                     Notes           = (string)t["notes"] ?? string.Empty,
                     Verify          = (string)t["verify"] ?? string.Empty,
+                    ValueMap        = ParseValueMap(t["value_map"], i),
                 };
                 if (string.IsNullOrEmpty(e.StingParam) || string.IsNullOrEmpty(e.IfcPropertyName))
                     throw new InvalidDataException(
@@ -114,6 +154,26 @@ namespace StingTools.V6
                 i++;
             }
             return list;
+        }
+
+        private static IReadOnlyDictionary<string, string> ParseValueMap(JToken tok, int row)
+        {
+            if (tok == null || tok.Type == JTokenType.Null) return null;
+            if (!(tok is JObject obj))
+                throw new InvalidDataException($"STING_IFC_PSET_MAPPING.json row {row}: value_map must be an object of STING value -> IFC value");
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var seenIfc = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var p in obj.Properties())
+            {
+                if (p.Value.Type != JTokenType.String || string.IsNullOrWhiteSpace((string)p.Value) || string.IsNullOrWhiteSpace(p.Name))
+                    throw new InvalidDataException($"STING_IFC_PSET_MAPPING.json row {row}: value_map entry '{p.Name}' must map to a non-empty string");
+                if (!seenIfc.Add((string)p.Value))
+                    throw new InvalidDataException($"STING_IFC_PSET_MAPPING.json row {row}: value_map sends two STING values to IFC '{(string)p.Value}'; import could not tell them apart");
+                map[p.Name] = (string)p.Value;
+            }
+            if (map.Count == 0)
+                throw new InvalidDataException($"STING_IFC_PSET_MAPPING.json row {row}: value_map is empty");
+            return map;
         }
 
         private static List<IfcPsetEntry> Load()
@@ -140,11 +200,18 @@ namespace StingTools.V6
 
         /// <summary>
         /// Format a property-value pair as IFC STEP syntax for direct
-        /// use in an IFC writer.
+        /// use in an IFC writer. The row's value_map is applied first (DSCH-38);
+        /// a value it does not list is logged and nothing is written (null).
         /// </summary>
         public static string FormatStepPropertyValue(IfcPsetEntry entry, string rawValue)
         {
             if (entry == null || string.IsNullOrEmpty(rawValue)) return null;
+            if (!entry.TryToIfc(rawValue, out var ifcValue, out var reason))
+            {
+                StingLog.Warn($"IfcPsetMapping: not exported — {reason}");
+                return null;
+            }
+            rawValue = ifcValue;
             return entry.IfcDataType switch
             {
                 "IfcText"         => $"#?=IFCPROPERTYSINGLEVALUE('{entry.IfcPropertyName}',$,IFCTEXT('{Escape(rawValue)}'),$);",

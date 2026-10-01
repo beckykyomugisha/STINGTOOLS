@@ -10412,8 +10412,8 @@
     },
     "shared/ifc/mappings/STING_IFC_PSET_MAPPING.json": {
       "format": "json",
-      "schemaVersion": 2,
-      "description": "IFC pset <-> STING parameter map (JArray root). ONE copy (DSCH-24): linked into the plugin's data/IFC/ (StingTools.csproj) and Planscape.API's Data/IFC/ (Planscape.API.csproj); see singleCopy. Rows are ordered: export takes the first non-import row per parameter (and entity), ingest tries rows in order and the first non-empty value wins. One field spelling: pset_name / property_name (the retired ifc_pset / ifc_property is refused by both readers). A row whose IFC target is not confirmed against the buildingSMART IFC4 / IFC4X3 definitions carries a 'verify' note.",
+      "schemaVersion": 3,
+      "description": "IFC pset <-> STING parameter map (JArray root). ONE copy (DSCH-24): linked into the plugin's data/IFC/ (StingTools.csproj) and Planscape.API's Data/IFC/ (Planscape.API.csproj); see singleCopy. Rows are ordered: export takes the first non-import row per parameter (and entity), ingest tries rows in order and the first non-empty value wins. One field spelling: pset_name / property_name (the retired ifc_pset / ifc_property is refused by both readers). A row whose IFC target is not confirmed against the buildingSMART IFC4 / IFC4X3 definitions carries a 'verify' note. DSCH-38: a row may carry value_map (STING value -> IFC value, one-to-one), applied by both readers in both directions; a value it does not list is reported, never passed through.",
       "readers": [
         "StingTools/V6/IfcPsetMapping.cs",
         "Planscape.Server/src/Planscape.API/Services/IfcPsetMappingTable.cs"
@@ -10430,7 +10430,8 @@
         "scan_all_psets",
         "direction",
         "notes",
-        "verify"
+        "verify",
+        "value_map"
       ],
       "req": [
         "sting_param",
@@ -10449,7 +10450,8 @@
         "scan_all_psets": "bool",
         "direction": "str",
         "notes": "str",
-        "verify": "str"
+        "verify": "str",
+        "value_map": "dict-of-str"
       },
       "docKeys": {
         "notes": "Documentation only: read into IfcPsetEntry.Notes, used by no decision.",

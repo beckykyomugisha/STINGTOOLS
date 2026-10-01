@@ -403,6 +403,8 @@ def type_ok(value, expected):
         return isinstance(value, bool)
     if expected == "list-of-str":
         return isinstance(value, list) and all(isinstance(x, str) for x in value)
+    if expected == "dict-of-str":
+        return isinstance(value, dict) and all(isinstance(x, str) for x in value.values())
     return True
 
 
@@ -983,6 +985,13 @@ def self_test(reg):
 
     json_case(D + "IFC/ARCHICAD_IFC_MAPPING.json", "mapping targets a parameter that does not exist",
               bad_sting_param)
+    def bad_value_map(doc):
+        row = next(r for r in doc if "value_map" in r)
+        row["value_map"]["DEMOLISHED"] = 1
+        return doc
+
+    json_case("shared/ifc/mappings/STING_IFC_PSET_MAPPING.json",
+              "IFC value_map entry that is not a string (DSCH-38)", bad_value_map)
     json_case(D + "STING_NRM2_MEASUREMENT_RULES.json", "missing required key",
               lambda d: (d["rules"][0].pop("unit"), d)[1])
 
