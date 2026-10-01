@@ -7,7 +7,8 @@
     "'BS 8680 classes A/B/C' were not a real classification and are removed.",
     "maxSetC = maximum set delivery temperature; neverExceedC = highest acceptable measured outlet temperature.",
     "A row with a 'verify' text is not confirmed against the primary standard: confirm it before relying on it.",
-    "Approved Document G G3(4) caps a bath in a new dwelling in England at 48 C; the 44 C rows below are stricter and govern."
+    "Approved Document G G3(4) caps a bath in a new dwelling in England at 48 C; the 44 C rows below are stricter and govern.",
+    "Scotland is not modelled: SHTM 04-01 Part A v2 (July 2014) Table 4 sets general baths 43 C and paediatric baths 40 C, stricter than the England rows here (DSCH-36). A Scottish project must not rely on the 44 C bath row."
   ],
   "version": "2.0",
   "healthcareRequiredScheme": "TMV3",

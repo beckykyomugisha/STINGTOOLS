@@ -50,6 +50,7 @@
          PH-CSP rows (STING_HC_PHARMACY_USP.json owns those). Revit-free. -->
     <Compile Include="..\StingTools.Standards\HTM\HTMStandards.cs" Link="Standards\HTMStandards.cs" />
     <Compile Include="..\StingTools.Standards\ASHRAE170\ASHRAE170Standards.cs" Link="Standards\ASHRAE170Standards.cs" />
+    <Compile Include="..\StingTools.Standards\HTM\HtmRegionalVariants.cs" Link="Standards\HtmRegionalVariants.cs" />
   </ItemGroup>
 
 </Project>
