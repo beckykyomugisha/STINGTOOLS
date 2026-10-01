@@ -301,33 +301,44 @@ namespace StingTools.Tags
             // Also include non-registry params (the CSV has many params beyond tag containers)
             var lines = File.ReadAllLines(path)
                 .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
-                .Skip(1) // header
                 .ToList();
 
             int formulaCount = 0;
             int unknownRefs = 0;
             var unknownParams = new HashSet<string>();
+            if (lines.Count == 0) { report.AppendLine("  No header row - skipped"); return; }
 
-            foreach (string line in lines)
+            // DSCH round 2: columns by HEADER NAME. This used to read cols[0] as the
+            // formula's target - that is Discipline - and every later column (data
+            // type, the formula text, units, the GUID...) as a "dependency", so every
+            // row reported unknown params and the report could never be clean.
+            var header = StingToolsApp.ParseCsvLine(lines[0]).Select(h => h.Trim()).ToList();
+            int targetIdx = header.FindIndex(h => h.Equals("Parameter_Name", StringComparison.OrdinalIgnoreCase));
+            int inputsIdx = header.FindIndex(h => h.Equals("Input_Parameters", StringComparison.OrdinalIgnoreCase));
+            if (targetIdx < 0)
+            {
+                report.AppendLine("  Header has no Parameter_Name column - skipped (see tools/data_schemas.json)");
+                return;
+            }
+
+            foreach (string line in lines.Skip(1))
             {
                 string[] cols = StingToolsApp.ParseCsvLine(line);
-                if (cols.Length < 2) continue;
+                if (cols.Length <= targetIdx) continue;
                 formulaCount++;
 
-                // Check target param exists in registry
-                string target = cols[0].Trim();
+                string target = cols[targetIdx].Trim();
                 if (!string.IsNullOrEmpty(target) && !knownParams.Contains(target))
                 {
                     unknownParams.Add(target);
                     unknownRefs++;
                 }
 
-                // Check dependency params (col index 2+) if present
-                for (int i = 2; i < cols.Length; i++)
+                if (inputsIdx < 0 || cols.Length <= inputsIdx) continue;
+                foreach (string raw in cols[inputsIdx].Split(','))
                 {
-                    string dep = cols[i].Trim();
-                    if (!string.IsNullOrEmpty(dep) && !knownParams.Contains(dep)
-                        && !dep.StartsWith("=") && !dep.Contains("("))
+                    string dep = raw.Trim();
+                    if (!string.IsNullOrEmpty(dep) && !knownParams.Contains(dep))
                     {
                         unknownParams.Add(dep);
                         unknownRefs++;
