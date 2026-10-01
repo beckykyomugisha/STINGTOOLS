@@ -986,6 +986,45 @@
         }
       ]
     },
+    "StingTools/Data/COBIE_ATTRIBUTE_TEMPLATES.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "COBie attribute templates per sheet. Header pinned from the shipped file (DSCH round 2, after the ragged-row fixes).",
+      "readers": [
+        "StingTools/Temp/COBieDataCommands.cs (ParseCsvLine, by position)",
+        "tools/check_param_name_targets.py (DictReader)"
+      ],
+      "columns": [
+        {
+          "name": "SheetName",
+          "type": "str"
+        },
+        {
+          "name": "RowNamePattern",
+          "type": "str"
+        },
+        {
+          "name": "AttributeName",
+          "type": "str"
+        },
+        {
+          "name": "Unit",
+          "type": "str"
+        },
+        {
+          "name": "Description",
+          "type": "str"
+        },
+        {
+          "name": "AllowedValues",
+          "type": "str"
+        },
+        {
+          "name": "StingParamKey",
+          "type": "str"
+        }
+      ]
+    },
     "StingTools/Data/COBIE_DOCUMENT_TYPES.csv": {
       "format": "csv-table",
       "schemaVersion": 1,
@@ -1574,6 +1613,134 @@
         }
       ]
     },
+    "StingTools/Data/FAMILY_PARAMETER_BINDINGS.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Family parameter bindings for Batch Add Family Params. Header pinned from the shipped file (DSCH round 2, after the ragged-row fixes).",
+      "readers": [
+        "StingTools/Temp/TemplateManagerCommands.cs LoadFamilyParameterBindings (ParseCsvLine, by position, >= 8 fields)",
+        "tools/binding_simulator.py and tools/validate_param_readership.py (naive split(',') - Description must never contain a comma)"
+      ],
+      "columns": [
+        {
+          "name": "ParameterGroup",
+          "type": "str"
+        },
+        {
+          "name": "ParameterName",
+          "type": "str"
+        },
+        {
+          "name": "GUID",
+          "type": "str"
+        },
+        {
+          "name": "DataType",
+          "type": "str"
+        },
+        {
+          "name": "BindingType",
+          "type": "str"
+        },
+        {
+          "name": "Description",
+          "type": "str"
+        },
+        {
+          "name": "RevitCategory",
+          "type": "str"
+        },
+        {
+          "name": "Maps_To_Shared_Param_GUID",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/FORMULAS_WITH_DEPENDENCIES.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Parameter formulas: FormulaEngine (tag pipeline step 5) and family formula authoring. Header pinned from the shipped file (DSCH round 2, after the ragged-row fixes).",
+      "readers": [
+        "StingTools/Temp/FormulaEvaluatorCommand.cs FormulaEngine.LoadFormulas (>= 10 fields, else dropped with a G-6 warning)",
+        "StingTools/Temp/TemplateManagerCommands.cs (Parameter_Name + Revit_Formula, >= 4 fields)",
+        "tools/validate_dual_owner.py"
+      ],
+      "columns": [
+        {
+          "name": "Discipline",
+          "type": "str"
+        },
+        {
+          "name": "Parameter_Name",
+          "type": "str",
+          "required": true,
+          "refersTo": {
+            "kind": "shared-param-names",
+            "file": "StingTools/Data/MR_PARAMETERS.txt"
+          }
+        },
+        {
+          "name": "Data_Type",
+          "type": "str"
+        },
+        {
+          "name": "Revit_Formula",
+          "type": "str"
+        },
+        {
+          "name": "Description",
+          "type": "str"
+        },
+        {
+          "name": "Input_Parameters",
+          "type": "str",
+          "refersTo": {
+            "kind": "shared-param-names",
+            "file": "StingTools/Data/MR_PARAMETERS.txt",
+            "split": ",",
+            "alsoAllowed": [
+              "Width",
+              "Height",
+              "Length",
+              "Thickness",
+              "Diameter",
+              "Tile_Width",
+              "Tile_Height",
+              "RGL_KCCA_APPROVAL_TXT",
+              "RGL_NEMA_APPROVAL_TXT",
+              "RGL_UMEME_APPROVAL_TXT"
+            ],
+            "alsoAllowedReason": "Width/Height/Length/Thickness/Diameter/Tile_* are Revit built-in or family geometry names, not shared parameters. The three RGL_*_APPROVAL_TXT do not exist (the real ones are *_REQ_TXT / *_REQ_BOOL / *_CERT_*); listed so the gate can ship, tracked as ROADMAP DSCH-4 - delete them from this list when fixed."
+          }
+        },
+        {
+          "name": "Unit",
+          "type": "str"
+        },
+        {
+          "name": "Parameter_GUID",
+          "type": "str"
+        },
+        {
+          "name": "Parameter_Description",
+          "type": "str"
+        },
+        {
+          "name": "Dependency_Level",
+          "type": "num"
+        },
+        {
+          "name": "Uses_Builtin_Geometry",
+          "type": "str"
+        },
+        {
+          "name": "Builtin_Inputs",
+          "type": "str"
+        }
+      ],
+      "minFields": 4,
+      "minFieldsReason": "The *_TAG_7_PARA_* rows carry only Discipline, Parameter_Name, Data_Type and Revit_Formula: family formula authoring (TemplateManagerCommands) uses them, FormulaEngine deliberately drops them (G-6) because the paragraphs are built by WriteTag7All. ROADMAP DSCH-3."
+    },
     "StingTools/Data/Fabrication/STING_ISO_SYMBOLS_INDEX.csv": {
       "format": "csv-table",
       "schemaVersion": 1,
@@ -1713,6 +1880,33 @@
         }
       ]
     },
+    "StingTools/Data/LUX_TARGETS_EN12464.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "EN 12464-1 maintained illuminance targets by room code. Header pinned from the shipped file (DSCH round 2, after the ragged-row fixes).",
+      "readers": [
+        "StingTools/Core/Placement/LightingGridCalculator.cs (ParseCsvLine; reads room_code, target_lux_Em)"
+      ],
+      "columns": [
+        {
+          "name": "room_code",
+          "type": "str"
+        },
+        {
+          "name": "target_lux_Em",
+          "type": "num"
+        },
+        {
+          "name": "notes",
+          "type": "str"
+        }
+      ],
+      "unique": [
+        [
+          "room_code"
+        ]
+      ]
+    },
     "StingTools/Data/Labour/STING_LABOUR_RATES.csv": {
       "format": "csv-table",
       "schemaVersion": 1,
@@ -1741,6 +1935,40 @@
         {
           "name": "48.00",
           "type": "num"
+        }
+      ]
+    },
+    "StingTools/Data/MATERIAL_LOOKUP.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Material property lookup (density, ratios, carbon...). Header pinned from the shipped file (DSCH round 2, after the ragged-row fixes).",
+      "readers": [
+        "StingTools/UI/MaterialLookupParser.cs (quote-aware, by header name)"
+      ],
+      "columns": [
+        {
+          "name": "Category",
+          "type": "str"
+        },
+        {
+          "name": "TypeKey",
+          "type": "str"
+        },
+        {
+          "name": "Property",
+          "type": "str"
+        },
+        {
+          "name": "Value",
+          "type": "str"
+        },
+        {
+          "name": "Unit",
+          "type": "str"
+        },
+        {
+          "name": "Description",
+          "type": "str"
         }
       ]
     },
@@ -2352,6 +2580,431 @@
         }
       ]
     },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.accessibility.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "readers": [
+        "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Placement/PlacementRule.cs",
+        "PlacementRuleSet"
+      ],
+      "req": [
+        "Rules"
+      ],
+      "children": {
+        "Rules": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Placement/PlacementRule.cs",
+            "PlacementRule"
+          ]
+        }
+      }
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.architecture.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "readers": [
+        "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Placement/PlacementRule.cs",
+        "PlacementRuleSet"
+      ],
+      "req": [
+        "Rules"
+      ],
+      "children": {
+        "Rules": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Placement/PlacementRule.cs",
+            "PlacementRule"
+          ]
+        }
+      }
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.baseline-extensions.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "readers": [
+        "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Placement/PlacementRule.cs",
+        "PlacementRuleSet"
+      ],
+      "req": [
+        "Rules"
+      ],
+      "children": {
+        "Rules": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Placement/PlacementRule.cs",
+            "PlacementRule"
+          ]
+        }
+      }
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.baseline-extensions2.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "readers": [
+        "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Placement/PlacementRule.cs",
+        "PlacementRuleSet"
+      ],
+      "req": [
+        "Rules"
+      ],
+      "children": {
+        "Rules": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Placement/PlacementRule.cs",
+            "PlacementRule"
+          ]
+        }
+      }
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.ceiling-pendants.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "readers": [
+        "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Placement/PlacementRule.cs",
+        "PlacementRuleSet"
+      ],
+      "req": [
+        "Rules"
+      ],
+      "children": {
+        "Rules": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Placement/PlacementRule.cs",
+            "PlacementRule"
+          ]
+        }
+      }
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.commissioning.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "readers": [
+        "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Placement/PlacementRule.cs",
+        "PlacementRuleSet"
+      ],
+      "req": [
+        "Rules"
+      ],
+      "children": {
+        "Rules": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Placement/PlacementRule.cs",
+            "PlacementRule"
+          ]
+        }
+      }
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.conduiting-phase.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "readers": [
+        "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Placement/PlacementRule.cs",
+        "PlacementRuleSet"
+      ],
+      "req": [
+        "Rules"
+      ],
+      "children": {
+        "Rules": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Placement/PlacementRule.cs",
+            "PlacementRule"
+          ]
+        }
+      }
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.electrical.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "readers": [
+        "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Placement/PlacementRule.cs",
+        "PlacementRuleSet"
+      ],
+      "req": [
+        "Rules"
+      ],
+      "children": {
+        "Rules": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Placement/PlacementRule.cs",
+            "PlacementRule"
+          ]
+        }
+      }
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.healthcare-education.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "readers": [
+        "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Placement/PlacementRule.cs",
+        "PlacementRuleSet"
+      ],
+      "req": [
+        "Rules"
+      ],
+      "children": {
+        "Rules": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Placement/PlacementRule.cs",
+            "PlacementRule"
+          ]
+        }
+      }
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.in-wall-chase.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "readers": [
+        "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Placement/PlacementRule.cs",
+        "PlacementRuleSet"
+      ],
+      "req": [
+        "Rules"
+      ],
+      "children": {
+        "Rules": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Placement/PlacementRule.cs",
+            "PlacementRule"
+          ]
+        }
+      }
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "readers": [
+        "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Placement/PlacementRule.cs",
+        "PlacementRuleSet"
+      ],
+      "req": [
+        "Rules"
+      ],
+      "children": {
+        "Rules": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Placement/PlacementRule.cs",
+            "PlacementRule"
+          ]
+        }
+      }
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.mechanical.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "readers": [
+        "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Placement/PlacementRule.cs",
+        "PlacementRuleSet"
+      ],
+      "req": [
+        "Rules"
+      ],
+      "children": {
+        "Rules": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Placement/PlacementRule.cs",
+            "PlacementRule"
+          ]
+        }
+      }
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.medical-gases.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "readers": [
+        "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Placement/PlacementRule.cs",
+        "PlacementRuleSet"
+      ],
+      "req": [
+        "Rules"
+      ],
+      "children": {
+        "Rules": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Placement/PlacementRule.cs",
+            "PlacementRule"
+          ]
+        }
+      }
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.mk-electrical.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "readers": [
+        "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Placement/PlacementRule.cs",
+        "PlacementRuleSet"
+      ],
+      "req": [
+        "Rules"
+      ],
+      "children": {
+        "Rules": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Placement/PlacementRule.cs",
+            "PlacementRule"
+          ]
+        }
+      }
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.routing.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "readers": [
+        "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Placement/PlacementRule.cs",
+        "PlacementRuleSet"
+      ],
+      "req": [
+        "Rules"
+      ],
+      "children": {
+        "Rules": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Placement/PlacementRule.cs",
+            "PlacementRule"
+          ]
+        }
+      }
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.toilet-fixtures.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "readers": [
+        "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Placement/PlacementRule.cs",
+        "PlacementRuleSet"
+      ],
+      "req": [
+        "Rules"
+      ],
+      "children": {
+        "Rules": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Placement/PlacementRule.cs",
+            "PlacementRule"
+          ]
+        }
+      }
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.windows-glazing.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "readers": [
+        "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Placement/PlacementRule.cs",
+        "PlacementRuleSet"
+      ],
+      "req": [
+        "Rules"
+      ],
+      "children": {
+        "Rules": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Placement/PlacementRule.cs",
+            "PlacementRule"
+          ]
+        }
+      }
+    },
     "StingTools/Data/Plumbing/STING_BS5422_INSULATION.csv": {
       "format": "csv-table",
       "schemaVersion": 1,
@@ -2600,6 +3253,85 @@
         }
       ]
     },
+    "StingTools/Data/STING_COMMODITY_RATES.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Commodity supplier rates (UGX) for the material schedule. Header pinned from the shipped file (DSCH round 2, after the ragged-row fixes).",
+      "readers": [
+        "StingTools/Core/MaterialSchedule/CommodityRateResolver.cs ParseCsv (SplitCsvLine, by position)"
+      ],
+      "columns": [
+        {
+          "name": "CommodityKey",
+          "type": "str"
+        },
+        {
+          "name": "SupplierUnit",
+          "type": "str"
+        },
+        {
+          "name": "RateUGX",
+          "type": "num"
+        },
+        {
+          "name": "Description",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/STING_CSI_MASTERFORMAT_MAP.csv": {
+      "format": "csv-table",
+      "schemaVersion": 2,
+      "description": "CSI MasterFormat resolution rules (corporate baseline; a project overlay csi_map.csv uses the same layout). v2: header now names columns 9 Material (KUT-10) and 10 Phase (KUT-5), which rows had carried unnamed.",
+      "readers": [
+        "StingTools/Core/Classification/CsiMasterFormat.cs ParseCsvLines (naive Split(',',10) by position - never quote a field; a comma is only safe in Phase)",
+        "tools/qs_nrm2_review.py"
+      ],
+      "columns": [
+        {
+          "name": "Category",
+          "type": "str"
+        },
+        {
+          "name": "FamilyRegex",
+          "type": "str"
+        },
+        {
+          "name": "TypeRegex",
+          "type": "str"
+        },
+        {
+          "name": "Sys",
+          "type": "str"
+        },
+        {
+          "name": "Section",
+          "type": "str"
+        },
+        {
+          "name": "Title",
+          "type": "str"
+        },
+        {
+          "name": "Nrm2",
+          "type": "num"
+        },
+        {
+          "name": "Unit",
+          "type": "str"
+        },
+        {
+          "name": "Material",
+          "type": "str"
+        },
+        {
+          "name": "Phase",
+          "type": "str"
+        }
+      ],
+      "minFields": 6,
+      "minFieldsReason": "Nrm2, Unit, Material and Phase are optional trailing columns; the reader loads rows of 6-10 fields so overlays written against any earlier column count keep working."
+    },
     "StingTools/Data/STING_DEFAULT_COST_RATES.csv": {
       "format": "csv-table",
       "schemaVersion": 1,
@@ -2788,6 +3520,24 @@
         }
       ]
     },
+    "StingTools/Data/STING_MATERIAL_CLASS_NORMALISER.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "MaterialClass canonical-name regexes, first match wins. Header pinned from the shipped file (DSCH round 2, after the ragged-row fixes). A pattern containing a comma MUST be quoted.",
+      "readers": [
+        "StingTools/UI/MaterialClassNormaliser.cs (ParseCsvLine)"
+      ],
+      "columns": [
+        {
+          "name": "RawPattern",
+          "type": "str"
+        },
+        {
+          "name": "Canonical",
+          "type": "str"
+        }
+      ]
+    },
     "StingTools/Data/STING_MATERIAL_DISCIPLINE_AFFINITY.csv": {
       "format": "csv-table",
       "schemaVersion": 1,
@@ -2810,6 +3560,34 @@
           "type": "str"
         }
       ]
+    },
+    "StingTools/Data/STING_MATERIAL_PROD_OVERRIDES.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Material -> PROD overrides. Header pinned from the shipped file (DSCH round 2, after the ragged-row fixes).",
+      "readers": [
+        "StingTools/Core/MaterialProdOverrideRules.cs (naive Split(',',4) - never quote a field here)"
+      ],
+      "columns": [
+        {
+          "name": "Category",
+          "type": "str"
+        },
+        {
+          "name": "MaterialPattern",
+          "type": "str"
+        },
+        {
+          "name": "Suffix",
+          "type": "str"
+        },
+        {
+          "name": "ExcludePattern",
+          "type": "str"
+        }
+      ],
+      "minFields": 3,
+      "minFieldsReason": "ExcludePattern is optional; the reader accepts 3 or 4 fields (see the file's own comment)."
     },
     "StingTools/Data/STING_MATERIAL_UNICLASS.csv": {
       "format": "csv-table",
@@ -3791,10 +4569,6 @@
       "format": "csv-sections",
       "reason": "Multi-table file: several header rows, one per section. Encoding and line endings are checked; each section's columns are not."
     },
-    "StingTools/Data/COBIE_ATTRIBUTE_TEMPLATES.csv": {
-      "format": "csv-table",
-      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
-    },
     "StingTools/Data/CODE_LEGEND.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
@@ -3806,14 +4580,6 @@
     "StingTools/Data/FAMILY_LIBRARY_MANIFEST.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/FAMILY_PARAMETER_BINDINGS.csv": {
-      "format": "csv-table",
-      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
-    },
-    "StingTools/Data/FORMULAS_WITH_DEPENDENCIES.csv": {
-      "format": "csv-table",
-      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
     },
     "StingTools/Data/Fabrication/STING_FAB_RULES.json": {
       "format": "json",
@@ -3907,14 +4673,6 @@
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },
-    "StingTools/Data/LUX_TARGETS_EN12464.csv": {
-      "format": "csv-table",
-      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
-    },
-    "StingTools/Data/MATERIAL_LOOKUP.csv": {
-      "format": "csv-table",
-      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
-    },
     "StingTools/Data/MATERIAL_SCHEMA.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
@@ -3992,74 +4750,6 @@
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },
     "StingTools/Data/Placement/STING_MANUFACTURER_CATALOGUE.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Placement/STING_PLACEMENT_RULES.accessibility.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Placement/STING_PLACEMENT_RULES.architecture.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Placement/STING_PLACEMENT_RULES.baseline-extensions.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Placement/STING_PLACEMENT_RULES.baseline-extensions2.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Placement/STING_PLACEMENT_RULES.ceiling-pendants.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Placement/STING_PLACEMENT_RULES.commissioning.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Placement/STING_PLACEMENT_RULES.conduiting-phase.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Placement/STING_PLACEMENT_RULES.electrical.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Placement/STING_PLACEMENT_RULES.healthcare-education.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Placement/STING_PLACEMENT_RULES.in-wall-chase.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Placement/STING_PLACEMENT_RULES.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Placement/STING_PLACEMENT_RULES.mechanical.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Placement/STING_PLACEMENT_RULES.medical-gases.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Placement/STING_PLACEMENT_RULES.mk-electrical.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Placement/STING_PLACEMENT_RULES.routing.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Placement/STING_PLACEMENT_RULES.toilet-fixtures.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Placement/STING_PLACEMENT_RULES.windows-glazing.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },
@@ -4151,10 +4841,6 @@
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },
-    "StingTools/Data/STING_COMMODITY_RATES.csv": {
-      "format": "csv-table",
-      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
-    },
     "StingTools/Data/STING_CONSTRUCTION_PROFILES.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
@@ -4170,10 +4856,6 @@
     "StingTools/Data/STING_COUNTRIES.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/STING_CSI_MASTERFORMAT_MAP.csv": {
-      "format": "csv-table",
-      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
     },
     "StingTools/Data/STING_CTF_COEFFICIENTS.json": {
       "format": "json",
@@ -4311,17 +4993,9 @@
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },
-    "StingTools/Data/STING_MATERIAL_CLASS_NORMALISER.csv": {
-      "format": "csv-table",
-      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
-    },
     "StingTools/Data/STING_MATERIAL_PACKS.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/STING_MATERIAL_PROD_OVERRIDES.csv": {
-      "format": "csv-table",
-      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
     },
     "StingTools/Data/STING_MATERIAL_RULES.json": {
       "format": "json",
@@ -4464,12 +5138,12 @@
       "reason": "Multi-table file: several header rows, one per section. Encoding and line endings are checked; each section's columns are not."
     },
     "StingTools/Data/STING_TAG_CONFIG_v5_0_HEALTH.csv": {
-      "format": "csv-table",
-      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
+      "format": "csv-sections",
+      "reason": "Record-typed, headerless: TAG_FAMILY rows (7 fields, read by TagConfigCsvReader / TagConfigDeclarations) and numbered warning rows (9 fields) after a '# Format:' comment."
     },
     "StingTools/Data/STING_TAG_CONFIG_v5_0_HEALTH_DesignConstruction.csv": {
-      "format": "csv-table",
-      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
+      "format": "csv-sections",
+      "reason": "Record-typed, headerless: TAG_FAMILY rows (7 fields, read by TagConfigCsvReader / TagConfigDeclarations) and numbered warning rows (9 fields) after a '# Format:' comment."
     },
     "StingTools/Data/STING_TAG_CONFIG_v5_0_MEP.csv": {
       "format": "csv-sections",
@@ -4564,8 +5238,8 @@
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },
     "StingTools/Data/STRUCTURAL_EXCEL_TEMPLATE.csv": {
-      "format": "csv-table",
-      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
+      "format": "csv-sections",
+      "reason": "Six sections, each with its own header row. Read by NOTHING: StrExcelTemplateCommand builds its xlsx in code (Model/ExcelStructuralEngine.cs). Reference only - ROADMAP DSCH-5."
     },
     "StingTools/Data/Schemas/STING_DRAWING_TYPES.schema.json": {
       "format": "json",
@@ -5118,6 +5792,10 @@
     "project-templates/KUT/_BIM_COORD/tag_schemes.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "tools/data_schemas.json": {
+      "format": "json",
+      "reason": "This registry. Its shape is enforced by tools/validate_data_schemas.py load_registry (registryVersion) and every entry is exercised on each run."
     },
     "tools/drawing_binding_contract.json": {
       "format": "json",

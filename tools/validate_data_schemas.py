@@ -131,8 +131,30 @@ def _read_source(rel_path):
         _source_cache[rel_path] = None
         return None
     with io.open(full, "r", encoding="utf-8-sig", errors="replace") as fh:
-        _source_cache[rel_path] = fh.read()
+        _source_cache[rel_path] = _code_only(fh.read())
     return _source_cache[rel_path]
+
+
+_CODE_NOISE = re.compile(
+    r'//[^\n]*'                        # line comment (incl. /// doc comments)
+    r'|/\*.*?\*/'                      # block comment
+    r'|@"(?:[^"]|"")*"'                # verbatim string
+    r'|"(?:\\.|[^"\\\n])*"'            # regular string
+    r"|'(?:\\.|[^'\\\n])'",            # char literal
+    re.S)
+
+
+def _code_only(src):
+    """
+    Blank out comments and string literals, keeping the text the same length.
+
+    The class scanner counts braces and looks for `class Foo`. A doc comment saying
+    "the wet zone class this fixture is rated for" matched as `class this`, and the
+    nested-class stripper then deleted the properties after it - so WetZoneClass,
+    BuildingType and WetZoneExclusion read as UNKNOWN on 81 placement rules that
+    bind them correctly. A "{" inside a string would miscount the braces the same way.
+    """
+    return _CODE_NOISE.sub(lambda m: " " * len(m.group(0)), src)
 
 
 def poco_properties(rel_path, class_name):
@@ -432,21 +454,35 @@ def validate_csv_table(rel, schema):
     unique = [tuple(u) for u in schema.get("unique", [])]
     seen_keys = {u: {} for u in unique}
     n = len(present)
+    # minFields: a DECLARED allowance for rows that stop early because their reader
+    # treats the trailing columns as optional (it says why in "minFieldsReason").
+    # Never an allowance for MORE fields than the header: that is always a split.
+    min_fields = schema.get("minFields", n)
+    refs = {c["name"]: _ref_set(c["refersTo"], rel) for c in cols if "refersTo" in c}
 
     for ln, row in enumerate(rows[hdr_idx + 1:], start=hdr_idx + 2):
         if _is_comment_or_blank(row):
             continue
-        if len(row) != n:
-            cause = ("an unquoted comma inside a field split it in two — quote the field"
+        if len(row) > n or len(row) < min_fields:
+            cause = ("an unquoted comma inside a field split it in two - quote the field"
                      if len(row) > n else
-                     "trailing fields are missing — every row must carry every column, "
-                     "even when empty")
+                     f"trailing fields are missing - this schema requires at least "
+                     f"{min_fields} fields per row")
             err(f"{rel}:{ln}: row has {len(row)} fields, header has {n}: {cause}. "
                 f"Every column after the split is read from its neighbour.")
             continue
+        row = row + [""] * (n - len(row))
         for name, i in idx.items():
             col = _col(cols, name)
             cell = row[i].strip()
+            if name in refs and cell and refs[name] is not None:
+                ref = col["refersTo"]
+                parts = [x.strip() for x in cell.split(ref["split"])] if ref.get("split") else [cell]
+                for part in parts:
+                    if part and part not in refs[name] and part not in ref.get("alsoAllowed", []):
+                        err(f"{rel}:{ln}: column '{name}' names '{part}', which does not "
+                            f"exist in {ref['file']} ({ref['kind']}). A name that resolves to "
+                            f"nothing is skipped at runtime without an error.")
             if not cell:
                 if col.get("required"):
                     err(f"{rel}:{ln}: column '{name}' is required but empty")
@@ -471,6 +507,37 @@ def validate_csv_table(rel, schema):
 
 def _col(cols, name):
     return next((c for c in cols if c["name"] == name), {})
+
+
+_ref_cache = {}
+
+
+def _ref_set(ref, where):
+    """The set of names a refersTo points at. Kinds:
+         shared-param-names : column 3 of the PARAM rows of a Revit shared-parameter file
+         csv-column         : every value of `column` in a registered CSV
+    """
+    key = (ref.get("kind"), ref.get("file"), ref.get("column"))
+    if key in _ref_cache:
+        return _ref_cache[key]
+    path = os.path.join(REPO, ref["file"])
+    names = None
+    try:
+        with io.open(path, encoding="utf-8-sig", newline="") as fh:
+            text = fh.read()
+        if ref["kind"] == "shared-param-names":
+            names = {f[2] for f in (ln.split("	") for ln in text.splitlines())
+                     if len(f) > 2 and f[0] == "PARAM"}
+        elif ref["kind"] == "csv-column":
+            rows = [r for r in csv.reader(io.StringIO(text)) if not _is_comment_or_blank(r)]
+            i = [c.strip() for c in rows[0]].index(ref["column"])
+            names = {r[i].strip() for r in rows[1:] if len(r) > i}
+        else:
+            err(f"{where}: refersTo kind {ref['kind']!r} is not one this validator knows.")
+    except (OSError, ValueError, IndexError) as ex:
+        err(f"{where}: refersTo target {ref['file']} could not be read - {ex}")
+    _ref_cache[key] = names
+    return names
 
 
 def validate_structural(rel, fmt):
@@ -684,6 +751,8 @@ def self_test(reg):
               add_unknown_json(["drawingTypes", 0, "crop"]))
     json_case(D + "BOQ_DESCRIPTIONS.json", "unknown key on a description",
               add_unknown_json([0]))
+    json_case(D + "Placement/STING_PLACEMENT_RULES.json", "unknown key on a placement rule",
+              add_unknown_json(["Rules", 0]))
     json_case(D + "STING_NRM2_MEASUREMENT_RULES.json", "missing required key",
               lambda d: (d["rules"][0].pop("unit"), d)[1])
 
@@ -752,6 +821,27 @@ def self_test(reg):
     text_case(COST, "mixed line endings", mixed_eol)
     text_case(COST, "not UTF-8", not_utf8)
     text_case(D + "STING_DEFAULT_COST_RATES.csv", "non-numeric rate", csv_break_number(1))
+
+    FORM = D + "FORMULAS_WITH_DEPENDENCIES.csv"
+
+    def short_row(text):
+        # Below the declared minFields (4): the reader would drop it.
+        lines, _, row = first_data_line(text)
+        lines[row] = ",".join(next(csv.reader([lines[row]]))[:3])
+        return "\n".join(lines)
+
+    def bogus_input(text):
+        lines, _, row = first_data_line(text)
+        f = next(csv.reader([lines[row]]))
+        f[5] = (f[5] + ", " if f[5] else "") + "NO_SUCH_PARAM_TXT"
+        out = io.StringIO()
+        csv.writer(out, lineterminator="").writerow(f)
+        lines[row] = out.getvalue()
+        return "\n".join(lines)
+
+    text_case(FORM, "row shorter than minFields", short_row)
+    text_case(FORM, "Input_Parameters names a parameter that does not exist", bogus_input)
+    text_case(FORM, "row split by an unquoted comma (minFields file)", csv_unquoted_comma)
     text_case(D + "BOQ_DESCRIPTIONS.json", "duplicate JSON key",
               lambda t: t.replace('"category"', '"category": "dup", "category"', 1))
     text_case(D + "BOQ_DESCRIPTIONS.json", "empty file", lambda t: "")
@@ -794,7 +884,16 @@ def self_test(reg):
             failures.append("coverage: an unregistered data file was NOT caught")
         if not any("__no_such_file__" in e for e in errors):
             failures.append("coverage: a registered file that does not exist was NOT caught")
-        total = len(cases) + 2
+        total = len(cases) + 3
+
+        # The other direction: no FALSE unknown key. A doc comment "...the wet zone
+        # class this fixture is rated for" once read as `class this` and hid the
+        # properties after it, so correctly-bound keys failed. A gate that cries wolf
+        # gets its findings ignored.
+        props = poco_properties("StingTools/Core/Placement/PlacementRule.cs", "PlacementRule") or set()
+        if not {"WetZoneClass", "BuildingType", "WetZoneExclusion"} <= props:
+            failures.append("POCO scan: a comment containing 'class' truncated PlacementRule "
+                            "- correctly-bound keys would be reported UNKNOWN")
     finally:
         ROOT = REPO
         errors, warnings, checked_files = [], [], 0
