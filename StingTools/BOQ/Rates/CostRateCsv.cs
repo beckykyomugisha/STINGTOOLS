@@ -37,6 +37,29 @@ namespace StingTools.BOQ.Rates
         public double? RateUgx;
         public string Unit = "";
         public string Description = "";
+
+        /// <summary>DSCH-26 — a rate cell holding NIL / INCL / INCL:&lt;ref&gt; instead of a
+        /// number. Priced (the default) for every numeric row.</summary>
+        public RateOutcome Outcome = RateOutcome.Priced;
+        /// <summary>The reference after INCL: — where the cost is carried. Empty otherwise.</summary>
+        public string IncludedIn = "";
+
+        /// <summary>DSCH-26 — the row's rate is a bare 0 with no NIL / INCL declaration.
+        /// It stays in <see cref="CostRateCsv.Result.Rows"/> (it is what the file says)
+        /// but is NOT a rate: the table builder leaves it out, so the item is priced by
+        /// the next match or reported as not priced.</summary>
+        public bool IsUndeclaredZero =>
+            Outcome == RateOutcome.Priced
+            && ((RateUgx.HasValue && RateUgx.Value == 0 && !(RateUsd > 0))
+                || (!RateUgx.HasValue && RateUsd.HasValue && RateUsd.Value == 0));
+    }
+
+    /// <summary>DSCH-26 — a key the rate file declares Nil or Included.</summary>
+    public sealed class DeclaredRate
+    {
+        public RateOutcome Outcome;
+        public string IncludedIn = "";
+        public string Unit = "each";
     }
 
     /// <summary>
@@ -135,8 +158,16 @@ namespace StingTools.BOQ.Rates
             r.Prod = Cell(cols, Prod);
             r.MatCode = Cell(cols, MatCode);
             r.Discipline = Cell(cols, Discipline);
-            r.RateUsd = Num(Cell(cols, RateUsd));
-            r.RateUgx = Num(Cell(cols, RateUgx));
+            string usdCell = Cell(cols, RateUsd), ugxCell = Cell(cols, RateUgx);
+            r.RateUsd = Num(usdCell);
+            r.RateUgx = Num(ugxCell);
+            // DSCH-26 — a declaration in either rate cell. The other cell may be
+            // blank or repeat the same declaration; a number there contradicts it,
+            // and Parse reports the row.
+            if (RateOutcomeToken.TryParse(ugxCell, out var oUgx, out string refUgx))
+            { r.Outcome = oUgx; r.IncludedIn = refUgx; }
+            else if (RateOutcomeToken.TryParse(usdCell, out var oUsd, out string refUsd))
+            { r.Outcome = oUsd; r.IncludedIn = refUsd; }
             r.Unit = Cell(cols, Unit);
             r.Description = Cell(cols, Description);
             return r;
@@ -193,11 +224,25 @@ namespace StingTools.BOQ.Rates
                     continue;
                 }
                 var row = res.Layout.Read(cols, ln);
+                if (row.Outcome != RateOutcome.Priced)
+                {
+                    if (row.RateUsd > 0 || row.RateUgx > 0)
+                    {
+                        res.Problems.Add($"line {ln}: rate is declared {RateOutcomeToken.ToToken(row.Outcome, row.IncludedIn)} " +
+                                         "and also carries a number — contradictory, row skipped");
+                        continue;
+                    }
+                    res.Rows.Add(row);
+                    continue;
+                }
                 if (row.RateUsd == null && row.RateUgx == null)
                 {
                     res.Problems.Add($"line {ln}: no numeric rate — row skipped");
                     continue;
                 }
+                if (row.IsUndeclaredZero)
+                    res.Problems.Add($"line {ln}: zero rate without NIL / INCL — treated as not priced " +
+                                     "(write NIL for a deliberate nil rate, INCL or INCL:<item> when it is included elsewhere)");
                 res.Rows.Add(row);
             }
             if (!headerSeen) res.Problems.Add("file has no header row");
@@ -216,13 +261,34 @@ namespace StingTools.BOQ.Rates
         /// </summary>
         public static Dictionary<string, (double rate, string unit)> ToUgxRateTable(
             Result parsed, List<string> duplicateKeys = null)
+            => ToTables(parsed, out _, duplicateKeys);
+
+        /// <summary>
+        /// DSCH-26 — both tables a rate file yields: the UGX rates, and the keys the
+        /// file declares Nil or Included (<paramref name="declared"/>). One key belongs
+        /// to one row — the first, in either table — so a NIL row cannot be shadowed by a
+        /// later priced row for the same key, or the reverse. An undeclared 0 claims no
+        /// key: it is not a rate, so a later row (or the next, less specific pass) may
+        /// price the item.
+        /// </summary>
+        public static Dictionary<string, (double rate, string unit)> ToTables(
+            Result parsed, out Dictionary<string, DeclaredRate> declared, List<string> duplicateKeys = null)
         {
             var rates = new Dictionary<string, (double rate, string unit)>(StringComparer.OrdinalIgnoreCase);
+            var decl = new Dictionary<string, DeclaredRate>(StringComparer.OrdinalIgnoreCase);
+            declared = decl;
             if (parsed == null) return rates;
             foreach (var row in parsed.Rows)
             {
-                if (row.RateUgx is not double ugx) continue;
                 string unit = string.IsNullOrEmpty(row.Unit) ? "each" : row.Unit;
+                bool isDeclared = row.Outcome != RateOutcome.Priced;
+                double ugx = 0;
+                if (!isDeclared)
+                {
+                    if (row.RateUgx is not double v) continue;
+                    if (v <= 0) continue;   // undeclared zero — reported by Parse, not a rate
+                    ugx = v;
+                }
                 if (row.Prod.Length > 0 && row.Discipline.Length > 0)
                     Put(row.Discipline + "|" + row.Prod);
                 Put(row.Category);
@@ -231,8 +297,11 @@ namespace StingTools.BOQ.Rates
                 void Put(string key)
                 {
                     if (string.IsNullOrEmpty(key)) return;
-                    if (rates.ContainsKey(key)) { duplicateKeys?.Add(key); return; }
-                    rates[key] = (ugx, unit);
+                    if (rates.ContainsKey(key) || decl.ContainsKey(key)) { duplicateKeys?.Add(key); return; }
+                    if (isDeclared)
+                        decl[key] = new DeclaredRate { Outcome = row.Outcome, IncludedIn = row.IncludedIn ?? "", Unit = unit };
+                    else
+                        rates[key] = (ugx, unit);
                 }
             }
             return rates;

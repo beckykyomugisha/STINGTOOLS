@@ -41,6 +41,20 @@ namespace StingTools.BOQ.Rates
                 if (!string.Equals(stored, "Override", StringComparison.OrdinalIgnoreCase)) return null;
 
                 string rateStr = ParameterHelpers.GetString(req.Element, "CST_UNIT_RATE_UGX");
+                // DSCH-26 — an override may declare the item NIL or INCL rather than price it.
+                if (RateOutcomeToken.TryParse(rateStr, out RateOutcome declared, out string includedIn))
+                    return new RateLookup
+                    {
+                        UnitRate = 0,
+                        Outcome = declared,
+                        IncludedIn = includedIn,
+                        CurrencyCode = "UGX",
+                        Unit = string.IsNullOrEmpty(req.Unit) ? "each" : req.Unit,
+                        SourceId = Id,
+                        Confidence = 100,
+                        Provenance = "User override via CST_UNIT_RATE_UGX: " + RateOutcomeToken.ToToken(declared, includedIn),
+                        MatchedKey = req.CategoryName
+                    };
                 if (!double.TryParse(rateStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double ovr) || ovr <= 0)
                     return null;
 
@@ -229,15 +243,18 @@ namespace StingTools.BOQ.Rates
     internal sealed class CsvRateProvider : IRateProvider
     {
         private readonly Dictionary<string, (double rate, string unit)> _rates;
+        private readonly IReadOnlyDictionary<string, DeclaredRate> _declared;
         private readonly string _sourceFile;
 
         public string Id => "csv-default";
         public int Priority => 90;
         public bool RequiresNetwork => false;
 
-        public CsvRateProvider(Dictionary<string, (double rate, string unit)> rates, string sourceFile = null)
+        public CsvRateProvider(Dictionary<string, (double rate, string unit)> rates, string sourceFile = null,
+                               IReadOnlyDictionary<string, DeclaredRate> declared = null)
         {
             _rates = rates ?? new Dictionary<string, (double, string)>(StringComparer.OrdinalIgnoreCase);
+            _declared = declared;
             _sourceFile = sourceFile ?? "cost_rates_5d.csv";
         }
 
@@ -251,7 +268,7 @@ namespace StingTools.BOQ.Rates
             // answer. No decision is taken here.
             var m = CsvRateLookup.Resolve(_rates, _sourceFile,
                         req.CategoryName, req.Discipline, req.ProdCode,
-                        req.SystemType, req.MatCode);
+                        req.SystemType, req.MatCode, _declared);
             if (m == null) return null;
 
             return new RateLookup
@@ -264,6 +281,8 @@ namespace StingTools.BOQ.Rates
                 ResolutionLevel = m.Level,
                 Provenance = m.Provenance,
                 MatchedKey = m.MatchedKey,
+                Outcome = m.Outcome,           // DSCH-26
+                IncludedIn = m.IncludedIn ?? "",
             };
         }
     }
@@ -288,6 +307,11 @@ namespace StingTools.BOQ.Rates
             {
                 if (!Scheduling4DEngine.DefaultCostRates.TryGetValue(req.CategoryName, out var dcr))
                     return null;
+                // DSCH-26 — a 0 in the USD benchmark (Rooms, Site, analytical
+                // categories...) is "no benchmark", not a declared nil rate: the line
+                // stays unpriced and visible as such. Returning it would only trip the
+                // chain's undeclared-zero warning for every such element.
+                if (dcr.ratePerUnit <= 0) return null;
 
                 return new RateLookup
                 {

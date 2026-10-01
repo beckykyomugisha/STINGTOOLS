@@ -183,7 +183,8 @@ namespace StingTools.BOQ
                     // the same rate source as the bill.
                     var rateRegistry = RateProviderRegistry.Get(doc,
                         BOQCostManager.LoadCsvRates(doc),
-                        ugxPerUsd, ugxPerGbp);
+                        ugxPerUsd, ugxPerGbp,
+                        BOQCostManager.LoadCsvDeclaredRates(doc));   // DSCH-26
                     var req = new RateRequest
                     {
                         CategoryName = catName,
@@ -204,7 +205,9 @@ namespace StingTools.BOQ
                     if (lookup != null && !hasOverride && _rateCache.Count < _rateCacheMaxEntries)
                         _rateCache[cacheKey] = lookup;
                 }
-                if (lookup == null || lookup.UnitRate <= 0) return false;
+                // DSCH-26 — a declared Nil / Included is stamped (rate 0, total 0, the
+                // token in CST_UNIT_RATE_UGX); only a line nobody priced is skipped.
+                if (lookup == null || !Rates.RateChainRule.IsDecided(lookup.Outcome, lookup.UnitRate)) return false;
 
                 double total = qty * lookup.UnitRate;
 
@@ -225,7 +228,7 @@ namespace StingTools.BOQ
 
                 // Legacy mirror — keep existing schedules unchanged.
                 ParameterHelpers.SetString(el, "CST_UNIT_RATE_UGX",
-                    lookup.UnitRate.ToString("F0", CultureInfo.InvariantCulture),
+                    Rates.RateOutcomeToken.StampText(lookup.Outcome, lookup.IncludedIn, lookup.UnitRate),
                     overwrite: true);
                 ParameterHelpers.SetString(el, "CST_QTY_MEASURED",
                     $"{qty:F3} {rule.Unit ?? "each"}" + (couldNotMeasure ? " [COULD NOT MEASURE]" : ""),

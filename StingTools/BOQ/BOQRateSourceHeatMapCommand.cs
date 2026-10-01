@@ -48,7 +48,7 @@ namespace StingTools.BOQ
                 int csvCats      = byCat.Count(g => g.Any(i => i.RateSource == "CSV"));
                 int cobieCats    = byCat.Count(g => g.Any(i => i.RateSource == "COBie"));
                 int defaultCats  = byCat.Count(g => g.Any(i => i.RateSource == "Default"));
-                int noneCats     = byCat.Count(g => g.All(i => i.RateUGX <= 0));
+                int noneCats     = byCat.Count(g => g.All(i => !i.IsPriceDecided));   // DSCH-26
                 rp.Metric("Categories in BOQ",       cats.ToString());
                 rp.Metric("Override-priced",         overrideCats.ToString());
                 rp.Metric("CSV-priced (catalogue)",  csvCats.ToString());

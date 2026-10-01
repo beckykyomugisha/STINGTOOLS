@@ -25,7 +25,7 @@ Pipe Accessories,PSL,PSL,M,50.00,185000,each,Pipe sleeve / fire-rated penetratio
 Pipe Accessories,PHG,PHG,M,30.00,111000,each,Pipe hanger / support assembly
 Sprinklers,SPR,SPK,FP,120.00,444000,each,Sprinkler head installed
 Fire Alarm Devices,FAD,FAD,FP,250.00,925000,each,Fire alarm device installed
-Rooms,RM,RM,A,0.00,0,each,Room (no direct cost)
+Rooms,RM,RM,A,NIL,NIL,each,Room (no direct cost)
 Air Terminals,GRL,ATU,M,150.00,555000,each,Air terminal unit
 Air Terminals,GRL,LAT,E,180.00,666000,each,Lightning air terminal (Franklin rod / mesh node) per BS EN 62305-3
 Down Conductors,,LDC,E,12.50,46200,m,Down conductor Cu tape 25x3mm per BS EN 62305-3 Tab 6

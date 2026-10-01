@@ -137,7 +137,7 @@ namespace StingTools.BOQ
                     long id = el.Id?.Value ?? 0;
                     if (!rowByEl.TryGetValue(id, out var row))
                         missing.Add("no row");
-                    else if (row.RateUGX <= 0)
+                    else if (!row.IsPriceDecided)   // DSCH-26: NIL / INCL are priced
                         missing.Add("rate");
 
                     if (missing.Count == 0) continue;
@@ -267,7 +267,7 @@ namespace StingTools.BOQ
                 var modelled = boq.AllItems.Where(i => i != null && i.Source == BOQRowSource.Model).ToList();
                 int total = modelled.Count;
 
-                var noRate    = modelled.Where(i => i.RateUGX <= 0).ToList();
+                var noRate    = modelled.Where(i => !i.IsPriceDecided).ToList();   // DSCH-26: NIL / INCL are priced
                 var lowConf   = modelled.Where(i => i.RateUGX > 0 && i.RateConfidence < floor).ToList();
                 var defaulted = modelled.Where(i => i.RateUGX > 0 && i.RateConfidence >= floor
                                     && string.Equals(i.RateSource, "Default", StringComparison.OrdinalIgnoreCase)).ToList();

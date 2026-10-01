@@ -611,6 +611,7 @@ namespace StingTools.Commands.Cost
                   .Metric("Re-priced", outcome.Repriced.ToString(CultureInfo.InvariantCulture))
                   .Metric("Unchanged", outcome.Unchanged.ToString(CultureInfo.InvariantCulture))
                   .Metric("Override (protected)", outcome.SkippedOverride.ToString(CultureInfo.InvariantCulture))
+                  .Metric("Declared NIL / INCL (nothing to pin)", outcome.Declared.ToString(CultureInfo.InvariantCulture))
                   .Metric("No rate found", outcome.NoRate.ToString(CultureInfo.InvariantCulture));
                 if (outcome.Rows.Count > 0)
                     rp.AddSection("RATE MOVES")

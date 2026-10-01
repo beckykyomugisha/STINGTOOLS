@@ -755,8 +755,10 @@ namespace StingTools.BOQ
             (double rate, string unit, string description) picked = ResolveRate(
                 doc, el, catName, csvRates, out rateSource, out rateConfidence,
                 out double? splitLabour, out double? splitPlant, out double? splitMaterial,
-                out string rateSourceCurrency);
-            if (picked.rate <= 0) rateConfidence = Math.Max(20, rateConfidence); // confidence floor for zero-rate rows
+                out string rateSourceCurrency, out RateOutcome rateOutcome, out string rateIncludedIn);
+            // Confidence floor for an UNPRICED row only — a declared Nil / Included is a
+            // decision with its provider's own confidence (DSCH-26).
+            if (!RateChainRule.IsDecided(rateOutcome, picked.rate)) rateConfidence = Math.Max(20, rateConfidence);
 
             string unit = string.IsNullOrEmpty(picked.unit) ? "each" : picked.unit;
 
@@ -911,6 +913,8 @@ namespace StingTools.BOQ
                 LastCosted = DateTime.UtcNow,
                 RateSource = rateSource,
                 RateConfidence = rateConfidence,
+                RateOutcome = rateOutcome,          // DSCH-26
+                IncludedIn = rateIncludedIn,
                 CsiSection = csiSection,
                 CsiTitle = csiTitle,
                 RateSourceCurrency = rateSourceCurrency,
@@ -1144,10 +1148,13 @@ namespace StingTools.BOQ
             Dictionary<string, (double rate, string unit)> csvRates,
             out string rateSource, out int rateConfidence,
             out double? splitLabour, out double? splitPlant, out double? splitMaterial,
-            out string rateSourceCurrency)
+            out string rateSourceCurrency,
+            out RateOutcome rateOutcome, out string includedIn)
         {
             splitLabour = splitPlant = splitMaterial = null;
             rateSourceCurrency = "";
+            rateOutcome = RateOutcome.Priced;
+            includedIn = "";
             // P0 refactor — delegate to the pluggable rate-provider chain.
             // The 5 legacy passes are now individual providers registered
             // with RateProviderRegistry; behaviour is preserved while
@@ -1156,7 +1163,7 @@ namespace StingTools.BOQ
             double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
             double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
 
-            var registry = RateProviderRegistry.Get(doc, csvRates, ugxPerUsd, ugxPerGbp);
+            var registry = RateProviderRegistry.Get(doc, csvRates, ugxPerUsd, ugxPerGbp, LoadCsvDeclaredRates(doc));
             var req = new RateRequest
             {
                 CategoryName = catName ?? "",
@@ -1185,12 +1192,15 @@ namespace StingTools.BOQ
             };
 
             var lookup = registry.Resolve(req);
-            if (lookup == null || lookup.UnitRate <= 0)
+            // DSCH-26 — a declared Nil / Included is a decided price, not a miss.
+            if (lookup == null || !RateChainRule.IsDecided(lookup.Outcome, lookup.UnitRate))
             {
                 rateSource = "None";
                 rateConfidence = 20;
                 return (0, "each", catName);
             }
+            rateOutcome = lookup.Outcome;
+            includedIn = lookup.IncludedIn ?? "";
 
             // Map provider id back to the legacy RateSource label so the
             // rest of the codebase (heat-map, schedules, exports) keeps
@@ -2229,7 +2239,8 @@ namespace StingTools.BOQ
 
                     // Rate fields — always write both currencies so the element
                     // stays currency-agnostic across sessions (Gap G3).
-                    WriteIfChanged(el, "CST_UNIT_RATE_UGX", item.RateUGX.ToString("F0", CultureInfo.InvariantCulture), ref written);
+                    // DSCH-26 — a declared rate is stamped as its token (NIL / INCL:<ref>), not as "0".
+                    WriteIfChanged(el, "CST_UNIT_RATE_UGX", RateOutcomeToken.StampText(item.RateOutcome, item.IncludedIn, item.RateUGX), ref written);
                     WriteIfChanged(el, "CST_UNIT_RATE_USD", item.RateUSD.ToString("F2", CultureInfo.InvariantCulture), ref written);
                     WriteIfChanged(el, "CST_QTY_MEASURED", $"{qty:F3} {item.Unit}", ref written);
 
@@ -2769,6 +2780,8 @@ namespace StingTools.BOQ
             public int Repriced;
             public int SkippedOverride;
             public int NoRate;
+            /// <summary>DSCH-26 — resolved to a declared NIL / INCL: nothing to pin.</summary>
+            public int Declared;
             public int Unchanged;
             public double OldTotalUgx;
             public double NewTotalUgx;
@@ -2784,7 +2797,7 @@ namespace StingTools.BOQ
                 var csvRates = LoadCsvRates(doc);
                 double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
                 double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
-                var registry = RateProviderRegistry.Get(doc, csvRates, ugxPerUsd, ugxPerGbp);
+                var registry = RateProviderRegistry.Get(doc, csvRates, ugxPerUsd, ugxPerGbp, LoadCsvDeclaredRates(doc));
 
                 foreach (long id in elementIds.Distinct())
                 {
@@ -2815,7 +2828,10 @@ namespace StingTools.BOQ
                     };
 
                     var lk = registry.Resolve(req);
-                    if (lk == null || lk.UnitRate <= 0) { outcome.NoRate++; continue; }
+                    if (lk == null || !RateChainRule.IsDecided(lk.Outcome, lk.UnitRate)) { outcome.NoRate++; continue; }
+                    // DSCH-26 — a declared Nil / Included has no rate to pin; the bill
+                    // re-derives it from the rate file on every build.
+                    if (lk.Outcome != RateOutcome.Priced) { outcome.Declared++; continue; }
 
                     double newRate = lk.UnitRate;   // already converted to UGX
                     double oldRate = 0;
@@ -3112,6 +3128,9 @@ namespace StingTools.BOQ
                 {
                     item.RateUGX = ov.RateUGX.Value;
                     item.RateUSD = ov.RateUSD ?? (rate > 0 ? Math.Round(item.RateUGX / rate, 2) : 0);
+                    // A pinned rate replaces whatever the chain decided, a NIL / INCL included.
+                    item.RateOutcome = RateOutcome.Priced;
+                    item.IncludedIn = "";
                     item.RateSource = string.IsNullOrEmpty(ov.RateSource) ? "Override" : ov.RateSource;
                     item.RateConfidence = 100;
                     // G4 — a single-number manual override has no split; drop any
@@ -3284,7 +3303,9 @@ namespace StingTools.BOQ
                 // is set by the take-off itself, so this counts only real failures.
                 if (measured && !i.QuantityResolved) r.QuantityUnresolvedCount++;
 
-                bool zeroRate = i.RateUGX <= 0 ||
+                // DSCH-26 — a declared Nil / Included is priced (at nothing, or elsewhere),
+                // not at risk. Only a line nobody priced counts here.
+                bool zeroRate = !RateChainRule.IsDecided(i.RateOutcome, i.RateUGX) ||
                     string.Equals(i.RateSource, "None", StringComparison.OrdinalIgnoreCase);
                 if (zeroRate)
                 {
@@ -3439,17 +3460,31 @@ namespace StingTools.BOQ
         }
 
         internal static Dictionary<string, (double rate, string unit)> LoadCsvRates(Document doc)
+            => LoadCsvRateTables(doc).Rates;
+
+        /// <summary>DSCH-26 — the keys the project's rate file declares NIL / INCL.
+        /// Same file, same parse and same memo as <see cref="LoadCsvRates(Document)"/>.</summary>
+        internal static Dictionary<string, DeclaredRate> LoadCsvDeclaredRates(Document doc)
+            => LoadCsvRateTables(doc).Declared;
+
+        private sealed class CsvRateTables
+        {
+            public Dictionary<string, (double rate, string unit)> Rates;
+            public Dictionary<string, DeclaredRate> Declared;
+        }
+
+        private static CsvRateTables LoadCsvRateTables(Document doc)
         {
             string path = ResolveCostRatesPath(doc);
             long ticks = SafeWriteTicks(path);
             lock (_rateMemoLock)
             {
                 if (_csvRatesMemo is { } m && m.path == path && m.ticks == ticks
-                    && m.data is Dictionary<string, (double rate, string unit)> cached)
+                    && m.data is CsvRateTables cached)
                     return cached;
             }
             var loaded = LoadCsvRatesUncached(path);
-            lock (_rateMemoLock) { _csvRatesMemo = (path, ticks, loaded.Count, loaded); }
+            lock (_rateMemoLock) { _csvRatesMemo = (path, ticks, loaded.Rates.Count, loaded); }
             return loaded;
         }
 
@@ -3459,11 +3494,13 @@ namespace StingTools.BOQ
             catch { return 0; }
         }
 
-        private static Dictionary<string, (double rate, string unit)> LoadCsvRatesUncached(string path)
+        private static CsvRateTables LoadCsvRatesUncached(string path)
         {
             var rates = new Dictionary<string, (double rate, string unit)>(StringComparer.OrdinalIgnoreCase);
+            var declared = new Dictionary<string, DeclaredRate>(StringComparer.OrdinalIgnoreCase);
             string costFile = string.IsNullOrEmpty(path) ? (TagConfig.CostRatesFileName ?? "cost_rates_5d.csv") : Path.GetFileName(path);
-            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return rates;
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return new CsvRateTables { Rates = rates, Declared = declared };
             try
             {
                 // Columns are found by header NAME (Rates/CostRateCsv), never by
@@ -3477,7 +3514,7 @@ namespace StingTools.BOQ
                         string.Join(", ", parsed.Layout.UnknownColumns));
 
                 var dupeKeys = new List<string>();
-                rates = Rates.CostRateCsv.ToUgxRateTable(parsed, dupeKeys);
+                rates = Rates.CostRateCsv.ToTables(parsed, out declared, dupeKeys);   // DSCH-26: + NIL / INCL keys
                 foreach (string k in dupeKeys)
                     StingLog.WarnRateLimited("LoadCsvRates.Dupe",
                         $"LoadCsvRates: duplicate rate key '{k}' in {costFile} — keeping first, skipping later row.");
@@ -3485,7 +3522,7 @@ namespace StingTools.BOQ
                     StingLog.Warn($"LoadCsvRates: {dupeKeys.Count} duplicate rate key(s) in {costFile} skipped (first-wins).");
             }
             catch (Exception ex) { StingLog.Warn($"LoadCsvRates: {ex.Message}"); }
-            return rates;
+            return new CsvRateTables { Rates = rates, Declared = declared };
         }
 
         // P1.1 — non-measurable categories that must never reach takeoff.
@@ -3965,7 +4002,10 @@ namespace StingTools.BOQ
             {
                 i.NRM2Section ?? "", i.Category ?? "", i.Discipline ?? "",
                 i.FamilyName ?? "", i.TypeName ?? "", i.Unit ?? "",
-                SpatialPart(i)
+                SpatialPart(i),
+                // DSCH-26 — a Nil or Included row never merges with a priced (or an
+                // unpriced) one: the merged row could carry only one of the answers.
+                i.RateOutcome.ToString() + ":" + (i.IncludedIn ?? "")
             });
 
             double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);

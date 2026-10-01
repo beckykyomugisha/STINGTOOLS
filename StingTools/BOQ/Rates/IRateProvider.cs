@@ -81,8 +81,17 @@ namespace StingTools.BOQ.Rates
         /// </summary>
         public RateResolutionLevel ResolutionLevel { get; set; } = RateResolutionLevel.None;
 
-        /// <summary>Unit rate in <see cref="CurrencyCode"/>.</summary>
+        /// <summary>Unit rate in <see cref="CurrencyCode"/>. 0 when <see cref="Outcome"/>
+        /// is Nil or Included.</summary>
         public double UnitRate { get; set; }
+
+        /// <summary>DSCH-26 — Priced, or a declared Nil / Included. A declared outcome is
+        /// an answer and stops the chain; a 0 rate without one is not
+        /// (<see cref="RateChainRule"/>).</summary>
+        public RateOutcome Outcome { get; set; } = RateOutcome.Priced;
+
+        /// <summary>Where an Included item's cost is carried ("E10/2"). Empty otherwise.</summary>
+        public string IncludedIn { get; set; } = "";
 
         /// <summary>Currency of the returned rate (ISO 4217).</summary>
         public string CurrencyCode { get; set; } = "UGX";

@@ -91,10 +91,11 @@ namespace StingTools.BOQ.Rates
             Document doc,
             Dictionary<string, (double rate, string unit)> csvRates,
             double ugxPerUsd,
-            double ugxPerGbp = 0)
+            double ugxPerGbp = 0,
+            IReadOnlyDictionary<string, DeclaredRate> csvDeclared = null)
         {
             string key = doc?.PathName ?? "default";
-            return _cache.GetOrAdd(key, _ => Build(doc, csvRates, LoadPolicy(doc), ugxPerUsd, ugxPerGbp));
+            return _cache.GetOrAdd(key, _ => Build(doc, csvRates, csvDeclared, LoadPolicy(doc), ugxPerUsd, ugxPerGbp));
         }
 
         /// <summary>
@@ -106,6 +107,7 @@ namespace StingTools.BOQ.Rates
         private static RateProviderRegistry Build(
             Document doc,
             Dictionary<string, (double rate, string unit)> csvRates,
+            IReadOnlyDictionary<string, DeclaredRate> csvDeclared,
             RatePolicy policy,
             double ugxPerUsd, double ugxPerGbp)
         {
@@ -135,7 +137,7 @@ namespace StingTools.BOQ.Rates
                 // are added lazily by RegisterExternalProviders so the
                 // registry doesn't fail when a project hasn't configured
                 // them yet. See Get(doc, ...) below.
-                new CsvRateProvider(csvRates),
+                new CsvRateProvider(csvRates, null, csvDeclared),   // DSCH-26: + the NIL / INCL keys
                 new DefaultRateProvider()
             };
 
@@ -242,7 +244,20 @@ namespace StingTools.BOQ.Rates
                 try
                 {
                     var lookup = provider.Resolve(req);
-                    if (lookup == null || lookup.UnitRate <= 0) continue;
+                    // DSCH-26 — one rule (RateChainRule): a declared Nil / Included is an
+                    // answer and stops the chain; a 0 without a declaration is not.
+                    switch (RateChainRule.Decide(lookup != null, lookup?.Outcome ?? RateOutcome.Priced, lookup?.UnitRate ?? 0))
+                    {
+                        case RateChainStep.Continue:
+                            continue;
+                        case RateChainStep.ContinueUndeclaredZero:
+                            StingLog.WarnRateLimited("RateChain.UndeclaredZero",
+                                $"RateProviderRegistry {provider.Id}: rate 0 for '{lookup.MatchedKey}' without a NIL / INCL " +
+                                "declaration - treated as not priced; the next provider is asked.");
+                            continue;
+                    }
+                    // A declared outcome carries no money, so there is nothing to convert.
+                    if (lookup.Outcome != RateOutcome.Priced) return lookup;
                     return ConvertCurrency(lookup, req.CurrencyCode);
                 }
                 catch (Exception ex)
