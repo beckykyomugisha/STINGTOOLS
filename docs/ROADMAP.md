@@ -2758,6 +2758,7 @@ The table is in `WORKLOG.md`. C1–C5 and C7–C10 are fixed (see CHANGELOG). Op
 
 - **ACC-ADJ-C6 — Revit PDF byte-stability (NEEDS MANUAL CHECK).** If two exports of an unchanged sheet differ, the ledger can never skip them as identical. They land as HELD (reported, not failing). A normalised PDF hash would let them skip.
 - ~~**DOCX-REG-1 — show IsoNote in the Document Manager grid.**~~ **Closed 2026-10-01** — see CHANGELOG "Document Manager shows the register's ISO note".
+- **TEST-FLAKE-1 — `HandoffReplayGuardTests.Handoff_ReplayGuardUnavailable_FailsOpen` fails under full-suite load (2026-10-01, 1 of 1155) and passes alone.** Not ACC code. Look for a timeout or shared static state in the replay-guard test double.
 - **ACC-LOCK-1 — cross-process lock on the shared ACC state files.** Two Revit sessions on the KUT folder can each load-modify-save `acc_issue_origins.json`, `pushed_clashes.json`, the review queue and the import watermark, and the later save drops the other's changes. Temp names are already unique (F10 part). Add the lock-file pattern from `AccCredentialStore` around load → save.
 - **ACC-PAGE-1 (unconfirmed) — re-read by id before a NOT_FOUND untrack.** `PullIssuesAsync` pages by offset; an issue created or deleted mid-pull can shift a page and drop one id, which Sync would then untrack as NOT_FOUND.
 - **ACC-CMT-1 (unconfirmed) — comment keys and time zones.** E9 hashes the comment JSON; check whether a date re-serialised in another time zone changes the hash and re-posts.
