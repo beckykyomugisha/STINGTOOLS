@@ -35,7 +35,7 @@ namespace StingTools.Commands.Classification
             string specDir = StingPaths.Meta(doc, "_BIM_COORD", "speclink");
             if (string.IsNullOrEmpty(specDir))
             {
-                TaskDialog.Show("SpecLink import", "Save the project first so STING can find its _BIM_COORD folder.");
+                PresetDialog.Show("SpecLink import", "Save the project first so STING can find its _BIM_COORD folder.", ref msg);
                 return Result.Cancelled;
             }
             Directory.CreateDirectory(specDir);
@@ -54,10 +54,10 @@ namespace StingTools.Commands.Classification
 
             if (csvs.Count == 0)
             {
-                TaskDialog.Show("SpecLink import",
+                PresetDialog.Show("SpecLink import",
                     "No CSV found in:\n" + specDir + "\n\nExport the SpecLink project manual " +
                     "(table of contents, optionally with description + unit columns) as CSV and drop it here, " +
-                    "then re-run. Columns: Section, Title[, Description][, Unit].");
+                    "then re-run. Columns: Section, Title[, Description][, Unit].", ref msg);
                 return Result.Cancelled;
             }
 
@@ -88,18 +88,18 @@ namespace StingTools.Commands.Classification
             catch (Exception ex)
             {
                 StingLog.Error("SpecLink import write", ex);
-                TaskDialog.Show("SpecLink import", "Could not write sections.json:\n" + ex.Message);
+                PresetDialog.Show("SpecLink import", "Could not write sections.json:\n" + ex.Message, ref msg);
                 return Result.Failed;
             }
 
             // Drop the per-document spec cache so the next BOQ build reads the fresh store.
             CsiMap.Invalidate();
 
-            TaskDialog.Show("SpecLink import",
+            PresetDialog.Show("SpecLink import",
                 $"Imported {merged.Count} spec section(s) from {files} CSV file(s) ({rows} rows read).\n" +
                 $"{withDesc} carry description text (these drive BOQ line descriptions).\n\n" +
                 "Newest export wins on a section collision — re-issued manuals supersede older drops automatically.\n\n" +
-                "Written:\n" + outPath + "\n\nRe-run a BOQ export — spec'd items now bill from the specification.");
+                "Written:\n" + outPath + "\n\nRe-run a BOQ export — spec'd items now bill from the specification.", ref msg);
             return Result.Succeeded;
         }
     }

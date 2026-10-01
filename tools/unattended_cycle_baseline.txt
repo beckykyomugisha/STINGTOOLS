@@ -96,19 +96,16 @@ StingTools/Clash/AccUploadModelCommand.cs::AccUploadLastBundleCommand|new TaskDi
 StingTools/Clash/ClashRunCommand.cs::ClashRunCommand|TaskDialog.Show|3	GATED - every message sits behind !silent, and Execute runs silent when PresetDialog.Quiet (the outcome goes to the step message).
 
 # CsiAssignCommand — step CSI_Assign in DeliverableB, DeliverableC, DeliverableD, LifecycleReconcile
-StingTools/Commands/Classification/CsiCommands.cs::CsiAssignCommand|AddCommandLink|2	UNGATED - a choice offered in a TaskDialog, always shown. A real blocker to unattended operation.
-StingTools/Commands/Classification/CsiCommands.cs::CsiAssignCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
-StingTools/Commands/Classification/CsiCommands.cs::CsiAssignCommand|TaskDialogResult|2	UNGATED - reading a dialog answer, i.e. a branch on a click. A real blocker to unattended operation.
-StingTools/Commands/Classification/CsiCommands.cs::CsiAssignCommand|new TaskDialog|2	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
+StingTools/Commands/Classification/CsiCommands.cs::CsiAssignCommand|AddCommandLink|2	GATED - the fill/overwrite write-mode picker is built only when !PresetDialog.Quiet; inside a preset the step's params.mode ("fill"|"overwrite") decides and a step without it fails naming the param (never defaulted).
+StingTools/Commands/Classification/CsiCommands.cs::CsiAssignCommand|TaskDialogResult|2	GATED - reading the write-mode picker; same branch.
+StingTools/Commands/Classification/CsiCommands.cs::CsiAssignCommand|new TaskDialog|1	GATED - the write-mode picker window; same branch (the result goes through PresetDialog.Show).
 
 # SpecLinkReconcileCommand — step SpecLink_Reconcile in DeliverableC, DeliverableD, LifecycleReconcile
-StingTools/Commands/Classification/CsiCommands.cs::SpecLinkReconcileCommand|OpenFileDialog|1	UNGATED - asks a person for an input file; nothing configures the path, so the step cannot run unattended.
-StingTools/Commands/Classification/CsiCommands.cs::SpecLinkReconcileCommand|ShowDialog|1	UNGATED - the modal file chooser (or WPF window) opened for that input.
-StingTools/Commands/Classification/CsiCommands.cs::SpecLinkReconcileCommand|TaskDialog.Show|2	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
-StingTools/Commands/Classification/CsiCommands.cs::SpecLinkReconcileCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
+StingTools/Commands/Classification/CsiCommands.cs::SpecLinkReconcileCommand|OpenFileDialog|1	GATED - the spec TOC picker, built only when !PresetDialog.Quiet; inside a preset the step's params.specToc names the file (PresetDialog.InputFile) and a step without it fails naming the param.
+StingTools/Commands/Classification/CsiCommands.cs::SpecLinkReconcileCommand|ShowDialog|1	GATED - that picker's ShowDialog; same branch.
 
 # SpecLinkImportCommand — step SpecLink_ImportFolder in LifecycleReconcile
-StingTools/Commands/Classification/SpecLinkImportCommand.cs::SpecLinkImportCommand|TaskDialog.Show|5	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
+StingTools/Commands/Classification/SpecLinkImportCommand.cs::SpecLinkImportCommand|TaskDialog.Show|1	GATED - the first-line no-document guard, written `if (ctx?.Doc == null)` so the checker's guard exemption does not match it; WorkflowEngine never starts without a document. Every other message goes through PresetDialog.Show.
 
 # MidpDriftReportCommand — step Midp_DriftReport in FortnightlyIssue
 StingTools/Commands/Delivery/DeliveryCommands.cs::MidpDriftReportCommand|AddCommandLink|3	GATED - the "which date is M0?" picker in ParseMidpInteractive, reached only after its PresetDialog.Quiet early return; inside a preset the step's params.m0 (yyyy-MM-dd) dates relative-month rows, and without it they are left out and counted in the report (never dated by guess).
@@ -117,30 +114,23 @@ StingTools/Commands/Delivery/DeliveryCommands.cs::MidpDriftReportCommand|ShowDia
 StingTools/Commands/Delivery/DeliveryCommands.cs::MidpDriftReportCommand|TaskDialogResult|2	GATED - reading the M0 picker; same PresetDialog.Quiet early return.
 
 # OwnerKpiDashboardCommand — step Owner_KpiDashboard, KUT_KpiDashboard in LifecycleReconcile, MonthlyReport
-StingTools/Commands/Kpi/OwnerKpiDashboardCommand.cs::OwnerKpiDashboardCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
 
 # KutLifecycleReconcileCommand — step KUT_LifecycleReconcile in LifecycleReconcile
-StingTools/Commands/Twin/KutLifecycleReconcileCommand.cs::KutLifecycleReconcileCommand|OpenFileDialog|1	UNGATED - asks a person for an input file; nothing configures the path, so the step cannot run unattended.
-StingTools/Commands/Twin/KutLifecycleReconcileCommand.cs::KutLifecycleReconcileCommand|ShowDialog|1	UNGATED - the modal file chooser (or WPF window) opened for that input.
-StingTools/Commands/Twin/KutLifecycleReconcileCommand.cs::KutLifecycleReconcileCommand|TaskDialog.Show|2	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
-StingTools/Commands/Twin/KutLifecycleReconcileCommand.cs::KutLifecycleReconcileCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
+StingTools/Commands/Twin/KutLifecycleReconcileCommand.cs::KutLifecycleReconcileCommand|OpenFileDialog|1	GATED - the optional station-export picker, built only when !PresetDialog.Quiet; inside a preset the step's params.stationExport names the file, and without it the commissioned-unpriced check is skipped and the report says the param is unset (the attended Cancel path).
+StingTools/Commands/Twin/KutLifecycleReconcileCommand.cs::KutLifecycleReconcileCommand|ShowDialog|1	GATED - that picker's ShowDialog; same branch.
 
 # KutPushLifecycleGapsToAccCommand — step KUT_PushLifecycleGapsToAcc in LifecycleReconcile
 StingTools/Commands/Twin/KutPushLifecycleGapsToAccCommand.cs::KutPushLifecycleGapsToAccCommand|TaskDialogResult|2	GATED - reading the "create N lifecycle-gap issues?" confirmation, shown only when plan.AskFirst && policy.MayPrompt. Unattended creates up to lifecycleGapEscalation.maxCount, or nothing (A2).
 StingTools/Commands/Twin/KutPushLifecycleGapsToAccCommand.cs::KutPushLifecycleGapsToAccCommand|new TaskDialog|1	GATED - that confirmation window; same branch as above.
 
 # KutValuationFromBmsCommand — step KUT_ValuationFromBms in LifecycleReconcile
-StingTools/Commands/Twin/KutValuationFromBmsCommand.cs::KutValuationFromBmsCommand|TaskDialog.Show|6	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
+StingTools/Commands/Twin/KutValuationFromBmsCommand.cs::KutValuationFromBmsCommand|TaskDialog.Show|1	GATED - the first-line no-document guard, written `if (ctx?.Doc == null)` so the checker's guard exemption does not match it; WorkflowEngine never starts without a document. Every other message goes through PresetDialog.Show.
 
 # NiagaraPointListExportCommand — step Niagara_ExportPoints in LifecycleReconcile
-StingTools/Commands/Twin/NiagaraCommands.cs::NiagaraPointListExportCommand|TaskDialog.Show|2	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
-StingTools/Commands/Twin/NiagaraCommands.cs::NiagaraPointListExportCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
 
 # NiagaraReconcileCommand — step Niagara_Reconcile in LifecycleReconcile
-StingTools/Commands/Twin/NiagaraCommands.cs::NiagaraReconcileCommand|OpenFileDialog|1	UNGATED - asks a person for an input file; nothing configures the path, so the step cannot run unattended.
-StingTools/Commands/Twin/NiagaraCommands.cs::NiagaraReconcileCommand|ShowDialog|1	UNGATED - the modal file chooser (or WPF window) opened for that input.
-StingTools/Commands/Twin/NiagaraCommands.cs::NiagaraReconcileCommand|TaskDialog.Show|2	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
-StingTools/Commands/Twin/NiagaraCommands.cs::NiagaraReconcileCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
+StingTools/Commands/Twin/NiagaraCommands.cs::NiagaraReconcileCommand|OpenFileDialog|1	GATED - the station export picker, built only when !PresetDialog.Quiet; inside a preset the step's params.stationExport names the file (PresetDialog.InputFile) and a step without it fails naming the param.
+StingTools/Commands/Twin/NiagaraCommands.cs::NiagaraReconcileCommand|ShowDialog|1	GATED - that picker's ShowDialog; same branch.
 
 # DeviceCoordinationCommand — step DeviceCoord_Audit in DeliverableB, DeliverableC, GateAudit
 

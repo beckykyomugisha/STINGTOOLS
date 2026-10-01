@@ -268,23 +268,42 @@ namespace StingTools.Commands.Classification
             var rules = CsiMap.Load(doc, out int corp, out int overlay);
             if (rules.Count == 0)
             {
-                TaskDialog.Show("CSI Assign", "No CSI map found. Ship STING_CSI_MASTERFORMAT_MAP.csv in data/ " +
-                    "or add _BIM_COORD/csi_map.csv.");
+                PresetDialog.Show("CSI Assign", "No CSI map found. Ship STING_CSI_MASTERFORMAT_MAP.csv in data/ " +
+                    "or add _BIM_COORD/csi_map.csv.", ref msg);
                 return Result.Succeeded;
             }
 
-            var picker = new TaskDialog("CSI Assign")
+            // Write mode: asked of a person; inside a workflow preset it is the step's
+            // "params": {"mode": "fill" | "overwrite"} — overwriting existing sections is the
+            // workflow author's decision, never a default.
+            bool overwrite;
+            if (PresetDialog.Quiet)
             {
-                MainInstruction = "Write CSI section to elements",
-                MainContent = $"{rules.Count} rules ({corp} corporate + {overlay} project). Choose write mode:",
-                CommonButtons = TaskDialogCommonButtons.Cancel,
-                AllowCancellation = true
-            };
-            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Fill empty only", "Only write where CSI_SECTION_TXT is blank");
-            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Overwrite all", "Re-resolve and overwrite existing values");
-            var choice = picker.Show();
-            if (choice == TaskDialogResult.Cancel) return Result.Cancelled;
-            bool overwrite = choice == TaskDialogResult.CommandLink2;
+                string mode = (WorkflowEngine.StepParam("mode") ?? "").Trim().ToLowerInvariant();
+                if (mode != "fill" && mode != "overwrite")
+                {
+                    msg = "CSI_Assign in a workflow needs \"params\": {\"mode\": \"fill\"} (or \"overwrite\") on its step; " +
+                          "no CSI section was written.";
+                    StingLog.Warn(msg);
+                    return Result.Failed;
+                }
+                overwrite = mode == "overwrite";
+            }
+            else
+            {
+                var picker = new TaskDialog("CSI Assign")
+                {
+                    MainInstruction = "Write CSI section to elements",
+                    MainContent = $"{rules.Count} rules ({corp} corporate + {overlay} project). Choose write mode:",
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                    AllowCancellation = true
+                };
+                picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Fill empty only", "Only write where CSI_SECTION_TXT is blank");
+                picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Overwrite all", "Re-resolve and overwrite existing values");
+                var choice = picker.Show();
+                if (choice == TaskDialogResult.Cancel) return Result.Cancelled;
+                overwrite = choice == TaskDialogResult.CommandLink2;
+            }
 
             var scope = CsiMap.Scope(ctx.UIDoc, doc, out string scopeLabel);
             int assigned = 0, skippedSet = 0, unresolved = 0;
@@ -332,11 +351,7 @@ namespace StingTools.Commands.Classification
                 foreach (var kv in unmappedCats.OrderByDescending(k => k.Value).Take(15))
                     sb.AppendLine($"   {kv.Value,5}  {kv.Key}");
             }
-            new TaskDialog("CSI Assign")
-            {
-                MainInstruction = $"{assigned} element(s) assigned a CSI section",
-                MainContent = sb.ToString()
-            }.Show();
+            PresetDialog.Show("CSI Assign", $"{assigned} element(s) assigned a CSI section", sb.ToString(), ref msg);
             StingLog.Info($"CSI_Assign: {assigned} assigned, {unresolved} unresolved ({scopeLabel})");
             return Result.Succeeded;
         }
@@ -352,24 +367,36 @@ namespace StingTools.Commands.Classification
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            var dlg = new Microsoft.Win32.OpenFileDialog
+            string tocPath;
+            if (PresetDialog.Quiet)
             {
-                Title = "Select the SpecLink spec TOC (CSV or XLSX with Section + Title columns)",
-                Filter = "Spec TOC (*.csv;*.xlsx)|*.csv;*.xlsx",
-                InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule")
-            };
-            if (dlg.ShowDialog() != true) return Result.Cancelled;
+                // Inside a preset the TOC is the step's params.specToc — never guessed.
+                tocPath = PresetDialog.InputFile(doc, "SpecLink_Reconcile", "specToc",
+                    "the SpecLink spec TOC (.csv or .xlsx)", ref msg);
+                if (tocPath == null) return Result.Failed;
+            }
+            else
+            {
+                var dlg = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Select the SpecLink spec TOC (CSV or XLSX with Section + Title columns)",
+                    Filter = "Spec TOC (*.csv;*.xlsx)|*.csv;*.xlsx",
+                    InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule")
+                };
+                if (dlg.ShowDialog() != true) return Result.Cancelled;
+                tocPath = dlg.FileName;
+            }
 
             Dictionary<string, string> spec;
-            try { spec = ReadToc(dlg.FileName); }
+            try { spec = ReadToc(tocPath); }
             catch (Exception ex)
             {
-                TaskDialog.Show("SpecLink Reconcile", $"Could not read the TOC:\n{ex.Message}");
+                PresetDialog.Show("SpecLink Reconcile", $"Could not read the TOC:\n{ex.Message}", ref msg);
                 return Result.Failed;
             }
             if (spec.Count == 0)
             {
-                TaskDialog.Show("SpecLink Reconcile", "No spec sections read — check the TOC has Section/Title columns.");
+                PresetDialog.Show("SpecLink Reconcile", "No spec sections read — check the TOC has Section/Title columns.", ref msg);
                 return Result.Succeeded;
             }
 
@@ -391,11 +418,8 @@ namespace StingTools.Commands.Classification
             }
             if (xlsx != null) { sb.AppendLine(); sb.AppendLine($"Report: {xlsx}"); }
 
-            new TaskDialog("SpecLink Reconcile")
-            {
-                MainInstruction = $"{rec.SpecGaps.Count} spec gap(s), {rec.TitleMismatches.Count} title mismatch(es)",
-                MainContent = sb.ToString()
-            }.Show();
+            PresetDialog.Show("SpecLink Reconcile",
+                $"{rec.SpecGaps.Count} spec gap(s), {rec.TitleMismatches.Count} title mismatch(es)", sb.ToString(), ref msg);
             StingLog.Info($"SpecLink_Reconcile: gaps={rec.SpecGaps.Count} over={rec.OverSpec.Count} mismatch={rec.TitleMismatches.Count}");
             return Result.Succeeded;
         }
