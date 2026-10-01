@@ -547,24 +547,69 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
-                    var link = links.FirstOrDefault(l => string.Equals(l.Name, kv.Key, StringComparison.OrdinalIgnoreCase));
-                    if (link == null) { r.Warnings.Add($"Revit link '{kv.Key}' not found — skipped."); continue; }
+                    // DTW-127: an instance's Name is "<file>.rvt : 1 : <location>", so a pack
+                    // keyed by the link's name ("Structure" / "Structure.rvt") never matched.
+                    // Match the instance name, then its type name, then the file name with
+                    // and without extension — every instance of a matched link is overridden.
+                    var matched = links.Where(l => LinkMatches(doc, l, kv.Key)).ToList();
+                    if (matched.Count == 0) { r.Warnings.Add($"Revit link '{kv.Key}' not found — skipped."); continue; }
                     bool hidden = (bool?)(kv.Value?["hidden"]) ?? false;
-                    if (hidden && view.CanCategoryBeHidden(new ElementId(BuiltInCategory.OST_RvtLinks)))
-                    {
-                        try { view.HideElements(new List<ElementId> { link.Id }); }
-                        catch (Exception ex) { r.Warnings.Add($"Link hide '{kv.Key}': {ex.Message}"); }
-                    }
                     bool halftone = (bool?)(kv.Value?["halftone"]) ?? false;
-                    if (halftone)
+                    foreach (var link in matched)
                     {
-                        var ogs = new OverrideGraphicSettings();
-                        ogs.SetHalftone(true);
-                        view.SetElementOverrides(link.Id, ogs);
+                        if (hidden && view.CanCategoryBeHidden(new ElementId(BuiltInCategory.OST_RvtLinks)))
+                        {
+                            try { view.HideElements(new List<ElementId> { link.Id }); }
+                            catch (Exception ex) { r.Warnings.Add($"Link hide '{kv.Key}': {ex.Message}"); }
+                        }
+                        if (halftone)
+                        {
+                            var ogs = new OverrideGraphicSettings();
+                            ogs.SetHalftone(true);
+                            view.SetElementOverrides(link.Id, ogs);
+                        }
                     }
                 }
                 catch (Exception ex) { r.Warnings.Add($"Link override '{kv.Key}': {ex.Message}"); }
             }
+        }
+
+        /// <summary>DTW-127 — does pack key <paramref name="key"/> name this link instance?
+        /// Compared against the instance name, the RevitLinkType name, and the linked file
+        /// name with and without its extension (and with the ".rvt : n : location" suffix
+        /// an instance name carries cut off).</summary>
+        private static bool LinkMatches(Document doc, RevitLinkInstance link, string key)
+        {
+            if (link == null || string.IsNullOrWhiteSpace(key)) return false;
+            string k = key.Trim();
+            var names = new List<string> { link.Name };
+            int colon = (link.Name ?? "").IndexOf(" : ", StringComparison.Ordinal);
+            if (colon > 0) names.Add(link.Name.Substring(0, colon));
+            try
+            {
+                if (doc.GetElement(link.GetTypeId()) is RevitLinkType lt)
+                {
+                    names.Add(lt.Name);
+                    try
+                    {
+                        var ext = lt.GetExternalFileReference();
+                        var path = ext == null ? null : ModelPathUtils.ConvertModelPathToUserVisiblePath(ext.GetAbsolutePath());
+                        if (!string.IsNullOrEmpty(path)) names.Add(System.IO.Path.GetFileName(path));
+                    }
+                    catch (Exception ex) { StingLog.Warn($"ApplyLinkOverrides file name of '{lt.Name}': {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ApplyLinkOverrides type of link {link.Id}: {ex.Message}"); }
+
+            foreach (var n in names)
+            {
+                if (string.IsNullOrWhiteSpace(n)) continue;
+                string t = n.Trim();
+                if (string.Equals(t, k, StringComparison.OrdinalIgnoreCase)) return true;
+                if (t.EndsWith(".rvt", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(t.Substring(0, t.Length - 4), k, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
         }
 
         // ── Phase 137 — Color-fill schemes ──
