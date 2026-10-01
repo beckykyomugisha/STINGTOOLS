@@ -2075,7 +2075,19 @@ namespace StingTools.Core.Drawing
 
             ViewSheet sheet;
             try { sheet = ViewSheet.Create(doc, titleBlockId); }
-            catch (Exception ex) { result.Warnings.Add($"CreateSheet: {ex.Message}"); return ElementId.InvalidElementId; }
+            catch (Exception ex)
+            {
+                // DTW-223: the number was reserved above. A sheet Revit refused used to
+                // keep it (a gap in the run) and the request ended with its views unplaced
+                // and no Failure, so the item committed as if it had produced. Give the
+                // number back when nothing has taken a later one, and fail the request.
+                bool released = false;
+                try { released = SheetSequenceStore.ReleaseIfLast(doc, seqBucket, seq); }
+                catch (Exception rex) { StingLog.Warn($"CreateSheet: releasing {seqBucket}#{seq}: {rex.Message}"); }
+                result.Fail($"'{dt.Id}': Revit could not create the sheet ({ex.Message})"
+                    + (released ? "; its reserved number was released." : "."));
+                return ElementId.InvalidElementId;
+            }
 
             // One token dict for the number, the name and the title-block
             // cells, built with the REAL doc handle so {project} /
