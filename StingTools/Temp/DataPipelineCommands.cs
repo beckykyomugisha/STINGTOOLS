@@ -1970,7 +1970,7 @@ namespace StingTools.Temp
                 if (p.StorageType == StorageType.Integer)
                     return p.AsInteger();
                 string s = p.AsString();
-                return double.TryParse(s, out double d) ? d : 0;
+                return NumberText.TryParse(s, out double d) ? d : 0;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
@@ -4212,7 +4212,7 @@ namespace StingTools.Temp
                     if (!string.IsNullOrEmpty(value))
                     {
                         // Try to write as number for numeric columns
-                        if (double.TryParse(value, out double numVal))
+                        if (NumberText.TryParse(value, out double numVal))
                         {
                             ws.Cell(row, c + 1).Value = numVal;
                             ws.Cell(row, c + 1).Style.NumberFormat.Format = "#,##0.##";

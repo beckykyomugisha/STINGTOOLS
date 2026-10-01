@@ -334,7 +334,7 @@ namespace StingTools.Temp
                 // Transparency (column 37): 0-100
                 string transStr = GetCol(cols, ColTransparency);
                 if (!string.IsNullOrEmpty(transStr) &&
-                    double.TryParse(transStr, out double transparencyD))
+                    NumberText.TryParse(transStr, out double transparencyD))
                 {
                     mat.Transparency = Math.Max(0, Math.Min(100, (int)transparencyD));
                 }
@@ -342,7 +342,7 @@ namespace StingTools.Temp
                 // Smoothness (column 38): 0-100
                 string smoothStr = GetCol(cols, ColSmoothness);
                 if (!string.IsNullOrEmpty(smoothStr) &&
-                    double.TryParse(smoothStr, out double smoothnessD))
+                    NumberText.TryParse(smoothStr, out double smoothnessD))
                 {
                     mat.Smoothness = Math.Max(0, Math.Min(100, (int)smoothnessD));
                 }
@@ -350,7 +350,7 @@ namespace StingTools.Temp
                 // Shininess (column 39): 0-128
                 string shinyStr = GetCol(cols, ColShininess);
                 if (!string.IsNullOrEmpty(shinyStr) &&
-                    double.TryParse(shinyStr, out double shininessD))
+                    NumberText.TryParse(shinyStr, out double shininessD))
                 {
                     mat.Shininess = Math.Max(0, Math.Min(128, (int)shininessD));
                 }

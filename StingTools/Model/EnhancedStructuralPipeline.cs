@@ -470,7 +470,7 @@ namespace StingTools.Model
                 if (p.StorageType == StorageType.Double)  return p.AsDouble();
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
                 if (p.StorageType == StorageType.String
-                    && double.TryParse(p.AsString(), out double v)) return v;
+                    && NumberText.TryParse(p.AsString(), out double v)) return v;
             }
             catch (Exception ex) { StingLog.Warn($"TryReadDouble {paramName}: {ex.Message}"); }
             return fallback;

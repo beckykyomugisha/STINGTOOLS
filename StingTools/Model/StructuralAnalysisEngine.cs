@@ -3829,8 +3829,8 @@ namespace StingTools.Model
                         // RC: parse "WxD"
                         var parts = change.NewSize.Split('x');
                         if (parts.Length == 2
-                            && double.TryParse(parts[0].Trim(), out double w)
-                            && double.TryParse(parts[1].Trim(), out double d))
+                            && NumberText.TryParse(parts[0].Trim(), out double w)
+                            && NumberText.TryParse(parts[1].Trim(), out double d))
                         {
                             var match = factory.FindOrCreateBeamType(d, w);
                             if (match.Success) targetTypeId = match.TypeId;
@@ -4385,7 +4385,7 @@ namespace StingTools.Model
                 if (p.StorageType == StorageType.Double)  return p.AsDouble();
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
                 if (p.StorageType == StorageType.String
-                    && double.TryParse(p.AsString(), out double v)) return v;
+                    && NumberText.TryParse(p.AsString(), out double v)) return v;
             }
             catch (Exception ex) { StingLog.Warn($"LoadCombo.ReadDouble {paramName}: {ex.Message}"); }
             return fallback;
@@ -4647,7 +4647,7 @@ namespace StingTools.Model
                 if (p.StorageType == StorageType.Double)  return p.AsDouble();
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
                 if (p.StorageType == StorageType.String
-                    && double.TryParse(p.AsString(), out double v)) return v;
+                    && NumberText.TryParse(p.AsString(), out double v)) return v;
             }
             catch { }
             return fb;

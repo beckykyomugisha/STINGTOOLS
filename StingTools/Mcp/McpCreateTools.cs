@@ -362,7 +362,7 @@ namespace StingTools.Mcp
             var tok = args[key];
             if (tok == null) { err = Bad($"Missing required argument: {key}."); return false; }
             double? v = tok.Type == JTokenType.String
-                ? (double.TryParse(tok.Value<string>(), out double pv) ? pv : (double?)null)
+                ? (NumberText.TryParse(tok.Value<string>(), out double pv) ? pv : (double?)null)
                 : tok.Value<double?>();
             if (v == null) { err = Bad($"Argument '{key}' must be a number (millimetres)."); return false; }
             val = v.Value;

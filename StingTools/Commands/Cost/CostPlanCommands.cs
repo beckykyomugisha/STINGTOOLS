@@ -162,7 +162,7 @@ namespace StingTools.Commands.Cost
                 // Simple sequential prompts (TaskDialog has no native
                 // text input). Surface a list of common GIFA bands.
                 var items = new[] { "500", "1000", "2500", "5000", "8500", "10000", "15000", "20000", "30000" }
-                    .Select(s => new StingListPicker.ListItem { Label = s + " m²", Tag = (object)double.Parse(s) })
+                    .Select(s => new StingListPicker.ListItem { Label = s + " m²", Tag = (object)double.Parse(s, System.Globalization.CultureInfo.InvariantCulture) })
                     .ToList();
                 var picked = StingListPicker.Show("STING — GIFA",
                     "Pick a GIFA band (or cancel and rerun with a project-specific value).",
