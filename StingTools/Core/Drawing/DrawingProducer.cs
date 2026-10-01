@@ -1270,7 +1270,8 @@ namespace StingTools.Core.Drawing
             string sheetCtx = BuildContextTag(ctx);
             string legacyCtx = BuildLegacyContextTag(ctx);
 
-            var existing = FindExistingSheet(doc, dt.Id, effectivePackage, sheetCtx, legacyCtx, result);
+            ReadContextParts(ctx, out _, out var ctxLevelId, out _, out _, out _);
+            var existing = FindExistingSheet(doc, dt.Id, effectivePackage, sheetCtx, legacyCtx, ctxLevelId, result);
             if (existing != null) return existing;
 
             // A sheet stamped with an id this request used to route to (the shipped id,
@@ -1279,7 +1280,7 @@ namespace StingTools.Core.Drawing
             foreach (var former in (ctx.FormerDrawingTypeIds ?? Array.Empty<string>())
                          .Where(f => !string.IsNullOrWhiteSpace(f) && !string.Equals(f, dt.Id, StringComparison.OrdinalIgnoreCase)))
             {
-                existing = FindExistingSheet(doc, former, effectivePackage, sheetCtx, legacyCtx, result);
+                existing = FindExistingSheet(doc, former, effectivePackage, sheetCtx, legacyCtx, ctxLevelId, result);
                 if (existing == null) continue;
                 try
                 {
@@ -1303,7 +1304,7 @@ namespace StingTools.Core.Drawing
         /// production context, or null. Sets <see cref="ProduceResult.SheetReused"/> on a hit.
         /// </summary>
         private static ElementId FindExistingSheet(Document doc, string typeId, string effectivePackage, string sheetCtx,
-            string legacyCtx, ProduceResult result)
+            string legacyCtx, long? ctxLevelId, ProduceResult result)
         {
             try
             {
@@ -1311,11 +1312,18 @@ namespace StingTools.Core.Drawing
                 // stamp — falling back to a fresh collector.
                 if (_existingSheetCache != null && CacheMatchesDoc(doc))
                 {
-                    foreach (var key in new[] { ProductionContextKey.Identity(sheetCtx), legacyCtx })
+                    var keys = new[] { ProductionContextKey.Identity(sheetCtx), legacyCtx };
+                    for (int k = 0; k < keys.Length; k++)
                     {
+                        var key = keys[k];
                         if (key == null || !_existingSheetCache.TryGetValue(SheetKey(typeId, effectivePackage, key), out var cachedSheetId)) continue;
                         if (doc.GetElement(cachedSheetId) is ViewSheet vsCached && vsCached.IsValidObject)
                         {
+                            // DTW-103: a hit on the pre-id stamp names the level by name only.
+                            // When the identity and legacy keys differ, accept it only when the
+                            // sheet's views are on this context's level (as FindExistingView does).
+                            if (k == 1 && !string.Equals(keys[0], key, StringComparison.Ordinal)
+                                && !SheetOnContextLevel(doc, vsCached, ctxLevelId)) continue;
                             result.SheetReused = true;   // P-9: reuse is not production
                             RestampSheetContext(vsCached, sheetCtx, typeId, effectivePackage, result);
                             return vsCached.Id;
@@ -1338,7 +1346,8 @@ namespace StingTools.Core.Drawing
                 var exact = candidates.FirstOrDefault(s =>
                                 ProductionContextKey.Matches(DrawingTypeStamper.ReadSheetContext(s), sheetCtx, null))
                          ?? (legacyCtx == null ? null : candidates.FirstOrDefault(s =>
-                                string.Equals(DrawingTypeStamper.ReadSheetContext(s), legacyCtx, StringComparison.Ordinal)));
+                                string.Equals(DrawingTypeStamper.ReadSheetContext(s), legacyCtx, StringComparison.Ordinal)
+                                && SheetOnContextLevel(doc, s, ctxLevelId)));
                 if (exact != null)
                 {
                     result.SheetReused = true;
@@ -1383,6 +1392,25 @@ namespace StingTools.Core.Drawing
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
+        }
+
+        /// <summary>
+        /// DTW-103: a sheet matched by its pre-id stamp (level by name only) belongs to this
+        /// context's level when one of the views placed on it is on that level, or when none
+        /// of them has a level. Otherwise a level that took a renamed level's old name would
+        /// adopt that level's sheet, and the re-stamp would make the mix-up permanent.
+        /// </summary>
+        private static bool SheetOnContextLevel(Document doc, ViewSheet sheet, long? ctxLevelId)
+        {
+            if (!ctxLevelId.HasValue || sheet == null) return true;
+            var levels = new List<long>();
+            try
+            {
+                foreach (var vid in sheet.GetAllPlacedViews())
+                    if (doc.GetElement(vid) is View v && v.GenLevel != null) levels.Add(v.GenLevel.Id.Value);
+            }
+            catch (Exception ex) { StingLog.Warn($"SheetOnContextLevel {sheet.Id}: {ex.Message}"); return true; }
+            return ProductionContextKey.LegacyStampOnLevel(ctxLevelId, levels);
         }
 
         /// <summary>

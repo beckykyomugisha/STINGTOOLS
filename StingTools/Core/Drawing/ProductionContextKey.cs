@@ -100,5 +100,27 @@ namespace StingTools.Core.Drawing
                 && Identity(stamp) != stamp) return true;
             return legacy != null && string.Equals(stamp, legacy, StringComparison.Ordinal);
         }
+    
+        /// <summary>
+        /// DTW-103: whether an element found by its pre-id (name-only) stamp may be adopted
+        /// for a context on level <paramref name="contextLevelId"/>. A legacy stamp names the
+        /// level by name, so after "Level 1" is renamed and a new level takes that name the
+        /// string describes the new level. <paramref name="placedLevelIds"/> are the levels of
+        /// what the element already holds (for a sheet, its placed views' levels): it is
+        /// adopted when one of them is this level, or when none carries a level (nothing to
+        /// tell by, the behaviour before this check). A context with no level always adopts.
+        /// </summary>
+        public static bool LegacyStampOnLevel(long? contextLevelId, IEnumerable<long> placedLevelIds)
+        {
+            if (!contextLevelId.HasValue || contextLevelId.Value <= 0) return true;
+            bool anyLevel = false;
+            foreach (var id in placedLevelIds ?? Array.Empty<long>())
+            {
+                if (id <= 0) continue;
+                if (id == contextLevelId.Value) return true;
+                anyLevel = true;
+            }
+            return !anyLevel;
+        }
     }
 }
