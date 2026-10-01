@@ -1175,52 +1175,6 @@ namespace StingTools.Temp
         }
 
         /// <summary>
-        /// Loads CATEGORY_BINDINGS.csv and returns parameter→category mappings.
-        /// </summary>
-        public static Dictionary<string, List<(string category, string bindingType, bool isShared)>>
-            LoadCategoryBindings()
-        {
-            var map = new Dictionary<string, List<(string, string, bool)>>(
-                StringComparer.OrdinalIgnoreCase);
-            string csvPath = StingToolsApp.FindDataFile("CATEGORY_BINDINGS.csv");
-            if (string.IsNullOrEmpty(csvPath)) return map;
-
-            try
-            {
-                // DSCH-2: by column name, not position.
-                var table = CsvTable.Parse(File.ReadAllLines(csvPath), StingToolsApp.ParseCsvLine);
-                string[] required = { "Parameter_Name", "Revit_Category", "Binding_Type", "Is_Shared" };
-                var missingCols = table.Missing(required);
-                if (missingCols.Count > 0)
-                {
-                    StingLog.Warn($"CATEGORY_BINDINGS.csv: header lacks column(s) {string.Join(", ", missingCols)} — no bindings loaded ({csvPath})");
-                    return map;
-                }
-                int minFields = required.Max(c => table.Col(c)) + 1;
-
-                foreach (var row in table.Rows)
-                {
-                    if (row.Count < minFields) continue;
-
-                    string paramName = row["Parameter_Name"];
-                    string category = row["Revit_Category"];
-                    string bindingType = row["Binding_Type"];
-                    bool isShared = row["Is_Shared"].Equals("True", StringComparison.OrdinalIgnoreCase);
-
-                    if (!map.ContainsKey(paramName))
-                        map[paramName] = new List<(string, string, bool)>();
-                    map[paramName].Add((category, bindingType, isShared));
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("Failed to load CATEGORY_BINDINGS.csv", ex);
-            }
-
-            return map;
-        }
-
-        /// <summary>
         /// Maps Revit category display names to BuiltInCategory enums.
         /// Covers all 53 STING-supported categories.
         /// </summary>

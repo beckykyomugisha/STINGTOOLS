@@ -3667,42 +3667,6 @@ namespace StingTools.Core
             }
         }
 
-        /// <summary>WF-GAP-01: Get workflow preset appropriate for the project type.
-        /// Reads PROJECT_TYPE from project_config.json. Returns discipline-specific preset
-        /// or falls back to DailyQA for unknown types.</summary>
-        public static WorkflowPreset GetWorkflowForProjectType(string projectType)
-        {
-            if (string.IsNullOrEmpty(projectType)) return GetBuiltInPreset("DailyQA");
-            string pt = projectType.Trim();
-
-            // Map project types to discipline-specific presets
-            if (pt.IndexOf("Health", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                pt.IndexOf("NHS", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                pt.IndexOf("Hospital", StringComparison.OrdinalIgnoreCase) >= 0)
-                return GetBuiltInPreset("Healthcare_NHS");
-
-            if (pt.IndexOf("Data Cent", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                pt.IndexOf("DataCent", StringComparison.OrdinalIgnoreCase) >= 0)
-                return GetBuiltInPreset("DataCentre");
-
-            if (pt.IndexOf("Office", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                pt.IndexOf("Commercial", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                pt.IndexOf("Retail", StringComparison.OrdinalIgnoreCase) >= 0)
-                return GetBuiltInPreset("CommercialOffice");
-
-            if (pt.IndexOf("Residen", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                pt.IndexOf("Housing", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                pt.IndexOf("Dwelling", StringComparison.OrdinalIgnoreCase) >= 0)
-                return GetBuiltInPreset("Residential");
-
-            if (pt.IndexOf("Educat", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                pt.IndexOf("School", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                pt.IndexOf("University", StringComparison.OrdinalIgnoreCase) >= 0)
-                return GetBuiltInPreset("Education");
-
-            return GetBuiltInPreset("DailyQA"); // fallback
-        }
-
         // ── LOG-13: JSONL run record persistence with rotation ────────────
 
         private const string LogFileName = "STING_WORKFLOW_LOG.jsonl";

@@ -364,18 +364,6 @@ namespace StingTools.Core
             set { _activePreset = value; }
         }
 
-        /// <summary>Get the display style for an element based on the active preset.</summary>
-        public static Tag7DisplayStyle GetDisplayStyle(Element el)
-        {
-            if (ActivePreset == null) return null;
-
-            string value = ParameterHelpers.GetValueText(el, ActivePreset.DiscriminatorParam);
-            if (!string.IsNullOrEmpty(value) && ActivePreset.Styles.TryGetValue(value, out var style))
-                return style;
-
-            return ActivePreset.DefaultStyle;
-        }
-
         /// <summary>All built-in TAG7 display presets.</summary>
         public static readonly Tag7DisplayPreset[] BuiltInPresets = BuildPresets();
 
@@ -489,7 +477,7 @@ namespace StingTools.Core
                 {
                     Name = "Completeness",
                     Description = "RAG status: Green=Complete (all 8 tokens), Orange=Partial, Red=Missing critical tokens",
-                    DiscriminatorParam = "_COMPLETENESS_", // Special: computed by GetDisplayStyle override
+                    DiscriminatorParam = "_COMPLETENESS_", // Special: computed by GetDisplayStyleSmart
                     Styles = new Dictionary<string, Tag7DisplayStyle>
                     {
                         { "COMPLETE",    new Tag7DisplayStyle { HeaderColor = "#2E7D32", BackgroundTint = "#E8F5E9", Label = "Complete",

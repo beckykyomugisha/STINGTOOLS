@@ -2097,12 +2097,6 @@ namespace StingTools.Core
             return files.OrderByDescending(f => f.Modified).ToList();
         }
 
-        /// <summary>Get files in a specific folder.</summary>
-        public static List<ProjectFile> GetFilesInFolder(Document doc, string folderId)
-        {
-            return GetAllFiles(doc).Where(f => f.FolderId.Equals(folderId, StringComparison.OrdinalIgnoreCase)).ToList();
-        }
-
         /// <summary>Get folder statistics (cached for 10 seconds — PERF-02).</summary>
         public static List<FolderStats> GetFolderStats(Document doc)
         {
@@ -3147,10 +3141,6 @@ namespace StingTools.Core
         }
 
         // ══════════════════════════════════════════════════════════════════
-        //  FOLDER-04: FileSystemWatcher active-state guard
-        /// <summary>Returns true when the FileSystemWatcher is currently enabled.</summary>
-        public static bool IsWatcherActive => _watcher?.EnableRaisingEvents == true;
-
         //  INT-002: FileSystemWatcher for project folder monitoring
         // ══════════════════════════════════════════════════════════════════
 

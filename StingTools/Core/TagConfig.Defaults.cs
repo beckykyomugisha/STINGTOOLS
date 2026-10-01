@@ -158,72 +158,10 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Scan the entire project and find the highest existing sequence number
-        /// for each (DISC, SYS, LVL) group. Returns a dictionary that can be passed
-        /// to BuildAndWriteTag so new tags continue from existing numbering.
-        /// </summary>
-        /// <remarks>
-        /// <b>Obsolete</b>: Use <see cref="BuildTagIndexAndCounters"/> instead.
-        /// That method merges the sidecar <c>.sting_seq.json</c> counter store with
-        /// the live project scan so SEQ numbering survives Revit session boundaries.
-        /// Calling this method directly skips the sidecar, which can produce SEQ
-        /// collisions after the project has been reopened.
-        /// </remarks>
-        [Obsolete("Use BuildTagIndexAndCounters(doc) — it merges sidecar counters with the live scan, preventing SEQ collisions across sessions.")]
-        public static Dictionary<string, int> GetExistingSequenceCounters(Document doc)
-        {
-            var maxSeq = new Dictionary<string, int>();
-            var known = new HashSet<string>(DiscMap.Keys);
-
-            // Use ElementMulticategoryFilter to skip non-taggable elements
-            var seqCats = SharedParamGuids.AllCategoryEnums;
-            FilteredElementCollector seqCollector = new FilteredElementCollector(doc)
-                .WhereElementIsNotElementType();
-            if (seqCats != null && seqCats.Length > 0)
-                seqCollector.WherePasses(new ElementMulticategoryFilter(
-                    new List<BuiltInCategory>(seqCats)));
-            foreach (Element elem in seqCollector)
-            {
-                string cat = ParameterHelpers.GetCategoryName(elem);
-                if (!known.Contains(cat)) continue;
-
-                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
-                string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
-                string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
-                string seqStr = ParameterHelpers.GetString(elem, ParamRegistry.SEQ);
-                if (string.IsNullOrEmpty(disc)) continue;
-
-                // Normalise empty tokens to match BuildAndWriteTag key format
-                if (string.IsNullOrEmpty(sys))
-                    sys = GetDiscDefaultSysCode(disc);
-                if (string.IsNullOrEmpty(lvl) || lvl == "XX")
-                    lvl = "L00";
-
-                // Match SeqIncludeZone/SeqIncludeLoc key format used by BuildAndWriteTag/BuildSeqKey
-                string scanZone = SeqIncludeZone ? ParameterHelpers.GetString(elem, ParamRegistry.ZONE) : null;
-                string scanLoc = SeqIncludeLoc ? ParameterHelpers.GetString(elem, ParamRegistry.LOC) : null;
-                string key = SeqAssigner.BuildSeqKey(disc, sys, lvl, scanZone, scanLoc, SeqIncludeZone, SeqIncludeLoc);
-
-                if (int.TryParse(seqStr, out int seqNum) && seqNum >= 0)
-                {
-                    if (!maxSeq.TryGetValue(key, out int curMax) || seqNum > curMax)
-                        maxSeq[key] = seqNum;
-                }
-                else if (CurrentSeqScheme == SeqScheme.Alpha && !string.IsNullOrEmpty(seqStr))
-                {
-                    int alphaNum = FromAlpha(seqStr);
-                    if (alphaNum > 0 && (!maxSeq.TryGetValue(key, out int curAlphaMax) || alphaNum > curAlphaMax))
-                        maxSeq[key] = alphaNum;
-                }
-            }
-
-            return maxSeq;
-        }
-
-        /// <summary>
         /// Combined single-pass scan: builds both the tag index and sequence counters
-        /// in one iteration over all project elements. Use this instead of calling
-        /// BuildExistingTagIndex + GetExistingSequenceCounters separately.
+        /// in one iteration over all project elements. It is the only SEQ-counter scan:
+        /// it merges the sidecar .sting_seq.json store with the live scan, so numbering
+        /// survives Revit sessions (the project-params-only scan it replaced did not).
         /// </summary>
         public static (HashSet<string> tagIndex, Dictionary<string, int> seqCounters)
             BuildTagIndexAndCounters(Document doc)
@@ -574,8 +512,8 @@ namespace StingTools.Core
                 // read defaults to GEN (assumed), not HVAC.
                 { "HVAC", new List<string> { "Air Terminals", "Duct Accessories", "Duct Fittings", "Ducts", "Duct Insulation", "Duct Lining", "Flex Ducts", "Mechanical Equipment", "Mechanical Control Devices", "Mechanical Equipment Sets", "MEP Fabrication Ductwork", "MEP Fabrication Ductwork Stiffeners", "MEP Fabrication Hangers", "MEP Ancillary Framing" } },
                 // Pipes default to DCW (cold water bias); runtime MEP detection overrides.
-                // All pipe categories appear in every applicable system entry so
-                // GetAllSysCodes() returns the full list for validation (BUG-001 fix).
+                // All pipe categories appear in every applicable system entry so the
+                // reverse map (category -> every SYS listing it) is complete (BUG-001 fix).
                 { "DCW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "Plumbing Fixtures", "Plumbing Equipment", "MEP Fabrication Pipework" } },
                 { "DHW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes" } },
                 { "HWS", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes" } },

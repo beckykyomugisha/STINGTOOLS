@@ -76,29 +76,6 @@ namespace StingTools.Core.Fabrication
             }
         }
 
-        /// <summary>
-        /// Return the list of loaded services, or an empty list on
-        /// failure. Callers enumerate .Name + any API surface they
-        /// need directly so the locator does not accumulate unverified
-        /// signatures. (Phase B.2 will surface a verified button search
-        /// once the SDK is available on the build bench.)
-        /// </summary>
-        public static IList<FabricationService> GetLoadedServices(Document doc)
-        {
-            var cfg = GetConfig(doc);
-            if (cfg == null) return new List<FabricationService>();
-            try
-            {
-                var list = cfg.GetAllLoadedServices();
-                return list ?? new List<FabricationService>();
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"FabricationServiceLocator.GetLoadedServices: {ex.Message}");
-                return new List<FabricationService>();
-            }
-        }
-
         public static void InvalidateCache()
         {
             lock (_lock) { _configByDoc.Clear(); }

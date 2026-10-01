@@ -702,18 +702,6 @@ namespace StingTools.Core
             return LastScope ?? "active_view";
         }
 
-        /// <summary>Get scope label for display in reports.</summary>
-        public static string GetScopeLabel(string scope, Autodesk.Revit.UI.UIDocument uidoc)
-        {
-            return scope switch
-            {
-                "selection" => $"selected elements ({uidoc?.Selection?.GetElementIds()?.Count ?? 0})",
-                "active_view" => $"active view '{uidoc?.ActiveView?.Name ?? "unknown"}'",
-                "project" => "entire project",
-                _ => scope ?? "unknown"
-            };
-        }
-
         /// <summary>
         /// When false (default), LOC/ZONE validation uses format checks (alphanumeric, 1-8 chars)
         /// instead of strict code-list validation. Set to true in project_config.json via
@@ -1809,7 +1797,7 @@ namespace StingTools.Core
         /// DISCIPLINE default when that is one of them (Walls → ARC, Generic Models → GEN),
         /// else the first listed. It used to return the first listed, and LPS is listed
         /// before ARC / STR / GEN, so walls, roofs and foundations defaulted to LPS.
-        /// Use <see cref="GetAllSysCodes"/> when the full list is needed.</summary>
+        /// The full list per category is the reverse map (GetReverseSysMap).</summary>
         public static string GetSysCode(string categoryName)
         {
             if (string.IsNullOrEmpty(categoryName)) return string.Empty;
@@ -1817,13 +1805,6 @@ namespace StingTools.Core
             if (!reverse.TryGetValue(categoryName, out var list) || list.Count == 0) return string.Empty;
             string disc = DiscMap != null && DiscMap.TryGetValue(categoryName, out string d) ? d : null;
             return CategoryTokenDefaults.ChooseCategorySys(list, disc);
-        }
-
-        /// <summary>Get ALL valid SYS codes for a category (e.g., Pipes → DCW, DHW, SAN, RWD, GAS, FP, HWS).</summary>
-        public static List<string> GetAllSysCodes(string categoryName)
-        {
-            var reverse = GetReverseSysMap();
-            return reverse.TryGetValue(categoryName, out var list) ? list : new List<string>();
         }
 
         /// <summary>Get the FUNC code for a SYS code (basic lookup).</summary>

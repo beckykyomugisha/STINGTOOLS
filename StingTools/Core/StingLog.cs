@@ -119,7 +119,7 @@ namespace StingTools.Core
         }
 
         // ── E-1 cache hit/miss telemetry ───────────────────────────────────
-        // Lightweight Interlocked counters for the four highest-value caches.
+        // Lightweight Interlocked counters for the highest-value caches.
         // Read via DumpCacheStats(); reset on Reset(). Write paths are
         // RecordHit/RecordMiss exposed below for cache owners to call.
 
@@ -127,13 +127,11 @@ namespace StingTools.Core
         {
             ParamCache,
             RoomIndex,
-            Tag7Hash,
             DrawingTypeRegistry,
         }
 
         private static long _paramCacheHits, _paramCacheMisses;
         private static long _roomIndexHits, _roomIndexMisses;
-        private static long _tag7HashHits, _tag7HashMisses;
         private static long _dtRegistryHits, _dtRegistryMisses;
 
         public static void RecordHit(CacheKind kind)
@@ -142,7 +140,6 @@ namespace StingTools.Core
             {
                 case CacheKind.ParamCache:           System.Threading.Interlocked.Increment(ref _paramCacheHits); break;
                 case CacheKind.RoomIndex:            System.Threading.Interlocked.Increment(ref _roomIndexHits); break;
-                case CacheKind.Tag7Hash:             System.Threading.Interlocked.Increment(ref _tag7HashHits); break;
                 case CacheKind.DrawingTypeRegistry:  System.Threading.Interlocked.Increment(ref _dtRegistryHits); break;
             }
         }
@@ -153,7 +150,6 @@ namespace StingTools.Core
             {
                 case CacheKind.ParamCache:           System.Threading.Interlocked.Increment(ref _paramCacheMisses); break;
                 case CacheKind.RoomIndex:            System.Threading.Interlocked.Increment(ref _roomIndexMisses); break;
-                case CacheKind.Tag7Hash:             System.Threading.Interlocked.Increment(ref _tag7HashMisses); break;
                 case CacheKind.DrawingTypeRegistry:  System.Threading.Interlocked.Increment(ref _dtRegistryMisses); break;
             }
         }
@@ -172,7 +168,6 @@ namespace StingTools.Core
             }
             Info($"Cache stats — _paramCache:           hits {fmt(_paramCacheHits,  _paramCacheMisses)}");
             Info($"Cache stats — SpatialAutoDetect room index: {fmt(_roomIndexHits, _roomIndexMisses)}");
-            Info($"Cache stats — _tag7HashCache:        {fmt(_tag7HashHits, _tag7HashMisses)}");
             Info($"Cache stats — DrawingTypeRegistry:   {fmt(_dtRegistryHits, _dtRegistryMisses)}");
         }
 
@@ -207,8 +202,6 @@ namespace StingTools.Core
             System.Threading.Interlocked.Exchange(ref _paramCacheMisses, 0);
             System.Threading.Interlocked.Exchange(ref _roomIndexHits, 0);
             System.Threading.Interlocked.Exchange(ref _roomIndexMisses, 0);
-            System.Threading.Interlocked.Exchange(ref _tag7HashHits, 0);
-            System.Threading.Interlocked.Exchange(ref _tag7HashMisses, 0);
             System.Threading.Interlocked.Exchange(ref _dtRegistryHits, 0);
             System.Threading.Interlocked.Exchange(ref _dtRegistryMisses, 0);
         }
