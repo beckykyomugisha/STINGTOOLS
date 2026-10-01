@@ -52,7 +52,9 @@ namespace StingTools.Commands.MepDesign
 
             var assumptions = new CableSizeInput
             {
-                Standard = "BS7671", Material = "Cu", Insulation = "PVC70", InstallMethod = "C",
+                // No material: each circuit's recorded ELC_WIRE_COND_MAT_TXT is used, else
+                // copper is assumed and the sizer says so per circuit.
+                Standard = "BS7671", Material = null, Insulation = "PVC70", InstallMethod = "C",
                 CableType = StingTools.Core.Electrical.Bs7671Data.DefaultCableType,
                 AmbientTempC = v[0], VDLimitPct = v[1],
             };

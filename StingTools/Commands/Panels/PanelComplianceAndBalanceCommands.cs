@@ -181,19 +181,24 @@ namespace StingTools.Commands.Panels
             double it = 0;
             // The cable recorded when a size was applied, when all of it is known.
             var rec = CircuitCableRecord.Read(sys);
-            var own = csa > 0 ? rec.FindTable(tables) : null;
+            var mat = ConductorMaterialSource.ForElement(sys, opts?.Material);
+            string matKey = mat.Ok ? mat.Label : null;
+            var own = csa > 0 && matKey != null ? rec.FindTable(tables, matKey) : null;
             if (own != null) it = Bs7671Data.TabulatedIt(own, csa, ph);
             if (it > 0)
                 izBasis = $"{own.Cite()} ({rec}, recorded on the circuit) It for {csa:0.#} mm², 30 °C, ungrouped";
             else
             {
                 Bs7671CapacityTable from = null;
-                it = tables != null && csa > 0 ? tables.MaxTabulatedIt("Cu", csa, ph, out from) : 0;
-                if (tables != null && !string.IsNullOrEmpty(tables.LoadError))
+                it = tables != null && csa > 0 && matKey != null ? tables.MaxTabulatedIt(matKey, csa, ph, out from) : 0;
+                if (!mat.Ok)
+                    izBasis = mat.Refusal;
+                else if (tables != null && !string.IsNullOrEmpty(tables.LoadError))
                     izBasis = tables.LoadError;
                 else if (from != null)
-                    izBasis = $"highest tabulated It for {csa:0.#} mm² Cu in any {(tables.HasProjectLayer ? "loaded (project-layered)" : "shipped")} table ({from.Cite()} method {from.InstallMethod}, " +
-                              $"{from.Insulation} {from.CableType}), 30 °C, ungrouped — no complete cable record on the circuit";
+                    izBasis = $"highest tabulated It for {csa:0.#} mm² {matKey} in any {(tables.HasProjectLayer ? "loaded (project-layered)" : "shipped")} table ({from.Cite()} method {from.InstallMethod}, " +
+                              $"{from.Insulation} {from.CableType}), 30 °C, ungrouped — no complete cable record on the circuit" +
+                              (mat.Assumed ? "; " + mat.Basis : "");
             }
             row.Iz = it > 0 ? it : (double?)null;
 
@@ -201,7 +206,7 @@ namespace StingTools.Commands.Panels
             // an import, a resistance estimate, a stale value or the old 0.00 written for a
             // circuit that could not be calculated — none of which can pass a BS 7671 check.
             var vd = StingTools.Core.Electrical.CircuitVoltageDropModel.Compute(sys, tables, "BS7671",
-                opts?.Material ?? "Cu", opts?.OperatingTempC > 0 ? opts.OperatingTempC : 70.0);
+                opts?.Material, opts?.OperatingTempC > 0 ? opts.OperatingTempC : 70.0);
             if (vd.HasValue && StingTools.Core.Electrical.CircuitVoltageDrop.IsAppendix4(vd.Method))
             {
                 row.Vd = vd.Pct;

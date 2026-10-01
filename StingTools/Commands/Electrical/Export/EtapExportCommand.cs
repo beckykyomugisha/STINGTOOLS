@@ -75,10 +75,14 @@ namespace StingTools.Commands.Electrical.Export
                 return new XElement(cim + "ACLineSegment",
                     new XAttribute(rdf + "ID", fId),
                     new XElement(cim + "IdentifiedObject.name", $"{f.UpstreamPanel}→{f.DownstreamPanel}"),
+                    new XElement(cim + "IdentifiedObject.description", $"conductor {f.Material}" +
+                        (f.ResistanceKnown ? "" : "; resistance not calculated (no resistivity held for this material)")),
                     new XElement(cim + "Conductor.length",
                         f.LengthM.ToString("0.00", CultureInfo.InvariantCulture)),
-                    new XElement(cim + "ACLineSegment.r",
-                        f.ResistanceOhm.ToString("0.000000", CultureInfo.InvariantCulture)),
+                    f.ResistanceKnown
+                        ? new XElement(cim + "ACLineSegment.r",
+                            f.ResistanceOhm.ToString("0.000000", CultureInfo.InvariantCulture))
+                        : null,
                     new XElement(cim + "ACLineSegment.x",
                         f.ReactanceOhm.ToString("0.000000", CultureInfo.InvariantCulture)),
                     new XElement(cim + "Terminal",

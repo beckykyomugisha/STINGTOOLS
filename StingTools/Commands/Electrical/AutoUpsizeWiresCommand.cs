@@ -30,7 +30,7 @@ namespace StingTools.Commands.Electrical
 
             var opts = StingElectricalCommandHandler.CurrentVDOptions
                        ?? new VDOptionsSnapshot { LightingLimitPct = 3.0, OtherLimitPct = 5.0,
-                                                  Material = "Cu", OperatingTempC = 70.0,
+                                                  Material = null, OperatingTempC = 70.0,
                                                   Standard = "BS7671" };
 
             var vdResults = VoltageDropCommand.Calculate(doc, opts.Standard,

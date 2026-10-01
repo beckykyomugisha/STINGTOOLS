@@ -28,7 +28,7 @@ namespace StingTools.Commands.Electrical.Reports
 
             var opts = StingElectricalCommandHandler.CurrentVDOptions
                        ?? new VDOptionsSnapshot { LightingLimitPct = 3.0, OtherLimitPct = 5.0,
-                                                  Material = "Cu", OperatingTempC = 70.0,
+                                                  Material = null, OperatingTempC = 70.0,
                                                   Standard = "BS7671" };
             var results = VoltageDropCommand.Calculate(doc, opts.Standard,
                 opts.LightingLimitPct, opts.OtherLimitPct, opts.Material, opts.OperatingTempC);

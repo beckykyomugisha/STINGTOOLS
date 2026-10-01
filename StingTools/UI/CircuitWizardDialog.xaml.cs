@@ -175,8 +175,15 @@ namespace StingTools.UI
 
             try
             {
-                var proposed = CircuitWizardEngine.ProposeCircuits(
-                    UnconnectedElements, panel, pct / 100.0, standard, _wireTables, _bsTables);
+                // Conductor material from the Electrical panel's CABLE tab when it is open;
+                // otherwise none, and each proposal says copper was assumed.
+                var opts = new CircuitWizardOptions
+                {
+                    MaxLoadPct = pct / 100.0, Standard = standard, Bs7671Tables = _bsTables,
+                    Material = StingTools.UI.StingElectricalCommandHandler.CurrentCableSizeInput?.Material,
+                };
+                CircuitWizardCommand.PendingOptions = opts;
+                var proposed = CircuitWizardEngine.ProposeCircuits(UnconnectedElements, panel, opts, _wireTables);
                 Proposals.Clear();
                 foreach (var p in proposed) Proposals.Add(new ProposedCircuitVm(p, standard, _wireTables, _bsTables));
             }
@@ -279,6 +286,10 @@ namespace StingTools.UI
                     "\n\nSplit or remove them first.");
                 return;
             }
+            var assumedMat = Proposals.FirstOrDefault(p => p.Source.MaterialNote != null);
+            if (assumedMat != null)
+                MessageBoxAlt("Conductor material: " + assumedMat.Source.MaterialNote +
+                    " — the proposals were sized as copper. Set the material on the Electrical panel's CABLE tab and propose again if they are not.");
             var toConfirm = Proposals.Where(p => p.Source.ConductorNote != null).ToList();
             if (toConfirm.Count > 0)
                 MessageBoxAlt($"{toConfirm.Count} proposed circuit(s) need the NEC 240.4 conductor check confirmed:\n" +

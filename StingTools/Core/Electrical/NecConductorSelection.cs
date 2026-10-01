@@ -45,6 +45,12 @@ namespace StingTools.Core.Electrical
         {
             var pick = new NecConductorPick();
             double sizingCurrent = continuous ? ibA * 1.25 : ibA;
+            if (double.IsNaN(NECStandards.GetTemperatureCorrectionFactor(ambientC, 75)))
+            {
+                pick.Refusal = $"NEC Table 310.15(B)(1)(1) gives no 75 °C correction factor at {ambientC:0.#} °C ambient " +
+                               "(the 75 °C column ends at 70 °C) — a 75 °C conductor is not used there; nothing was sized.";
+                return pick;
+            }
             bool anyCarries = false;
             foreach (string size in SizeLadder)
             {

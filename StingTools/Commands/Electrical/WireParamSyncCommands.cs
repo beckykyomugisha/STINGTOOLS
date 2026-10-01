@@ -266,8 +266,8 @@ namespace StingTools.Commands.Electrical
             }
             catch (Exception ex) { StingLog.Warn("WireStampHelper: " + ex.Message); }
 
-            // Fallback for conductor material
-            if (string.IsNullOrEmpty(d.ConductorMat)) d.ConductorMat = "Cu";
+            // No fallback: a blank material stays blank. "Cu" was written here and then
+            // stamped onto the conduit as if recorded, turning an assumption into a fact.
 
             return d;
         }
@@ -408,7 +408,7 @@ namespace StingTools.Commands.Electrical
 
             TaskDialog.Show("Wire Stamp",
                   $"Circuit: {wsd.CircuitNumber}  Panel: {wsd.PanelName}\n"
-                + $"  Phase: {wsd.Phase}  Cores: {wsd.CoreCount}  Mat: {wsd.ConductorMat}\n"
+                + $"  Phase: {wsd.Phase}  Cores: {wsd.CoreCount}  Mat: {(string.IsNullOrWhiteSpace(wsd.ConductorMat) ? "not recorded" : wsd.ConductorMat)}\n"
                 + $"  Max demand: {wsd.MaxDemandA:0.0} A\n\n"
                 + $"{report.Written} parameter(s) written."
                 + report.Describe());
@@ -941,7 +941,8 @@ namespace StingTools.Commands.Electrical
         public static double CpcAdiabatic(double faultCurrentA, double clearingTimeS,
             string material = "Cu")
         {
-            double k = material?.Contains("Al") == true ? 115 : 143;
+            if (StingTools.Standards.NEC2023.ConductorMaterialText.IsCopperClad(material)) return double.NaN; // no CCA k factor shipped
+            double k = StingTools.Standards.NEC2023.ConductorMaterialText.IsAluminium(material) ? 115 : 143;
             return Math.Sqrt(faultCurrentA * faultCurrentA * clearingTimeS) / k;
         }
 

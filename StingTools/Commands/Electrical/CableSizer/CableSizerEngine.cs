@@ -24,7 +24,7 @@ namespace StingTools.Commands.Electrical.CableSizer
         public string InstallMethod { get; set; } = "C";
         /// <summary>Conductor material — "Cu", "Al" or "CCA" (copper-clad aluminium, NEC
         /// only: every BS 7671 path refuses it). Read by ConductorMaterialText.</summary>
-        public string Material { get; set; } = "Cu";
+        public string Material { get; set; }
         /// <summary>"PVC70" | "XLPE90" | "LSOH90" | "THWN90". On the BS 7671 path a combination
         /// with no Appendix 4 table in STING_WIRE_TABLES.json is refused, not approximated.</summary>
         public string Insulation { get; set; } = "PVC70";
@@ -231,6 +231,23 @@ namespace StingTools.Commands.Electrical.CableSizer
         /// standard's name onto a drawing must come from that standard.</para>
         /// </summary>
         public static CableSizeResult Calculate(CableSizeInput input, Bs7671Data tables)
+        {
+            if (input != null)
+            {
+                // The one reading of the material: unrecognised text is refused; nothing given
+                // is copper, ASSUMED, and the result says so (it used to default silently).
+                var mat = StingTools.Standards.NEC2023.ConductorMaterialText.Resolve(null, input.Material);
+                if (!mat.Ok)
+                    return new CableSizeResult { Sized = false, Warning = mat.Refusal + "; nothing was sized.", DerivationNote = "No calculation performed." };
+                var r = CalculateCore(input, tables);
+                if (mat.Assumed && r != null && r.Sized)
+                    r.Warning = (string.IsNullOrEmpty(r.Warning) ? "" : r.Warning.TrimEnd() + " ") + "Conductor material: " + mat.Basis + ".";
+                return r;
+            }
+            return CalculateCore(input, tables);
+        }
+
+        private static CableSizeResult CalculateCore(CableSizeInput input, Bs7671Data tables)
         {
             var result = new CableSizeResult();
             if (input == null) { result.Warning = "Null input"; return result; }
@@ -489,23 +506,15 @@ namespace StingTools.Commands.Electrical.CableSizer
             }
         }
 
-        private static readonly Dictionary<string, double> NecCircularMils = new Dictionary<string, double>
-        {
-            ["14"] = 4110, ["12"] = 6530, ["10"] = 10380, ["8"] = 16510,
-            ["6"] = 26240, ["4"] = 41740, ["3"] = 52620, ["2"] = 66360,
-            ["1"] = 83690, ["1/0"] = 105600, ["2/0"] = 133100, ["3/0"] = 167800,
-            ["4/0"] = 211600, ["250"] = 250000, ["300"] = 300000, ["350"] = 350000,
-            ["400"] = 400000, ["500"] = 500000, ["600"] = 600000, ["700"] = 700000,
-            ["750"] = 750000,
-        };
-
         /// <summary>The TRUE mm2 area of an AWG / kcmil size, so a downstream numeric
         /// parameter carries the real cross-section rather than a nearest-metric guess.
         /// 1 circular mil = pi/4 x (0.001 in)^2 = 5.067075e-4 mm2.</summary>
         internal static double NecCircularMilsToMm2(string size)
-            => NecCircularMils.TryGetValue(size ?? "", out double cm)
-                ? Math.Round(cm * 5.067074790e-4, 2)
-                : 0.0;
+        {
+            // Chapter 9 Table 8 — one copy, in NECStandards.
+            double cm = StingTools.Standards.NEC2023.NECStandards.GetCircularMils(size);
+            return cm > 0 ? Math.Round(cm * 5.067074790e-4, 2) : 0.0;
+        }
 
         /// <summary>"12" -> "12AWG"; "250" -> "250kcmil". The table keys both as bare
         /// numbers, and printing "250AWG" would name a conductor that does not exist.</summary>

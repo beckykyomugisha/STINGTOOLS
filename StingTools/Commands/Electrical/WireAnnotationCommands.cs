@@ -483,7 +483,8 @@ namespace StingTools.Commands.Electrical
 
             return new WireAnnotationData(
                 phase, cores, csa,
-                string.IsNullOrEmpty(mat) ? "Cu" : mat,
+                // Printed only when recorded — never "Cu" on an assumption.
+                string.IsNullOrWhiteSpace(mat) ? "" : (StingTools.Standards.NEC2023.ConductorMaterialText.TryParse(mat, out var cm) ? StingTools.Standards.NEC2023.ConductorMaterialText.Label(cm) : mat.Trim()),
                 circ, panel, vd, diaMm, fill,
                 ampacity, maxDemand, circType, instMeth,
                 armoured, fireRated, shielded, bendCount) { VdUpperBound = vdUpperBound };
@@ -535,13 +536,14 @@ namespace StingTools.Commands.Electrical
         public static string BuildAnnotationText(WireAnnotationData d, WireAnnotationStyle style,
             bool suppressContainmentFields = false)
         {
-            string mat = string.IsNullOrEmpty(d.ConductorMat) ? "Cu" : d.ConductorMat;
+            // Blank when no material is recorded: the spec is printed without one rather than as copper.
+            string mat = string.IsNullOrWhiteSpace(d.ConductorMat) ? "" : " " + d.ConductorMat;
             string baseSpec;
 
             if (d.CoreCount > 0 && d.CsaMm2 > 0)
-                baseSpec = $"{d.CoreCount} × {d.CsaMm2:0.##} mm² {mat}";
+                baseSpec = $"{d.CoreCount} × {d.CsaMm2:0.##} mm²{mat}";
             else if (d.CsaMm2 > 0)
-                baseSpec = $"{d.CsaMm2:0.##} mm² {mat}";
+                baseSpec = $"{d.CsaMm2:0.##} mm²{mat}";
             else
                 baseSpec = "? Wire";
 

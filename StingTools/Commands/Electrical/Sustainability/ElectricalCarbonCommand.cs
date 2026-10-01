@@ -82,10 +82,20 @@ namespace StingTools.Commands.Electrical.Sustainability
                     // Canonical MR_PARAMETERS: ELC_CBL_INS_TYPE_TXT (Phase 188 fix).
                     // ELC_CBL_MATERIAL isn't tabulated yet — default to copper.
                     string ins = sys.LookupParameter("ELC_CBL_INS_TYPE_TXT")?.AsString() ?? "PVC";
-                    string mat = "Cu";
+                    // Conductor material: ELC_WIRE_COND_MAT_TXT on the circuit; blank = copper,
+                    // ASSUMED and written into the row. CCA has no carbon factor: not counted.
+                    var matR = StingTools.Core.Electrical.ConductorMaterialSource.ForElement(sys, null);
+                    if (!matR.Ok || matR.Material == StingTools.Standards.NEC2023.ConductorMaterial.CopperCladAluminum)
+                    {
+                        emRows.Add(new EmRow { Item = $"Cable — {sys.LoadName ?? sys.Name}",
+                            Quantity = matR.Ok ? "NOT COUNTED: no carbon factor for copper-clad aluminium" : "NOT COUNTED: " + matR.Refusal,
+                            KgCO2e = 0 });
+                        continue;
+                    }
+                    string mat = matR.Assumed ? "Cu (assumed)" : matR.Label;
 
                     double kgPerM = csa * carbon.CableKgPerM_PerMm2 + carbon.CableKgPerM_Baseline;
-                    double conductorFactor = mat == "Al" ? carbon.Al_kg : carbon.Cu_kg;
+                    double conductorFactor = matR.Material == StingTools.Standards.NEC2023.ConductorMaterial.Aluminum ? carbon.Al_kg : carbon.Cu_kg;
                     double insulationFactor = ins.ToUpperInvariant().Contains("XLPE") ? carbon.XLPE_kg : carbon.PVC_kg;
                     // 70% conductor, 30% insulation by mass (typical SWA/PVC).
                     double kgCO2ePerM = kgPerM * (0.7 * conductorFactor + 0.3 * insulationFactor);
