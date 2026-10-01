@@ -2092,6 +2092,7 @@ PLM_TMV_ASSISTED_BOOL,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pi
 PLM_TMV_BLEND_TEMP_C,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,TMV blended outlet temperature setpoint C [Phase 178b]
 PLM_TMV_CLASS_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,TMV class TMV2 TMV3 [BS 7942 Phase 178b]
 PLM_TMV_KVS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,TMV flow coefficient Kvs for flow-rate calc (BS 8680) [Plumbing]
+PLM_TMV_MEASURED_C,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"TMV outlet temperature measured at commissioning or the annual test, C (the design set-point is PLM_TMV_BLEND_TEMP_C), entered from the commissioning record; checked against the never-exceed limit in STING_TMV_STANDARDS.json. Blank = not measured [DSCH-36]"
 PLM_TMV_TYPE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Thermostatic mixing valve type: TMV2 / TMV3 / NONE [HTM 04-01]
 PLM_TRAP_SEAL_DEPTH_MM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Trap water seal depth mm minimum 50 [BS EN 12056-2 Phase 178b]
 PLM_TRAP_SEAL_MM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Trap seal depth in mm

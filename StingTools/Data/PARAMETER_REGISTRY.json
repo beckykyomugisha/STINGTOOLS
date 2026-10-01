@@ -22023,6 +22023,18 @@
       "curated": true
     },
     {
+      "param_name": "PLM_TMV_MEASURED_C",
+      "guid": "1e9925ed-2c23-52cc-9bac-4b0940eb7249",
+      "description": "TMV outlet temperature measured at commissioning or the annual test, C (the design set-point is PLM_TMV_BLEND_TEMP_C), entered from the commissioning record; checked against the never-exceed limit in STING_TMV_STANDARDS.json. Blank = not measured [DSCH-36]",
+      "datatype": "NUMBER",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
       "param_name": "MGS_GAS_REQUIREMENT_TXT",
       "guid": "0427a377-ac36-52c4-b9e3-ab62433bc577",
       "description": "Medical gases a clinical room needs, comma-separated codes: O2, N2O, CO2, MA4 (medical air), MA7 (surgical air), N2, HE, VAC, AGS (scavenging). Read by Med Gas Outlet placement.",

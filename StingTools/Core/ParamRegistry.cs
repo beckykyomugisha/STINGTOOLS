@@ -1118,11 +1118,9 @@ namespace StingTools.Core
         public static string PLM_PUMP_EFF_PCT       => Ext("PLM_PUMP_EFF_PCT");
         public static string PLM_TMV_INLET_HOT_C    => Ext("PLM_TMV_INLET_HOT_C");
         public static string PLM_TMV_INLET_COLD_C   => Ext("PLM_TMV_INLET_COLD_C");
-        // PLM_TMV_BLEND_TEMP_C is the design set-point; PLM_TMV_MEASURED_C is the
-        // commissioning-measurement reading. Keeping them separate is required
-        // by BS 8680:2022 §5 tolerance validation (otherwise outlet ≡ setpoint
-        // and the ±1/±2°C check is meaningless).
-        public static string PLM_TMV_MEASURED_C     => Ext("PLM_TMV_MEASURED_C");
+        // PLM_TMV_BLEND_TEMP_C is the design set-point; PLM_TMV_MEASURED_C (a const,
+        // with the DSCH-36 parameters below) is the commissioning reading. Keeping them
+        // separate is what lets the outlet check test a measured temperature at all.
         public static string PLM_TMV_TEST_DATE      => Ext("PLM_TMV_TEST_DATE");
         public static string PLM_TMV_NEXT_TEST      => Ext("PLM_TMV_NEXT_TEST");
         public static string PLM_TMV_OVERDUE        => Ext("PLM_TMV_OVERDUE");
@@ -3335,7 +3333,6 @@ namespace StingTools.Core
             _extendedParams["PLM_PUMP_EFF_PCT"]       = "PLM_PUMP_EFF_PCT";
             _extendedParams["PLM_TMV_INLET_HOT_C"]    = "PLM_TMV_INLET_HOT_C";
             _extendedParams["PLM_TMV_INLET_COLD_C"]   = "PLM_TMV_INLET_COLD_C";
-            _extendedParams["PLM_TMV_MEASURED_C"]     = "PLM_TMV_MEASURED_C";
             _extendedParams["PLM_TMV_TEST_DATE"]      = "PLM_TMV_TEST_DATE_TXT";
             _extendedParams["PLM_TMV_NEXT_TEST"]      = "PLM_TMV_NEXT_TEST_TXT";
             _extendedParams["PLM_TMV_OVERDUE"]        = "PLM_TMV_OVERDUE_BOOL";
@@ -4072,6 +4069,10 @@ namespace StingTools.Core
         public const string PLM_FIX_TYPE_TXT_GUID            = "825bb253-9c4b-5051-bd48-8b50ebdbd40b";
         public const string PLM_TMV_ASSISTED_BOOL            = "PLM_TMV_ASSISTED_BOOL";
         public const string PLM_TMV_ASSISTED_BOOL_GUID       = "ac32041d-b1f2-5bfc-86bd-80622407b94b";
+        // DSCH-36. Read by TMVEngine and WaterSafetyValidator through this name, but no
+        // shared-parameter file defined it, so a measured temperature never reached the check.
+        public const string PLM_TMV_MEASURED_C               = "PLM_TMV_MEASURED_C";
+        public const string PLM_TMV_MEASURED_C_GUID          = "1e9925ed-2c23-52cc-9bac-4b0940eb7249";
         public const string PLM_TMV_TYPE_TXT                 = "PLM_TMV_TYPE_TXT";
         public const string PLM_TMV_TYPE_TXT_GUID            = "c8d4f6e2-1201-4d27-8c61-0e7a3f9b7001";
         public const string MGS_GAS_REQUIREMENT_TXT          = "MGS_GAS_REQUIREMENT_TXT";
