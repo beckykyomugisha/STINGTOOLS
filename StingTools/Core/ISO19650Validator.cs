@@ -593,18 +593,18 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(csvPath) || !System.IO.File.Exists(csvPath)) return;
 
                 var loaded = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
-                bool first = true;
-                foreach (string raw in System.IO.File.ReadLines(csvPath))
+                // DSCH-2: columns by header name, not position.
+                var t = CsvTable.Parse(System.IO.File.ReadLines(csvPath), StingToolsApp.ParseCsvLine);
+                var missing = t.Missing("SYS_CODE", "FUNC_CODE");
+                if (missing.Count > 0)
                 {
-                    if (first) { first = false; continue; } // skip header
-                    string line = raw.Trim();
-                    if (string.IsNullOrEmpty(line) || line.StartsWith("#")) continue;
-
-                    // CSV: SYS_CODE,SYS_DESCRIPTION,FUNC_CODE,FUNC_DESCRIPTION,...
-                    var cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols == null || cols.Length < 3) continue;
-                    string sysCode  = cols[0].Trim();
-                    string funcCode = cols[2].Trim();
+                    StingLog.Warn($"TagConfig: {csvPath} header has no {string.Join(", ", missing)} column — using hardcoded defaults");
+                    return;
+                }
+                foreach (var r in t.Rows)
+                {
+                    string sysCode  = r["SYS_CODE"];
+                    string funcCode = r["FUNC_CODE"];
                     if (string.IsNullOrEmpty(sysCode) || string.IsNullOrEmpty(funcCode)) continue;
 
                     if (!loaded.TryGetValue(sysCode, out var set))
