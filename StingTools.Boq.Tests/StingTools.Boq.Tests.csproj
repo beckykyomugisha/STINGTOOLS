@@ -48,6 +48,8 @@
     <Compile Include="..\StingTools\BOQ\Rates\CsvRateLookup.cs" Link="BOQ\Rates\CsvRateLookup.cs" />
     <!-- DSCH-1 - the one cost-rate CSV parser (by header name, never by position). -->
     <Compile Include="..\StingTools\BOQ\Rates\CostRateCsv.cs" Link="BOQ\Rates\CostRateCsv.cs" />
+    <!-- DSCH-2 - read a single-table CSV by column name. -->
+    <Compile Include="..\StingTools\Core\CsvTable.cs" Link="Core\CsvTable.cs" />
     <!-- DSCH-16 - the unit a material library rate is quoted in. -->
     <Compile Include="..\StingTools\BOQ\Rates\MaterialCostUnits.cs" Link="BOQ\Rates\MaterialCostUnits.cs" />
     <!-- RC-2 — Document-free unit canonicalisation (tonne↔kg). -->
