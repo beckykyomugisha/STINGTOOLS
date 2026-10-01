@@ -188,19 +188,25 @@ namespace StingTools.BOQ.Rates
             try
             {
                 var ovr = StingCostRateOverrideSchema.Read(req.Element);
-                if (ovr == null || ovr.Rate <= 0) return null;
+                if (ovr == null) return null;
+                if (!string.IsNullOrEmpty(ovr.UnreadableReason))
+                {
+                    // A v3 entity whose outcome cannot be decoded may be a Nil: never
+                    // price from its stored rate. Said out loud; the next provider prices.
+                    StingLog.WarnRateLimited("EsOverride.Unreadable",
+                        $"ExtensibleStorageRateProvider {req.Element.Id}: {ovr.UnreadableReason} - override ignored.");
+                    return null;
+                }
 
-                // v2 schema honoured. Z-21b — single-surface waste convention:
+                // DSCH-33 - the override's outcome and loading are decided Revit-free
+                // (RateOverrideOutcome.Resolve). Z-21b - single-surface waste convention:
                 // WASTE is applied on the QUANTITY only (DeriveQuantity reads
-                // ovr.WastePercent via WasteFactor), NEVER baked into the rate
-                // here — otherwise an element would waste twice (rate × qty,
-                // compounding ~10.25% for a 5%+5% case). The rate still carries
-                // OVERHEAD + PROFIT, which are rate-side markups, not material waste.
-                double loadedRate = ovr.Rate;
-                if (ovr.OverheadPercent > 0)
-                    loadedRate *= 1.0 + ovr.OverheadPercent / 100.0;
-                if (ovr.ProfitPercent > 0)
-                    loadedRate *= 1.0 + ovr.ProfitPercent / 100.0;
+                // ovr.WastePercent via WasteFactor), NEVER baked into the rate, or an
+                // element would waste twice. The rate carries OVERHEAD + PROFIT, which
+                // are rate-side markups. A declared Nil / Included carries neither.
+                var answer = RateOverrideOutcome.Resolve(ovr.Rate, ovr.Outcome, ovr.IncludedIn,
+                    ovr.OverheadPercent, ovr.ProfitPercent);
+                double loadedRate = answer.UnitRate;
 
                 string provenance = string.IsNullOrEmpty(ovr.Note)
                     ? $"ES override by {ovr.StampedBy}"
@@ -211,10 +217,14 @@ namespace StingTools.BOQ.Rates
                     provenance += $" (+{ovr.WastePercent:0.#}% waste on qty)";
                 if (ovr.IsLocked)
                     provenance += $" [LOCKED by {ovr.LockedByUser}]";
+                if (answer.Outcome != RateOutcome.Priced)
+                    provenance = answer.OutcomeText + " - " + provenance;
 
                 return new RateLookup
                 {
                     UnitRate = loadedRate,
+                    Outcome = answer.Outcome,
+                    IncludedIn = answer.IncludedIn,
                     // CA-1 — an ES override that doesn't declare its currency is the
                     // project base (UGX), not GBP. Defaulting to GBP would FX-scale a
                     // UGX-intended override by ~4,700. Explicit ovr.Currency still wins.
