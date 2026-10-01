@@ -12831,10 +12831,10 @@ STINGTags_ISO19650,TAG_3.5NOM_WHITE_BOOL,d5a1b2c3-3536-4e01-a1c1-350000000036,YE
 STINGTags_ISO19650,TAG_3.5NOM_WHITE_BOOL,d5a1b2c3-3536-4e01-a1c1-350000000036,YESNO,Type,Tag 3.5Nom White [ISO 19650-3:2020],Doors,d5a1b2c3-3536-4e01-a1c1-350000000036
 STINGTags_ISO19650,TAG_3.5NOM_WHITE_BOOL,d5a1b2c3-3536-4e01-a1c1-350000000036,YESNO,Type,Tag 3.5Nom White [ISO 19650-3:2020],Floors,d5a1b2c3-3536-4e01-a1c1-350000000036
 STINGTags_ISO19650,TAG_3.5NOM_WHITE_BOOL,d5a1b2c3-3536-4e01-a1c1-350000000036,YESNO,Type,Tag 3.5Nom White [ISO 19650-3:2020],Roofs,d5a1b2c3-3536-4e01-a1c1-350000000036
-MAT_INFO,MAT_COST_SUPPLY_NR,114852b0-7002-5680-80cd-930f91e8250b,CURRENCY,Instance,Material supply unit cost (rate only, currency-neutral) [Material Manager RFQ],Materials,114852b0-7002-5680-80cd-930f91e8250b
+MAT_INFO,MAT_COST_SUPPLY_NR,114852b0-7002-5680-80cd-930f91e8250b,CURRENCY,Instance,Material supply unit cost (rate only; currency-neutral) [Material Manager RFQ],Materials,114852b0-7002-5680-80cd-930f91e8250b
 MAT_INFO,MAT_COST_INSTALL_NR,0621af78-0fbf-540e-9e6d-61df9925ae90,CURRENCY,Instance,Material install unit cost (labour and plant) [Material Manager RFQ],Materials,0621af78-0fbf-540e-9e6d-61df9925ae90
 MAT_INFO,MAT_VAT_PCT_NR,9794f566-efc2-5622-a23f-9e65e117eb48,NUMBER,Instance,Material VAT percentage applied to supply and install [Material Manager RFQ],Materials,9794f566-efc2-5622-a23f-9e65e117eb48
-MAT_INFO,STING_EMB_CARBON_NR,800e0d61-f88d-5071-bc87-0c4ca3e51243,NUMBER,Instance,Embodied carbon kgCO2e per unit, A1-A3 GWP [Sustainability Carbon],Materials,800e0d61-f88d-5071-bc87-0c4ca3e51243
+MAT_INFO,STING_EMB_CARBON_NR,800e0d61-f88d-5071-bc87-0c4ca3e51243,NUMBER,Instance,Embodied carbon kgCO2e per unit; A1-A3 GWP [Sustainability Carbon],Materials,800e0d61-f88d-5071-bc87-0c4ca3e51243
 MAT_INFO,STING_MAT_EPD_SRC_TXT,2776ca48-33b8-57a8-b2a6-ee982e442767,TEXT,Instance,EPD data source / publisher reference [Sustainability Carbon],Materials,2776ca48-33b8-57a8-b2a6-ee982e442767
 MAT_INFO,STING_MAT_EPD_DATE_TXT,c02ad751-5de9-50cc-a018-d7469595f8cf,TEXT,Instance,EPD publication / validity date ISO 8601 [Sustainability Carbon],Materials,c02ad751-5de9-50cc-a018-d7469595f8cf
 MAT_INFO,STING_MAT_LIFECYCLE_TXT,e5455edb-f4f9-5585-a65e-363aa31f0b59,TEXT,Instance,Material spec lifecycle state Draft/Reviewed/Approved/Frozen [Material Manager],Materials,e5455edb-f4f9-5585-a65e-363aa31f0b59
