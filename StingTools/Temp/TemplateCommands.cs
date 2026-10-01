@@ -156,10 +156,15 @@ namespace StingTools.Temp
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
+            // DT-R11-G: the names above are written for people ("STING - Disc: Mechanical");
+            // Revit refuses ':' in an element name. Each is created under
+            // RevitNameRules.Sanitize(name) and looked up through LookupComparer, so the
+            // data spelling finds the element it created.
             var existingNames = new HashSet<string>(
                 new FilteredElementCollector(doc)
                     .OfClass(typeof(ParameterFilterElement))
-                    .Select(e => e.Name));
+                    .Select(e => e.Name),
+                StingTools.Core.Drawing.RevitNameRules.LookupComparer);
 
             int created = 0;
             int skipped = 0;
@@ -191,7 +196,7 @@ namespace StingTools.Temp
                         }
                         if (catIds.Count > 0)
                         {
-                            ParameterFilterElement.Create(doc, name, catIds);
+                            ParameterFilterElement.Create(doc, StingTools.Core.Drawing.RevitNameRules.Sanitize(name), catIds);
                             created++;
                         }
                     }
@@ -266,7 +271,7 @@ namespace StingTools.Temp
                             if (rule != null)
                             {
                                 var epf = new ElementParameterFilter(rule);
-                                ParameterFilterElement.Create(doc, name, allCatIds, epf);
+                                ParameterFilterElement.Create(doc, StingTools.Core.Drawing.RevitNameRules.Sanitize(name), allCatIds, epf);
                                 paramCreated++;
                                 created++;
                             }
@@ -331,7 +336,7 @@ namespace StingTools.Temp
                         var spec = StingTools.Core.Drawing.ViewFilterRuleText.Parse(csvRuleText);
                         if (spec.Kind == StingTools.Core.Drawing.ViewFilterRuleKind.CategoryOnly)
                         {
-                            ParameterFilterElement.Create(doc, fullName, csvCatIds);
+                            ParameterFilterElement.Create(doc, StingTools.Core.Drawing.RevitNameRules.Sanitize(fullName), csvCatIds);
                             csvCreated++;
                             created++;
                             continue;
@@ -375,7 +380,7 @@ namespace StingTools.Temp
                             csvSkipped++; skipped++;
                             continue;
                         }
-                        ParameterFilterElement.Create(doc, fullName, csvCatIds, new ElementParameterFilter(csvRule));
+                        ParameterFilterElement.Create(doc, StingTools.Core.Drawing.RevitNameRules.Sanitize(fullName), csvCatIds, new ElementParameterFilter(csvRule));
                         csvCreated++;
                         created++;
                     }
@@ -654,7 +659,7 @@ namespace StingTools.Temp
                     .Select(v => v.Name));
 
             // Build filter lookup for VG configuration
-            var filterLookup = new Dictionary<string, ParameterFilterElement>();
+            var filterLookup = new Dictionary<string, ParameterFilterElement>(StingTools.Core.Drawing.RevitNameRules.LookupComparer);
             foreach (ParameterFilterElement pfe in new FilteredElementCollector(doc)
                 .OfClass(typeof(ParameterFilterElement))
                 .Cast<ParameterFilterElement>())

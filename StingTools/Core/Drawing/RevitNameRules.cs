@@ -97,5 +97,27 @@ namespace StingTools.Core.Drawing
                 if (string.Equals(r, c, StringComparison.OrdinalIgnoreCase)) return true;
             return false;
         }
+
+        /// <summary>
+        /// DT-R11-G: a comparer for name-keyed lookups of Revit elements ("filterLookup",
+        /// "existingNames"). Two names are equal when their sanitised forms are equal,
+        /// case-insensitively — so a dictionary keyed by Revit element names answers a
+        /// TryGetValue made with the data spelling ("STING - Disc: Mechanical") with the
+        /// element created as "STING - Disc - Mechanical". For a legal key it is plain
+        /// OrdinalIgnoreCase, which is how Revit compares element names, so an existing
+        /// legal name still matches exactly as before.
+        /// </summary>
+        public static IEqualityComparer<string> LookupComparer { get; } = new SanitizedNameComparer();
+
+        private sealed class SanitizedNameComparer : IEqualityComparer<string>
+        {
+            private static string Key(string s) => s == null ? null : Sanitize(s.Trim());
+
+            public bool Equals(string x, string y)
+                => string.Equals(Key(x), Key(y), StringComparison.OrdinalIgnoreCase);
+
+            public int GetHashCode(string obj)
+                => StringComparer.OrdinalIgnoreCase.GetHashCode(Key(obj) ?? string.Empty);
+        }
     }
 }

@@ -229,7 +229,9 @@ namespace StingTools.Temp
                     };
                 }
                 // Check "Disc:" prefix filters like "STING - Disc: Mechanical"
-                if (name.Contains("Disc:", StringComparison.OrdinalIgnoreCase))
+                // DT-R11-G: created as "STING - Disc - Mechanical" (Revit refuses ':').
+                if (name.Contains("Disc:", StringComparison.OrdinalIgnoreCase)
+                    || name.Contains("Disc - ", StringComparison.OrdinalIgnoreCase))
                 {
                     foreach (string p in prefixes)
                     {
