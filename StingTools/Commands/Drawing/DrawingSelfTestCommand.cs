@@ -715,8 +715,8 @@ namespace StingTools.Commands.Drawing
                         refused == null
                             ? $"Revit ACCEPTED ':' in a view name (read back '{readBack}'); the rule does not hold for views in this version"
                             : $"refused, as RevitNameRules expects: {refused}. A view or view template cannot carry ':' — "
-                              + $"a template named 'STING:{{pack}}:{{ViewType}}' cannot be created under that name "
-                              + $"(it would be '{RevitNameRules.Sanitize(probe)}')");
+                              + "the legacy managed-template name 'STING:{pack}:{ViewType}' could never be created, "
+                              + "which is why managed templates are now 'STING MANAGED - {pack} - {ViewType}'");
                 }
             }
 
