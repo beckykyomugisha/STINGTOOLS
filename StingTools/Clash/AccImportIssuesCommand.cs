@@ -342,7 +342,7 @@ namespace StingTools.Core.Clash
             => $"{Csv(IssueSchema.IdOf(row))},{Csv((string)row[AccIssueImport.AccIdField])},{action},,,,," +
                $"{Csv((string)row[AccIssueImport.AssignedIdField])},{Csv((string)row[AccIssueImport.AssignedNameField])}";
 
-        private static string Csv(string s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
+        private static string Csv(string s) => AccCsv.Cell(s);   // E10: quoted + formula-guarded
 
         /// <summary>Routes the merge's writes through the register's batch, so created rows get
         /// minted ids, the audit entry and the server push, and status changes are audited.</summary>

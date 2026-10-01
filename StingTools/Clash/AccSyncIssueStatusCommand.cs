@@ -180,6 +180,6 @@ namespace StingTools.Core.Clash
             return string.IsNullOrEmpty(saveErr) ? Result.Succeeded : Result.Failed;
         }
 
-        private static string Csv(string s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
+        private static string Csv(string s) => AccCsv.Cell(s);   // E10: quoted + formula-guarded
     }
 }

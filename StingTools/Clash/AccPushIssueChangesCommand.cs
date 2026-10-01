@@ -324,7 +324,7 @@ namespace StingTools.Core.Clash
             catch (Exception ex) { StingLog.Warn("ACC_PushIssueChanges CSV: " + ex.Message); return null; }
         }
 
-        private static string Csv(string s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
+        private static string Csv(string s) => AccCsv.Cell(s);   // E10: quoted + formula-guarded
 
         private static void Say(bool interactive, string text)
         {
