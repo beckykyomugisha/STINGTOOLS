@@ -86,12 +86,25 @@ namespace StingTools.Commands.Electrical.Reports
                     {
                         var rule = rules.FirstOrDefault(r =>
                             string.Equals(r.LoadClass, clsKv.Key, StringComparison.OrdinalIgnoreCase));
+                        // A class the standard has no rule for (e.g. "Data") takes the
+                        // standard's "Other" rule, and the row says so — it used to apply
+                        // an unlabelled 100 % with "—" as the source.
+                        bool viaOther = false;
+                        if (rule == null)
+                        {
+                            rule = rules.FirstOrDefault(r =>
+                                string.Equals(r.LoadClass, "Other", StringComparison.OrdinalIgnoreCase));
+                            viaOther = rule != null;
+                        }
                         double demand = ApplyFactor(clsKv.Value, rule);
                         ws.Cell(row, 1).Value = clsKv.Key;
                         ws.Cell(row, 2).Value = clsKv.Value;
-                        ws.Cell(row, 3).Value = rule?.Description ?? "100% of connected";
+                        ws.Cell(row, 3).Value = rule == null ? "100% of connected"
+                            : viaOther ? $"{rule.Description} (no {clsKv.Key} rule — Other applied)"
+                            : rule.Description;
                         ws.Cell(row, 4).Value = demand;
-                        ws.Cell(row, 5).Value = rule?.Rule ?? "—";
+                        ws.Cell(row, 5).Value = rule == null ? "—"
+                            : viaOther ? $"{rule.Rule} (Other)" : rule.Rule;
                         row++;
                     }
                     ws.Columns().AdjustToContents();
