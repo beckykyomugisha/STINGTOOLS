@@ -271,14 +271,17 @@ DTW-216 (both low).
 | DTW-214 | DrawingTypeEditorDialog new pack | Low | Still adds 'scale' to managedFields (ignored since DTW-170) | Merged | Done |
 | DTW-215 | DrawingSyncStylesCommand | Low | Sync Styles re-applies the type scale to auto-fitted views; only production refresh keeps the fitted scale (ProducedViewState) | Merged (fix/dt-r9-a) | Done |
 | DTW-216 | Project Setup / Produce & Export / Panel-SLD placement | Low | Callers outside ProductionItemRunner don't roll back on ProduceResult.Failure; they only report it | Merged (fix/dt-r9-a) | Done |
-| DTW-217 | MepViewProducer:123 / MepCoordinationCommands:67 | Med-High | System filters written to a view whose managed template controls filters: masked, reported applied | fix/dt-r9-b | In progress |
-| DTW-218 | DrawingProducer.ApplyPresetVg / ApplyPresetOverrides | Med | Preset VG masked by managed templates, counted as applied | fix/dt-r9-b | In progress |
-| DTW-219 | ManagedTemplateFields phaseFilter | Med | Packs with no phase filter still control it; Show Complete (DTW-208) undone | fix/dt-r9-b | In progress |
-| DTW-220 | ProductionItemRunner sheet-counter gate | Med | Up-front Project Information gate borrows PI and blocks refresh-only re-runs | fix/dt-r9-c | In progress |
-| DTW-221 | DrawingProducer.RefreshReusedSheetName | Med | Legacy comparison uses the new name rule; pre-round-8 sheets never renamed | fix/dt-r9-b | In progress |
-| DTW-222 | ShortLevel vs Renumber | Med-Low | Long digit-ending level names change number shape; Renumber converts existing sheets | fix/dt-r9-b | In progress |
-| DTW-223 | DrawingProducer CreateSheet catch | Low | Counter burned when ViewSheet.Create throws | fix/dt-r9-b | In progress |
-| DTW-224 | WorksharingPreflight.ProductionElements | Low | Managed templates and filters edited by the run are not pre-checked | fix/dt-r9-c | In progress |
+| DTW-217 | MepViewProducer:123 / MepCoordinationCommands:67 | Med-High | System filters written to a view whose managed template controls filters: masked, reported applied | Merged | Done |
+| DTW-218 | DrawingProducer.ApplyPresetVg / ApplyPresetOverrides | Med | Preset VG masked by managed templates, counted as applied | Merged | Done |
+| DTW-219 | ManagedTemplateFields phaseFilter | Med | Packs with no phase filter still control it; Show Complete (DTW-208) undone | Merged | Done |
+| DTW-220 | ProductionItemRunner sheet-counter gate | Med | Up-front Project Information gate borrows PI and blocks refresh-only re-runs | Merged | Done |
+| DTW-221 | DrawingProducer.RefreshReusedSheetName | Med | Legacy comparison uses the new name rule; pre-round-8 sheets never renamed | Merged | Done |
+| DTW-222 | ShortLevel vs Renumber | Med-Low | Long digit-ending level names change number shape; Renumber converts existing sheets | Merged | Done |
+| DTW-223 | DrawingProducer CreateSheet catch | Low | Counter burned when ViewSheet.Create throws | Merged | Done |
+| DTW-224 | WorksharingPreflight.ProductionElements | Low | Managed templates and filters edited by the run are not pre-checked | Merged | Done |
+| DTW-225 | DrawingProducer.CreateSheet numbering | Low-Med | New sheets on long digit-ending levels take the new ShortLevel shape while existing sheets use the legacy one | fix/dt-r9-d | In progress |
+| DTW-226 | ManagedTemplateSyncer vs MEP system filters | Low | Does a pack re-sync keep the system filters MEP coordination added to the template? | fix/dt-r9-d (verify first) | In progress |
+| DTW-227 | WorksharingPreflight material-class filters | Low | Not pre-checked | fix/dt-r9-d | In progress |
 
 ## Decisions
 
@@ -357,6 +360,11 @@ DTW-216 (both low).
   type's, but the replacement is reported; locking the view's style keeps the hand-picked one.
 - **Former ids (DTW-203).** `DrawingType.replaces` lists ids a type took over. Production adopts
   their views and sheets; the Doctor lists unknown ids.
+- **Counter gate (DTW-220).** A colleague holding Project Information no longer stops a run or
+  gets borrowed up front. Items that reuse their sheet proceed, and items needing a new number
+  are refused per item. Revit borrows Project Information only when a number is actually written.
+- **MEP colours (DTW-217).** System filters go to the template when it controls filters, so every
+  view using that template is coloured, and the report says so.
 - **ISO number (DTW-44).** Suitability and revision leave the container id (ISO 19650 keeps them
   as metadata). Only new sheets use the new pattern; existing numbers are not rewritten.
 
