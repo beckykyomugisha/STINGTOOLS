@@ -57,15 +57,7 @@
     "DrawOffMinHtm0401":  55,
     "DrawOffMinBs8558":   50,
     "PasteurisationMin":  70,
-    "ScaldRisk":          43,
-    "TmvOutletMaxBath":   44,
-    "TmvOutletMaxShower": 41,
-    "TmvOutletMaxBasin":  41
-  },
-  "deadLegLimitsM": {
-    "Domestic":           2.0,
-    "SentinelHtm0401Cw":  0.30,
-    "SentinelHtm0401Hw":  2.00
+    "_tmvAndDeadLegs":    "TMV outlet limits and dead-leg limits live in Plumbing/STING_TMV_STANDARDS.json (DSCH-25)."
   },
   "fluidCategoryDevices": {
     "Cat1": { "device": "None",            "code": "—",      "notes": "Wholesome supply (BS EN 1717 §5.1)" },

@@ -1,4 +1,4 @@
-# v6.8 | 3668 parameter rows — Phase 188 native-type + _TXT mirror sync
+# v6.8 | 3669 parameter rows — Phase 188 native-type + _TXT mirror sync
 # v6.11 | 20260720 | +5 mirror rows (4 STING_GATE_* universal-tag badge stamps + PRJ_SHEET_SYSTEM_TXT title-block SYSTEM cell) — realigns with MR_PARAMETERS.txt (CI data-file gate)
 # v6.10 | 20260630 | +5 STING_PLACER_* symbol-placement idempotency stamps (group 37) — aligns with MR_PARAMETERS.txt
 # v6.9 | 20260630 | +30 Tier-2 element-bound params (electrical SLD/circuit, plumbing router, design-option, sheet/view, clash, IFC) — aligns with MR_PARAMETERS.txt
@@ -3677,3 +3677,4 @@ Generic Models,ELC_CDT_CABLE_MANIFEST_TXT,fd6672f7-86e9-55f8-a982-cb3f1118f151,T
 Generic Models,BLE_PLASTER_FACES_NR,10694d13-4a6e-5947-9f2f-d89e531db0c7,INTEGER,BLE_ELES,Instance,"Number of wall faces plastered, 0 to 2. The compound take-off prices plaster on this many faces; blank = 2.",False,,,MULTI,1,0
 Views,STING_SCOPE_BOX_TAG_TXT,a7c0b2e4-4d91-4a55-9c7e-aa0001000007,TEXT,STING_DRAWING,Instance,Tag segment of the STING:: scope box a view was generated from (STING::<type>::<level>::<tag>) [STING DT v137],False,,,MULTI,1,0
 Views,STING_DEFAULT_TAG_STYLE_TXT,4e90ed9d-5b3a-5791-ab43-c90a1f440310,TEXT,STING_DRAWING,Instance,"Default tag style preset ({size}{style}_{color}) of the view style pack, stamped on managed view templates by ManagedTemplateSyncer [DTW-59]",False,,,MULTI,1,0
+Generic Models,PLM_TMV_ASSISTED_BOOL,ac32041d-b1f2-5bfc-86bd-80622407b94b,YESNO,PLM_DRN,Instance,"TMV serves an assisted bath (HTM 04-01 Part A Table 2: 46 C assisted, 44 C unassisted; Yes only where the WSG approved assisted bathing above 44 C) [DSCH-25]",False,,,MULTI,1,0

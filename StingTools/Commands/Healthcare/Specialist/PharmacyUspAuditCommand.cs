@@ -3,7 +3,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
-using StingTools.Standards.USP797800;
+using StingTools.Core.Validation.Healthcare;
 using System;
 using System.Linq;
 using System.Text;
@@ -20,44 +20,61 @@ namespace StingTools.Commands.Healthcare.Specialist
             {
                 var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
-                // Hc.Specialist.Usp.* overrides. Standard radio narrows the
-                // room filter; AchMin slider becomes the threshold; HasBuffer
-                // / HasAnteroom flags surface advisory notes.
+                // Limits per room from STING_HC_PHARMACY_USP.json (UspCascade); the
+                // panel values are overrides that may only tighten them (0 = none).
                 string std         = HcOptions.UspStandard;        // "USP-797" / "USP-800"
-                double achMin      = HcOptions.UspAchMin;
-                double dpPa        = HcOptions.UspDpPa;
+                double achOverride = HcOptions.UspAchMin;
+                double dpOverride  = HcOptions.UspDpPa;
                 bool   hasBuffer   = HcOptions.UspHasBuffer;
                 bool   hasAnteroom = HcOptions.UspHasAnteroom;
+                var cascade = HcSpecialistData.UspCascadeData;
+                string roomClass = std == "USP-800" ? "PH-CSP-800" : "PH-CSP-797";
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"STING — {std.Replace("USP-", "USP <")}> Pharmacy Audit").AppendLine();
+                if (cascade == null)
+                {
+                    sb.AppendLine("NOT CHECKED — STING_HC_PHARMACY_USP.json unusable: " + string.Join("; ", HcSpecialistData.UspCascadeErrors));
+                    TaskDialog.Show("STING — USP Audit", sb.ToString());
+                    return Result.Succeeded;
+                }
+                var spec = UspCascade.ForRoomClass(cascade, roomClass);
+                if (spec != null)
+                {
+                    var maxPa = UspCascade.MaxPa(spec);
+                    sb.AppendLine($"{spec.Code} ({roomClass}): {spec.Polarity} to {spec.RelativeTo}, " +
+                                  $"|ΔP| ≥ {UspCascade.MinPa(spec):0.##} Pa{(maxPa.HasValue ? $" and ≤ {maxPa.Value:0.##} Pa" : "")}, ACH ≥ {spec.AchMin:0}");
+                    sb.AppendLine($"  Source: {spec.Source}");
+                    if (!string.IsNullOrWhiteSpace(spec.Verify)) sb.AppendLine($"  VERIFY: {spec.Verify}");
+                    sb.AppendLine();
+                }
 
                 var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
                     .WhereElementIsNotElementType().ToElements()
-                    .Where(r => Get(r,"CLN_ROOM_CLASS_TXT") is "PH-CSP-797" or "PH-CSP-800")
-                    .Where(r => string.Equals(Get(r,"CLN_ROOM_CLASS_TXT"),
-                                              std == "USP-800" ? "PH-CSP-800" : "PH-CSP-797",
-                                              StringComparison.OrdinalIgnoreCase))
+                    .Where(r => string.Equals(Get(r,"CLN_ROOM_CLASS_TXT"), roomClass, StringComparison.OrdinalIgnoreCase))
                     .ToList();
-                var sb = new StringBuilder();
-                sb.AppendLine($"STING — {std.Replace("USP-", "USP <")}> Pharmacy Audit (ACH ≥ {achMin:F0}, ΔP ≥ {dpPa:F1} Pa)").AppendLine();
-                if (rooms.Count == 0) sb.AppendLine($"No {std} rooms found.");
+                if (rooms.Count == 0) sb.AppendLine($"No {roomClass} rooms found.");
+                int fail = 0, notChecked = 0;
                 foreach (var r in rooms)
                 {
-                    var rc = Get(r,"CLN_ROOM_CLASS_TXT");
-                    var pol = Get(r,"CLN_PRESS_REGIME_TXT");
-                    string expected = rc=="PH-CSP-797" ? "POS" : "NEG";
-                    if (!string.Equals(pol, expected, StringComparison.OrdinalIgnoreCase))
-                        sb.AppendLine($"[ERROR  ] USP.POL    {r.Name} ({rc}) polarity={pol} expected {expected}");
-                    var ach = GetD(r,"HVC_AIR_CHANGES_PER_HR");
-                    if (ach.HasValue && ach.Value < achMin)
-                        sb.AppendLine($"[ERROR  ] USP.ACH    {r.Name} ({rc}) ACH={ach:F1} < {achMin:F0} (panel threshold)");
-                    var dp = GetD(r,"CLN_PRESS_DELTA_DESIGN_PA_NR");
-                    if (dp.HasValue && Math.Abs(dp.Value) < dpPa - 0.1)
-                        sb.AppendLine($"[WARNING] USP.DP     {r.Name} ({rc}) |ΔP|={Math.Abs(dp.Value):F1} Pa < {dpPa:F1} Pa (panel threshold)");
-                    if (rc=="PH-CSP-800" && Get(r,"PLM_RO_LOOP_BOOL")=="No") {} // placeholder hook
+                    var findings = UspCascade.Check(spec, Get(r,"CLN_PRESS_REGIME_TXT"),
+                        GetD(r,"CLN_PRESS_DELTA_DESIGN_PA_NR"), GetD(r,"HVC_AIR_CHANGES_PER_HR"),
+                        dpOverride, achOverride);
+                    if (findings.Count == 0) sb.AppendLine($"[PASS   ] {r.Name}");
+                    foreach (var f in findings)
+                    {
+                        if (f.Status == "FAIL") fail++;
+                        else if (f.Status == "NOT CHECKED") notChecked++;
+                        sb.AppendLine($"[{f.Status,-11}] {f.Code,-12} {r.Name}: {f.Message}");
+                    }
                 }
+                sb.AppendLine();
+                sb.AppendLine($"Rooms: {rooms.Count} · failures: {fail} · not checked: {notChecked}");
+                sb.AppendLine("Ante-rooms and C-SCAs have no room class yet, so they are not audited here.");
                 if (!hasBuffer)   sb.AppendLine("[WARNING] USP.BUFFER   panel asserts no buffer room — verify PEC/SEC layout");
                 if (!hasAnteroom) sb.AppendLine("[WARNING] USP.ANTERM   panel asserts no anteroom — verify clean/dirty cascade");
                 sb.AppendLine();
-                sb.AppendLine($"USP <800> recertification cycle: {USPStandards.RecertificationCycleMonths} months");
+                sb.AppendLine($"Recertification cycle: {cascade.RecertificationCycleMonths} months ({cascade.RecertificationSource})");
                 StingLog.Info(sb.ToString());
                 TaskDialog.Show("STING — USP Audit", sb.ToString());
                 return Result.Succeeded;
@@ -72,7 +89,7 @@ namespace StingTools.Commands.Healthcare.Specialist
             try { var p = el.LookupParameter(n); if (p?.HasValue!=true) return null;
                   if (p.StorageType==StorageType.Double) return p.AsDouble();
                   if (p.StorageType==StorageType.Integer) return (double)p.AsInteger();
-                  if (p.StorageType==StorageType.String && double.TryParse(p.AsString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)) return v;
+                  if (p.StorageType==StorageType.String && StingTools.Core.NumberText.TryParse(p.AsString(), out var v)) return v;
                   return null; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
     }

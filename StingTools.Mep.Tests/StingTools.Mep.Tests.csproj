@@ -44,6 +44,8 @@
     <Compile Include="..\StingTools\Core\Refrigerant\RefrigerantProperties.cs" Link="Linked\RefrigerantProperties.cs" />
     <Compile Include="..\StingTools\Core\Refrigerant\RefrigerantPipeSolver.cs" Link="Linked\RefrigerantPipeSolver.cs" />
     <Compile Include="..\StingTools\Core\Refrigerant\RefrigerantVendorLimits.cs" Link="Linked\RefrigerantVendorLimits.cs" />
+    <Compile Include="..\StingTools\Core\Plumbing\WaterSafetyLimits.cs" Link="Linked\WaterSafetyLimits.cs" />
+    <Compile Include="..\StingTools\Core\Validation\Healthcare\UspCascade.cs" Link="Linked\UspCascade.cs" />
   </ItemGroup>
 
 </Project>

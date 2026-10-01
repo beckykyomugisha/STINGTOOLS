@@ -1518,7 +1518,7 @@
    "Pipeline segment pressure drop exceeds allowable limit",
    "EES branch designation not LIFE-SAF / CRIT / EQP-BR / NORMAL",
    "ATS transfer time >10 s for LS/CR branch",
-   "Sentinel point dead-leg exceeds 1 m",
+   "Sentinel point spur exceeds 3 m",
    "Augmented-care outlet missing point-of-use filter",
    "Lead-equivalent shielding below minimum 2 mm",
    "Primary barrier missing Qualified Expert sign-off",
