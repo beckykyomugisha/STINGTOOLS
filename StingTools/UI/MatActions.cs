@@ -10,7 +10,8 @@ using StingTools.Core;
 namespace StingTools.UI
 {
     /// <summary>
-    /// Inline MAT-tab action handlers. Each method runs on the Revit API
+    /// Material Hub action handlers (the Hub's MAT_* buttons, dispatched by
+    /// StingCommandHandler; the MAT tab they were written for is gone). Each method runs on the Revit API
     /// thread under the existing IExternalEventHandler; they own their own
     /// transactions and surface user feedback through TaskDialogs.
     ///
@@ -42,10 +43,13 @@ namespace StingTools.UI
             return null;
         }
 
-        private static void RefreshDockMaterials()
+        /// <summary>Re-read the Material Hub's rows after an action changed
+        /// materials. Same thread: Hub buttons dispatch through the external
+        /// event, which runs on Revit's UI thread.</summary>
+        private static void RefreshHub()
         {
-            try { StingDockPanel.LastInstance?.ShowMaterialsTab(); }
-            catch (Exception ex) { StingLog.Warn($"RefreshDockMaterials: {ex.Message}"); }
+            try { MaterialHubPanel.LastInstance?.Refresh(); }
+            catch (Exception ex) { StingLog.Warn($"RefreshHub: {ex.Message}"); }
         }
 
         // ── Where Used ──────────────────────────────────────────────────────
@@ -57,7 +61,7 @@ namespace StingTools.UI
             if (doc == null || uidoc == null) return;
             if (m == null)
             {
-                TaskDialog.Show("Material Manager", "Pick a material row in the Browse tab first.");
+                TaskDialog.Show("Material Manager", "Select a material in the Material Hub first.");
                 return;
             }
             try
@@ -90,7 +94,7 @@ namespace StingTools.UI
             if (doc == null || uidoc == null) return;
             if (m == null)
             {
-                TaskDialog.Show("Material Manager", "Pick a material row in the Browse tab first.");
+                TaskDialog.Show("Material Manager", "Select a material in the Material Hub first.");
                 return;
             }
             var sel = uidoc.Selection.GetElementIds();
@@ -167,7 +171,7 @@ namespace StingTools.UI
             var m = ResolveMaterial(app, p1);
             if (m == null)
             {
-                TaskDialog.Show("Material Manager", "Pick a material row in the Browse tab first.");
+                TaskDialog.Show("Material Manager", "Select a material in the Material Hub first.");
                 return;
             }
             try
@@ -183,74 +187,6 @@ namespace StingTools.UI
         }
 
         // ── Layers (Phase B follow-up) ──────────────────────────────────────
-
-        public static void ReadLayers(UIApplication app)
-        {
-            var doc = Doc(app); var uidoc = UiDoc(app);
-            if (doc == null || uidoc == null) return;
-            try
-            {
-                var sel = uidoc.Selection.GetElementIds();
-                Element host = null;
-                if (sel != null && sel.Count > 0) host = doc.GetElement(sel.First());
-                if (host == null)
-                {
-                    TaskDialog.Show("Read Layers",
-                        "Select a Wall / Floor / Roof / Ceiling / Foundation / Pad in Revit first.");
-                    return;
-                }
-                var rows = MaterialLayerInspector.Read(doc, host);
-                if (rows.Count == 0)
-                {
-                    TaskDialog.Show("Read Layers",
-                        $"'{(global::StingTools.Core.ParameterHelpers.GetCategoryName(host))} {host.Id}' has no compound structure (or it couldn't be read). Layered tags only apply to System Family hosts.");
-                    return;
-                }
-                StingDockPanel.LastInstance?.SetLayerRows(rows, host.Id);
-                TaskDialog.Show("Read Layers",
-                    $"Read {rows.Count} layer(s) from '{host.Name}'. They're now editable in the Layers sub-tab. Click 'Generate Layer Tag' to write STING_LAYERS_TXT on the element TYPE.");
-            }
-            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Read Layers failed: {ex.Message}"); }
-        }
-
-        public static void GenerateLayerTag(UIApplication app)
-        {
-            var doc = Doc(app);
-            if (doc == null) return;
-            try
-            {
-                var rows = StingDockPanel.LastInstance?.GetLayerRows();
-                var hostId = StingDockPanel.LastInstance?.GetLayerHostId();
-                if (rows == null || rows.Count == 0 || hostId == null || hostId.Value <= 0)
-                {
-                    TaskDialog.Show("Generate Layer Tag", "Click 'Read Layers' first.");
-                    return;
-                }
-                var host = doc.GetElement(hostId);
-                if (host == null) { TaskDialog.Show("Generate Layer Tag", "Host element no longer exists."); return; }
-                string tag = MaterialLayerInspector.BuildLayerTag(rows);
-                bool ok;
-                using (var t = new Transaction(doc, "STING Generate Layer Tag"))
-                {
-                    t.Start();
-                    ok = MaterialLayerInspector.WriteLayerTag(doc, host, tag);
-                    t.Commit();
-                }
-                if (ok)
-                {
-                    MaterialAuditLogger.Log(doc, "MAT_LayerTag", host.Name,
-                        new Dictionary<string, object> { ["lines"] = rows.Count, ["typeId"] = host.GetTypeId()?.Value ?? 0 });
-                    TaskDialog.Show("Generate Layer Tag",
-                        $"Wrote {rows.Count} layer line(s) to STING_LAYERS_TXT on '{host.Name}' (Type).\n\nLayer tag preview:\n{tag}");
-                }
-                else
-                {
-                    TaskDialog.Show("Generate Layer Tag",
-                        "Couldn't write STING_LAYERS_TXT — make sure the parameter is bound to the host category. Run 'Load Shared Params' from the dock panel if needed.");
-                }
-            }
-            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Generate Layer Tag failed: {ex.Message}"); }
-        }
 
         // ── Library overrides ───────────────────────────────────────────────
 
@@ -282,7 +218,7 @@ namespace StingTools.UI
             {
                 MaterialOverrideRegistry.Reload(doc);
                 TaskDialog.Show("Material Library", "Corporate baseline and project override reloaded.");
-                RefreshDockMaterials();
+                RefreshHub();
             }
             catch (Exception ex) { TaskDialog.Show("Material Manager", $"Reload failed: {ex.Message}"); }
         }
@@ -301,10 +237,10 @@ namespace StingTools.UI
             if (doc == null) { TaskDialog.Show("Material Manager", "No document open."); return; }
             try
             {
-                // Use the rows the panel has cached if any; otherwise rebuild
-                // so the gate works even before the user clicks Refresh.
-                var rows = StingDockPanel.LastInstance?.GetCachedMaterialRows()
-                           ?? MaterialRowBuilder.Build(doc).ToList();
+                // Always the live material set. This read a dock-panel cache that
+                // only the removed MAT tab filled: empty, never null, so the gate
+                // judged zero materials and reported "All clear" (DSCH-46b).
+                var rows = MaterialRowBuilder.Build(doc).ToList();
                 var findings = MaterialSustainabilityGate.RunAll(doc, rows);
                 if (findings.Count == 0)
                 {
@@ -437,8 +373,8 @@ namespace StingTools.UI
         // ── N5 — Asset detach / repoint ─────────────────────────────────────
 
         /// <summary>
-        /// Duplicate the asset (Appearance / Physical / Thermal) selected
-        /// in the Assets sub-tab and re-point the active material at the
+        /// Duplicate the material's Appearance asset (the Hub's Assets card
+        /// has no asset picker) and re-point the material at the
         /// new copy. Other materials keep the original so this material's
         /// edits won't leak.
         /// </summary>
@@ -449,10 +385,11 @@ namespace StingTools.UI
             try
             {
                 var mat = ResolveMaterial(app, p1);
-                if (mat == null) { TaskDialog.Show("Asset", "Pick a material in the Browse tab first."); return; }
+                if (mat == null) { TaskDialog.Show("Asset", "Select a material in the Material Hub first."); return; }
 
-                string kind = StingDockPanel.LastInstance?.GetSelectedAssetKind() ?? "";
-                if (string.IsNullOrEmpty(kind)) { TaskDialog.Show("Asset", "Pick an asset row in the Assets sub-tab first."); return; }
+                // The Material Hub's Assets card offers Detach / Repoint without an
+                // asset picker; they act on the Appearance asset, the one users share.
+                const string kind = "Appearance";
 
                 ElementId srcId = AssetIdForKind(mat, kind);
                 if (srcId == null || srcId.Value <= 0)
@@ -474,7 +411,7 @@ namespace StingTools.UI
                     ok
                     ? $"Detached {kind} asset on '{mat.Name}'. Other materials keep the original copy."
                     : $"Detach failed — see log for details.");
-                StingDockPanel.LastInstance?.ShowMaterialsTab();
+                RefreshHub();
             }
             catch (Exception ex) { TaskDialog.Show("Material Manager", $"Detach failed: {ex.Message}"); }
         }
@@ -490,10 +427,11 @@ namespace StingTools.UI
             try
             {
                 var mat = ResolveMaterial(app, p1);
-                if (mat == null) { TaskDialog.Show("Asset", "Pick a material in the Browse tab first."); return; }
+                if (mat == null) { TaskDialog.Show("Asset", "Select a material in the Material Hub first."); return; }
 
-                string kind = StingDockPanel.LastInstance?.GetSelectedAssetKind() ?? "";
-                if (string.IsNullOrEmpty(kind)) { TaskDialog.Show("Asset", "Pick an asset row in the Assets sub-tab first."); return; }
+                // The Material Hub's Assets card offers Detach / Repoint without an
+                // asset picker; they act on the Appearance asset, the one users share.
+                const string kind = "Appearance";
 
                 // Build a list of candidate materials sharing the right asset kind.
                 var candidates = new FilteredElementCollector(doc).OfClass(typeof(Material))
@@ -541,7 +479,7 @@ namespace StingTools.UI
                     ok
                     ? $"'{mat.Name}' {kind} asset now shares with '{target.Name}'."
                     : "Repoint failed — see log.");
-                StingDockPanel.LastInstance?.ShowMaterialsTab();
+                RefreshHub();
             }
             catch (Exception ex) { TaskDialog.Show("Material Manager", $"Repoint failed: {ex.Message}"); }
         }
@@ -646,57 +584,46 @@ namespace StingTools.UI
             catch (Exception ex) { TaskDialog.Show("Material Manager", $"Family Audit failed: {ex.Message}"); }
         }
 
-        // ── A6 — Material packs (Drawing-Type binding) ──────────────────────
+        // ── A6 — Material packs ─────────────────────────────────────────────
 
-        // Per-session dedupe so batch-stamping (e.g. 60 sheets at once) only
-        // prompts once per drawing type.
-        private static readonly HashSet<string> _packSuggestionsShown =
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        /// <summary>
-        /// Hook fired from DrawingTypeStamper after a sheet/view is stamped.
-        /// Surfaces a suggestion to load the matching pack when the
-        /// profile declares one. Dedupes per drawing-type id so a batch
-        /// stamp doesn't pop sixty dialogs.
-        /// </summary>
-        public static void SuggestPackForDrawingType(Document doc, string drawingTypeId)
+        public static void LoadMaterialPack(UIApplication app)
         {
-            if (doc == null || string.IsNullOrEmpty(drawingTypeId)) return;
-            lock (_packSuggestionsShown)
-            {
-                if (_packSuggestionsShown.Contains(drawingTypeId)) return;
-                _packSuggestionsShown.Add(drawingTypeId);
-            }
+            var doc = Doc(app);
+            if (doc == null) { TaskDialog.Show("Material Manager", "No document open."); return; }
             try
             {
-                var dt = StingTools.Core.Drawing.DrawingTypeRegistry.Get(doc, drawingTypeId);
-                if (dt == null || string.IsNullOrEmpty(dt.MaterialPack)) return;
-                var pack = MaterialPackRegistry.Get(doc, dt.MaterialPack);
-                if (pack == null) return;
-
-                // Skip the prompt if every material in the pack already exists.
-                var existing = new HashSet<string>(
-                    new FilteredElementCollector(doc).OfClass(typeof(Material))
-                        .Cast<Material>().Select(m => m.Name ?? ""),
-                    StringComparer.OrdinalIgnoreCase);
-                int missing = pack.Materials?.Count(n => !existing.Contains(n)) ?? 0;
-                if (missing == 0) return;
-
-                var td = new TaskDialog("STING Material Pack")
+                var file = MaterialPackRegistry.GetOrLoad(doc);
+                if (file?.Packs == null || file.Packs.Count == 0)
                 {
-                    MainInstruction = $"Drawing Type '{drawingTypeId}' is bound to pack '{pack.Name}'.",
-                    MainContent = $"{missing} of {pack.Materials?.Count ?? 0} materials are missing in this project. Load them now?",
-                    CommonButtons = TaskDialogCommonButtons.Cancel,
-                };
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Load Pack", $"Create the {missing} missing material(s).");
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Skip", "Don't load now (you can run Library > Load Pack later).");
-                if (td.Show() != TaskDialogResult.CommandLink1) return;
+                    TaskDialog.Show("Material Packs",
+                        "No packs available. Add packs to Data/STING_MATERIAL_PACKS.json or _BIM_COORD/material_packs.json.");
+                    return;
+                }
+                // Every pack, by label; a TaskDialog holds only four command links.
+                var idByLabel = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (var kv in file.Packs)
+                {
+                    string label = $"{kv.Value.Name ?? kv.Key}  ({kv.Value.Materials?.Count ?? 0} materials)";
+                    if (!idByLabel.ContainsKey(label)) idByLabel[label] = kv.Key;
+                    else idByLabel[$"{label} [{kv.Key}]"] = kv.Key;
+                }
+                string picked = StingTools.Select.StingListPicker.Show("Load Material Pack",
+                    "Pick a pack to load. Existing materials with the same name are left alone - pack-load is additive.",
+                    idByLabel.Keys.ToList());
+                if (string.IsNullOrEmpty(picked) || !idByLabel.TryGetValue(picked, out string packId)) return;
 
+                var pack = MaterialPackRegistry.Get(doc, packId);
+                if (pack == null) { TaskDialog.Show("Material Packs", $"Pack '{packId}' could not be read."); return; }
                 int created = MaterialPackRegistry.LoadPack(doc, pack);
-                StingLog.Info($"SuggestPackForDrawingType: '{drawingTypeId}' loaded {created} material(s) from '{pack.Name}'");
+                TaskDialog.Show("Material Pack",
+                    created > 0
+                    ? $"Loaded {created} new material(s) from '{pack.Name}'."
+                    : $"Every material in '{pack.Name}' was already present - nothing new minted.");
+                RefreshHub();
             }
-            catch (Exception ex) { StingLog.Warn($"SuggestPackForDrawingType: {ex.Message}"); }
+            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Load Pack failed: {ex.Message}"); }
         }
+
 
         // ── I/O ─────────────────────────────────────────────────────────────
 
@@ -774,7 +701,7 @@ namespace StingTools.UI
                     ["updatesWritten"] = written,
                 });
                 TaskDialog.Show("Material Import", $"Committed {written} of {diff.Updates.Count} update(s).");
-                StingDockPanel.LastInstance?.ShowMaterialsTab();
+                RefreshHub();
             }
             catch (Exception ex) { TaskDialog.Show("Material Manager", $"Import failed: {ex.Message}"); }
         }
@@ -1073,7 +1000,7 @@ namespace StingTools.UI
                     touched > 0
                     ? $"Renamed {touched} material class(es) to corporate canonical names. Refresh MAT to see the change."
                     : "All material classes are already canonical.");
-                if (touched > 0) StingDockPanel.LastInstance?.ShowMaterialsTab();
+                if (touched > 0) RefreshHub();
             }
             catch (Exception ex) { TaskDialog.Show("Material Manager", $"Class normalise failed: {ex.Message}"); }
         }
@@ -1351,7 +1278,7 @@ namespace StingTools.UI
                     $"Δ cost  = {preview.CostDeltaTotal:+#,##0;-#,##0;0}\n" +
                     $"Δ carbon = {preview.CarbonDeltaTotal:+#,##0;-#,##0;0} kgCO₂e\n\n" +
                     $"Ctrl+Z reverts the whole batch.");
-                StingDockPanel.LastInstance?.ShowMaterialsTab();
+                RefreshHub();
             }
             catch (Exception ex) { TaskDialog.Show("Material Manager", $"What-If failed: {ex.Message}"); }
         }

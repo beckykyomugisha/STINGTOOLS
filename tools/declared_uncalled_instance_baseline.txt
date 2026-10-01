@@ -1,0 +1,38 @@
+# D.1 INSTANCE declared-but-uncalled ceiling (DSCH-46b). RATCHET: may fall, never rise.
+# Public/internal instance methods (wide name prefixes) anywhere in StingTools/
+# that nothing uses; overrides and external-interface members excluded.
+34
+- BuildOrNull
+- CheckDrainFallFeasibility
+- CheckTrapArmLength
+- CheckWetZonePreference
+- FindCurvePoints
+- GetBoqBaselinesAsync
+- GetComplianceAsync
+- GetDashboardAsync
+- GetDocumentsAsync
+- GetIssueCommentsAsync
+- GetMaterialFor
+- GetMimAssetsAsync
+- GetMimDashboardAsync
+- GetModelsAsync
+- GetMyAccessAsync
+- GetPicv
+- GetPlatformConnectionsAsync
+- GetSeqCountersAsync
+- GetTeamMemberNames
+- GetTransmittalsAsync
+- GetValveKvs
+- GetWarningsAsync
+- GetWorkflowRunsAsync
+- HasBool
+- HasNumber
+- IsExcluded
+- IsLoadBearing
+- IsOmitted
+- IsSet
+- IsWatched
+- ResolveDistributionGroupRecipientsAsync
+- ResolveDocuments
+- ResolveTagSizeToken
+- ValidateDimensions

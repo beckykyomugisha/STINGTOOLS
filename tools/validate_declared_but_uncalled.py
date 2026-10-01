@@ -28,7 +28,8 @@ CALLERS, which is the question that actually matters.
   python3 tools/validate_declared_but_uncalled.py --write-baseline
   python3 tools/validate_declared_but_uncalled.py --self-test   # prove the checks fire
 
-  Add --wide to any of the first three for the WIDE scope (below).
+  Add --wide to any of the first three for the WIDE scope (below), --instance for
+  instance methods, --fields for const / static readonly fields (DSCH-46b).
 
 TWO SCOPES, TWO RATCHETS (DSCH-40)
 ----------------------------------
@@ -45,6 +46,21 @@ spots of the narrow scan:
   3. Load* / Build* names - loaders and builders that nothing calls.
 A member already in the narrow scope is not counted again here, so each ratchet
 moves on its own: the narrow baseline stays at zero.
+
+INSTANCE (baseline tools/declared_uncalled_instance_baseline.txt, DSCH-46b):
+  public / internal INSTANCE methods anywhere in StingTools/ with the wide name
+  prefixes. Two sources of false positives are handled, not baselined:
+    - an override, or a host-contract member (HOST_CONTRACT_NAMES: GetVendorId,
+      CanExecute, GetUpdaterId ...) of a type whose base list names an interface
+      the plugin does not declare - the host calls those, by contract. Only those
+      names: an IDisposable class keeps every other member in scope;
+    - a method used as a method group (`.Where(IsExcluded)`, `+= OnX`) or named in
+      XAML - so ANY use of the name counts, not only `Name(`.
+FIELDS (baseline tools/declared_unread_fields_baseline.txt, DSCH-46b):
+  public / internal const and static readonly fields anywhere in StingTools/ that
+  nothing reads - the shape of the 253 ParamRegistry *_GUID constants deleted in
+  DSCH-46b. Any use of the name counts, XAML (x:Static) included.
+Both use the same D1 test-oracle markers and the same ratchet rule.
 
 Limitation (both scopes): uses are matched by NAME, not by symbol. Two members
 with the same name in different classes share one caller count, so a dead one
@@ -76,6 +92,8 @@ PLUGIN = os.path.join(REPO, "StingTools")
 CORE = os.path.join(PLUGIN, "Core")
 BASELINE = os.path.join(REPO, "tools", "declared_uncalled_baseline.txt")
 WIDE_BASELINE = os.path.join(REPO, "tools", "declared_uncalled_wide_baseline.txt")
+INSTANCE_BASELINE = os.path.join(REPO, "tools", "declared_uncalled_instance_baseline.txt")
+FIELDS_BASELINE = os.path.join(REPO, "tools", "declared_unread_fields_baseline.txt")
 
 SKIP_DIRS = {"obj", "bin", ".git", "Data", "_template_sources", "_workflow_sources"}
 
@@ -103,6 +121,40 @@ WIDE_DECL = re.compile(
     r'(?P<name>(?:' + WIDE_PREFIXES + r')(?=[A-Z0-9_])\w+)'
     r'\s*(?P<kind>[\(\{=])'
 )
+
+# DSCH-46b instance form: not static, not an override / abstract member.
+INSTANCE_DECL = re.compile(
+    r'^\s*(?:public|internal)\s+(?!static\b)(?!override\b)(?!abstract\b)(?!const\b)(?!readonly\b)'
+    r'(?:(?:virtual|async|new|sealed|unsafe|extern)\s+)*'
+    r'[\w<>,\[\]\?\.\(\) ]+?\s+'
+    r'(?P<name>(?:' + WIDE_PREFIXES + r')(?=[A-Z0-9_])\w+)'
+    r'\s*(?P<kind>\()'
+)
+
+# DSCH-46b fields form: const or static readonly, any name.
+FIELD_DECL = re.compile(
+    r'^\s*(?:public|internal)\s+(?:const|static\s+readonly|readonly\s+static)\s+'
+    r'[\w<>,\[\]\?\.\(\) ]+?\s+'
+    r'(?P<name>[A-Za-z_]\w*)\s*(?P<kind>=)'
+)
+
+# A type declaration and its base list, for the external-interface skip.
+TYPE_DECL = re.compile(r'^\s*(?:[\w\s]*\s)?(?:class|struct|record)\s+\w+(?:<[^>]*>)?\s*(?::\s*(?P<bases>[^{/]*))?')
+INTERFACE_DECL = re.compile(r'\binterface\s+(?P<name>I[A-Z]\w*)')
+
+# Members of host interfaces (Revit, WPF, .NET) that carry the wide name prefixes.
+# Implementing an external interface does NOT exempt a type's other members - a
+# class that is IDisposable keeps every other method in scope - only these names.
+HOST_CONTRACT_NAMES = {
+    # Autodesk.Revit.DB.DirectContext3D.IDirectContext3DServer / IExternalServer
+    "GetServerId", "GetVendorId", "GetName", "GetDescription", "GetServiceId",
+    "GetApplicationId", "GetSourceId", "CanExecute", "GetBoundingBox",
+    # IUpdater, IExternalEventHandler, IExternalCommandAvailability
+    "GetUpdaterId", "GetUpdaterName", "GetAdditionalInformation", "GetChangePriority",
+    "IsCommandAvailable",
+    # INotifyDataErrorInfo, ISerializable, IXmlSerializable
+    "GetErrors", "GetObjectData", "GetSchema",
+}
 
 IDENT = re.compile(r'\b([A-Za-z_]\w*)\b(\s*\()?')
 
@@ -183,6 +235,77 @@ def collect(decl_re, sources, skip=frozenset()):
             if test_rel:
                 markers[name] = test_rel
     return declared, is_method, markers
+
+
+def declared_interfaces(sources):
+    """Interface names the plugin itself declares."""
+    out = set()
+    for _rel, lines in sources:
+        for line in lines:
+            m = INTERFACE_DECL.search(line)
+            if m:
+                out.add(m.group("name"))
+    return out
+
+
+def external_interface_members(decl_re, sources, own_interfaces):
+    """Host-contract names (HOST_CONTRACT_NAMES) declared inside a type whose base
+    list names an interface the plugin does not declare - Revit / WPF / .NET call
+    those by contract. The enclosing type is the nearest type declaration above, which
+    is right except after a nested type; that can only HIDE a member, never
+    report one falsely."""
+    skip = set()
+    for _rel, lines in sources:
+        external = False
+        for line in lines:
+            t = TYPE_DECL.match(line)
+            if t and ("class " in line or "struct " in line or "record " in line):
+                bases = t.group("bases") or ""
+                names = re.findall(r'\b(I[A-Z]\w*)', bases)
+                external = any(n not in own_interfaces for n in names)
+                continue
+            if external:
+                m = decl_re.match(line)
+                if m and m.group("name") in HOST_CONTRACT_NAMES:
+                    skip.add(m.group("name"))
+    return skip
+
+
+def count_uses(declared, sources, extra_tokens=None):
+    """Any use of the name - a call, a method group, a field read - outside the
+    declaration line and prose. extra_tokens: a Counter of names used elsewhere
+    (XAML)."""
+    uses = collections.Counter()
+    for rel, lines in sources:
+        for i, line in enumerate(lines, 1):
+            s = line.lstrip()
+            if s.startswith(("//", "///", "*")):
+                continue
+            seen = set()
+            for m in IDENT.finditer(line):
+                name = m.group(1)
+                if name not in declared or name in seen or declared[name] == (rel, i):
+                    continue
+                seen.add(name)
+                uses[name] += 1
+    if extra_tokens:
+        for name in declared:
+            uses[name] += extra_tokens.get(name, 0)
+    return uses
+
+
+def xaml_tokens(root):
+    c = collections.Counter()
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+        for fn in filenames:
+            if fn.endswith(".xaml"):
+                try:
+                    c.update(re.findall(r'\b[A-Za-z_]\w*\b',
+                                        open(os.path.join(dirpath, fn), encoding="utf-8", errors="replace").read()))
+                except OSError:
+                    pass
+    return c
 
 
 def count_callers(declared, is_method, sources):
@@ -279,12 +402,68 @@ def self_test():
     if "IsUsed" in d2:
         failures.append("a narrow-scope member was counted again by the wide scope")
 
+    # DSCH-46b: instance methods and fields.
+    inst_src = [("StingTools/A.cs", [
+        "    public class Engine\n",
+        "    {\n",
+        "        public bool IsDead(int x) => x > 0;\n",
+        "        public bool IsUsedAsGroup(int x) => x > 0;\n",
+        "        public override string GetHashText() => \"\";\n",
+        "        void F(System.Collections.Generic.List<int> l) { l.Where(IsUsedAsGroup); }\n",
+        "    }\n",
+        "    internal class Server : IDirectContext3DServer\n",
+        "    {\n",
+        "        public string GetVendorId() => \"x\";\n",
+        "    }\n",
+        "    public sealed class Client : IDisposable\n",
+        "    {\n",
+        "        public string GetDeadAsync() => \"x\";\n",
+        "        public void Dispose() { }\n",
+        "    }\n",
+        "    public interface IOwn { bool IsOwn(); }\n",
+        "    public class Impl : IOwn\n",
+        "    {\n",
+        "        public bool IsOwn() => true;\n",
+        "    }\n",
+        "    public static class Consts\n",
+        "    {\n",
+        "        public const string DEAD_GUID = \"x\";\n",
+        "        public static readonly int[] UsedSizes = { 1 };\n",
+        "        public const string XAML_KEY = \"k\";\n",
+        "        static int G() => UsedSizes[0];\n",
+        "    }\n",
+    ])]
+    if INSTANCE_DECL.match("    public static bool IsThing() => true;\n"):
+        failures.append("instance scan matched a static method")
+    if INSTANCE_DECL.match("    public override bool IsThing() => true;\n"):
+        failures.append("instance scan matched an override")
+    d, _, _ = collect(INSTANCE_DECL, inst_src)
+    d = {n: v for n, v in d.items()
+         if n not in external_interface_members(INSTANCE_DECL, inst_src, declared_interfaces(inst_src))}
+    u = count_uses(d, inst_src)
+    dead_inst = sorted(n for n in d if u[n] == 0)
+    if "GetVendorId" in d:
+        failures.append("a member of a type implementing an external interface was scanned")
+    if "IsUsedAsGroup" in dead_inst:
+        failures.append("a method used as a method group was reported uncalled")
+    if "GetDeadAsync" not in dead_inst:
+        failures.append("implementing IDisposable hid every other member of the type")
+    if "IsDead" not in dead_inst:
+        failures.append("an uncalled instance method was not reported")
+    if "IsOwn" not in d:
+        failures.append("a member of a plugin-declared interface was skipped (only external ones are)")
+    fd, _, _ = collect(FIELD_DECL, inst_src)
+    fu = count_uses(fd, inst_src, collections.Counter({"XAML_KEY": 1}))
+    dead_f = sorted(n for n in fd if fu[n] == 0)
+    if dead_f != ["DEAD_GUID"]:
+        failures.append(f"fields scan reported {dead_f}, expected only DEAD_GUID (read and XAML-used fields are uses)")
+
     if failures:
         print("SELF-TEST FAILED:")
         for f in failures:
             print("  [FAIL] " + f)
         return 1
-    print("OK - self-test: all 6 marker cases and all 12 wide-scope cases behave")
+    print("OK - self-test: all 6 marker cases, all 12 wide-scope cases and all 9 instance/field cases behave")
     return 0
 
 
@@ -309,6 +488,8 @@ def main():
         return self_test()
 
     wide = "--wide" in sys.argv
+    instance = "--instance" in sys.argv
+    fields = "--fields" in sys.argv
     plugin_sources = read_sources(PLUGIN)
     core_prefix = os.path.relpath(CORE, REPO).replace("\\", "/") + "/"
 
@@ -316,13 +497,24 @@ def main():
     #    narrow scope already owns, so the two ratchets are independent.
     narrow_sources = [(r, l) for r, l in plugin_sources if r.startswith(core_prefix)]
     narrow_decl, _, _ = collect(DECL, narrow_sources)
-    if wide:
+    if instance:
+        declared, is_method, markers = collect(INSTANCE_DECL, plugin_sources)
+        ext = external_interface_members(INSTANCE_DECL, plugin_sources, declared_interfaces(plugin_sources))
+        declared = {n: v for n, v in declared.items() if n not in ext}
+    elif fields:
+        declared, is_method, markers = collect(FIELD_DECL, plugin_sources)
+    elif wide:
         declared, is_method, markers = collect(WIDE_DECL, plugin_sources, skip=set(narrow_decl))
     else:
         declared, is_method, markers = collect(DECL, narrow_sources)
 
-    # 2. Count uses across the WHOLE plugin.
-    callers = count_callers(declared, is_method, plugin_sources)
+    # 2. Count uses across the WHOLE plugin. Instance methods and fields count any
+    #    use of the name (method groups, field reads, XAML); the static scopes keep
+    #    their original call-shaped rule so their ratchets do not move.
+    if instance or fields:
+        callers = count_uses(declared, plugin_sources, xaml_tokens(PLUGIN))
+    else:
+        callers = count_callers(declared, is_method, plugin_sources)
 
     # 3. Reviewed test oracles leave the count only while the marker is still true.
     stale, oracles = [], set()
@@ -335,12 +527,17 @@ def main():
 
     uncalled = sorted(n for n in declared if callers[n] == 0 and n not in oracles)
 
-    label = "WIDE: tuples, all of StingTools/, Load*/Build*" if wide else "Core map/predicate"
-    where = "StingTools/ (outside the narrow scope)" if wide else "Core"
+    if instance:
+        label, where = "INSTANCE methods, all of StingTools/", "StingTools/ (instance)"
+    elif fields:
+        label, where = "const / static readonly FIELDS, all of StingTools/", "StingTools/ (fields)"
+    else:
+        label = "WIDE: tuples, all of StingTools/, Load*/Build*" if wide else "Core map/predicate"
+        where = "StingTools/ (outside the narrow scope)" if wide else "Core"
     print("=" * 72)
     print(f"Declared-but-uncalled gate (D.1) - {label}")
     print("=" * 72)
-    print(f"  public static declarations in {where:40}: {len(declared)}")
+    print(f"  {'declarations' if (instance or fields) else 'public static declarations'} in {where:40}: {len(declared)}")
     print(f"  with ZERO callers anywhere in the plugin{'':15}: {len(uncalled)}")
     print(f"  reviewed test oracles (D1 marker, verified){'':12}: {len(oracles)}")
     if stale:
@@ -359,10 +556,19 @@ def main():
             rel, ln = declared[n]
             print(f"  {n:34} {rel}:{ln}")
 
-    baseline = WIDE_BASELINE if wide else BASELINE
+    baseline = (INSTANCE_BASELINE if instance else FIELDS_BASELINE if fields
+                else WIDE_BASELINE if wide else BASELINE)
     if "--write-baseline" in sys.argv:
         with open(baseline, "w", encoding="utf-8", newline="\n") as fh:
-            if wide:
+            if instance:
+                fh.write("# D.1 INSTANCE declared-but-uncalled ceiling (DSCH-46b). RATCHET: may fall, never rise.\n")
+                fh.write("# Public/internal instance methods (wide name prefixes) anywhere in StingTools/\n")
+                fh.write("# that nothing uses; overrides and external-interface members excluded.\n")
+            elif fields:
+                fh.write("# D.1 FIELDS declared-but-unread ceiling (DSCH-46b). RATCHET: may fall, never rise.\n")
+                fh.write("# Public/internal const and static readonly fields anywhere in StingTools/\n")
+                fh.write("# that nothing reads (XAML included).\n")
+            elif wide:
                 fh.write("# D.1 WIDE declared-but-uncalled ceiling (DSCH-40). RATCHET: may fall, never rise.\n")
                 fh.write("# Public static members anywhere in StingTools/ (tuple types, Load*/Build*\n")
                 fh.write("# names included) that nothing calls, outside the narrow Core scope.\n")
@@ -381,7 +587,7 @@ def main():
     print(f"  baseline{'':47}: {base}")
     if len(uncalled) > base:
         print(f"\nFAIL: {len(uncalled) - base} new uncalled declaration(s). Run with --report"
-              + (" --wide." if wide else "."))
+              + (" --instance." if instance else " --fields." if fields else " --wide." if wide else "."))
         if base_names:
             for n in uncalled:
                 if n not in base_names:

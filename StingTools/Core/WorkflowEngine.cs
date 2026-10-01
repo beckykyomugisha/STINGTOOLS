@@ -1991,6 +1991,7 @@ namespace StingTools.Core
                 case "PaymentCert_Register":       return new Commands.Cost.PaymentCertRegisterCommand();
                 case "Variation_FromDiff":         return new Commands.Cost.VariationFromDiffCommand();
                 case "Variation_BuildStarRate":    return new Commands.Cost.VariationBuildStarRateCommand();
+                case "Variation_ApplyStarRate":    return new Commands.Cost.VariationApplyStarRateCommand();
                 case "Variation_ExportRegister":   return new Commands.Cost.VariationExportRegisterCommand();
                 // Phase 184p — reclassify legacy default-Other variations
                 case "Variation_ReclassifyLegacy": return new Commands.Cost.VariationReclassifyLegacyCommand();

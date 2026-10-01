@@ -21,15 +21,17 @@ python tools/recount_unreachable_commands.py --check    # CI gate
 
 ## Counts — re-derived 2026-10-02
 
-- **Total IExternalCommand classes**: **1773**
-- **Reached by a dispatch layer**: **1748**
+- **Total IExternalCommand classes**: **1774**
+- **Reached by a dispatch layer**: **1749**
 - **Referenced only from non-dispatch code**: **0**
 - **Named nowhere outside their own file**: **11**
 - **Ambiguous — name declared twice**: **14** (under 7 names)
 
-The four buckets partition all 1773; the script fails if they stop adding up.
+The four buckets partition all 1774; the script fails if they stop adding up.
 
 **+1 on 2026-10-02 (DSCH-43)**: `BOQSetRateOutcomeCommand` (`BOQSetRateOutcome`), reached from the BOQ cost panel row menu ("Rate: Nil" / "Rate: Included in…" / "Clear outcome") through its handler case.
+
+**+1 on 2026-10-02 (DSCH-46b)**: `VariationApplyStarRateCommand` (`Variation_ApplyStarRate`), reached from its handler case and `WorkflowEngine.ResolveCommand`; a BOQ Cost Manager button is still to come.
 
 **+2 on 2026-09-28 (#951 ported)**: `SymbolPreflightCommand` (`Symbols_Preflight`) and the orientation audit (`Symbols_OrientationAudit`), reached from their SETUP → SYMBOLS & DEVICES buttons, handler cases and `WorkflowEngine.ResolveCommand`.
 

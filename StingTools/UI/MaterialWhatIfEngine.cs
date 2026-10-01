@@ -14,8 +14,7 @@ namespace StingTools.UI
     /// BEFORE I commit?". Tally / One Click LCA's headline feature.
     ///
     /// Pure preview is read-only over the BOQDocument; the optional
-    /// Commit() path reuses the proven repoint-usages pattern from
-    /// MaterialDuplicateFinder.Merge so a single Transaction either
+    /// Commit() path repoints every usage inside a single Transaction, so it either
     /// flips every match or none of them (Ctrl+Z reverts the whole
     /// batch).
     /// </summary>
