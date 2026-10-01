@@ -108,39 +108,52 @@ namespace StingTools.BIMManager
 
         // ── Default Unit Cost Rates ──
         //
-        // Phase 184d: data moved out of the C# initializer into
-        // Data/STING_DEFAULT_COST_RATES.csv so a QS can edit the baseline
-        // without a code rebuild. DefaultCostRates is now a lazy-loaded
-        // view over the CSV. All existing callers (line 736/815/909 in
-        // GenerateCostEstimate, line 1593 in the template exporter, and
-        // BOQ.Rates.DefaultRateProvider) continue to work unchanged.
-        //
-        // A small built-in fallback covers the case where the CSV is
-        // missing — defensive only; the CSV is shipped with the plugin.
+        // Phase 184d: data lives in Data/STING_DEFAULT_COST_RATES.csv so a QS
+        // can edit the baseline without a rebuild. DSCH-34: the same file says
+        // which categories are NOT MEASURED (never bill items); the BOQ takeoff
+        // and health score read IsNotMeasuredCategory, not a list in code.
+        // Parsed by the Revit-free BOQ.Rates.DefaultCostRatesCsv.
         private static Dictionary<string, (double ratePerUnit, string unit, string description)>? _defaultCostRatesCache;
+        private static HashSet<string>? _notMeasuredCache;
         private static readonly object _defaultCostRatesLock = new object();
 
         internal static Dictionary<string, (double ratePerUnit, string unit, string description)> DefaultCostRates
         {
-            get
+            get { return EnsureDefaultCostRates().rates; }
+        }
+
+        /// <summary>
+        /// DSCH-34 — true when STING_DEFAULT_COST_RATES.csv declares the category
+        /// NOT MEASURED. With the file missing or unreadable nothing is excluded
+        /// (and the loader says so in the log): those elements then surface as
+        /// unpriced rows rather than vanishing on an assumption.
+        /// </summary>
+        internal static bool IsNotMeasuredCategory(string category)
+            => !string.IsNullOrWhiteSpace(category) && EnsureDefaultCostRates().notMeasured.Contains(category.Trim());
+
+        private static (Dictionary<string, (double ratePerUnit, string unit, string description)> rates, HashSet<string> notMeasured)
+            EnsureDefaultCostRates()
+        {
+            lock (_defaultCostRatesLock)
             {
-                if (_defaultCostRatesCache != null) return _defaultCostRatesCache;
-                lock (_defaultCostRatesLock)
+                if (_defaultCostRatesCache == null || _notMeasuredCache == null)
                 {
-                    if (_defaultCostRatesCache != null) return _defaultCostRatesCache;
-                    _defaultCostRatesCache = LoadDefaultCostRatesCsv();
-                    return _defaultCostRatesCache;
+                    var notMeasured = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    _defaultCostRatesCache = LoadDefaultCostRatesCsv(notMeasured);
+                    _notMeasuredCache = notMeasured;
                 }
+                return (_defaultCostRatesCache, _notMeasuredCache);
             }
         }
 
         /// <summary>Force a reload from disk — called by Cost_ReloadRules.</summary>
         internal static void InvalidateDefaultCostRates()
         {
-            lock (_defaultCostRatesLock) { _defaultCostRatesCache = null; }
+            lock (_defaultCostRatesLock) { _defaultCostRatesCache = null; _notMeasuredCache = null; }
         }
 
-        private static Dictionary<string, (double ratePerUnit, string unit, string description)> LoadDefaultCostRatesCsv()
+        private static Dictionary<string, (double ratePerUnit, string unit, string description)> LoadDefaultCostRatesCsv(
+            HashSet<string> notMeasuredOut)
         {
             // Start from the emergency fallback (5 entries — keeps the
             // worst-case behaviour usable). CSV entries override inline
@@ -154,32 +167,27 @@ namespace StingTools.BIMManager
                 {
                     StingLog.Warn(
                         $"Scheduling4DEngine.LoadDefaultCostRatesCsv: STING_DEFAULT_COST_RATES.csv NOT FOUND. " +
-                        $"Falling back to {rates.Count} emergency entries — most categories will resolve to zero rate. " +
+                        $"Falling back to {rates.Count} emergency entries — most categories will resolve to zero rate, " +
+                        $"and no category is excluded as NOT MEASURED (rooms, analytical elements etc. will show as unpriced). " +
                         $"Restore data/STING_DEFAULT_COST_RATES.csv or run Cost_ReloadRules after restoring.");
                     return rates;
                 }
-                // DSCH-2: columns by header name, not position.
-                var t = CsvTable.Parse(System.IO.File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
-                var missing = t.Missing("Category", "RatePerUnit_USD", "Unit");
-                if (missing.Count > 0)
+                // DSCH-2 / DSCH-34: columns by header name; rate cell is a number or NOT MEASURED.
+                var t = StingTools.BOQ.Rates.DefaultCostRatesCsv.Parse(
+                    System.IO.File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                if (t.MissingColumns.Count > 0)
                 {
                     StingLog.Warn($"Scheduling4DEngine.LoadDefaultCostRatesCsv: {System.IO.Path.GetFileName(path)} " +
-                        $"header has no {string.Join(", ", missing)} column(s) — using {rates.Count} emergency entries.");
+                        $"header has no {string.Join(", ", t.MissingColumns)} column(s) — using {rates.Count} emergency entries " +
+                        $"and no NOT MEASURED categories.");
                     return rates;
                 }
-                int descCol = t.Col("Description");
-                foreach (var row in t.Rows)
-                {
-                    if (row.Count < 3) continue;
-                    string cat = row["Category"];
-                    if (!double.TryParse(row["RatePerUnit_USD"], System.Globalization.NumberStyles.Any,
-                            System.Globalization.CultureInfo.InvariantCulture, out double rate))
-                        continue;
-                    string unit = row["Unit"];
-                    string desc = descCol >= 0 && row.Count > descCol ? row["Description"] : cat;
-                    rates[cat] = (rate, unit, desc);
-                }
-                StingLog.Info($"Scheduling4DEngine.LoadDefaultCostRatesCsv: merged CSV → {rates.Count} default cost rates ({System.IO.Path.GetFileName(path)} + inline).");
+                foreach (string problem in t.Problems)
+                    StingLog.Warn($"Scheduling4DEngine.LoadDefaultCostRatesCsv: {System.IO.Path.GetFileName(path)} {problem}");
+                foreach (var kv in t.Rates) rates[kv.Key] = kv.Value;
+                foreach (string cat in t.NotMeasured) { rates.Remove(cat); notMeasuredOut.Add(cat); }
+                StingLog.Info($"Scheduling4DEngine.LoadDefaultCostRatesCsv: {rates.Count} default cost rates, " +
+                    $"{notMeasuredOut.Count} NOT MEASURED categories ({System.IO.Path.GetFileName(path)} + inline).");
             }
             catch (Exception ex)
             {

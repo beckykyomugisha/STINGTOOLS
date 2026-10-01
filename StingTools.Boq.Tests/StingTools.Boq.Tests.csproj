@@ -52,6 +52,8 @@
     <Compile Include="..\StingTools\BOQ\Rates\RateOverrideOutcome.cs" Link="BOQ\Rates\RateOverrideOutcome.cs" />
     <!-- DSCH-1 - the one cost-rate CSV parser (by header name, never by position). -->
     <Compile Include="..\StingTools\BOQ\Rates\CostRateCsv.cs" Link="BOQ\Rates\CostRateCsv.cs" />
+    <!-- DSCH-34 - the parser of STING_DEFAULT_COST_RATES.csv (rates + NOT MEASURED categories). -->
+    <Compile Include="..\StingTools\BOQ\Rates\DefaultCostRatesCsv.cs" Link="BOQ\Rates\DefaultCostRatesCsv.cs" />
     <!-- DSCH-2 - read a single-table CSV by column name. -->
     <Compile Include="..\StingTools\Core\CsvTable.cs" Link="Core\CsvTable.cs" />
     <!-- DSCH-16 - the unit a material library rate is quoted in. -->
@@ -169,6 +171,9 @@
     </None>
     <!-- DSCH-1 - the shipped cost card, and the schema registry that declares its
          columns; CostRateCsvTests holds the parser's vocabulary to the registry. -->
+    <None Include="..\StingTools\Data\STING_DEFAULT_COST_RATES.csv" Link="Data\STING_DEFAULT_COST_RATES.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="..\StingTools\Data\cost_rates_5d.csv" Link="Data\cost_rates_5d.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

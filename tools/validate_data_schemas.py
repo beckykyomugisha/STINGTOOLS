@@ -1086,6 +1086,16 @@ def self_test(reg):
               drop_comment_header)
     text_case(D + "STING_DEFAULT_COST_RATES.csv", "non-numeric rate", csv_break_number(1))
 
+    # DSCH-34: a bare 0 no longer means anything - NOT MEASURED or no row.
+    def csv_zero_rate(text):
+        lines, _, row = first_data_line(text)
+        parts = lines[row].split(",")
+        parts[1] = "0"
+        lines[row] = ",".join(parts)
+        return "\n".join(lines)
+
+    text_case(D + "STING_DEFAULT_COST_RATES.csv", "bare 0 rate (write NOT MEASURED or drop the row)", csv_zero_rate)
+
     FORM = D + "FORMULAS_WITH_DEPENDENCIES.csv"
 
     def short_row(text):

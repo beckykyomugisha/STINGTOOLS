@@ -4024,10 +4024,10 @@
     },
     "StingTools/Data/STING_DEFAULT_COST_RATES.csv": {
       "format": "csv-table",
-      "schemaVersion": 1,
-      "description": "USD global benchmark rates, the lowest-priority rate provider (DefaultRateProvider, priority 60).",
+      "schemaVersion": 2,
+      "description": "USD global benchmark rates, the lowest-priority rate provider (DefaultRateProvider, priority 60). v2 (DSCH-34): a rate cell may hold NOT MEASURED - the category is never a bill item and the BOQ takeoff leaves it out; a bare 0 is refused; a measurable category with no benchmark has no row.",
       "readers": [
-        "StingTools/BIMManager/SchedulingCommands.cs Scheduling4DEngine.LoadDefaultCostRatesCsv"
+        "StingTools/BOQ/Rates/DefaultCostRatesCsv.cs (the only parser; Scheduling4DEngine.LoadDefaultCostRatesCsv and SiteCutFillTakeoffCommand.BenchmarkRate call it)"
       ],
       "columns": [
         {
@@ -4040,8 +4040,10 @@
           "name": "RatePerUnit_USD",
           "type": "num",
           "required": true,
-          "min": 0,
-          "description": "USD per Unit."
+          "exclusiveMin": 0,
+          "exclusiveMinHint": "a category that is never billed is written NOT MEASURED; a measurable category with no benchmark has no row",
+          "tokenPattern": "(?i)NOT MEASURED",
+          "description": "USD per Unit, or NOT MEASURED."
         },
         {
           "name": "Unit",

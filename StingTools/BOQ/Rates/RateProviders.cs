@@ -317,10 +317,10 @@ namespace StingTools.BOQ.Rates
             {
                 if (!Scheduling4DEngine.DefaultCostRates.TryGetValue(req.CategoryName, out var dcr))
                     return null;
-                // DSCH-26 — a 0 in the USD benchmark (Rooms, Site, analytical
-                // categories...) is "no benchmark", not a declared nil rate: the line
-                // stays unpriced and visible as such. Returning it would only trip the
-                // chain's undeclared-zero warning for every such element.
+                // DSCH-26 / DSCH-34 — the parser (DefaultCostRatesCsv) refuses a bare 0
+                // and keeps NOT MEASURED categories out of this table, so a non-positive
+                // rate cannot normally arrive; if one does it is "no benchmark", never a
+                // declared nil — the line stays unpriced and visible as such.
                 if (dcr.ratePerUnit <= 0) return null;
 
                 return new RateLookup

@@ -90,7 +90,7 @@ namespace StingTools.BOQ
     /// otherwise fold into the grand total as invisible zero-value lines; this
     /// surfaces them (count + a proxy monetary exposure) so they can't hide, and
     /// drives the export gate. "Could not measure" rows (measured unit, qty ≈ 0)
-    /// are counted separately. Legitimately-free categories (Rooms/Spaces/Areas)
+    /// are counted separately. Categories declared NOT MEASURED in STING_DEFAULT_COST_RATES.csv
     /// are excluded.
     /// </summary>
     public struct BoqUncostedRollup

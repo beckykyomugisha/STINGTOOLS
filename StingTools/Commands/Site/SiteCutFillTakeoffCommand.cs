@@ -440,20 +440,14 @@ namespace StingTools.Commands.Site
             {
                 string path = StingToolsApp.FindDataFile("STING_DEFAULT_COST_RATES.csv");
                 if (string.IsNullOrEmpty(path) || !File.Exists(path)) return 0;
-                // DSCH-2: columns by header name, not position.
-                var t = CsvTable.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
-                var missing = t.Missing("Category", "RatePerUnit_USD");
-                if (missing.Count > 0)
+                // DSCH-34: the one parser of this file (a NOT MEASURED or bare-0 row has no rate).
+                var t = StingTools.BOQ.Rates.DefaultCostRatesCsv.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                if (t.MissingColumns.Count > 0)
                 {
-                    StingLog.Warn($"BenchmarkRate: {Path.GetFileName(path)} header has no {string.Join(", ", missing)} column(s).");
+                    StingLog.Warn($"BenchmarkRate: {Path.GetFileName(path)} header has no {string.Join(", ", t.MissingColumns)} column(s).");
                     return 0;
                 }
-                foreach (var row in t.Rows)
-                {
-                    if (!string.Equals(row["Category"], categoryKey, StringComparison.OrdinalIgnoreCase)) continue;
-                    if (double.TryParse(row["RatePerUnit_USD"], NumberStyles.Any, CultureInfo.InvariantCulture, out double v))
-                        return v;
-                }
+                if (t.Rates.TryGetValue(categoryKey ?? "", out var r)) return r.ratePerUnit;
             }
             catch (Exception ex) { StingLog.Warn($"BenchmarkRate('{categoryKey}'): {ex.Message}"); }
             return 0;
