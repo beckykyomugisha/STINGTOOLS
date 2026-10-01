@@ -1315,8 +1315,13 @@
     },
     "StingTools/Data/COBIE_TYPE_MAP.csv": {
       "format": "csv-table",
-      "schemaVersion": 1,
-      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "schemaVersion": 2,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values. v2 (DSCH-28): CostRateCode column removed with the COBie rate provider; rates come from the cost-rate file only.",
+      "readers": [
+        "StingTools/Temp/COBieDataCommands.cs",
+        "StingTools/Tags/FamilyParamCreatorCommand.cs",
+        "StingTools/UI/CobieMaterialBridge.cs"
+      ],
       "columns": [
         {
           "name": "TypeCode",
@@ -1400,10 +1405,6 @@
         },
         {
           "name": "StingProdCode",
-          "type": "str"
-        },
-        {
-          "name": "CostRateCode",
           "type": "str"
         }
       ]
@@ -10055,8 +10056,8 @@
     },
     "StingTools/Data/cost_rates_5d.csv": {
       "format": "csv-table",
-      "schemaVersion": 2,
-      "description": "Corporate 5D cost-rate card (UGX-native, USD for the 5D trace). One row per product; DISC|PROD is the most specific rate key (D6). v2 (2026-09-07, #844) inserted PROD at column 2.",
+      "schemaVersion": 3,
+      "description": "Corporate 5D cost-rate card (UGX-native, USD for the 5D trace). One row per product; DISC|PROD is the most specific rate key (D6). v2 (2026-09-07, #844) inserted PROD at column 2. v3 (DSCH-26): a rate cell may hold NIL, INCL or INCL:<item> instead of a number - a deliberate nil rate or one included elsewhere; a bare 0 is not a rate and fails here.",
       "readers": [
         "StingTools/BOQ/Rates/CostRateCsv.cs (the only parser; BOQCostManager.LoadCsvRates, Scheduling4DEngine 5D Cost Trace and the Cost File Browser call it)"
       ],
@@ -10094,14 +10095,18 @@
           "name": "Unit_Rate_USD",
           "type": "num",
           "required": true,
-          "min": 0,
+          "exclusiveMin": 0,
+          "exclusiveMinHint": "a deliberate zero is written NIL (or INCL / INCL:<item> when included elsewhere); a bare 0 is read as not priced",
+          "tokenPattern": "(?i)(NIL|INCL(UDED)?[.]?[ ]*(:.*)?)",
           "description": "Rate in USD per Unit — shown by the 5D Cost Trace."
         },
         {
           "name": "Unit_Rate_UGX",
           "type": "num",
           "required": true,
-          "min": 0,
+          "exclusiveMin": 0,
+          "exclusiveMinHint": "a deliberate zero is written NIL (or INCL / INCL:<item> when included elsewhere); a bare 0 is read as not priced",
+          "tokenPattern": "(?i)(NIL|INCL(UDED)?[.]?[ ]*(:.*)?)",
           "description": "Rate in UGX per Unit — what the BOQ prices with."
         },
         {

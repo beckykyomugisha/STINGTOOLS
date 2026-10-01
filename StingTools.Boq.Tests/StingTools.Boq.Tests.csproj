@@ -46,6 +46,8 @@
     <Compile Include="..\StingTools\Core\Materials\MaterialCodeResolution.cs" Link="Core\Materials\MaterialCodeResolution.cs" />
     <Compile Include="..\StingTools\BOQ\Rates\RateResolutionLevel.cs" Link="BOQ\Rates\RateResolutionLevel.cs" />
     <Compile Include="..\StingTools\BOQ\Rates\CsvRateLookup.cs" Link="BOQ\Rates\CsvRateLookup.cs" />
+    <!-- DSCH-26 - Nil / Included rate outcomes, the rate-cell token grammar and the chain rule. -->
+    <Compile Include="..\StingTools\BOQ\Rates\RateOutcome.cs" Link="BOQ\Rates\RateOutcome.cs" />
     <!-- DSCH-1 - the one cost-rate CSV parser (by header name, never by position). -->
     <Compile Include="..\StingTools\BOQ\Rates\CostRateCsv.cs" Link="BOQ\Rates\CostRateCsv.cs" />
     <!-- DSCH-2 - read a single-table CSV by column name. -->

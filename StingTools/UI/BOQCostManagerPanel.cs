@@ -3740,7 +3740,7 @@ namespace StingTools.UI
             try { rooms = new FilteredElementCollector(Doc).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType().GetElementCount(); } catch { }
             try { phases = new FilteredElementCollector(Doc).OfClass(typeof(Phase)).GetElementCount(); } catch { }
             int items = _boq?.AllItems.Count ?? 0;
-            int priced = _boq?.AllItems.Count(i => i.RateUGX > 0) ?? 0;
+            int priced = _boq?.AllItems.Count(i => i.IsPriceDecided) ?? 0;   // DSCH-26: NIL / INCL count as priced
             double pricedPct = items > 0 ? 100.0 * priced / items : 0;
 
             void Row(int r, string k, string v, bool warn)

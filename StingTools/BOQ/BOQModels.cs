@@ -258,7 +258,17 @@ namespace StingTools.BOQ
         public string WbsCode;
         public string CbsCode;
         public DateTime LastCosted = DateTime.UtcNow;
-        public string RateSource;           // "CSV" | "COBie" | "Default" | "Manual" | "Override" | "Carbon" | "Interpolated" | "QS"
+        public string RateSource;           // "CSV" | "Default" | "Manual" | "Override" | "Carbon" | "Interpolated" | "QS" ("COBie" on rows costed before DSCH-28)
+        /// <summary>DSCH-26 — Priced, or a declared Nil / Included. A declared row has
+        /// RateUGX 0 and is NOT unpriced: the bill shows "Nil" / "Incl." and the health
+        /// score does not count it at risk. Defaults Priced so older snapshots read unchanged.</summary>
+        public StingTools.BOQ.Rates.RateOutcome RateOutcome = StingTools.BOQ.Rates.RateOutcome.Priced;
+        /// <summary>DSCH-26 — where an Included row's cost is carried ("E10/2"). Empty otherwise.</summary>
+        public string IncludedIn = "";
+        /// <summary>DSCH-26 — a positive rate or a declared Nil / Included. False means
+        /// nobody priced the line. Every "missing rate" count asks this, never RateUGX &lt;= 0.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool IsPriceDecided => StingTools.BOQ.Rates.RateChainRule.IsDecided(RateOutcome, RateUGX);
         public int RateConfidence = 60;     // 0-100 (Phase 11A)
         public int SortOrder;               // stable ordering within a section
 
@@ -408,6 +418,8 @@ namespace StingTools.BOQ
                 CbsCode = this.CbsCode,
                 LastCosted = this.LastCosted,
                 RateSource = this.RateSource,
+                RateOutcome = this.RateOutcome,   // DSCH-26
+                IncludedIn = this.IncludedIn,
                 RateConfidence = this.RateConfidence,
                 SortOrder = this.SortOrder,
                 LabourUGX = this.LabourUGX,

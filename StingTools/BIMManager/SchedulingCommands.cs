@@ -736,7 +736,7 @@ namespace StingTools.BIMManager
             // The `costRates` parameter is intentionally ignored. Rates resolve
             // through the canonical Rates/ provider chain (parameter / ES
             // overrides -> project rate card -> material library -> corporate
-            // cost_rates_5d.csv -> COBie map -> default), the SAME source the BOQ
+            // cost_rates_5d.csv -> default), the SAME source the BOQ
             // uses, so the cash-flow curve and the BOQ Contract Sum reconcile to
             // one number. Per-project rate overrides go through the canonical
             // surfaces (<project>/_BIM_COORD/rate_card.json + the MAT panel),
@@ -1466,7 +1466,7 @@ namespace StingTools.BIMManager
                 "  2. Project rate card  <project>/_BIM_COORD/rate_card.json\n" +
                 "  3. Material-library rates (the MAT panel)\n" +
                 "  4. Corporate baseline  data/cost_rates_5d.csv\n" +
-                "  5. COBie type map → built-in defaults\n\n" +
+                "  5. Built-in USD benchmark defaults (data/STING_DEFAULT_COST_RATES.csv)\n\n" +
                 $"Corporate baseline currently provides {Scheduling4DEngine.DefaultCostRates.Count} category rates.\n" +
                 "To override per project, edit the project rate card or the MAT panel,\n" +
                 "then run 'Auto Cost'.");

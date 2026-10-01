@@ -367,7 +367,7 @@ namespace StingTools.BOQ
             }
 
             b.TotalItems = boq.AllItems.Count;
-            b.ItemsMissingRate = boq.AllItems.Count(i => i.RateUGX <= 0);
+            b.ItemsMissingRate = boq.AllItems.Count(i => !i.IsPriceDecided);   // DSCH-26: NIL / INCL are priced
             b.ItemsMissingParagraph = boq.AllItems.Count(i => string.IsNullOrEmpty(i.ResolvedNRM2Paragraph));
             b.ParagraphCoveragePct = boq.ParagraphCoveragePct;
             b.AvgRateConfidence = boq.AverageRateConfidence;
@@ -414,7 +414,7 @@ namespace StingTools.BOQ
             foreach (var item in boq.AllItems)
             {
                 if (item.Source != BOQRowSource.Model) continue;
-                if (item.RateUGX <= 0)
+                if (!item.IsPriceDecided)   // DSCH-26: a declared NIL / INCL is not a missing rate
                 {
                     missingRate++;
                     list.Add(new BOQGapWarning

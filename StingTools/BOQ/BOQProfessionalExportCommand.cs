@@ -1337,6 +1337,12 @@ namespace StingTools.BOQ
                     ws.Cell(r, 6).Style.Border.SetBottomBorder(XLBorderStyleValues.Thin)
                         .Border.SetBottomBorderColor(XLColor.FromArgb(160, 160, 160));
                 }
+                else if (StingTools.BOQ.Rates.RateOutcomeToken.BillRateText(item.RateOutcome, item.IncludedIn) is string declaredRate)
+                {
+                    // DSCH-26 — "Nil" / "Incl." / "Incl. in <ref>": a decided price, not a blank.
+                    ws.Cell(r, 6).Value = declaredRate;
+                    ws.Cell(r, 6).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+                }
                 else if (item.RateUGX > 0)
                 {
                     ws.Cell(r, 6).Value = item.RateUGX;

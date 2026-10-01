@@ -5,8 +5,15 @@
 //    [
 //      { "category": "Walls", "unitRate": 95.0, "currency": "GBP",
 //        "unit": "m2", "note": "Negotiated with sub-contractor X" },
+//      { "category": "Rooms", "pricing": "nil" },
+//      { "category": "Pipe Insulation", "pricing": "included", "includedIn": "Pipes" },
 //      ...
 //    ]
+//
+//  DSCH-26 — "pricing" declares a deliberate zero: "nil" or "included"
+//  (with an optional "includedIn" reference). An entry with unitRate 0 and no
+//  "pricing" is not a rate; it is skipped and logged, so the next provider
+//  prices the item.
 //
 //  Priority 93 (DSCH-23). The chain resolves HIGHEST first and takes the
 //  first non-null rate. At its old 87 the card sat below the corporate CSV
@@ -59,7 +66,47 @@ namespace StingTools.BOQ.Rates.Providers
 
                 foreach (var e in entries)
                 {
-                    if (string.IsNullOrEmpty(e.Category) || e.UnitRate <= 0) continue;
+                    if (string.IsNullOrEmpty(e.Category)) continue;
+                    if (!string.IsNullOrWhiteSpace(e.Pricing))
+                    {
+                        // DSCH-26 — "nil" / "included" (also "incl"); anything else is refused, loudly.
+                        string word = e.Pricing.Trim();
+                        if (word.Equals("included", StringComparison.OrdinalIgnoreCase)) word = "INCL";
+                        if (!RateOutcomeToken.TryParse(word, out RateOutcome declared, out _))
+                        {
+                            StingLog.Warn($"ProjectRateCardProvider: '{e.Category}' has pricing '{e.Pricing}' - expected " +
+                                          "\"nil\" or \"included\"; entry skipped.");
+                            continue;
+                        }
+                        if (e.UnitRate > 0)
+                        {
+                            StingLog.Warn($"ProjectRateCardProvider: '{e.Category}' is declared {e.Pricing} and also has " +
+                                          $"unitRate {e.UnitRate} - contradictory; entry skipped.");
+                            continue;
+                        }
+                        string incl = declared == RateOutcome.Included ? (e.IncludedIn ?? "").Trim() : "";
+                        map[e.Category] = new RateLookup
+                        {
+                            UnitRate = 0,
+                            Outcome = declared,
+                            IncludedIn = incl,
+                            CurrencyCode = RateCurrency.Base,
+                            Unit = string.IsNullOrEmpty(e.Unit) ? "each" : e.Unit,
+                            SourceId = "project-rate-card",
+                            Confidence = DefaultPriority,
+                            Provenance = "Project rate card: " + RateOutcomeToken.ToToken(declared, incl)
+                                         + (string.IsNullOrEmpty(e.Note) ? "" : $" ({e.Note})"),
+                            MatchedKey = e.Category,
+                        };
+                        continue;
+                    }
+                    if (e.UnitRate <= 0)
+                    {
+                        StingLog.Warn($"ProjectRateCardProvider: '{e.Category}' has unitRate {e.UnitRate} and no " +
+                                      "\"pricing\" declaration - not a rate; the next provider prices it. " +
+                                      "Write \"pricing\": \"nil\" for a deliberate nil rate.");
+                        continue;
+                    }
                     map[e.Category] = new RateLookup
                     {
                         UnitRate = e.UnitRate,
@@ -105,6 +152,9 @@ namespace StingTools.BOQ.Rates.Providers
             public double Labour { get; set; }
             public double Plant { get; set; }
             public double Material { get; set; }
+            // DSCH-26 — "nil" | "included"; empty for a priced entry.
+            public string Pricing { get; set; }
+            public string IncludedIn { get; set; }
         }
     }
 }

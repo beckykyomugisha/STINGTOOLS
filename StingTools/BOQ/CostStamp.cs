@@ -175,16 +175,16 @@ namespace StingTools.BOQ
                 {
                     System.Threading.Interlocked.Increment(ref _rateCacheMisses);
                     double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
-                    // CA-5 — pass the REAL CSV + COBie rate tables (was two empty
+                    // CA-5 — pass the REAL CSV rate table (was two empty
                     // dicts). The registry is cached per-document, so whichever caller
                     // builds it first wins; with empty dicts here a tag-time stamp that
                     // ran before BuildBOQDocument would have poisoned the bill's
-                    // registry with no CSV/COBie rates. Now CST_MODELED_TOTAL_UGX uses
+                    // registry with no CSV rates. Now CST_MODELED_TOTAL_UGX uses
                     // the same rate source as the bill.
                     var rateRegistry = RateProviderRegistry.Get(doc,
                         BOQCostManager.LoadCsvRates(doc),
-                        BOQCostManager.LoadCobieCostCodes(),
-                        ugxPerUsd, ugxPerGbp);
+                        ugxPerUsd, ugxPerGbp,
+                        BOQCostManager.LoadCsvDeclaredRates(doc));   // DSCH-26
                     var req = new RateRequest
                     {
                         CategoryName = catName,
@@ -205,7 +205,9 @@ namespace StingTools.BOQ
                     if (lookup != null && !hasOverride && _rateCache.Count < _rateCacheMaxEntries)
                         _rateCache[cacheKey] = lookup;
                 }
-                if (lookup == null || lookup.UnitRate <= 0) return false;
+                // DSCH-26 — a declared Nil / Included is stamped (rate 0, total 0, the
+                // token in CST_UNIT_RATE_UGX); only a line nobody priced is skipped.
+                if (lookup == null || !Rates.RateChainRule.IsDecided(lookup.Outcome, lookup.UnitRate)) return false;
 
                 double total = qty * lookup.UnitRate;
 
@@ -226,7 +228,7 @@ namespace StingTools.BOQ
 
                 // Legacy mirror — keep existing schedules unchanged.
                 ParameterHelpers.SetString(el, "CST_UNIT_RATE_UGX",
-                    lookup.UnitRate.ToString("F0", CultureInfo.InvariantCulture),
+                    Rates.RateOutcomeToken.StampText(lookup.Outcome, lookup.IncludedIn, lookup.UnitRate),
                     overwrite: true);
                 ParameterHelpers.SetString(el, "CST_QTY_MEASURED",
                     $"{qty:F3} {rule.Unit ?? "each"}" + (couldNotMeasure ? " [COULD NOT MEASURE]" : ""),

@@ -20,6 +20,8 @@ namespace StingTools.BOQ.Rates
                 case "es-override":    return "Override";
                 case "fohlio":         return "Fohlio";
                 case "csv-default":    return "CSV";
+                // Provider removed (DSCH-28); label kept so CST_RATE_SOURCE values
+                // stamped before the removal still render.
                 case "cobie-typemap":  return "COBie";
                 case "default-baseline": return "Default";
                 default:               return providerId ?? "None";

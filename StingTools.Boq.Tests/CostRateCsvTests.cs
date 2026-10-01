@@ -40,10 +40,23 @@ namespace StingTools.Boq.Tests
             Assert.Equal(dataRows, res.Rows.Count);
             Assert.All(res.Rows, r =>
             {
-                Assert.NotNull(r.RateUsd);
-                Assert.NotNull(r.RateUgx);
+                // DSCH-26: a row either carries both rates or DECLARES its price
+                // (NIL / INCL) in both cells - never one number and one blank.
+                if (r.Outcome == RateOutcome.Priced)
+                {
+                    Assert.NotNull(r.RateUsd);
+                    Assert.NotNull(r.RateUgx);
+                    Assert.False(r.IsUndeclaredZero, $"line {r.LineNumber}: a bare 0 rate");
+                }
+                else
+                {
+                    Assert.Null(r.RateUsd);
+                    Assert.Null(r.RateUgx);
+                }
                 Assert.False(string.IsNullOrEmpty(r.Unit), $"line {r.LineNumber}: no unit");
             });
+            // The one deliberate zero in the shipped card is declared, not a bare 0.
+            Assert.Equal(RateOutcome.Nil, res.Rows.Single(r => r.Category == "Rooms").Outcome);
             // The value the positional 5D trace lost: Walls is 85 USD, not unparseable "A".
             Assert.Equal(85.0, res.Rows.First(r => r.Category == "Walls").RateUsd);
         }

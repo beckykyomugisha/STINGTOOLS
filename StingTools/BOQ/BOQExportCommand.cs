@@ -310,10 +310,23 @@ namespace StingTools.BOQ
                     ws.Cell(row, 3).Style.Alignment.WrapText = true;
                     ws.Cell(row, 4).Value = item.Unit ?? "";
                     ws.Cell(row, 5).Value = item.Quantity; ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.000";
-                    ws.Cell(row, 6).Value = item.RateUGX; ws.Cell(row, 6).Style.NumberFormat.Format = "#,##0";
-                    ws.Cell(row, 7).FormulaA1 = $"E{row}*F{row}"; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0";
-                    ws.Cell(row, 8).Value = item.RateUSD; ws.Cell(row, 8).Style.NumberFormat.Format = "#,##0.00";
-                    ws.Cell(row, 9).FormulaA1 = $"E{row}*H{row}"; ws.Cell(row, 9).Style.NumberFormat.Format = "#,##0.00";
+                    // DSCH-26 — a declared Nil / Included rate is written as the bill shows it
+                    // ("Nil", "Incl. in E10/2") with "–" for the amount, never as a 0 that reads
+                    // like an unpriced line (and never into an E*F formula over text).
+                    string declaredRate = StingTools.BOQ.Rates.RateOutcomeToken.BillRateText(item.RateOutcome, item.IncludedIn);
+                    if (declaredRate != null)
+                    {
+                        ws.Cell(row, 6).Value = declaredRate; ws.Cell(row, 7).Value = "–";
+                        ws.Cell(row, 8).Value = declaredRate; ws.Cell(row, 9).Value = "–";
+                        ws.Range(row, 6, row, 9).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+                    }
+                    else
+                    {
+                        ws.Cell(row, 6).Value = item.RateUGX; ws.Cell(row, 6).Style.NumberFormat.Format = "#,##0";
+                        ws.Cell(row, 7).FormulaA1 = $"E{row}*F{row}"; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0";
+                        ws.Cell(row, 8).Value = item.RateUSD; ws.Cell(row, 8).Style.NumberFormat.Format = "#,##0.00";
+                        ws.Cell(row, 9).FormulaA1 = $"E{row}*H{row}"; ws.Cell(row, 9).Style.NumberFormat.Format = "#,##0.00";
+                    }
                     ws.Cell(row, 10).Value = SourceLabel(item.Source);
                     ws.Cell(row, 11).Value = item.Discipline ?? "";
                     ws.Cell(row, 12).Value = JoinLevelLocation(item);

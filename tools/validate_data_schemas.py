@@ -487,12 +487,20 @@ def _is_comment_or_blank(row):
 def _csv_cell_ok(cell, col):
     t = col.get("type", "str")
     if t in ("num", "int"):
+        # DSCH-26: a numeric column may also accept declared words (a rate cell
+        # holding NIL / INCL / INCL:<ref>). Only what tokenPattern matches is let
+        # through; any other non-number still fails.
+        if "tokenPattern" in col and re.fullmatch(col["tokenPattern"], cell):
+            return None
         try:
             v = float(cell.replace(",", "")) if t == "num" else int(cell)
         except ValueError:
             return f"is not {'a number' if t == 'num' else 'an integer'}"
         if "min" in col and v < col["min"]:
             return f"is below the minimum {col['min']}"
+        if "exclusiveMin" in col and v <= col["exclusiveMin"]:
+            return (f"is not above {col['exclusiveMin']}"
+                    + (f" - {col['exclusiveMinHint']}" if col.get("exclusiveMinHint") else ""))
     if "enum" in col and cell not in col["enum"]:
         return f"is not one of {col['enum']}"
     if "pattern" in col and not re.fullmatch(col["pattern"], cell):
@@ -1006,6 +1014,19 @@ def self_test(reg):
     text_case(COST, "renamed column", csv_rename_header)
     text_case(COST, "inserted (undeclared) column — the D6 drift", csv_insert_column)
     text_case(COST, "non-numeric UGX rate", csv_break_number(5))
+
+    def csv_set_cell(col_index, value):
+        def m(text):
+            lines, _, row = first_data_line(text)
+            parts = lines[row].split(",")
+            parts[col_index] = value
+            lines[row] = ",".join(parts)
+            return "\n".join(lines)
+        return m
+
+    # DSCH-26: a bare 0 is not a nil rate - it must be declared NIL / INCL.
+    text_case(COST, "undeclared zero UGX rate", csv_set_cell(5, "0"))
+    text_case(COST, "a rate-cell word that is not NIL / INCL", csv_set_cell(5, "TBC"))
     text_case(COST, "row split by an unquoted comma", csv_unquoted_comma)
     text_case(COST, "duplicate DISC|PROD key", csv_duplicate_row)
     text_case(COST, "mixed line endings", mixed_eol)

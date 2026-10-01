@@ -1,5 +1,6 @@
 // Phase 108m — BOQ rate-source heat map. Visualises per-category rate
-// provenance (Override / CSV / COBie / Default / Missing) as a table
+// provenance (Override / CSV / Default / Missing; "COBie" only on rows costed
+// before DSCH-28 removed that provider) as a table
 // + coloured HTML side-car. QS sees at a glance which categories need
 // a rate review.
 using System;
@@ -41,14 +42,14 @@ namespace StingTools.BOQ
                     .ToList();
 
                 var rp = StingResultPanel.Create("BOQ Rate-Source Heat Map")
-                    .SetSubtitle("Per-category provenance of the BOQ rates — Override > CSV > COBie > Default > None")
+                    .SetSubtitle("Per-category provenance of the BOQ rates — Override > CSV > Default > None")
                     .AddSection("SUMMARY");
                 int cats = byCat.Count;
                 int overrideCats = byCat.Count(g => g.Any(i => i.RateSource == "Override"));
                 int csvCats      = byCat.Count(g => g.Any(i => i.RateSource == "CSV"));
                 int cobieCats    = byCat.Count(g => g.Any(i => i.RateSource == "COBie"));
                 int defaultCats  = byCat.Count(g => g.Any(i => i.RateSource == "Default"));
-                int noneCats     = byCat.Count(g => g.All(i => i.RateUGX <= 0));
+                int noneCats     = byCat.Count(g => g.All(i => !i.IsPriceDecided));   // DSCH-26
                 rp.Metric("Categories in BOQ",       cats.ToString());
                 rp.Metric("Override-priced",         overrideCats.ToString());
                 rp.Metric("CSV-priced (catalogue)",  csvCats.ToString());

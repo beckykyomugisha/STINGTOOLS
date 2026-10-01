@@ -3,7 +3,7 @@
 //
 //  Abstracts unit-rate lookup so BOQCostManager.ResolveRate is no longer a
 //  hard-coded 5-pass chain. Concrete providers (parameter override, CSV,
-//  COBie type-map, Scheduling4DEngine default, future BCIS/Spon's HTTP,
+//  Scheduling4DEngine default, future BCIS/Spon's HTTP,
 //  project-specific rate card) implement this interface and register with
 //  RateProviderRegistry. Priority decides order; first non-null wins.
 //
@@ -81,8 +81,17 @@ namespace StingTools.BOQ.Rates
         /// </summary>
         public RateResolutionLevel ResolutionLevel { get; set; } = RateResolutionLevel.None;
 
-        /// <summary>Unit rate in <see cref="CurrencyCode"/>.</summary>
+        /// <summary>Unit rate in <see cref="CurrencyCode"/>. 0 when <see cref="Outcome"/>
+        /// is Nil or Included.</summary>
         public double UnitRate { get; set; }
+
+        /// <summary>DSCH-26 — Priced, or a declared Nil / Included. A declared outcome is
+        /// an answer and stops the chain; a 0 rate without one is not
+        /// (<see cref="RateChainRule"/>).</summary>
+        public RateOutcome Outcome { get; set; } = RateOutcome.Priced;
+
+        /// <summary>Where an Included item's cost is carried ("E10/2"). Empty otherwise.</summary>
+        public string IncludedIn { get; set; } = "";
 
         /// <summary>Currency of the returned rate (ISO 4217).</summary>
         public string CurrencyCode { get; set; } = "UGX";
@@ -139,7 +148,6 @@ namespace StingTools.BOQ.Rates
         /// 100 = explicit user override (parameter or ES),
         /// 90  = CSV category match,
         /// 85  = CSV PROD match,
-        /// 75  = COBie type-map,
         /// 60  = Scheduling4DEngine baseline,
         /// 50  = external (BCIS / Spon's),
         /// 40  = project-specific rate card.
