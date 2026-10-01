@@ -29,6 +29,11 @@ namespace StingTools.BIMManager
     // round-trip needs to preserve the actual file shape, so it uses
     // these POCOs that match the file 1:1. Mirrors the editor-side
     // model in DrawingTypeEditorDialog.cs.
+    //
+    // DTW-181: every class carries [JsonExtensionData], so a key this mirror
+    // does not model (pack tagFamilies / viewRange / farClipMm / managedFields
+    // …, filter-rule surfFgColor / projLinePattern, a VG override's
+    // long-form keys) survives the import model instead of being dropped.
     internal sealed class StylePackDoc
     {
         [JsonProperty("schemaVersion", NullValueHandling = NullValueHandling.Ignore)] public string SchemaVersion { get; set; }
@@ -38,6 +43,7 @@ namespace StingTools.BIMManager
         [JsonProperty("lastUpdated",   NullValueHandling = NullValueHandling.Ignore)] public string LastUpdated { get; set; }
         [JsonProperty("stylePacks")] public List<StylePackEntry> StylePacks { get; set; } = new();
         [JsonProperty("routing", NullValueHandling = NullValueHandling.Ignore)] public List<StylePackRoutingRule> Routing { get; set; }
+        [JsonExtensionData] public IDictionary<string, JToken> Extra { get; set; }
     }
 
     internal sealed class StylePackEntry
@@ -53,6 +59,18 @@ namespace StingTools.BIMManager
         [JsonProperty("colorScheme",   NullValueHandling = NullValueHandling.Ignore)]      public string ColorScheme { get; set; }
         [JsonProperty("appearance",    NullValueHandling = NullValueHandling.Ignore)]      public StylePackAppearance Appearance { get; set; }
         [JsonProperty("filterRules",   NullValueHandling = NullValueHandling.Ignore)]      public List<StylePackFilterRule> FilterRules { get; set; }
+
+        // DTW-181: corp-coordination and coord-qa key their rules under the
+        // runtime's canonical "filters". This mirror bound only "filterRules",
+        // so those 19 rules vanished on import. Write-only alias; canonical
+        // output stays "filterRules", which the runtime also reads.
+        [JsonProperty("filters", NullValueHandling = NullValueHandling.Ignore)]
+        public List<StylePackFilterRule> FiltersAlias
+        {
+            get => null;
+            set { if (value != null && value.Count > 0) FilterRules = value; }
+        }
+
         [JsonProperty("vgOverrides",   NullValueHandling = NullValueHandling.Ignore)]      public Dictionary<string, StylePackVgOverride> VgOverrides { get; set; }
         [JsonProperty("tagColorScheme",   NullValueHandling = NullValueHandling.Ignore)]   public string TagColorScheme { get; set; }
         [JsonProperty("defaultTagStyle",  NullValueHandling = NullValueHandling.Ignore)]   public string DefaultTagStyle { get; set; }
@@ -65,6 +83,8 @@ namespace StingTools.BIMManager
         // No "checksum": view style packs are deliberately unlocked (DRAW-5).
         // The field was mirrored here from ViewStylePack, always empty, and
         // exported as a locked "checksum" column that implied a lock.
+
+        [JsonExtensionData] public IDictionary<string, JToken> Extra { get; set; }
     }
 
     internal sealed class StylePackAppearance
@@ -73,20 +93,39 @@ namespace StingTools.BIMManager
         [JsonProperty("textStyleName",     NullValueHandling = NullValueHandling.Ignore)] public string TextStyleName { get; set; }
         [JsonProperty("dimensionStyleName",NullValueHandling = NullValueHandling.Ignore)] public string DimensionStyleName { get; set; }
         [JsonProperty("hatchPalette",      NullValueHandling = NullValueHandling.Ignore)] public string HatchPalette { get; set; }
+        [JsonExtensionData] public IDictionary<string, JToken> Extra { get; set; }
     }
 
     internal sealed class StylePackFilterRule
     {
         [JsonProperty("name")]         public string Name { get; set; }
-        [JsonProperty("visible")]      public bool   Visible { get; set; } = true;
-        [JsonProperty("halftone")]     public bool   Halftone { get; set; }
+        // DTW-181: nullable, as on the runtime StyleFilterRule (V-9). "Not
+        // said" defers to the AEC filter registry default; as a bool with a
+        // true default, an unset rule came back from the workbook as an
+        // explicit visible:true and overrode that default.
+        [JsonProperty("visible",      NullValueHandling = NullValueHandling.Ignore)] public bool?  Visible { get; set; }
+        [JsonProperty("halftone",     NullValueHandling = NullValueHandling.Ignore)] public bool?  Halftone { get; set; }
         [JsonProperty("projColor",    NullValueHandling = NullValueHandling.Ignore)] public string ProjColor { get; set; }
         [JsonProperty("projWeight",   NullValueHandling = NullValueHandling.Ignore)] public int?   ProjWeight { get; set; }
         [JsonProperty("cutColor",     NullValueHandling = NullValueHandling.Ignore)] public string CutColor { get; set; }
         [JsonProperty("cutWeight",    NullValueHandling = NullValueHandling.Ignore)] public int?   CutWeight { get; set; }
         [JsonProperty("transparency", NullValueHandling = NullValueHandling.Ignore)] public int?   Transparency { get; set; }
+        [JsonExtensionData] public IDictionary<string, JToken> Extra { get; set; }
+
+        /// <summary>The workbook-visible fields, for change detection.</summary>
+        internal string Key => string.Join("|", Name, Visible, Halftone, ProjColor, ProjWeight, CutColor, CutWeight, Transparency);
     }
 
+    /// <summary>
+    /// One category's VG override. The shipped packs spell the line fields
+    /// both ways — short projColor/projWeight/cutColor/cutWeight and long
+    /// projectionLineColor/projectionLineWeight/cutLineColor/cutLineWeight
+    /// (107/107/45/45 occurrences) — and the runtime StyleVgOverride reads
+    /// both. DTW-181: this mirror modelled only the short form, so every
+    /// long-form value exported blank and was then deleted on import. Both
+    /// spellings are now modelled; the Effective* accessors read whichever is
+    /// set, and the Set* writers keep the spelling the entry already uses.
+    /// </summary>
     internal sealed class StylePackVgOverride
     {
         [JsonProperty("visible",      NullValueHandling = NullValueHandling.Ignore)] public bool?   Visible { get; set; }
@@ -95,7 +134,26 @@ namespace StingTools.BIMManager
         [JsonProperty("projWeight",   NullValueHandling = NullValueHandling.Ignore)] public int?    ProjWeight { get; set; }
         [JsonProperty("cutColor",     NullValueHandling = NullValueHandling.Ignore)] public string  CutColor { get; set; }
         [JsonProperty("cutWeight",    NullValueHandling = NullValueHandling.Ignore)] public int?    CutWeight { get; set; }
+        [JsonProperty("projectionLineColor",  NullValueHandling = NullValueHandling.Ignore)] public string ProjectionLineColor { get; set; }
+        [JsonProperty("projectionLineWeight", NullValueHandling = NullValueHandling.Ignore)] public int?   ProjectionLineWeight { get; set; }
+        [JsonProperty("cutLineColor",         NullValueHandling = NullValueHandling.Ignore)] public string CutLineColor { get; set; }
+        [JsonProperty("cutLineWeight",        NullValueHandling = NullValueHandling.Ignore)] public int?   CutLineWeight { get; set; }
         [JsonProperty("transparency", NullValueHandling = NullValueHandling.Ignore)] public int?    Transparency { get; set; }
+        [JsonExtensionData] public IDictionary<string, JToken> Extra { get; set; }
+
+        [JsonIgnore] internal string EffectiveProjColor  => !string.IsNullOrEmpty(ProjectionLineColor) ? ProjectionLineColor : ProjColor;
+        [JsonIgnore] internal int?   EffectiveProjWeight => ProjectionLineWeight ?? ProjWeight;
+        [JsonIgnore] internal string EffectiveCutColor   => !string.IsNullOrEmpty(CutLineColor) ? CutLineColor : CutColor;
+        [JsonIgnore] internal int?   EffectiveCutWeight  => CutLineWeight ?? CutWeight;
+
+        internal void SetProjColor(string v)  { if (!string.IsNullOrEmpty(ProjectionLineColor)) ProjectionLineColor = v; else ProjColor = v; }
+        internal void SetProjWeight(int? v)   { if (ProjectionLineWeight.HasValue) ProjectionLineWeight = v; else ProjWeight = v; }
+        internal void SetCutColor(string v)   { if (!string.IsNullOrEmpty(CutLineColor)) CutLineColor = v; else CutColor = v; }
+        internal void SetCutWeight(int? v)    { if (CutLineWeight.HasValue) CutLineWeight = v; else CutWeight = v; }
+
+        /// <summary>The workbook-visible values, for change detection.</summary>
+        internal string Key => string.Join("|", EffectiveProjColor, EffectiveProjWeight, EffectiveCutColor,
+                                           EffectiveCutWeight, Halftone, Transparency);
     }
 
     internal sealed class StylePackRoutingRule
@@ -103,6 +161,7 @@ namespace StingTools.BIMManager
         [JsonProperty("purpose",      NullValueHandling = NullValueHandling.Ignore)] public string Purpose { get; set; }
         [JsonProperty("discipline",   NullValueHandling = NullValueHandling.Ignore)] public string Discipline { get; set; }
         [JsonProperty("stylePackId",  NullValueHandling = NullValueHandling.Ignore)] public string StylePackId { get; set; }
+        [JsonExtensionData] public IDictionary<string, JToken> Extra { get; set; }
     }
 
     #endregion
@@ -317,7 +376,7 @@ namespace StingTools.BIMManager
                 ws.Cell(row, 9).Value = p.Appearance?.HatchPalette ?? "";
                 ws.Cell(row,10).Value = p.TagColorScheme ?? "";
                 ws.Cell(row,11).Value = p.DefaultTagStyle ?? "";
-                ws.Cell(row,12).Value = p.TemplateMode ?? "external";
+                ws.Cell(row,12).Value = p.TemplateMode ?? "";   // DTW-181: blank, not an invented "external"
                 ws.Cell(row,13).Value = p.Discipline ?? "";
                 ws.Cell(row,14).Value = p.VisualStyle ?? "";
                 ws.Cell(row,15).Value = p.PhaseFilter ?? "";
@@ -334,6 +393,8 @@ namespace StingTools.BIMManager
 
             FinaliseSheet(ws, headers.Length);
         }
+
+        private static string Bool(bool? b) => b.HasValue ? (b.Value ? "TRUE" : "FALSE") : "";
 
         private static void BuildVgOverridesSheet(XLWorkbook wb, StylePackDoc packs)
         {
@@ -352,10 +413,11 @@ namespace StingTools.BIMManager
                 {
                     ws.Cell(row, 1).Value = p.Id ?? "";
                     ws.Cell(row, 2).Value = kv.Key ?? "";
-                    ws.Cell(row, 3).Value = kv.Value?.ProjColor ?? "";
-                    if (kv.Value?.ProjWeight.HasValue == true) ws.Cell(row, 4).Value = kv.Value.ProjWeight.Value;
-                    ws.Cell(row, 5).Value = kv.Value?.CutColor ?? "";
-                    if (kv.Value?.CutWeight.HasValue == true) ws.Cell(row, 6).Value = kv.Value.CutWeight.Value;
+                    // DTW-181: whichever spelling the entry uses.
+                    ws.Cell(row, 3).Value = kv.Value?.EffectiveProjColor ?? "";
+                    if (kv.Value?.EffectiveProjWeight.HasValue == true) ws.Cell(row, 4).Value = kv.Value.EffectiveProjWeight.Value;
+                    ws.Cell(row, 5).Value = kv.Value?.EffectiveCutColor ?? "";
+                    if (kv.Value?.EffectiveCutWeight.HasValue == true) ws.Cell(row, 6).Value = kv.Value.EffectiveCutWeight.Value;
                     ws.Cell(row, 7).Value = kv.Value?.Halftone.HasValue == true
                                            ? (kv.Value.Halftone.Value ? "TRUE" : "FALSE") : "";
                     if (kv.Value?.Transparency.HasValue == true) ws.Cell(row, 8).Value = kv.Value.Transparency.Value;
@@ -392,8 +454,8 @@ namespace StingTools.BIMManager
                 {
                     ws.Cell(row, 1).Value = p.Id ?? "";
                     ws.Cell(row, 2).Value = f.Name ?? "";
-                    ws.Cell(row, 3).Value = f.Visible ? "TRUE" : "FALSE";
-                    ws.Cell(row, 4).Value = f.Halftone ? "TRUE" : "FALSE";
+                    ws.Cell(row, 3).Value = Bool(f.Visible);   // blank = not said (DTW-181)
+                    ws.Cell(row, 4).Value = Bool(f.Halftone);
                     ws.Cell(row, 5).Value = f.ProjColor ?? "";
                     if (f.ProjWeight.HasValue) ws.Cell(row, 6).Value = f.ProjWeight.Value;
                     ws.Cell(row, 7).Value = f.CutColor ?? "";
@@ -420,7 +482,8 @@ namespace StingTools.BIMManager
             var ws = wb.AddWorksheet("Slots");
             string[] headers = {
                 "drawingTypeId","label","viewType","normX","normY","normW","normH",
-                "scale","detailLevel","viewTemplate","viewportType","required"
+                "scale","detailLevel","viewTemplate","viewportType","required",
+                "purposeTag","slotRef"   // DTW-181: carried, not dropped
             };
             WriteHeader(ws, headers);
 
@@ -442,6 +505,8 @@ namespace StingTools.BIMManager
                     ws.Cell(row,10).Value = s.ViewTemplate ?? "";
                     ws.Cell(row,11).Value = s.ViewportType ?? "";
                     ws.Cell(row,12).Value = s.Required ? "TRUE" : "FALSE";
+                    ws.Cell(row,13).Value = s.PurposeTag ?? "";
+                    ws.Cell(row,14).Value = s.SlotRef ?? "";
 
                     if (row % 2 == 0) ws.Range(row, 1, row, headers.Length).Style.Fill.BackgroundColor = RowAltFill;
                     row++;
@@ -1093,14 +1158,55 @@ namespace StingTools.BIMManager
             return fresh;
         }
 
-        private static void Set<T>(string entityType, string id, string field,
-            T oldVal, T newVal, Action<T> setter, List<ChangeRecord> changes)
+        // DTW-181 — change tracking. A change is recorded, and the model
+        // touched, only when the workbook value DIFFERS from the model value:
+        // null and "" are the same (an empty cell), numbers compare as
+        // numbers, and a sub-object (crop / print / annotation / appearance)
+        // is created only when a value actually has to be written into it.
+        // The old Set treated null vs "" as a change and the Apply* methods
+        // recorded slots / title-block params / VG / filters / routing as
+        // changed unconditionally, so importing an unedited workbook flipped
+        // every corporate type and pack to "project" (checksum dropped) and
+        // froze the whole catalogue into the override.
+
+        private static string Norm(string v) => string.IsNullOrEmpty(v) ? null : v;
+
+        private static void SetStr(string entityType, string id, string field,
+            string oldVal, string newVal, Action<string> setter, List<ChangeRecord> changes)
         {
-            var oldStr = oldVal == null ? null : oldVal.ToString();
-            var newStr = newVal == null ? null : newVal.ToString();
-            if (string.Equals(oldStr, newStr, StringComparison.Ordinal)) return;
+            oldVal = Norm(oldVal); newVal = Norm(newVal);
+            if (string.Equals(oldVal, newVal, StringComparison.Ordinal)) return;
             setter(newVal);
-            changes.Add(new ChangeRecord { EntityType = entityType, Id = id, Field = field, OldValue = oldStr, NewValue = newStr });
+            changes.Add(new ChangeRecord { EntityType = entityType, Id = id, Field = field, OldValue = oldVal, NewValue = newVal });
+        }
+
+        private static void SetNum(string entityType, string id, string field,
+            double? oldVal, double? newVal, Action<double?> setter, List<ChangeRecord> changes)
+        {
+            if (oldVal.HasValue == newVal.HasValue
+                && (!oldVal.HasValue || Math.Abs(oldVal.Value - newVal.Value) <= 1e-9)) return;
+            setter(newVal);
+            changes.Add(new ChangeRecord { EntityType = entityType, Id = id, Field = field,
+                OldValue = oldVal?.ToString(CultureInfo.InvariantCulture), NewValue = newVal?.ToString(CultureInfo.InvariantCulture) });
+        }
+
+        private static void SetBool(string entityType, string id, string field,
+            bool oldVal, bool newVal, Action<bool> setter, List<ChangeRecord> changes)
+        {
+            if (oldVal == newVal) return;
+            setter(newVal);
+            changes.Add(new ChangeRecord { EntityType = entityType, Id = id, Field = field,
+                OldValue = oldVal ? "TRUE" : "FALSE", NewValue = newVal ? "TRUE" : "FALSE" });
+        }
+
+        private static string Str(IXLWorksheet ws, int r, int c) => ws.Cell(r, c).GetString();
+        private static double? Num(IXLWorksheet ws, int r, int c) => TryReadDouble(ws.Cell(r, c), out var d) ? d : (double?)null;
+        private static int? Int(IXLWorksheet ws, int r, int c) => TryReadInt(ws.Cell(r, c), out var i) ? i : (int?)null;
+        private static bool? TriBool(IXLWorksheet ws, int r, int c)
+        {
+            var v = ws.Cell(r, c).GetString().Trim();
+            if (string.IsNullOrEmpty(v)) return null;
+            return string.Equals(v, "TRUE", StringComparison.OrdinalIgnoreCase);
         }
 
         private static void ApplyDrawingTypesSheet(XLWorkbook wb, DrawingTypeLibrary dt, List<ChangeRecord> changes)
@@ -1108,6 +1214,7 @@ namespace StingTools.BIMManager
             var ws = wb.Worksheets.FirstOrDefault(s => s.Name == "DrawingTypes");
             if (ws == null) return;
             int last = ws.LastRowUsed()?.RowNumber() ?? 1;
+            const string E = "DrawingType";
 
             for (int r = 2; r <= last; r++)
             {
@@ -1115,40 +1222,41 @@ namespace StingTools.BIMManager
                 if (string.IsNullOrEmpty(id)) continue;
                 var d = GetOrAddDt(dt, id);
 
-                Set("DrawingType", id, "name",        d.Name,        ws.Cell(r,  2).GetString(), v => d.Name = v, changes);
-                Set("DrawingType", id, "description", d.Description, ws.Cell(r,  3).GetString(), v => d.Description = v, changes);
+                SetStr(E, id, "name",        d.Name,        Str(ws, r,  2), v => d.Name = v, changes);
+                SetStr(E, id, "description", d.Description, Str(ws, r,  3), v => d.Description = v, changes);
                 // origin column (4) deliberately not written — locked
-                Set("DrawingType", id, "purpose",     d.Purpose,     ws.Cell(r,  5).GetString(), v => d.Purpose = v, changes);
-                Set("DrawingType", id, "discipline",  d.Discipline,  ws.Cell(r,  6).GetString(), v => d.Discipline = v, changes);
-                Set("DrawingType", id, "phase",       d.Phase,       ws.Cell(r,  7).GetString(), v => d.Phase = v, changes);
-                Set("DrawingType", id, "paperSize",   d.PaperSize,   ws.Cell(r,  8).GetString(), v => d.PaperSize = v, changes);
-                Set("DrawingType", id, "orientation", d.Orientation, ws.Cell(r,  9).GetString(), v => d.Orientation = v, changes);
-                if (TryReadInt(ws.Cell(r,10), out var sc))
-                    Set("DrawingType", id, "scale",   d.Scale,       sc, v => d.Scale = v, changes);
-                Set("DrawingType", id, "detailLevel",      d.DetailLevel,      ws.Cell(r,11).GetString(), v => d.DetailLevel = v, changes);
-                Set("DrawingType", id, "viewStylePackId",  d.ViewStylePackId,  ws.Cell(r,12).GetString(), v => d.ViewStylePackId = v, changes);
-                Set("DrawingType", id, "viewTemplateName", d.ViewTemplateName, ws.Cell(r,13).GetString(), v => d.ViewTemplateName = v, changes);
-                Set("DrawingType", id, "viewportTypeName", d.ViewportTypeName, ws.Cell(r,14).GetString(), v => d.ViewportTypeName = v, changes);
-                Set("DrawingType", id, "sheetNumberPattern", d.SheetNumberPattern, ws.Cell(r,15).GetString(), v => d.SheetNumberPattern = v, changes);
-                Set("DrawingType", id, "sheetNamePattern",   d.SheetNamePattern,   ws.Cell(r,16).GetString(), v => d.SheetNamePattern = v, changes);
+                SetStr(E, id, "purpose",     d.Purpose,     Str(ws, r,  5), v => d.Purpose = v, changes);
+                SetStr(E, id, "discipline",  d.Discipline,  Str(ws, r,  6), v => d.Discipline = v, changes);
+                SetStr(E, id, "phase",       d.Phase,       Str(ws, r,  7), v => d.Phase = v, changes);
+                SetStr(E, id, "paperSize",   d.PaperSize,   Str(ws, r,  8), v => d.PaperSize = v, changes);
+                SetStr(E, id, "orientation", d.Orientation, Str(ws, r,  9), v => d.Orientation = v, changes);
+                var sc = Int(ws, r, 10);
+                if (sc.HasValue)
+                    SetNum(E, id, "scale", d.Scale, sc, v => d.Scale = (int)v.Value, changes);
+                SetStr(E, id, "detailLevel",        d.DetailLevel,        Str(ws, r, 11), v => d.DetailLevel = v, changes);
+                SetStr(E, id, "viewStylePackId",    d.ViewStylePackId,    Str(ws, r, 12), v => d.ViewStylePackId = v, changes);
+                SetStr(E, id, "viewTemplateName",   d.ViewTemplateName,   Str(ws, r, 13), v => d.ViewTemplateName = v, changes);
+                SetStr(E, id, "viewportTypeName",   d.ViewportTypeName,   Str(ws, r, 14), v => d.ViewportTypeName = v, changes);
+                SetStr(E, id, "sheetNumberPattern", d.SheetNumberPattern, Str(ws, r, 15), v => d.SheetNumberPattern = v, changes);
+                SetStr(E, id, "sheetNamePattern",   d.SheetNamePattern,   Str(ws, r, 16), v => d.SheetNamePattern = v, changes);
 
-                d.Crop ??= new DrawingCropStrategy();
-                Set("DrawingType", id, "cropMode", d.Crop.Kind, ws.Cell(r,17).GetString(), v => d.Crop.Kind = v, changes);
-                if (TryReadDouble(ws.Cell(r,18), out var mm))
-                    Set("DrawingType", id, "cropMarginMm", d.Crop.MarginMm, mm, v => d.Crop.MarginMm = v, changes);
+                SetStr(E, id, "cropMode", d.Crop?.Kind, Str(ws, r, 17), v => (d.Crop ??= new DrawingCropStrategy()).Kind = v, changes);
+                var mm = Num(ws, r, 18);
+                if (mm.HasValue)
+                    SetNum(E, id, "cropMarginMm", d.Crop?.MarginMm, mm, v => (d.Crop ??= new DrawingCropStrategy()).MarginMm = v.Value, changes);
 
-                d.Print ??= new PrintOverride();
-                Set("DrawingType", id, "printColourScheme", d.Print.ColourScheme, ws.Cell(r,19).GetString(), v => d.Print.ColourScheme = v, changes);
-                if (TryReadDouble(ws.Cell(r,20), out var lws))
-                    Set("DrawingType", id, "printLineWeightScale", d.Print.LineWeightScale, (double?)lws, v => d.Print.LineWeightScale = v, changes);
-                bool halftone = string.Equals(ws.Cell(r,21).GetString().Trim(), "TRUE", StringComparison.OrdinalIgnoreCase);
-                Set("DrawingType", id, "printHalftoneLinks", d.Print.HalftoneLinks, halftone, v => d.Print.HalftoneLinks = v, changes);
+                SetStr(E, id, "printColourScheme", d.Print?.ColourScheme, Str(ws, r, 19), v => (d.Print ??= new PrintOverride()).ColourScheme = v, changes);
+                var lws = Num(ws, r, 20);
+                if (lws.HasValue)
+                    SetNum(E, id, "printLineWeightScale", d.Print?.LineWeightScale, lws, v => (d.Print ??= new PrintOverride()).LineWeightScale = v, changes);
+                bool halftone = TriBool(ws, r, 21) ?? false;
+                SetBool(E, id, "printHalftoneLinks", d.Print?.HalftoneLinks ?? false, halftone, v => (d.Print ??= new PrintOverride()).HalftoneLinks = v, changes);
 
-                d.Annotation ??= new AnnotationRulePack();
-                Set("DrawingType", id, "annotationDimensionStrategy", d.Annotation.DimensionStrategy, ws.Cell(r,22).GetString(), v => d.Annotation.DimensionStrategy = v, changes);
-                Set("DrawingType", id, "annotationDimensionStyle",    d.Annotation.DimensionStyle,    ws.Cell(r,23).GetString(), v => d.Annotation.DimensionStyle = v, changes);
-                if (TryReadInt(ws.Cell(r,24), out var dus))
-                    Set("DrawingType", id, "annotationDenseUntilScale", d.Annotation.DenseUntilScale, (int?)dus, v => d.Annotation.DenseUntilScale = v, changes);
+                SetStr(E, id, "annotationDimensionStrategy", d.Annotation?.DimensionStrategy, Str(ws, r, 22), v => (d.Annotation ??= new AnnotationRulePack()).DimensionStrategy = v, changes);
+                SetStr(E, id, "annotationDimensionStyle",    d.Annotation?.DimensionStyle,    Str(ws, r, 23), v => (d.Annotation ??= new AnnotationRulePack()).DimensionStyle = v, changes);
+                var dus = Int(ws, r, 24);
+                if (dus.HasValue)
+                    SetNum(E, id, "annotationDenseUntilScale", d.Annotation?.DenseUntilScale, dus, v => (d.Annotation ??= new AnnotationRulePack()).DenseUntilScale = (int?)v, changes);
 
                 // checksum column (25) not written — locked
             }
@@ -1159,30 +1267,31 @@ namespace StingTools.BIMManager
             var ws = wb.Worksheets.FirstOrDefault(s => s.Name == "StylePacks");
             if (ws == null) return;
             int last = ws.LastRowUsed()?.RowNumber() ?? 1;
+            const string E = "StylePack";
             for (int r = 2; r <= last; r++)
             {
                 var id = ws.Cell(r, 1).GetString().Trim();
                 if (string.IsNullOrEmpty(id)) continue;
                 var p = GetOrAddPack(packs, id);
 
-                Set("StylePack", id, "name",        p.Name,        ws.Cell(r, 2).GetString(), v => p.Name = v, changes);
-                Set("StylePack", id, "description", p.Description, ws.Cell(r, 3).GetString(), v => p.Description = v, changes);
+                SetStr(E, id, "name",        p.Name,        Str(ws, r, 2), v => p.Name = v, changes);
+                SetStr(E, id, "description", p.Description, Str(ws, r, 3), v => p.Description = v, changes);
                 // origin column (4) locked
-                Set("StylePack", id, "extends",     p.Extends,     ws.Cell(r, 5).GetString(), v => p.Extends = v, changes);
+                SetStr(E, id, "extends",     p.Extends,     Str(ws, r, 5), v => p.Extends = v, changes);
 
-                p.Appearance ??= new StylePackAppearance();
-                if (TryReadDouble(ws.Cell(r, 6), out var lws))
-                    Set("StylePack", id, "lineWeightScale", p.Appearance.LineWeightScale, (double?)lws, v => p.Appearance.LineWeightScale = v, changes);
-                Set("StylePack", id, "textStyleName",      p.Appearance.TextStyleName,      ws.Cell(r, 7).GetString(), v => p.Appearance.TextStyleName = v, changes);
-                Set("StylePack", id, "dimensionStyleName", p.Appearance.DimensionStyleName, ws.Cell(r, 8).GetString(), v => p.Appearance.DimensionStyleName = v, changes);
-                Set("StylePack", id, "hatchPalette",       p.Appearance.HatchPalette,       ws.Cell(r, 9).GetString(), v => p.Appearance.HatchPalette = v, changes);
+                var lws = Num(ws, r, 6);
+                if (lws.HasValue)
+                    SetNum(E, id, "lineWeightScale", p.Appearance?.LineWeightScale, lws, v => (p.Appearance ??= new StylePackAppearance()).LineWeightScale = v, changes);
+                SetStr(E, id, "textStyleName",      p.Appearance?.TextStyleName,      Str(ws, r, 7), v => (p.Appearance ??= new StylePackAppearance()).TextStyleName = v, changes);
+                SetStr(E, id, "dimensionStyleName", p.Appearance?.DimensionStyleName, Str(ws, r, 8), v => (p.Appearance ??= new StylePackAppearance()).DimensionStyleName = v, changes);
+                SetStr(E, id, "hatchPalette",       p.Appearance?.HatchPalette,       Str(ws, r, 9), v => (p.Appearance ??= new StylePackAppearance()).HatchPalette = v, changes);
 
-                Set("StylePack", id, "tagColorScheme",  p.TagColorScheme,  ws.Cell(r,10).GetString(), v => p.TagColorScheme = v, changes);
-                Set("StylePack", id, "defaultTagStyle", p.DefaultTagStyle, ws.Cell(r,11).GetString(), v => p.DefaultTagStyle = v, changes);
-                Set("StylePack", id, "templateMode",    p.TemplateMode,    ws.Cell(r,12).GetString(), v => p.TemplateMode = v, changes);
-                Set("StylePack", id, "discipline",      p.Discipline,      ws.Cell(r,13).GetString(), v => p.Discipline = v, changes);
-                Set("StylePack", id, "visualStyle",     p.VisualStyle,     ws.Cell(r,14).GetString(), v => p.VisualStyle = v, changes);
-                Set("StylePack", id, "phaseFilter",     p.PhaseFilter,     ws.Cell(r,15).GetString(), v => p.PhaseFilter = v, changes);
+                SetStr(E, id, "tagColorScheme",  p.TagColorScheme,  Str(ws, r,10), v => p.TagColorScheme = v, changes);
+                SetStr(E, id, "defaultTagStyle", p.DefaultTagStyle, Str(ws, r,11), v => p.DefaultTagStyle = v, changes);
+                SetStr(E, id, "templateMode",    p.TemplateMode,    Str(ws, r,12), v => p.TemplateMode = v, changes);
+                SetStr(E, id, "discipline",      p.Discipline,      Str(ws, r,13), v => p.Discipline = v, changes);
+                SetStr(E, id, "visualStyle",     p.VisualStyle,     Str(ws, r,14), v => p.VisualStyle = v, changes);
+                SetStr(E, id, "phaseFilter",     p.PhaseFilter,     Str(ws, r,15), v => p.PhaseFilter = v, changes);
                 // Column 16 ("checksum") was removed with DRAW-5; an older
                 // workbook that still carries it is ignored — it was never read.
             }
@@ -1194,7 +1303,10 @@ namespace StingTools.BIMManager
             if (ws == null) return;
             int last = ws.LastRowUsed()?.RowNumber() ?? 1;
 
-            // Group rows by packId (full replace per pack)
+            // Group rows by packId (full replace per pack). Each row starts from
+            // a copy of the pack's existing override for that category, so a
+            // key the sheet has no column for (visible, extension data) and the
+            // spelling the entry uses are carried through.
             var byPack = new Dictionary<string, Dictionary<string, StylePackVgOverride>>(StringComparer.OrdinalIgnoreCase);
             for (int r = 2; r <= last; r++)
             {
@@ -1207,25 +1319,29 @@ namespace StingTools.BIMManager
                     dict = new Dictionary<string, StylePackVgOverride>(StringComparer.OrdinalIgnoreCase);
                     byPack[pid] = dict;
                 }
-                var ov = new StylePackVgOverride();
-                var pc = ws.Cell(r, 3).GetString().Trim(); if (!string.IsNullOrEmpty(pc)) ov.ProjColor = pc;
-                if (TryReadInt(ws.Cell(r, 4), out var pw)) ov.ProjWeight = pw;
-                var cc = ws.Cell(r, 5).GetString().Trim(); if (!string.IsNullOrEmpty(cc)) ov.CutColor  = cc;
-                if (TryReadInt(ws.Cell(r, 6), out var cw)) ov.CutWeight  = cw;
-                var ht = ws.Cell(r, 7).GetString().Trim();
-                if (!string.IsNullOrEmpty(ht)) ov.Halftone = string.Equals(ht, "TRUE", StringComparison.OrdinalIgnoreCase);
-                if (TryReadInt(ws.Cell(r, 8), out var tr)) ov.Transparency = tr;
-
+                var existingPack = packs.StylePacks.FirstOrDefault(p => string.Equals(p.Id, pid, StringComparison.OrdinalIgnoreCase));
+                StylePackVgOverride prior = null;
+                existingPack?.VgOverrides?.TryGetValue(cat, out prior);
+                var ov = prior != null ? CloneJson(prior) : new StylePackVgOverride();
+                ov.SetProjColor(Norm(ws.Cell(r, 3).GetString().Trim()));
+                ov.SetProjWeight(Int(ws, r, 4));
+                ov.SetCutColor(Norm(ws.Cell(r, 5).GetString().Trim()));
+                ov.SetCutWeight(Int(ws, r, 6));
+                ov.Halftone = TriBool(ws, r, 7);
+                ov.Transparency = Int(ws, r, 8);
                 dict[cat] = ov;
             }
 
             foreach (var kv in byPack)
             {
                 var pack = GetOrAddPack(packs, kv.Key);
-                int oldCount = pack.VgOverrides?.Count ?? 0;
+                var old = pack.VgOverrides ?? new Dictionary<string, StylePackVgOverride>();
+                bool same = old.Count == kv.Value.Count
+                    && old.All(o => kv.Value.TryGetValue(o.Key, out var n) && n != null && o.Value != null && n.Key == o.Value.Key);
+                if (same) continue;
                 pack.VgOverrides = kv.Value;
                 changes.Add(new ChangeRecord { EntityType = "StylePack", Id = kv.Key, Field = "vgOverrides",
-                    OldValue = $"{oldCount} entries", NewValue = $"{kv.Value.Count} entries" });
+                    OldValue = $"{old.Count} entries", NewValue = $"{kv.Value.Count} entries" });
             }
         }
 
@@ -1236,32 +1352,41 @@ namespace StingTools.BIMManager
             int last = ws.LastRowUsed()?.RowNumber() ?? 1;
 
             var byPack = new Dictionary<string, List<StylePackFilterRule>>(StringComparer.OrdinalIgnoreCase);
+            var used = new HashSet<StylePackFilterRule>(ReferenceEqualityComparer.Instance);
             for (int r = 2; r <= last; r++)
             {
                 var pid  = ws.Cell(r, 1).GetString().Trim();
                 var name = ws.Cell(r, 2).GetString().Trim();
                 if (string.IsNullOrEmpty(pid) || string.IsNullOrEmpty(name)) continue;
                 if (!byPack.TryGetValue(pid, out var list)) { list = new(); byPack[pid] = list; }
-                var f = new StylePackFilterRule {
-                    Name     = name,
-                    Visible  = string.Equals(ws.Cell(r, 3).GetString().Trim(), "TRUE", StringComparison.OrdinalIgnoreCase),
-                    Halftone = string.Equals(ws.Cell(r, 4).GetString().Trim(), "TRUE", StringComparison.OrdinalIgnoreCase),
-                };
-                var pc = ws.Cell(r, 5).GetString().Trim(); if (!string.IsNullOrEmpty(pc)) f.ProjColor = pc;
-                if (TryReadInt(ws.Cell(r, 6), out var pw)) f.ProjWeight = pw;
-                var cc = ws.Cell(r, 7).GetString().Trim(); if (!string.IsNullOrEmpty(cc)) f.CutColor  = cc;
-                if (TryReadInt(ws.Cell(r, 8), out var cw)) f.CutWeight  = cw;
-                if (TryReadInt(ws.Cell(r, 9), out var tr)) f.Transparency = tr;
+
+                // Start from the pack's existing rule of the same name (first
+                // not yet used), so keys the sheet has no column for —
+                // surfFgColor, projLinePattern, … — are carried through.
+                var existingPack = packs.StylePacks.FirstOrDefault(p => string.Equals(p.Id, pid, StringComparison.OrdinalIgnoreCase));
+                var prior = existingPack?.FilterRules?.FirstOrDefault(f => f != null && !used.Contains(f)
+                                && string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase));
+                if (prior != null) used.Add(prior);
+                var f = prior != null ? CloneJson(prior) : new StylePackFilterRule();
+                f.Name         = name;
+                f.Visible      = TriBool(ws, r, 3);
+                f.Halftone     = TriBool(ws, r, 4);
+                f.ProjColor    = Norm(ws.Cell(r, 5).GetString().Trim());
+                f.ProjWeight   = Int(ws, r, 6);
+                f.CutColor     = Norm(ws.Cell(r, 7).GetString().Trim());
+                f.CutWeight    = Int(ws, r, 8);
+                f.Transparency = Int(ws, r, 9);
                 list.Add(f);
             }
 
             foreach (var kv in byPack)
             {
                 var pack = GetOrAddPack(packs, kv.Key);
-                int oldCount = pack.FilterRules?.Count ?? 0;
+                var old = pack.FilterRules ?? new List<StylePackFilterRule>();
+                if (old.Select(x => x?.Key).SequenceEqual(kv.Value.Select(x => x.Key), StringComparer.Ordinal)) continue;
                 pack.FilterRules = kv.Value;
                 changes.Add(new ChangeRecord { EntityType = "StylePack", Id = kv.Key, Field = "filterRules",
-                    OldValue = $"{oldCount} entries", NewValue = $"{kv.Value.Count} entries" });
+                    OldValue = $"{old.Count} entries", NewValue = $"{kv.Value.Count} entries" });
             }
         }
 
@@ -1270,37 +1395,50 @@ namespace StingTools.BIMManager
             var ws = wb.Worksheets.FirstOrDefault(s => s.Name == "Slots");
             if (ws == null) return;
             int last = ws.LastRowUsed()?.RowNumber() ?? 1;
+            int cPurposeTag = FindHeader(ws, "purposeTag");
+            int cSlotRef    = FindHeader(ws, "slotRef");
 
             var byDt = new Dictionary<string, List<DrawingSlot>>(StringComparer.OrdinalIgnoreCase);
+            var used = new HashSet<DrawingSlot>(ReferenceEqualityComparer.Instance);
             for (int r = 2; r <= last; r++)
             {
                 var did = ws.Cell(r, 1).GetString().Trim();
                 if (string.IsNullOrEmpty(did)) continue;
                 if (!byDt.TryGetValue(did, out var list)) { list = new(); byDt[did] = list; }
 
-                var s = new DrawingSlot {
-                    Label    = ws.Cell(r, 2).GetString(),
-                    ViewType = ws.Cell(r, 3).GetString(),
-                    Required = string.Equals(ws.Cell(r,12).GetString().Trim(), "TRUE", StringComparison.OrdinalIgnoreCase),
-                };
+                // Start from the type's existing slot with the same label (first
+                // not yet used), so fields with no column are carried through.
+                var label = ws.Cell(r, 2).GetString();
+                var existing = dt.DrawingTypes.FirstOrDefault(t => string.Equals(t.Id, did, StringComparison.OrdinalIgnoreCase));
+                var prior = existing?.Slots?.FirstOrDefault(x => x != null && !used.Contains(x)
+                                && string.Equals(Norm(x.Label), Norm(label), StringComparison.Ordinal));
+                if (prior != null) used.Add(prior);
+                var s = prior != null ? CloneJson(prior) : new DrawingSlot();
+
+                s.Label    = Norm(label) ?? (prior == null ? null : s.Label);
+                s.ViewType = Norm(ws.Cell(r, 3).GetString());
+                s.Required = TriBool(ws, r, 12) ?? false;
                 if (TryReadDouble(ws.Cell(r, 4), out var x)) s.NormX = x;
                 if (TryReadDouble(ws.Cell(r, 5), out var y)) s.NormY = y;
                 if (TryReadDouble(ws.Cell(r, 6), out var w)) s.NormW = w;
                 if (TryReadDouble(ws.Cell(r, 7), out var h)) s.NormH = h;
-                if (TryReadInt(ws.Cell(r, 8), out var sc)) s.Scale = sc;
-                var dl = ws.Cell(r, 9).GetString().Trim(); if (!string.IsNullOrEmpty(dl)) s.DetailLevel = dl;
-                var vt = ws.Cell(r,10).GetString().Trim(); if (!string.IsNullOrEmpty(vt)) s.ViewTemplate = vt;
-                var vp = ws.Cell(r,11).GetString().Trim(); if (!string.IsNullOrEmpty(vp)) s.ViewportType = vp;
+                s.Scale        = Int(ws, r, 8);
+                s.DetailLevel  = Norm(ws.Cell(r, 9).GetString().Trim());
+                s.ViewTemplate = Norm(ws.Cell(r,10).GetString().Trim());
+                s.ViewportType = Norm(ws.Cell(r,11).GetString().Trim());
+                if (cPurposeTag > 0) s.PurposeTag = Norm(ws.Cell(r, cPurposeTag).GetString().Trim());
+                if (cSlotRef    > 0) s.SlotRef    = Norm(ws.Cell(r, cSlotRef).GetString().Trim());
                 list.Add(s);
             }
 
             foreach (var kv in byDt)
             {
                 var d = GetOrAddDt(dt, kv.Key);
-                int oldCount = d.Slots?.Count ?? 0;
+                var old = d.Slots ?? new List<DrawingSlot>();
+                if (JsonConvert.SerializeObject(old) == JsonConvert.SerializeObject(kv.Value)) continue;
                 d.Slots = kv.Value;
                 changes.Add(new ChangeRecord { EntityType = "DrawingType", Id = kv.Key, Field = "slots",
-                    OldValue = $"{oldCount} entries", NewValue = $"{kv.Value.Count} entries" });
+                    OldValue = $"{old.Count} entries", NewValue = $"{kv.Value.Count} entries" });
             }
         }
 
@@ -1323,12 +1461,18 @@ namespace StingTools.BIMManager
             foreach (var kv in byDt)
             {
                 var d = GetOrAddDt(dt, kv.Key);
-                int oldCount = d.TitleBlockParams?.Count ?? 0;
+                var old = d.TitleBlockParams ?? new Dictionary<string, string>();
+                bool same = old.Count == kv.Value.Count
+                    && old.All(o => kv.Value.TryGetValue(o.Key, out var n) && string.Equals(Norm(n), Norm(o.Value), StringComparison.Ordinal));
+                if (same) continue;
                 d.TitleBlockParams = kv.Value;
                 changes.Add(new ChangeRecord { EntityType = "DrawingType", Id = kv.Key, Field = "titleBlockParams",
-                    OldValue = $"{oldCount} entries", NewValue = $"{kv.Value.Count} entries" });
+                    OldValue = $"{old.Count} entries", NewValue = $"{kv.Value.Count} entries" });
             }
         }
+
+        private static T CloneJson<T>(T src) where T : class
+            => src == null ? null : JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(src));
 
         /// <summary>
         /// DTW-180: read every predicate (by header name, so a workbook from
