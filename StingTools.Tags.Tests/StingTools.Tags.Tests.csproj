@@ -75,6 +75,10 @@
          vocabularies for one spec without equating number and integer. -->
     <Compile Include="..\StingTools\Core\SharedParamTypeConflict.cs" Link="Core\SharedParamTypeConflict.cs" />
     <Compile Include="..\StingTools\Tags\TagCategoryNameForms.cs" Link="Tags\TagCategoryNameForms.cs" />
+    <!-- TAGFAM-7: the tag family name-matching rule + legacy alias table, and the tier map
+         that resolves through it. Both Revit-free. -->
+    <Compile Include="..\StingTools\Tags\TagFamilyNameAliases.cs" Link="Tags\TagFamilyNameAliases.cs" />
+    <Compile Include="..\StingTools\Core\PerFamilyTierMap.cs" Link="Core\PerFamilyTierMap.cs" />
     <Compile Include="..\StingTools\Tags\TagConfigDeclarations.cs" Link="Tags\TagConfigDeclarations.cs" />
     <Compile Include="..\StingTools\Tags\SharedParamSubset.cs" Link="Tags\SharedParamSubset.cs" />
     <Compile Include="..\StingTools\Tags\TagFormatConfig.cs" Link="Tags\TagFormatConfig.cs" />
