@@ -772,56 +772,45 @@ namespace StingTools.BIMManager
             catch (Exception ex) { StingLog.Warn($"BIMManager: failed to load JSON {Path.GetFileName(path)}: {ex.Message}"); return new JObject(); }
         }
 
+        /// <summary>
+        /// Read a JSON-array store. Missing → empty. Unreadable → its .bak when that reads,
+        /// else EMPTY with a warning (the historical contract every caller relies on) — but the
+        /// unreadable file is no longer lost: SaveJsonFile moves it aside before writing (C4).
+        /// A caller that must not treat unreadable as empty uses <see cref="TryLoadJsonArray"/>.
+        /// </summary>
         internal static JArray LoadJsonArray(string path)
         {
-            if (!File.Exists(path))
+            if (JsonStoreFile.TryLoadArray(path, out JArray arr, out string error, out string note))
             {
-                // DI-01 FIX: Try .bak backup if primary file doesn't exist
-                string bakPath = path + ".bak";
-                if (File.Exists(bakPath))
-                {
-                    try
-                    {
-                        StingLog.Warn($"BIMManager: primary JSON missing, loading backup: {Path.GetFileName(bakPath)}");
-                        return JArray.Parse(File.ReadAllText(bakPath));
-                    }
-                    catch (Exception bex) { StingLog.Warn($"BIMManager: backup also failed: {bex.Message}"); }
-                }
-                return new JArray();
+                if (note != null) StingLog.Warn("BIMManager: " + note);
+                return arr;
             }
-            try { return JArray.Parse(File.ReadAllText(path)); }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"BIMManager: failed to load JSON array {Path.GetFileName(path)}: {ex.Message}");
-                // DI-01 FIX: Fall back to .bak backup on parse failure
-                string bakPath = path + ".bak";
-                if (File.Exists(bakPath))
-                {
-                    try
-                    {
-                        StingLog.Warn($"BIMManager: trying backup file: {Path.GetFileName(bakPath)}");
-                        return JArray.Parse(File.ReadAllText(bakPath));
-                    }
-                    catch (Exception bex) { StingLog.Warn($"BIMManager: backup parse also failed: {bex.Message}"); }
-                }
-                return new JArray();
-            }
+            StingLog.Warn($"BIMManager: {error}; read as empty — the unreadable file is kept aside on the next save.");
+            return new JArray();
         }
 
-        internal static void SaveJsonFile(string path, JToken data)
+        /// <summary>C4: like LoadJsonArray, but false (with the reason) when the store exists and
+        /// cannot be read, so a caller about to write over it can refuse instead.</summary>
+        internal static bool TryLoadJsonArray(string path, out JArray array, out string error)
+        {
+            bool ok = JsonStoreFile.TryLoadArray(path, out array, out error, out string note);
+            if (ok && note != null) StingLog.Warn("BIMManager: " + note);
+            return ok;
+        }
+
+        /// <summary>Write a store atomically, keeping a .bak of the last readable content and
+        /// moving an unreadable previous file aside (never overwriting it). Returns false —
+        /// logged — when nothing was saved, so a caller does not report a write that did not
+        /// happen (C4).</summary>
+        internal static bool SaveJsonFile(string path, JToken data)
         {
             try
             {
-                string dir = Path.GetDirectoryName(path);
-                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                    Directory.CreateDirectory(dir);
-
-                // Atomic write: write to temp file first, then move (overwrite) to target.
-                // File.Move with overwrite=true is atomic on NTFS, preventing corruption
-                // if the process crashes mid-write.
-                string tmpPath = path + ".tmp";
-                OutputLocationHelper.WriteAllTextAtomic(tmpPath, data.ToString(Formatting.Indented));
-                File.Move(tmpPath, path, true);
+                if (!JsonStoreFile.Replace(path, data.ToString(Formatting.Indented), out string err))
+                {
+                    StingLog.Error($"BIMManager: failed to save {Path.GetFileName(path)}: {err}", null);
+                    return false;
+                }
 
                 // BIM-SIDECAR-VER-01: Stamp the companion `<path>.meta.json` so
                 // future schema additions can detect older files and migrate.
@@ -830,10 +819,12 @@ namespace StingTools.BIMManager
                 SidecarMetaStamper.Stamp(path, schema);
 
                 StingLog.Info($"BIMManager: saved {Path.GetFileName(path)}");
+                return true;
             }
             catch (Exception ex)
             {
                 StingLog.Error($"BIMManager: failed to save {Path.GetFileName(path)}", ex);
+                return false;
             }
         }
 
@@ -879,7 +870,13 @@ namespace StingTools.BIMManager
             try
             {
                 string regPath = GetBIMManagerFilePath(doc, "document_register.json");
-                var register = LoadJsonArray(regPath);
+                // C4: an unreadable register is not an empty one — writing this batch over it
+                // would erase every manual and deliverable row. Refuse; the files stay exported.
+                if (!TryLoadJsonArray(regPath, out JArray register, out string regErr))
+                {
+                    StingLog.Warn($"AutoRegisterExports: NOT recorded — {regErr}. Repair the register and re-export or re-register.");
+                    return 0;
+                }
                 int done = 0, added = 0;
                 var now = DateTime.Now;
                 foreach (var item in list)
@@ -898,7 +895,7 @@ namespace StingTools.BIMManager
                 }
                 if (done > 0)
                 {
-                    SaveJsonFile(regPath, register);
+                    if (!SaveJsonFile(regPath, register)) return 0;
                     StingLog.Info($"Auto-register: {added} added, {done - added} updated — {regPath}");
                 }
                 return done;

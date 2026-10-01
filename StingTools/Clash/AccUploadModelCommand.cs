@@ -373,7 +373,8 @@ namespace StingTools.Core.Clash
                     return null;
 
                 string txPath = BIMManager.BIMManagerEngine.GetBIMManagerFilePath(doc, "transmittals.json");
-                var rows = BIMManager.BIMManagerEngine.LoadJsonArray(txPath);
+                if (!BIMManager.BIMManagerEngine.TryLoadJsonArray(txPath, out var rows, out string txErr))
+                    return $"The upload succeeded, but transmittal {rec.TransmittalId} was NOT marked SENT: {txErr}.";
                 var row = BIMManager.TransmittalRecord.MarkSent(rows, rec.TransmittalId, DateTime.Now,
                     Environment.UserName, "uploaded to ACC" + (string.IsNullOrWhiteSpace(itemUrn) ? "" : " as " + itemUrn));
                 if (row == null) return null;
@@ -382,7 +383,8 @@ namespace StingTools.Core.Clash
                 if (!string.IsNullOrWhiteSpace(result?.VersionUrn)) row["acc_version_urn"] = result.VersionUrn;
                 if (!string.IsNullOrWhiteSpace(result?.FolderUrn)) row["acc_folder_urn"] = result.FolderUrn;
                 if (!string.IsNullOrWhiteSpace(coverVersionUrn)) row["acc_cover_version_urn"] = coverVersionUrn;
-                BIMManager.BIMManagerEngine.SaveJsonFile(txPath, rows);
+                if (!BIMManager.BIMManagerEngine.SaveJsonFile(txPath, rows))
+                    return $"The upload succeeded, but transmittal {rec.TransmittalId} could NOT be saved as SENT — see the log.";
                 StingLog.Info($"ACC upload: transmittal {rec.TransmittalId} marked SENT");
                 return $"Transmittal {rec.TransmittalId} is now recorded as SENT.";
             }

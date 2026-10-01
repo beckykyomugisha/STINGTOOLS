@@ -1249,7 +1249,15 @@ namespace StingTools.BIMManager
 
                 // Record transmittal
                 string txPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "transmittals.json");
-                var transmittals = BIMManagerEngine.LoadJsonArray(txPath);
+                // C4: an unreadable transmittal log is not empty; recording this one row would
+                // replace every earlier transmittal. The bundle is still built; no transmittal
+                // is claimed for it.
+                bool txReadable = BIMManagerEngine.TryLoadJsonArray(txPath, out var transmittals, out string txErr);
+                if (!txReadable)
+                {
+                    StingLog.Warn($"ACCPublish: transmittal NOT recorded — {txErr}");
+                    transmittals = new JArray();
+                }
                 BIMManagerEngine.SyncSequentialCounter(transmittals, "TX");
                 var tx = BIMManagerEngine.CreateTransmittal(doc, "ACC/BIM 360", "", suitability,
                     $"ACC publish package with {deliverables.Count} deliverables",
@@ -1258,7 +1266,8 @@ namespace StingTools.BIMManager
                     // says so rather than asserting an issue that has not happened (IM-17).
                     TransmittalStatus.Prepared);
                 transmittals.Add(tx);
-                BIMManagerEngine.SaveJsonFile(txPath, transmittals);
+                bool txSaved = txReadable && BIMManagerEngine.SaveJsonFile(txPath, transmittals);
+                if (!txSaved) tx = null;   // nothing recorded: the bundle carries no transmittal id
 
                 // Record WHICH bundle this was, so ACC_UploadLastBundle can upload it
                 // without a human picking a file. This command still only builds a local
