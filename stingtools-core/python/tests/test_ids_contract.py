@@ -4,7 +4,7 @@ declared data type (DSCH-38 follow-up).
 shared/ifc/ids/*.ids encode the contract in shared/ifc/psets/*.xml for IFC
 checkers. An IDS that names a property the template does not declare, or a data
 type the template does not give it, checks something no STING host writes - and
-passes or fails for the wrong reason. Pure stdlib: runs without ifctester.
+passes or fails for the wrong reason. Runs without ifctester; the schema check needs lxml.
 """
 from __future__ import annotations
 
@@ -18,12 +18,10 @@ PNS = "{https://stingtools.io/schema/ifc/psets/v1}"
 INS = "{http://standards.buildingsmart.org/IDS}"
 
 # IDS files written before this check whose facets do not match their template.
-# Found 2026-10-02: both say IFCLABEL where the template declares IfcText
-# (Pset_StingProjectOrg CompanyName / ClientName; Pset_StingTag7 NarrativeFull and
-# the six narrative parts). Which side is right depends on what the exporters
-# write - settle that, fix the losing file, and remove it from this set.
-# Shrink this list; never grow it.
-KNOWN_DRIFT: set[str] = {"sting-project-org.ids", "sting-tag7.ids"}
+# Emptied 2026-10-02 (sting-project-org.ids and sting-tag7.ids said IFCLABEL where
+# the templates declare IfcText; the IDS side was corrected). Shrink this list;
+# never grow it.
+KNOWN_DRIFT: set[str] = set()
 
 
 def _contract() -> dict[str, dict[str, str]]:
@@ -91,3 +89,64 @@ def test_known_drift_is_still_drift():
     contract = _contract()
     healed = sorted(n for n in KNOWN_DRIFT if not _problems(IDS / n, contract))
     assert not healed, f"remove from KNOWN_DRIFT, they now match: {healed}"
+
+
+# ── IDS 1.0 schema ───────────────────────────────────────────────────────────
+#
+# An IDS that does not validate against the buildingSMART IDS 1.0 schema is
+# rejected (or worse, half-read) by IDS tools. Three files carried a
+# requirementSeverity attribute IDS 1.0 does not have until 2026-10-02.
+# Validated offline against the vendored schema in tests/ids_schema/ (see its
+# README); lxml is required - a missing lxml fails, it does not skip.
+
+SCHEMA_DIR = Path(__file__).resolve().parent / "ids_schema"
+_LOCAL = {
+    "http://www.w3.org/2001/xml.xsd": SCHEMA_DIR / "xml.xsd",
+    "http://www.w3.org/2001/XMLSchema.xsd": SCHEMA_DIR / "XMLSchema.xsd",
+}
+_XSI_STUB = ('<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" '
+             'targetNamespace="http://www.w3.org/2001/XMLSchema-instance"/>')
+
+
+def _ids_schema():
+    from lxml import etree
+
+    class _Offline(etree.Resolver):
+        def resolve(self, url, pubid, context):
+            if url in _LOCAL:
+                return self.resolve_filename(str(_LOCAL[url]), context)
+            if url == "http://www.w3.org/2001/XMLSchema-instance":
+                return self.resolve_string(_XSI_STUB, context)
+            if url and url.endswith((".dtd",)):
+                return self.resolve_string("", context)   # XMLSchema.xsd's DOCTYPE; its entities are internal
+            if url and url.startswith(("http:", "https:")):
+                raise OSError(f"IDS schema check would fetch {url}; vendor it in tests/ids_schema/")
+            return None
+
+    parser = etree.XMLParser(no_network=True, load_dtd=False, resolve_entities=False)
+    parser.resolvers.add(_Offline())
+    return etree.XMLSchema(etree.parse(str(SCHEMA_DIR / "ids.xsd"), parser))
+
+
+def _schema_errors(path: Path, schema) -> list[str]:
+    from lxml import etree
+    if schema.validate(etree.parse(str(path))):
+        return []
+    return [f"{path.name}:{e.line}: {e.message}" for e in schema.error_log]
+
+
+def test_every_ids_is_valid_ids_1_0():
+    schema = _ids_schema()
+    bad = [e for f in sorted(IDS.glob("*.ids")) for e in _schema_errors(f, schema)]
+    assert not bad, "\n".join(bad[:20])
+
+
+def test_the_schema_check_rejects_a_non_ids_attribute(tmp_path):
+    schema = _ids_schema()
+    good = sorted(IDS.glob("*.ids"))[0].read_text(encoding="utf-8")
+    bad = good.replace("<specification ", '<specification requirementSeverity="optional" ', 1)
+    assert bad != good
+    f = tmp_path / "bad.ids"
+    f.write_text(bad, encoding="utf-8")
+    errors = _schema_errors(f, schema)
+    assert errors and "requirementSeverity" in errors[0], errors

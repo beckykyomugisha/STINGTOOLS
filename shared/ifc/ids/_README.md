@@ -33,7 +33,7 @@ against STING's Pset + enumeration contracts.
 - Descriptions are written for non-technical reviewers; instructions
   give specific remediation paths.
 
-`stingtools-core/python/tests/test_ids_contract.py` holds every Pset_Sting* property facet in these files to its template (declared, same data type) and requires an IDS for every template. Its KNOWN_DRIFT set lists the files that do not match yet.
+`stingtools-core/python/tests/test_ids_contract.py` holds every Pset_Sting* property facet in these files to its template (declared, same data type) and requires an IDS for every template. It also validates every file against the buildingSMART IDS 1.0 schema (offline, vendored in `stingtools-core/python/tests/ids_schema/`), so a schema-invalid IDS fails CI (multi-host-core.yml). IDS 1.0 has no severity attribute: an advisory specification says so in its description and uses `applicability minOccurs="0"`.
 
 ## Running validation
 
