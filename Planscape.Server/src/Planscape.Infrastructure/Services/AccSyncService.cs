@@ -61,13 +61,16 @@ public class AccSyncService
     public const string KeyIssueStatusAt = "accIssueStatusAt";
     /// <summary>Per mapped issue: the Planscape UpdatedAt last pushed to ACC (C10).</summary>
     public const string KeyIssuePushedAt = "accIssuePushedAt";
+    /// <summary>D2: issues whose create may have landed in ACC although no answer came back
+    /// (timeout, transport error, 5xx), with when the attempt was made. Never re-posted blind.</summary>
+    public const string KeyIssuePendingVerify = "accIssuePendingVerify";
     public const string KeySubtypeId     = "accIssueSubtypeId";
     public const string KeyHubId         = "accHubId";
     public const string KeyRegion        = "accRegion";
     public const string KeyWebhookHooks  = "accWebhookHooks";
 
     /// <summary>ConfigJson keys only the server writes. A client PUT must not replace them.</summary>
-    public static readonly IReadOnlyList<string> ServerOwnedConfigKeys = new[] { KeyIssueMap, KeyIssueStatus, KeyIssueStatusAt, KeyIssuePushedAt, KeyWebhookHooks, AccWebhookService.KeySecretSetBy };
+    public static readonly IReadOnlyList<string> ServerOwnedConfigKeys = new[] { KeyIssueMap, KeyIssueStatus, KeyIssueStatusAt, KeyIssuePushedAt, KeyIssuePendingVerify, KeyWebhookHooks, AccWebhookService.KeySecretSetBy };
 
     // Documented Issues v1 POST limits.
     private const int TitleMax = 100;
@@ -137,6 +140,9 @@ public class AccSyncService
     /// change tracker, so one connection's exception cannot lose another's token
     /// rotation or issue map.
     /// </summary>
+    // D2: the cron runs every 30 minutes; Hangfire's default 10 retries re-ran the whole
+    // sweep on top of it (and re-posted unclear creates each time).
+    [Hangfire.AutomaticRetry(Attempts = 0)]
     public async Task SyncAllActiveAsync(CancellationToken ct = default)
     {
         _db.BypassTenantFilter = true;
@@ -162,7 +168,7 @@ public class AccSyncService
                     default: fail++; break;
                 }
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
             {
                 fail++;
                 _logger.LogError(ex, "AccSyncService: connection {Id} threw", id);
@@ -364,7 +370,7 @@ public class AccSyncService
         {
             report = await SyncConnectionAsync(conn, ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             _logger.LogError(ex, "AccSyncService: sync of connection {Id} threw", conn.Id);
             report = Mark(conn, Fail(ex.Message));
@@ -394,6 +400,8 @@ public class AccSyncService
 
         var map = ReadIssueMap(cfg);
         var pushedAt = ReadPushedAt(cfg);
+        var pendingVerify = ReadPendingVerify(cfg);
+        int unverified = 0;
 
         var open = await _db.Issues
             .Where(i => i.ProjectId == conn.ProjectId
@@ -426,7 +434,40 @@ public class AccSyncService
             }
             if (string.Equals(issue.Source, "acc", StringComparison.OrdinalIgnoreCase)) { skipped++; continue; }
 
-            var (success, accId, error) = await PushIssueAsync(http, conn, issue, subtypeId!, region, ct);
+            // D2: an earlier create of this issue got no clear answer. Look for it in ACC first:
+            // found → link it; proven absent → post; can't tell → leave it, never post blind
+            // (a blind re-post put a duplicate, assigned to real people, into ACC every run).
+            if (pendingVerify.TryGetValue(key, out var since))
+            {
+                var (found, verifyErr) = await FindCreatedSinceAsync(http, conn, issue, since, region, ct);
+                if (verifyErr != null)
+                {
+                    unverified++;
+                    failures.Add($"{issue.IssueCode}: an earlier create got no answer and ACC could not be checked ({verifyErr}) — not sent again");
+                    failed++;
+                    continue;
+                }
+                pendingVerify.Remove(key);
+                cfg[KeyIssuePendingVerify] = PendingJson(pendingVerify);
+                if (found != null)
+                {
+                    map[key] = found;
+                    pushedAt[key] = issue.UpdatedAt;
+                    skipped++;
+                    cfg[KeyIssueMap] = JObject.FromObject(map);
+                    cfg[KeyIssuePushedAt] = PushedAtJson(pushedAt);
+                    conn.ConfigJson = cfg.ToString(Newtonsoft.Json.Formatting.None);
+                    await _db.SaveChangesAsync(ct);
+                    _logger.LogInformation("AccSyncService: issue {Code} was created in ACC by an earlier unclear push — linked to {Id}", issue.IssueCode, found);
+                    continue;
+                }
+                conn.ConfigJson = cfg.ToString(Newtonsoft.Json.Formatting.None);
+            }
+
+            // D5: a first sync can push hundreds of issues; keep the token fresh across the run.
+            var fresh = await RefreshMidRunAsync(conn, ct);
+            if (fresh != null) { failed++; failures.Add($"{issue.IssueCode}: {fresh}"); break; }
+            var (success, accId, error, unclear) = await PushIssueAsync(http, conn, issue, subtypeId!, region, ct);
             if (success)
             {
                 map[key] = accId!;
@@ -441,8 +482,15 @@ public class AccSyncService
             else
             {
                 failed++;
-                failures.Add($"{issue.IssueCode}: {error}");
+                failures.Add($"{issue.IssueCode}: {error}" + (unclear ? " — outcome unknown; it is checked in ACC before any re-send" : ""));
                 _logger.LogWarning("AccSyncService: push of issue {Code} failed: {Error}", issue.IssueCode, error);
+                if (unclear)
+                {
+                    pendingVerify[key] = DateTime.UtcNow.AddMinutes(-2);   // margin for clock skew
+                    cfg[KeyIssuePendingVerify] = PendingJson(pendingVerify);
+                    conn.ConfigJson = cfg.ToString(Newtonsoft.Json.Formatting.None);
+                    await _db.SaveChangesAsync(ct);
+                }
             }
         }
 
@@ -456,6 +504,8 @@ public class AccSyncService
         failed += updFailures.Count;
         failures.AddRange(updFailures);
 
+        var freshForReads = await RefreshMidRunAsync(conn, ct);
+        if (freshForReads != null) failures.Add("read-back: " + freshForReads);
         var (pulledOpen, pullError) = await PullOpenCountAsync(http, conn, region, ct);
 
         int? closedInAcc = null, statusRead = null;
@@ -519,6 +569,8 @@ public class AccSyncService
             if (!pushedAt.TryGetValue(key, out var at)) { pushedAt[key] = issue.UpdatedAt; dirty = true; continue; }
             if (issue.UpdatedAt <= at) continue;
 
+            var freshUpd = await RefreshMidRunAsync(conn, ct);
+            if (freshUpd != null) { failures.Add($"{issue.IssueCode} (update): {freshUpd}"); break; }
             var decision = AccIssueUpdatePlan.Plan(issue.Title, issue.Description, issue.Status,
                 lastStatus.TryGetValue(accId, out var st) ? st : null);
             if (decision.StatusWithheld) diverged++;
@@ -567,7 +619,7 @@ public class AccSyncService
             _logger.LogWarning("ACC issue update {Id} HTTP {Status}: {Body}", accId, (int)resp.StatusCode, Truncate(respBody, 1000));
             return (false, $"ACC rejected the update (HTTP {(int)resp.StatusCode}).");
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             return (false, ex.Message);
         }
@@ -598,7 +650,74 @@ public class AccSyncService
         return jo;
     }
 
-    private async Task<(bool ok, string? accId, string? error)> PushIssueAsync(
+    /// <summary>D5: refresh the access token when it is close to expiry part-way through a
+    /// sync. No-op while fresh. Returns null when usable, else why not.</summary>
+    private async Task<string?> RefreshMidRunAsync(PlatformConnection conn, CancellationToken ct)
+    {
+        if (AccTokenRefresher.IsFresh(conn, TimeSpan.FromMinutes(5))) return null;
+        var tok = await AccTokenRefresher.EnsureFreshAsync(_db, _connectorFactory.GetConnector(PlatformType.ACC), conn, _logger, ct);
+        return tok.Success ? null : "the ACC token expired during the sync and could not be refreshed: " + tok.Error;
+    }
+
+    /// <summary>D2: an ACC issue with this issue's (truncated) title created since
+    /// <paramref name="since"/>. (id, null) found; (null, null) proven absent; (null, error) unknown.</summary>
+    private async Task<(string? accId, string? error)> FindCreatedSinceAsync(
+        HttpClient http, PlatformConnection conn, BimIssue issue, DateTime since, string? region, CancellationToken ct)
+    {
+        string title = Truncate(issue.Title, TitleMax);
+        string from = since.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ", System.Globalization.CultureInfo.InvariantCulture);
+        try
+        {
+            for (int offset = 0, page = 0; page < 20; offset += 100, page++)
+            {
+                string url = $"{ApsEndpoints.IssuesProjectUrl(_config, conn.ExternalProjectId)}/issues" +
+                             $"?filter[createdAt]={Uri.EscapeDataString(from + "..")}&limit=100&offset={offset}";
+                using var resp = await ApsRetry.SendAsync(http, () => Get(url, conn.AccessToken!, region), true, _logger, ct);
+                var body = await resp.Content.ReadAsStringAsync(ct);
+                if (!resp.IsSuccessStatusCode) return (null, $"HTTP {(int)resp.StatusCode}");
+                var j = JObject.Parse(body);
+                var results = j["results"] as JArray ?? new JArray();
+                foreach (var r in results)
+                    if (string.Equals(((string?)r["title"] ?? "").Trim(), title.Trim(), StringComparison.Ordinal))
+                        return ((string?)r["id"], null);
+                int total = (int?)j["pagination"]?["totalResults"] ?? results.Count;
+                if (offset + results.Count >= total || results.Count == 0) return (null, null);
+            }
+            return (null, "more than 2,000 issues created since the attempt — not proven absent");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            return (null, ex.Message);
+        }
+    }
+
+    private static Dictionary<string, DateTime> ReadPendingVerify(JObject cfg)
+    {
+        var d = new Dictionary<string, DateTime>();
+        if (cfg[KeyIssuePendingVerify] is JObject jo)
+            foreach (var kv in jo)
+            {
+                if (kv.Value?.Type == JTokenType.Date) d[kv.Key] = kv.Value.Value<DateTime>();
+                else if (kv.Value?.Type == JTokenType.String &&
+                         DateTime.TryParse(kv.Value.Value<string>(), System.Globalization.CultureInfo.InvariantCulture,
+                                           System.Globalization.DateTimeStyles.RoundtripKind, out var t))
+                    d[kv.Key] = t;
+            }
+        return d;
+    }
+
+    private static JObject PendingJson(Dictionary<string, DateTime> pending)
+    {
+        var jo = new JObject();
+        foreach (var kv in pending) jo[kv.Key] = kv.Value.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        return jo;
+    }
+
+    /// <summary>D2: a create whose outcome is unknown — it may have landed in ACC.</summary>
+    internal static bool IsUnclearCreateStatus(int status)
+        => status == 408 || status == 500 || status == 502 || status == 503 || status == 504;
+
+    private async Task<(bool ok, string? accId, string? error, bool unclear)> PushIssueAsync(
         HttpClient http, PlatformConnection conn, BimIssue issue, string subtypeId, string? region, CancellationToken ct)
     {
         var body = new JObject
@@ -633,18 +752,20 @@ public class AccSyncService
                 // The APS body goes to the log only: the report reaches the browser
                 // (/acc/sync response, LastSyncError) and APS bodies can carry ids.
                 _logger.LogWarning("ACC issue create for {Code} HTTP {Status}: {Body}", issue.IssueCode, (int)resp.StatusCode, Truncate(respBody, 1000));
-                return (false, null, $"ACC rejected the issue (HTTP {(int)resp.StatusCode}).");
+                int code = (int)resp.StatusCode;
+                return (false, null, $"ACC rejected the issue (HTTP {code}).", IsUnclearCreateStatus(code));
             }
 
             var j = JObject.Parse(respBody);
             string accId = (string?)j["id"] ?? (string?)j["data"]?["id"] ?? "";
             return string.IsNullOrEmpty(accId)
-                ? (false, null, "ACC response had no issue id.")
-                : (true, accId, null);
+                ? (false, null, "ACC response had no issue id.", true)
+                : (true, accId, null, false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
-            return (false, null, ex.Message);
+            // A timeout or dropped connection after the request was sent: it may have landed.
+            return (false, null, ex is TaskCanceledException ? "the request timed out" : ex.Message, true);
         }
     }
 
@@ -660,7 +781,7 @@ public class AccSyncService
             var total = (int?)JObject.Parse(body)["pagination"]?["totalResults"];
             return total.HasValue ? (total, null) : (null, "response had no pagination.totalResults");
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             _logger.LogWarning(ex, "AccSyncService: open-count pull failed for connection {Id}", conn.Id);
             return (null, ex.Message);
@@ -699,7 +820,7 @@ public class AccSyncService
                 if (!result.ContainsKey(id)) result[id] = "not_found";
             return (result, null);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             return (null, ex.Message);
         }
@@ -760,7 +881,7 @@ public class AccSyncService
             c.LastSyncError = Truncate(error, 1000);
             await _db.SaveChangesAsync(ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             _logger.LogError(ex, "AccSyncService: could not record the error for connection {Id}", connectionId);
         }

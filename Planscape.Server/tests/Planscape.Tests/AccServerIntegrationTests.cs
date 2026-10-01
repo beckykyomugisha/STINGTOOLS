@@ -188,6 +188,93 @@ public partial class AccServerIntegrationTests
         Assert.Equal(AccSyncService.StatusOk, (await fx.ReadConnAsync()).LastSyncStatus);
     }
 
+    // ── D2: a create with no answer is verified, never re-posted blind ─────
+
+    /// <summary>ACC stub where the issue POST times out; the createdAt search returns
+    /// <paramref name="existing"/> (title → id), or fails when <paramref name="searchOk"/> is false.</summary>
+    private static void StubTimeoutThenSearch(Handler h, Dictionary<string, string> existing, bool searchOk = true)
+    {
+        h.Respond = (req, _) =>
+        {
+            var url = Uri.UnescapeDataString(req.RequestUri!.ToString());
+            if (req.Method == HttpMethod.Post && url.EndsWith("/issues"))
+                throw new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout");
+            if (req.Method == HttpMethod.Get && url.Contains("filter[createdAt]="))
+            {
+                if (!searchOk) return new HttpResponseMessage(HttpStatusCode.BadGateway);
+                var results = existing.Select(kv => new { id = kv.Value, title = kv.Key }).ToArray();
+                return Json(HttpStatusCode.OK, new { pagination = new { limit = 100, offset = 0, totalResults = results.Length }, results });
+            }
+            if (req.Method == HttpMethod.Get && url.Contains("filter[status]=open"))
+                return Json(HttpStatusCode.OK, new { pagination = new { limit = 1, offset = 0, totalResults = 0 }, results = new object[0] });
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        };
+    }
+
+    [Fact]
+    public async Task A_timed_out_create_is_reported_not_thrown_and_is_linked_once_ACC_shows_it()
+    {
+        var fx = new Fx();
+        await fx.SeedAsync(openIssues: 1);
+        StubTimeoutThenSearch(fx.Http, new Dictionary<string, string>());
+        AccSyncService.AccSyncReport r;
+        using (var db = fx.Db()) r = await fx.Service(db).SyncProjectAsync(fx.ProjectId);   // must not throw
+        Assert.Equal(0, r.Pushed);
+        Assert.Equal(1, r.Failed);
+        Assert.Contains("outcome unknown", r.Failures![0]);
+        var cfg = JObject.Parse((await fx.ReadConnAsync()).ConfigJson!);
+        Assert.Single((JObject)cfg[AccSyncService.KeyIssuePendingVerify]!);
+
+        // The create had landed: the next sync finds it by title and links it — no second POST.
+        StubTimeoutThenSearch(fx.Http, new Dictionary<string, string> { ["Issue 0"] = "acc-landed" });
+        fx.Http.Calls.Clear();
+        using (var db = fx.Db()) r = await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+        Assert.DoesNotContain(fx.Http.Calls, c => c.Method == HttpMethod.Post);
+        cfg = JObject.Parse((await fx.ReadConnAsync()).ConfigJson!);
+        Assert.Contains(((JObject)cfg[AccSyncService.KeyIssueMap]!).Properties(), p => (string?)p.Value == "acc-landed");
+        Assert.Empty((JObject)cfg[AccSyncService.KeyIssuePendingVerify]!);
+    }
+
+    [Fact]
+    public async Task An_unclear_create_proven_absent_is_posted_again_and_an_unchecked_one_is_not()
+    {
+        var fx = new Fx();
+        await fx.SeedAsync(openIssues: 1);
+        StubTimeoutThenSearch(fx.Http, new Dictionary<string, string>());
+        using (var db = fx.Db()) await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+
+        // ACC cannot be searched: the issue stays pending and is NOT posted.
+        StubTimeoutThenSearch(fx.Http, new Dictionary<string, string>(), searchOk: false);
+        fx.Http.Calls.Clear();
+        using (var db = fx.Db()) await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+        Assert.DoesNotContain(fx.Http.Calls, c => c.Method == HttpMethod.Post);
+
+        // Search works and shows nothing: proven absent, so it is posted again.
+        StubAcc(fx.Http, okPosts: 10);
+        var prev = fx.Http.Respond;
+        fx.Http.Respond = (req, body) =>
+        {
+            var url = Uri.UnescapeDataString(req.RequestUri!.ToString());
+            if (req.Method == HttpMethod.Get && url.Contains("filter[createdAt]="))
+                return Json(HttpStatusCode.OK, new { pagination = new { limit = 100, offset = 0, totalResults = 0 }, results = new object[0] });
+            return prev(req, body);
+        };
+        fx.Http.Calls.Clear();
+        AccSyncService.AccSyncReport r;
+        using (var db = fx.Db()) r = await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+        Assert.Equal(1, r.Pushed);
+        Assert.Single(fx.Http.Calls, c => c.Method == HttpMethod.Post);
+    }
+
+    [Theory]
+    [InlineData(500, true)]
+    [InlineData(502, true)]
+    [InlineData(504, true)]
+    [InlineData(400, false)]
+    [InlineData(403, false)]
+    public void Unclear_create_statuses(int status, bool unclear)
+        => Assert.Equal(unclear, AccSyncService.IsUnclearCreateStatus(status));
+
     // ── C10: Planscape edits reach ACC ─────────────────────────────────────
 
     [Fact]
@@ -398,11 +485,18 @@ public partial class AccServerIntegrationTests
         var fx = new Fx();
         await fx.SeedAsync(openIssues: 3);
         int posts = 0;
+        // A host shutdown cancels the run's token. (A cancellation with the token NOT cancelled
+        // is an HttpClient timeout, which D2 handles as an unclear create instead.)
+        using var shutdown = new CancellationTokenSource();
         fx.Http.Respond = (req, _) =>
         {
             if (req.Method == HttpMethod.Post)
             {
-                if (Interlocked.Increment(ref posts) == 2) throw new OperationCanceledException("host shutting down mid-run");
+                if (Interlocked.Increment(ref posts) == 2)
+                {
+                    shutdown.Cancel();
+                    throw new OperationCanceledException("host shutting down mid-run", shutdown.Token);
+                }
                 return Json(HttpStatusCode.Created, new { id = $"acc-{posts}" });
             }
             return new HttpResponseMessage(HttpStatusCode.NotFound);
@@ -414,7 +508,7 @@ public partial class AccServerIntegrationTests
             // per-push catch and aborts the run part-way — the crash case.
             var svc = fx.Service(db);
             var conn = await db.PlatformConnections.SingleAsync();
-            try { await svc.SyncConnectionAsync(conn, CancellationToken.None); } catch { /* the crash */ }
+            try { await svc.SyncConnectionAsync(conn, shutdown.Token); } catch { /* the crash */ }
         }
 
         var stored = await fx.ReadConnAsync();
@@ -475,6 +569,72 @@ public partial class AccServerIntegrationTests
             }
             return new HttpResponseMessage(HttpStatusCode.NotFound);
         };
+    }
+
+    // D5: a long push outlived its token, and every later request was counted as a 401 rejection.
+    [Fact]
+    public async Task A_token_expiring_part_way_through_a_push_is_refreshed_not_failed()
+    {
+        var fx = new Fx();
+        // Fresh at the start (5-minute buffer + 2 s), stale after the slow first POST.
+        await fx.SeedAsync(openIssues: 2, expires: DateTime.UtcNow.AddMinutes(5).AddSeconds(2));
+        int posts = 0, refreshes = 0;
+        fx.Http.Respond = (req, body) =>
+        {
+            var url = Uri.UnescapeDataString(req.RequestUri!.ToString());
+            if (req.RequestUri!.AbsolutePath.EndsWith("/authentication/v2/token"))
+            {
+                Interlocked.Increment(ref refreshes);
+                return Json(HttpStatusCode.OK, new { access_token = "a2", refresh_token = "r2", expires_in = 3600 });
+            }
+            if (req.Method == HttpMethod.Post && url.EndsWith("/issues"))
+            {
+                int n = Interlocked.Increment(ref posts);
+                if (n == 1) Thread.Sleep(3000);
+                // A request still carrying the expired token would be refused.
+                bool newToken = req.Headers.Authorization?.Parameter == "a2";
+                return n == 1 || newToken
+                    ? Json(HttpStatusCode.Created, new { id = $"acc-{n}" })
+                    : new HttpResponseMessage(HttpStatusCode.Unauthorized);
+            }
+            if (req.Method == HttpMethod.Get && url.Contains("filter[status]=open"))
+                return Json(HttpStatusCode.OK, new { pagination = new { limit = 1, offset = 0, totalResults = 2 }, results = new object[0] });
+            if (req.Method == HttpMethod.Get && url.Contains("filter[id]="))
+                return Json(HttpStatusCode.OK, new { pagination = new { limit = 100, offset = 0, totalResults = 0 }, results = new object[0] });
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        };
+
+        AccSyncService.AccSyncReport r;
+        using (var db = fx.Db()) r = await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+
+        Assert.Equal(2, r.Pushed);
+        Assert.Equal(0, r.Failed);
+        Assert.True(refreshes >= 1);
+        Assert.Equal("r2", (await fx.ReadConnAsync()).RefreshToken);
+    }
+
+    // D6: the rotation was saved under the request's abort token; a closed tab after APS rotated
+    // left the database with the invalidated refresh token.
+    [Fact]
+    public async Task A_rotation_is_saved_even_when_the_caller_cancels_after_APS_rotated()
+    {
+        var fx = new Fx();
+        await fx.SeedAsync(expires: DateTime.UtcNow.AddMinutes(-1));
+        using var aborted = new CancellationTokenSource();
+        StubToken(fx.Http, rt =>
+        {
+            aborted.Cancel();   // the user closes the tab while APS answers
+            return Json(HttpStatusCode.OK, new { access_token = "a2", refresh_token = "r2", expires_in = 3600 });
+        });
+
+        using (var db = fx.Db())
+        {
+            try { await fx.Service(db).GetFreshAccessTokenAsync(fx.ProjectId, aborted.Token); }
+            catch (OperationCanceledException) { /* the caller may see its own cancellation */ }
+        }
+
+        var stored = await fx.ReadConnAsync();
+        Assert.Equal("r2", stored.RefreshToken);   // APS's rotation is not lost
     }
 
     [Fact]
