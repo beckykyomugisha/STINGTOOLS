@@ -375,7 +375,20 @@ namespace StingTools.Core.Placement
                         StingLog.Warn($"DwgFixtureBridge place {c.BlockName}: {ex.Message}");
                     }
                 }
-                t.Commit();
+                // DTW-124 — a commit a failure handler rolled back placed nothing; never
+                // report "Placed N" for it.
+                var status = t.Commit();
+                if (status != TransactionStatus.Committed)
+                {
+                    StingLog.Warn($"DwgFixtureBridge: placement transaction ended {status}; {res.Placed} placement(s) discarded.");
+                    res.Messages.Add($"Placement was NOT committed (transaction {status}) - Revit rolled back all {res.Placed} placement(s). Nothing was added to the model.");
+                    res.SkippedNotHosted += res.Placed;
+                    res.Placed = 0;
+                    res.PlacedIds.Clear();
+                    res.PlacedByCategory.Clear();
+                    CheckPlaceInvariant(res, dryRun: false);
+                    return res;
+                }
             }
 
             // D4 — roll up not-hosted skips by (category: reason), one line each.
