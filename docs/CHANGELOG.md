@@ -13,6 +13,18 @@ Phase-by-phase history of completed work on the StingTools plugin, Planscape Ser
 - **Gate** `SharedParamLookupGateTests`: no source file defines a per-name `FindSharedDefinition` walk
   again (fails with any one copy restored). Build 0 / 0; `StingTools.Tags.Tests` 5,082 passing.
   **Not timed in Revit.**
+#### Completed (TAGFAM-8 content manifest lists every shipped tag family, 2026-10-01)
+
+- `Data/TagFamilies` held 210 `.rfa` files; `STING_CONTENT_MANIFEST.json` listed 206. The four TAGFAM-3
+  families (Fire Door, Accessible Door, Room Finish, Fire Compartment) had no entry, so `ContentManifest`'s
+  checksum verification never covered them. Added with discipline `A` (their config declaration) and the
+  family name as `category`, as the other variant families do — a `Doors` / `Rooms` category would let a
+  category lookup return a specialist tag instead of the base Door / Room tag. The coverage note now says
+  what the list is.
+- **Gate** `ContentManifestLibraryTests`: every `.rfa` is listed, every entry ships, every checksum matches,
+  and the keys read are the ones `ContentManifest` binds. Against main's manifest it names the four missing
+  files. Changing a family on purpose now means re-stamping it with
+  `tools/restamp_content_manifest.py --apply` — the tool's own rule (re-stamping is a deliberate step).
 
 #### Completed (TAGFAM-6 shared-parameter lookup indexed once per family, 2026-10-01)
 

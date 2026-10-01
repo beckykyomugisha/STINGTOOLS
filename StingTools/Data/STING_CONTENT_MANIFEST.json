@@ -1,7 +1,7 @@
 {
     "libraryVersion":  "2026.6.1",
     "rootPrecedence":  "projectFirst",
-    "_coverageNote":  "tagFamilies = the canonical 206-family list from LABEL_DEFINITIONS.category_labels (NOT the on-disk .rfa count); all built. symbols = model-family seeds enumerated from Data/Seeds (status=spec, buildable via SymbolLibraryCreator). Model-family seeds cover LOADABLE component categories only: system families (Walls/Floors/Roofs/Ceilings/Ducts/Pipes/Conduits/Cable Trays/Stairs/Railings) and datum/annotation categories (Rooms/Areas/Grids/Levels) have NO seed by design - they are project types, not loadable .rfa content. Medical Equipment is modeled under Specialty Equipment (no separate Revit category). needs-build / needs-spec, where present, are tracked coverage gaps, not errors.",
+    "_coverageNote":  "tagFamilies = the canonical 206-family list from LABEL_DEFINITIONS.category_labels plus the hand-built families the tag config declares (TAGFAM-1/3: Fire Door, Accessible Door, Room Finish, Fire Compartment); every .rfa in Data/TagFamilies is listed and its checksum matches (ContentManifestLibraryTests); all built. symbols = model-family seeds enumerated from Data/Seeds (status=spec, buildable via SymbolLibraryCreator). Model-family seeds cover LOADABLE component categories only: system families (Walls/Floors/Roofs/Ceilings/Ducts/Pipes/Conduits/Cable Trays/Stairs/Railings) and datum/annotation categories (Rooms/Areas/Grids/Levels) have NO seed by design - they are project types, not loadable .rfa content. Medical Equipment is modeled under Specialty Equipment (no separate Revit category). needs-build / needs-spec, where present, are tracked coverage gaps, not errors.",
     "coverage":  {
                      "engineRequiredCount":  29,
                      "seededLoadableCount":  25,
@@ -2654,6 +2654,46 @@
                             "discipline":  "P",
                             "familyFile":  "STING - Tie-In Gas Pipe Tag.rfa",
                             "checksum":  "816b56d88d9480e27b27b308e1148ba366ed9717f6bd2d5a3822f7551e2a294f",
+                            "status":  "built",
+                            "origin":  "corporate"
+                        },
+                        {
+                            "id":  "tag-fire-door",
+                            "kind":  "tagFamily",
+                            "category":  "Fire Door",
+                            "discipline":  "A",
+                            "familyFile":  "STING - Fire Door Tag.rfa",
+                            "checksum":  "9ed78cbd543919b36416184af0143c4eb2b1544bffe7a8f205ad898a960f8eb1",
+                            "status":  "built",
+                            "origin":  "corporate"
+                        },
+                        {
+                            "id":  "tag-accessible-door",
+                            "kind":  "tagFamily",
+                            "category":  "Accessible Door",
+                            "discipline":  "A",
+                            "familyFile":  "STING - Accessible Door Tag.rfa",
+                            "checksum":  "f05536e24a442d2c1573599927742038fb9c0d6ca12436742a42a129d5d9af4c",
+                            "status":  "built",
+                            "origin":  "corporate"
+                        },
+                        {
+                            "id":  "tag-room-finish",
+                            "kind":  "tagFamily",
+                            "category":  "Room Finish",
+                            "discipline":  "A",
+                            "familyFile":  "STING - Room Finish Tag.rfa",
+                            "checksum":  "6b19b7b335fa787382f58fa8a407db73bd060e10a320d909b9cfb809e6c36f69",
+                            "status":  "built",
+                            "origin":  "corporate"
+                        },
+                        {
+                            "id":  "tag-fire-compartment",
+                            "kind":  "tagFamily",
+                            "category":  "Fire Compartment",
+                            "discipline":  "A",
+                            "familyFile":  "STING - Fire Compartment Tag.rfa",
+                            "checksum":  "bf2a7ca914026432b324fe7207347930636495f82809cb2d1eb75c2618511752",
                             "status":  "built",
                             "origin":  "corporate"
                         }
