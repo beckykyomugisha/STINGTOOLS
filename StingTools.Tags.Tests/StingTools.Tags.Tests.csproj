@@ -247,6 +247,8 @@
     <Compile Include="..\StingTools\Core\Drawing\TemplateOwnedSetting.cs" Link="Core\Drawing\TemplateOwnedSetting.cs" />
     <!-- DT-R11-C: the Revit element-name rule every created / looked-up name goes through. -->
     <Compile Include="..\StingTools\Core\Drawing\RevitNameRules.cs" Link="Core\Drawing\RevitNameRules.cs" />
+    <!-- DT-R11-F: the managed view-template name (build / parse / recognise both forms). -->
+    <Compile Include="..\StingTools\Core\Drawing\ManagedTemplateNames.cs" Link="Core\Drawing\ManagedTemplateNames.cs" />
     <!-- The annotation rule-kind vocabulary + the sheet-number policy + the
          style-pack routing predicate. All three are Revit-free on purpose, so
          the gates that keep the shipped JSON and the runner in agreement can

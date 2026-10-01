@@ -6608,7 +6608,7 @@ namespace StingTools.UI
                     bool tplOk = string.IsNullOrEmpty(t.ViewTemplateName) ||
                                  new FilteredElementCollector(doc).OfClass(typeof(View))
                                     .Cast<View>().Any(v => v.IsTemplate &&
-                                        string.Equals(v.Name, t.ViewTemplateName, StringComparison.OrdinalIgnoreCase));
+                                        StingTools.Core.Drawing.ManagedTemplateNames.Matches(v.Name, t.ViewTemplateName));
                     bool vpOk  = string.IsNullOrEmpty(t.ViewportTypeName) ||
                                  StingTools.Core.Drawing.ViewportTypeResolver.Exists(doc, t.ViewportTypeName, vpIndex);
                     if (tplOk && vpOk) ok++;
