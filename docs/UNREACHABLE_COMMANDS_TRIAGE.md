@@ -19,19 +19,21 @@ python tools/recount_unreachable_commands.py            # report
 python tools/recount_unreachable_commands.py --check    # CI gate
 ```
 
-## Counts — re-derived 2026-09-29
+## Counts — re-derived 2026-10-01
 
-- **Total IExternalCommand classes**: **1770**
-- **Reached by a dispatch layer**: **1745**
+- **Total IExternalCommand classes**: **1771**
+- **Reached by a dispatch layer**: **1746**
 - **Referenced only from non-dispatch code**: **0**
 - **Named nowhere outside their own file**: **11**
 - **Ambiguous — name declared twice**: **14** (under 7 names)
 
-The four buckets partition all 1770; the script fails if they stop adding up.
+The four buckets partition all 1771; the script fails if they stop adding up.
 
 **+2 on 2026-09-28 (#951 ported)**: `SymbolPreflightCommand` (`Symbols_Preflight`) and the orientation audit (`Symbols_OrientationAudit`), reached from their SETUP → SYMBOLS & DEVICES buttons, handler cases and `WorkflowEngine.ResolveCommand`.
 
 **+1 on 2026-09-29**: `RepairTagLibraryCommand` (`RepairTagLibrary`), reached from CREATE TAGS → ⚙ SETUP → Advanced setup, its handler case and `WorkflowEngine.ResolveCommand`.
+
+**+1 on 2026-10-01 (DTW-82)**: `DrawingSelfTestCommand` (`DrawingTypes_SelfTest`), reached from DOCS → 📐 DRAWING TYPES → Self-Test, its handler case, `ViewCommandModule` and `WorkflowEngine.ResolveCommand`.
 
 **+2 on 2026-09-28 (#966 merged)**: `AuditBindingScopeCommand` (`AuditBindingScope`) and `MigrateBindingScopeCommand` (`MigrateBindingScope`), reached from their dock-panel buttons and handler cases.
 

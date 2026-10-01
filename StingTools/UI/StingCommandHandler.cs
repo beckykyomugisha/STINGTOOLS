@@ -730,6 +730,8 @@ namespace StingTools.UI
                     case "DrawingTypes_Renumber":      RunCommand<Commands.Drawing.DrawingRenumberCommand>(app); break;
                     case "DrawingTypes_HealTitleBlocks": RunCommand<Commands.Drawing.DrawingHealTitleBlocksCommand>(app); break;
                     case "DrawingTypes_Doctor":        RunCommand<Commands.Drawing.DrawingDoctorCommand>(app); break;
+                    // DTW-82: the automatable in-Revit drawing checks, rolled back.
+                    case "DrawingTypes_SelfTest":      RunCommand<Commands.Drawing.DrawingSelfTestCommand>(app); break;
                     // G-20 — door/window TYPE marks. Preview is a separate tag, not a
                     // flag, so the read-only path cannot be skipped by muscle memory.
                     case "TypeMark_Preview":           RunCommand<Commands.Drawing.TypeMarkPreviewCommand>(app); break;
