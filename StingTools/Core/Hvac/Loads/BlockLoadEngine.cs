@@ -143,6 +143,17 @@ namespace StingTools.Core.Hvac.Loads
                         blk.Assumptions.Add(
                             $"{(cooling ? "cooling" : "heating")} design wind {climate.Wind.MsFor(cooling):0.0} m/s assumed " +
                             $"(site '{climate.Id}' records no {(cooling ? "coolingWindMs" : "heatingWindMs")}; default per BS EN ISO 6946 Rse convention)");
+                    else if (blk.Zones.Any(zr => zr.UsedDesignWind))
+                    {
+                        // A recorded figure still carries what is unconfirmed about it.
+                        string day = cooling ? "cooling" : "heating";
+                        if (climate.Wind.RecordedWithoutSource)
+                            blk.Assumptions.Add($"{day} design wind {climate.Wind.MsFor(cooling):0.0} m/s from site '{climate.Id}' " +
+                                                "with no windSource recorded - unverified");
+                        else if (climate.Wind.Verify.Length > 0)
+                            blk.Assumptions.Add($"{day} design wind {climate.Wind.MsFor(cooling):0.0} m/s from {climate.Wind.Source} " +
+                                                $"- unconfirmed: {climate.Wind.Verify}");
+                    }
                     return blk;
                 })
                 .ToList();
