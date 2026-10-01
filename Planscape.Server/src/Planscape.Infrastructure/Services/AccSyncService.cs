@@ -568,7 +568,12 @@ public class AccSyncService
             // D5: a first sync can push hundreds of issues; keep the token fresh across the run.
             var fresh = await RefreshMidRunAsync(conn, ct);
             if (fresh != null) { failed++; failures.Add($"{issue.IssueCode}: {fresh}"); break; }
-            var (success, accId, error, unclear) = await PushIssueAsync(http, conn, issue, subtypeId!, region, ct);
+            // S1: stop BETWEEN issues, never inside one. Once the create is sent it may land in
+            // ACC whatever happens to the caller (a closed browser tab, a redeploy stopping the
+            // Hangfire job): the POST and the save of its mapping run to completion, so the next
+            // sweep links instead of creating a duplicate - as D6 does for a token rotation.
+            ct.ThrowIfCancellationRequested();
+            var (success, accId, error, unclear) = await PushIssueAsync(http, conn, issue, subtypeId!, region, CancellationToken.None);
             if (success)
             {
                 map[key] = accId!;
@@ -581,7 +586,7 @@ public class AccSyncService
                 cfg[KeyIssueMap] = JObject.FromObject(map);
                 cfg[KeyIssuePushedAt] = PushedAtJson(pushedAt);
                 conn.ConfigJson = cfg.ToString(Newtonsoft.Json.Formatting.None);
-                await _db.SaveChangesAsync(ct);
+                await _db.SaveChangesAsync(CancellationToken.None);
             }
             else
             {
@@ -593,7 +598,7 @@ public class AccSyncService
                     pendingVerify[key] = DateTime.UtcNow.AddMinutes(-2);   // margin for clock skew
                     cfg[KeyIssuePendingVerify] = PendingJson(pendingVerify);
                     conn.ConfigJson = cfg.ToString(Newtonsoft.Json.Formatting.None);
-                    await _db.SaveChangesAsync(ct);
+                    await _db.SaveChangesAsync(CancellationToken.None);   // S1
                 }
             }
         }
@@ -714,7 +719,8 @@ public class AccSyncService
 
             var fresh = await RefreshMidRunAsync(conn, ct);
             if (fresh != null) { failures.Add($"{issue.IssueCode}: {fresh}"); break; }
-            var (success, accId, error, unclear) = await PushIssueAsync(http, conn, issue, subtypeId, region, ct);
+            ct.ThrowIfCancellationRequested();   // S1: between issues only
+            var (success, accId, error, unclear) = await PushIssueAsync(http, conn, issue, subtypeId, region, CancellationToken.None);
             if (success)
             {
                 map[key] = accId!;
@@ -728,7 +734,7 @@ public class AccSyncService
                 pushed++;
                 dirty = true;
                 conn.ConfigJson = cfg.ToString(Newtonsoft.Json.Formatting.None);
-                await _db.SaveChangesAsync(ct);
+                await _db.SaveChangesAsync(CancellationToken.None);   // S1
             }
             else
             {
@@ -739,6 +745,9 @@ public class AccSyncService
                     pendingVerify[key] = DateTime.UtcNow.AddMinutes(-2);
                     cfg[KeyIssuePendingVerify] = PendingJson(pendingVerify);
                     dirty = true;
+                    // S1: an unclear create is recorded at once, not at the end of the pass.
+                    conn.ConfigJson = cfg.ToString(Newtonsoft.Json.Formatting.None);
+                    await _db.SaveChangesAsync(CancellationToken.None);
                 }
             }
         }

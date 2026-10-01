@@ -747,6 +747,42 @@ public partial class AccServerIntegrationTests
         Assert.NotNull(e2);
     }
 
+    // S1: a sync cancelled while a create was in flight (closed browser tab, a redeploy stopping
+    // the job) lost the mapping although ACC had the issue, so the next sweep made a duplicate.
+    [Fact]
+    public async Task A_sync_cancelled_mid_create_still_records_the_created_issue()
+    {
+        var fx = new Fx();
+        await fx.SeedAsync(openIssues: 2);
+        using var cts = new CancellationTokenSource();
+        int posts = 0;
+        StubAcc(fx.Http, okPosts: 10);
+        var inner = fx.Http.Respond;
+        fx.Http.Respond = (req, body) =>
+        {
+            if (req.Method == HttpMethod.Post && req.RequestUri!.AbsolutePath.EndsWith("/issues"))
+            {
+                Interlocked.Increment(ref posts);
+                cts.Cancel();                               // the caller goes away while ACC creates it
+            }
+            return inner(req, body);
+        };
+
+        using (var db = fx.Db())
+        {
+            try { await fx.Service(db).SyncProjectAsync(fx.ProjectId, cts.Token); }
+            catch (OperationCanceledException) { /* stopping between issues is the point */ }
+        }
+
+        Assert.Equal(1, posts);                              // the second issue was never started
+        var map = (JObject)JObject.Parse((await fx.ReadConnAsync()).ConfigJson!)[AccSyncService.KeyIssueMap]!;
+        Assert.Single(map.Properties());                     // the one ACC created is recorded
+
+        fx.Http.Respond = inner;                             // a normal sweep afterwards
+        using (var db = fx.Db()) await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+        Assert.Equal(2, fx.Http.Calls.Count(c => c.Method == HttpMethod.Post && c.Url.EndsWith("/issues")));   // 1 + the other one, no duplicate
+    }
+
     // S3: pointing the connection at another ACC project kept the old project's issue map, so
     // issues already pushed were never created in the new project and edits PATCHed foreign ids.
     [Fact]
