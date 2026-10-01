@@ -142,7 +142,10 @@ namespace StingTools.Core.Plumbing
                 res.RecommendedDnMm = recommended;
                 res.UpsizeRequired  = recommended > currentDn;
 
-                double minSlopePct = BSen12056Standards.GetMinimumSlopePct(currentDn, res.IsStack, isMain: false);
+                // STING_PLUMBING_DRAINAGE_TABLES.json minSlopePct first (BS EN 12056-2
+                // gradients; DN150 is 0.67 % on a branch), the BS EN 12056 constant
+                // table as the fallback.
+                double minSlopePct = PlumbingTables.MinSlopePct(currentDn, isMain: false, isStack: res.IsStack);
                 res.SlopeAdequate  = res.IsStack || res.SlopePct >= minSlopePct;
 
                 if (!res.IsStack)

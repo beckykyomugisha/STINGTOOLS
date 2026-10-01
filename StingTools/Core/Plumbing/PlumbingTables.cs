@@ -11,6 +11,7 @@ using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.Standards.BSEN12056;
 
 namespace StingTools.Core.Plumbing
 {
@@ -429,6 +430,43 @@ namespace StingTools.Core.Plumbing
                     $"PlumbingTables: {section}.{key} unreadable ({ex.Message}); using {fallback}");
             }
             return fallback;
+        }
+
+        /// <summary>
+        /// Minimum drain gradient (%) for a nominal DN — the first
+        /// <c>minSlopePct</c> row in STING_PLUMBING_DRAINAGE_TABLES.json whose
+        /// <c>dnMm</c> is at least <paramref name="dnMm"/>; branch or main column.
+        /// A stack has no gradient (0). A DN beyond the table, or a missing or
+        /// unreadable table, falls back to BSen12056Standards.GetMinimumSlopePct.
+        /// </summary>
+        public static double MinSlopePct(int dnMm, bool isMain, bool isStack = false)
+        {
+            double fallback = BSen12056Standards.GetMinimumSlopePct(dnMm, isStack, isMain);
+            if (isStack) return fallback;
+            try
+            {
+                var arr = Drainage?["minSlopePct"] as JArray;
+                if (arr == null || arr.Count == 0) return fallback;
+                JToken best = null;
+                int bestDn = int.MaxValue;
+                foreach (var row in arr)
+                {
+                    var dnTok = row?["dnMm"];
+                    if (dnTok == null) continue;
+                    int rowDn = dnTok.Value<int>();
+                    if (rowDn >= dnMm && rowDn < bestDn) { best = row; bestDn = rowDn; }
+                }
+                var pctTok = best?[isMain ? "mainPct" : "branchPct"];
+                if (pctTok == null) return fallback;
+                double pct = pctTok.Value<double>();
+                return pct > 0 ? pct : fallback;
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("PlumbingTables.MinSlopePct",
+                    $"PlumbingTables.MinSlopePct(DN{dnMm}): {ex.Message}; using BS EN 12056 constant {fallback}");
+                return fallback;
+            }
         }
 
         public static double StackCapacityDu(int dnMm)
