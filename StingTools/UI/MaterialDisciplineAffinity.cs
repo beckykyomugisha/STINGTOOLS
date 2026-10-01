@@ -44,21 +44,6 @@ namespace StingTools.UI
 
         public static string ResolvePrimary(string materialClass) => Resolve(materialClass)?.Primary;
 
-        /// <summary>True when <paramref name="discipline"/> is an allowed
-        /// discipline for materials of class <paramref name="materialClass"/>
-        /// (primary or secondary). False when the affinity is known but
-        /// the discipline isn't on the list. True (permissive) when no
-        /// affinity rule matches.</summary>
-        public static bool IsAllowedOn(string materialClass, string discipline)
-        {
-            var aff = Resolve(materialClass);
-            if (aff == null) return true; // unknown class — permissive
-            if (string.Equals(aff.Primary, discipline, StringComparison.OrdinalIgnoreCase)) return true;
-            foreach (var s in aff.Secondary)
-                if (string.Equals(s, discipline, StringComparison.OrdinalIgnoreCase)) return true;
-            return false;
-        }
-
         private static void EnsureLoaded()
         {
             lock (_lock)

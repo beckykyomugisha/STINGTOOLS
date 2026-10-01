@@ -23,7 +23,7 @@ namespace StingTools.UI
     ///
     /// Data note: the file carries CARBON_KG_PER_M3 (concrete grades) + formula
     /// constants only — NO density / cost / thermal columns, so GetDensity /
-    /// GetCost / GetThermalConductivity return 0 until such properties are added
+    /// GetCost return 0 until such properties are added
     /// (data gap, not a loader bug). Use <see cref="GetProperty"/> for any
     /// long-format property.
     ///
@@ -78,7 +78,6 @@ namespace StingTools.UI
         public static double GetCarbonFossil(string name) => Get(name)?.FossilCarbonKgCo2e ?? 0;
         public static double GetCarbonBiogenic(string name) => Get(name)?.BiogenicCarbonKgCo2e ?? 0;
         public static double GetDensity(string name) => Get(name)?.DensityKgM3 ?? 0;
-        public static double GetThermalConductivity(string name) => Get(name)?.ThermalConductivityWmK ?? 0;
 
         /// <summary>
         /// Generic accessor for any long-format Property (e.g.

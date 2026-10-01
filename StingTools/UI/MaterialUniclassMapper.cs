@@ -37,7 +37,6 @@ namespace StingTools.UI
         }
 
         public static string ResolveCode(string materialClass) => Resolve(materialClass)?.Code;
-        public static string ResolveTitle(string materialClass) => Resolve(materialClass)?.Title;
 
         public static UniclassMapping Resolve(string materialClass)
         {

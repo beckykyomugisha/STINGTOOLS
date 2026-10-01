@@ -1377,13 +1377,6 @@ namespace StingTools.Commands.Electrical
             public List<long> TraversedIds { get; set; } = new List<long>();
         }
 
-        // Back-compat: returns first path with default StopAtAnyDevice walk.
-        public static WirePathResult BuildWirePath(Element conduit)
-        {
-            var all = BuildWirePaths(conduit);
-            return all.Count > 0 ? all[0] : null;
-        }
-
         public static List<WirePathResult> BuildWirePaths(Element conduit) =>
             BuildWirePaths(conduit, WalkMode.StopAtAnyDevice);
 
@@ -1613,27 +1606,6 @@ namespace StingTools.Commands.Electrical
             var initialAcc = new List<XYZ> { startPt };
             Recurse(startElement, startPt, initialAcc, new HashSet<long>(seedVisited), 0);
             return results;
-        }
-
-        public static WireType ResolveWireType(Document doc)
-        {
-            if (doc == null) return null;
-            try
-            {
-                var all = new FilteredElementCollector(doc)
-                    .OfClass(typeof(WireType))
-                    .Cast<WireType>()
-                    .ToList();
-                if (all.Count == 0) return null;
-                var preferred = all.FirstOrDefault(w =>
-                    (w.Name ?? "").IndexOf("STING", StringComparison.OrdinalIgnoreCase) >= 0);
-                return preferred ?? all[0];
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn("ResolveWireType: " + ex.Message);
-                return null;
-            }
         }
     }
 

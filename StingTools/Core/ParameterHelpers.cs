@@ -2394,32 +2394,6 @@ namespace StingTools.Core
             int second = (seq - 1) % 26;
             return ((char)('A' + first - 1)).ToString() + ((char)('A' + second)).ToString();
         }
-
-        /// <summary>
-        /// Build a phase-index mapping for efficient batch operations.
-        /// Maps each phase name to its ordinal position in the project's phase sequence.
-        /// Returns a dictionary of phase ElementId to phase ordinal (0-based).
-        /// </summary>
-        public static Dictionary<ElementId, int> BuildPhaseIndex(Document doc)
-        {
-            var index = new Dictionary<ElementId, int>();
-            try
-            {
-                int ordinal = 0;
-                foreach (Phase phase in new FilteredElementCollector(doc)
-                    .OfClass(typeof(Phase))
-                    .Cast<Phase>()
-                    .OrderBy(p => p.Id.Value))
-                {
-                    index[phase.Id] = ordinal++;
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"BuildPhaseIndex: {ex.Message}");
-            }
-            return index;
-        }
     }
 
     /// <summary>

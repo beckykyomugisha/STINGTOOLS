@@ -979,19 +979,6 @@ namespace StingTools.Temp
             // Only return if within reasonable distance (5 feet ~ 1.5m)
             return minDist < 5 ? nearest : null;
         }
-
-        /// <summary>
-        /// Get all family symbols for a category, grouped by family.
-        /// </summary>
-        public static Dictionary<string, List<FamilySymbol>> GetFamilySymbolsByCategory(Document doc, BuiltInCategory category)
-        {
-            return new FilteredElementCollector(doc)
-                .OfCategory(category)
-                .OfClass(typeof(FamilySymbol))
-                .Cast<FamilySymbol>()
-                .GroupBy(s => s.Family.Name)
-                .ToDictionary(g => g.Key, g => g.OrderBy(s => s.Name).ToList());
-        }
     }
 
     #endregion
