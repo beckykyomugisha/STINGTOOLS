@@ -60,6 +60,7 @@
          TestHelpers/StingLogShim.cs is picked up by the SDK's default Compile glob. -->
     <Compile Include="..\StingTools\Core\TagTokenPolicy.cs" Link="Core\TagTokenPolicy.cs" />
     <Compile Include="..\StingTools\Core\TokenConfidenceBands.cs" Link="Core\TokenConfidenceBands.cs" />
+    <Compile Include="..\StingTools\Core\SysConnectorChoice.cs" Link="Core\SysConnectorChoice.cs" />
     <!-- Numeric text extracted from a Revit value string. Revit-free: the culture and
          separator cases are exactly the ones that look obvious and are not. -->
     <Compile Include="..\StingTools\Core\UnitValueText.cs" Link="Core\UnitValueText.cs" />
@@ -67,6 +68,7 @@
     <Compile Include="..\StingTools\Core\CloudProjectRoot.cs" Link="Core\CloudProjectRoot.cs" />
     <Compile Include="..\StingTools\Core\WorksharedProjectRoot.cs" Link="Core\WorksharedProjectRoot.cs" />
     <Compile Include="..\StingTools\Core\ConfigFileMerge.cs" Link="Core\ConfigFileMerge.cs" />
+    <Compile Include="..\StingTools\Core\ProximityRule.cs" Link="Core\ProximityRule.cs" />
     <!-- Why a family refuses to load into a project. Revit-free half only: the
          collectors that read a FamilyManager and a Document live in
          Tags/SharedParamPreflight.cs. The comparison is here because every
@@ -76,6 +78,7 @@
     <Compile Include="..\StingTools\Tags\TagCategoryNameForms.cs" Link="Tags\TagCategoryNameForms.cs" />
     <Compile Include="..\StingTools\Tags\TagConfigDeclarations.cs" Link="Tags\TagConfigDeclarations.cs" />
     <Compile Include="..\StingTools\Tags\SharedParamSubset.cs" Link="Tags\SharedParamSubset.cs" />
+    <Compile Include="..\StingTools\Tags\TagFormatConfig.cs" Link="Tags\TagFormatConfig.cs" />
     <Compile Include="..\StingTools\Tags\TagParamBindingAudit.cs" Link="Tags\TagParamBindingAudit.cs" />
     <Compile Include="..\StingTools\Core\BindingProfiles.cs" Link="Core\BindingProfiles.cs" />
     <Compile Include="..\StingTools\Core\Bs8666Label.cs" Link="Core\Bs8666Label.cs" />

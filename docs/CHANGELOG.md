@@ -867,6 +867,72 @@ run against a live tenant yet (ROADMAP ACC-HARD-1).
 - **Not verified**: not run against a live ACC container or in Revit. `AccIssue` carries no due
   date, display id or updated-at yet (TODO in `AccIssueImportRecord`); ACC assignees are stored
   as ACC ids, not names. Nothing is pushed back to ACC.
+#### Completed (TAGACC-23 Tag Format saves the format under names the loader reads, 2026-10-01)
+
+- **The bug.** `ConfigurableTagFormatCommand` saved a `TagFormatConfig` object as `TAG_FORMAT`; with no
+  `JsonProperty` names it serialised as `Separator` / `NumPad` / `SegmentOrder`. `TagConfig.LoadFromFile`
+  reads `separator` / `num_pad` / `segment_order` from a case-sensitive dictionary, so a format set there was
+  never applied — the dialog said "Settings saved" and the next tag used the old one. Worse, the save
+  replaced the whole section, so the format the Project Setup Wizard had written (through
+  `TagConfig.SaveToFile`, lowercase) was lost and the project reverted to defaults on the next load. The
+  command also never applied the format in the current session.
+- **The fix.** `TagFormatConfig` moves to `Tags/TagFormatConfig.cs` (Revit-free) with the loader's names
+  pinned as constants; the loader and `SaveToFile` use the same constants. The command applies the saved
+  format immediately (`ParamRegistry.ApplyTagFormatOverrides`, as loading does). A `TAG_FORMAT` written in
+  the old names is logged on load ("never applied … re-save it") rather than applied: switching a project to
+  a format nobody has seen take effect would change how its tags are built.
+- **Tests** `TagFormatConfigTests` (4): serialised names, reading the `SaveToFile` shape, recognising the old
+  section, and the loader / saver using the shared keys. Dropping the `JsonProperty` names fails 2.
+  `StingTools.Tags.Tests` 5,108 passing; build 0 / 0. **Not run in Revit.**
+#### Completed (TAGACC-22 Tag Rule Engine / Tag Format no longer replace an unreadable project_config.json, 2026-10-01)
+
+- `TagIntelligenceHelper.SaveRules` and `SaveFormatConfig` read `project_config.json` before writing, but on a
+  parse failure they logged "Config parse fallback" and wrote a fresh file with only `TAG_RULES` or
+  `TAG_FORMAT` — so one stray comma in the file, followed by *Tag Rule Engine* or *Tag Format*, erased every
+  other project setting. Both now write their key through `ConfigFileMerge.Merge` (TAGACC-19) via a temp
+  file, and an unreadable file throws; `TagRuleEngineCommand` and the Tag Format dialog already catch and
+  show "Failed to save". The other `project_config.json` writers (Tag Rules, Project Cfg toggles, paragraph
+  preset, output location, permissions) were checked: they parse without a catch-and-replace fallback.
+- **Test** `ConfigFileMergeTests.Tag_intelligence_writers_merge_and_never_replace_an_unreadable_file` (fails
+  against main). `StingTools.Tags.Tests` all passing; build 0 / 0.
+
+#### Completed (TAGACC-21 proximity copy rules are testable and share the audit's vocabulary, 2026-10-01)
+
+- `CopyTokensFromNearest` (TAGACC-11) decided same-floor and "was the neighbour's value derived?" inline,
+  around Revit reads, with no test, and its derived/not-derived list was a second copy of the source
+  vocabulary the Token Confidence Audit uses (TAGACC-18). The rules move to `Core/ProximityRule`:
+  `SameFloor` (same level when both have one, else |Δz| ≤ 5 ft), `LocIsCopyable` / `ZoneIsCopyable` (a High
+  band in `TokenConfidenceBands`, or a blank source from before provenance was recorded), `SysIsCopyable`
+  (detection layer below 6). `ParameterHelpers` reads the levels, points and sources and calls them.
+- **One behaviour change:** a LOC / ZONE source the tagger never writes (a hand edit) used to be copied,
+  because the old check was a blacklist; it is now treated as not derived, as the audit already did.
+- **Tests** `ProximityRuleTests` (35), including one that holds proximity and the audit to the same answer
+  for every source the tagger writes. Making `SameFloor` ignore levels fails 2; letting Medium sources
+  through fails 4. Build 0 / 0; `StingTools.Tags.Tests` 5,119 passing. **Not run in Revit.**
+
+#### Completed (TAGACC-20 SYS connector rules are testable, 2026-10-01)
+
+- An audit of which TAGACC fixes have a test or protocol step found TAGACC-7 / 8 with none: the rules
+  lived inside `TagConfig.GetSysFromConnector` / `RefineHydronic`, wrapped around Revit connector
+  reads. They are now `Core/SysConnectorChoice` — `Choose` (primary, else the category's domain, else
+  first non-auxiliary, else first; connector order kept), `PreferredDomain`, `RefineHydronic` (HWS read
+  from HYDRONIC with a known fluid temperature ≤ 288.15 K is CHW). `TagConfig` reads the connectors and
+  the temperature and calls them; behaviour unchanged.
+- **Tests** `SysConnectorChoiceTests` (19): an AHU takes air whatever the connector order, a boiler is not
+  its gas connection, a sink takes its first piping service, primary wins, auxiliary-only falls back, the
+  15 °C boundary both sides, unknown temperature unchanged. Reverting `Choose` to "first connector" fails 2;
+  making the boundary strict fails 1. Build 0 / 0; `StingTools.Tags.Tests` 5,100 passing.
+#### Completed (TAGFAM-6 follow-up: one shared-parameter index for every tag command, 2026-10-01)
+
+- Three more commands carried a private `FindSharedDefinition` that walked the whole shared-parameter
+  file for every name: `MigrateTagLabelReferencesCommand` (once per remapped name **per family**, across
+  the library), `FamilyLabelAuthor.BindSharedParameters` (per label parameter per family) and
+  `StampGateStatusCommand` (4 names). All four sites, the creator included, now use
+  `Tags/SharedParamDefinitionIndex` — built once per opened file (Migrate: once per run), first exact-name
+  match as before. The private copies are removed.
+- **Gate** `SharedParamLookupGateTests`: no source file defines a per-name `FindSharedDefinition` walk
+  again (fails with any one copy restored). Build 0 / 0; `StingTools.Tags.Tests` 5,082 passing.
+  **Not timed in Revit.**
 #### Completed (TAGFAM-8 content manifest lists every shipped tag family, 2026-10-01)
 
 - `Data/TagFamilies` held 210 `.rfa` files; `STING_CONTENT_MANIFEST.json` listed 206. The four TAGFAM-3

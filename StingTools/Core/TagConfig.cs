@@ -813,14 +813,14 @@ namespace StingTools.Core
                             int? pad = null;
                             string[] segs = null;
 
-                            if (fmt.TryGetValue("separator", out object sepVal) && sepVal is string s)
+                            if (fmt.TryGetValue(StingTools.Tags.TagFormatConfig.SeparatorKey, out object sepVal) && sepVal is string s)
                                 sep = s;
-                            if (fmt.TryGetValue("num_pad", out object padVal))
+                            if (fmt.TryGetValue(StingTools.Tags.TagFormatConfig.NumPadKey, out object padVal))
                             {
                                 if (padVal is long lv) pad = (int)lv;
                                 else if (int.TryParse(padVal?.ToString(), out int iv)) pad = iv;
                             }
-                            if (fmt.TryGetValue("segment_order", out object segVal))
+                            if (fmt.TryGetValue(StingTools.Tags.TagFormatConfig.SegmentOrderKey, out object segVal))
                             {
                                 var parsed = JsonConvert.DeserializeObject<string[]>(
                                     JsonConvert.SerializeObject(segVal));
@@ -829,6 +829,13 @@ namespace StingTools.Core
                             }
 
                             ParamRegistry.ApplyTagFormatOverrides(sep, pad, segs);
+
+                            // TAGACC-23: a format saved by the old Tag Format command used names
+                            // nothing reads. Say so rather than apply it silently or forget it.
+                            if (StingTools.Tags.TagFormatConfig.IsLegacyUnreadSection(
+                                    Newtonsoft.Json.Linq.JObject.FromObject(fmt)))
+                                StingLog.Warn("TAG_FORMAT in " + path + " uses NumPad/SegmentOrder/Separator, " +
+                                    "which were never applied (TAGACC-23). Re-save it with Tag Format to use it.");
                         }
                     }
                     catch (Exception ex)
@@ -1559,9 +1566,9 @@ namespace StingTools.Core
                     ["ZONE_CODES"] = ZoneCodes,
                     ["TAG_FORMAT"] = new Dictionary<string, object>
                     {
-                        ["separator"] = Separator,
-                        ["num_pad"] = NumPad,
-                        ["segment_order"] = SegmentOrder
+                        [StingTools.Tags.TagFormatConfig.SeparatorKey] = Separator,
+                        [StingTools.Tags.TagFormatConfig.NumPadKey] = NumPad,
+                        [StingTools.Tags.TagFormatConfig.SegmentOrderKey] = SegmentOrder
                     },
                     ["TAG_PREFIX"] = TagPrefix,
                     ["TAG_SUFFIX"] = TagSuffix,
@@ -3665,8 +3672,9 @@ namespace StingTools.Core
                 FamilyInstance fi2 = el as FamilyInstance;
                 if (fi2?.MEPModel?.ConnectorManager == null) return null;
 
-                Domain preferred = PreferredConnectorDomain(categoryName);
-                string inDomain = null, nonAuxiliary = null, first = null;
+                // The decision is SysConnectorChoice.Choose (Revit-free, tested — TAGACC-20);
+                // this loop only reads the connectors, in order.
+                var services = new List<ConnectorService>();
                 foreach (Connector conn in fi2.MEPModel.ConnectorManager.Connectors)
                 {
                     if (conn?.MEPSystem == null) continue;
@@ -3679,46 +3687,26 @@ namespace StingTools.Core
                     bool primary = false;
                     try { primary = conn.GetMEPConnectorInfo()?.IsPrimary == true; }
                     catch (Exception ciEx) { StingLog.WarnRateLimited("SysConnectorInfo", $"Connector info unreadable on {el.Id}: {ciEx.Message}"); }
-                    if (primary) return mapped;
+                    if (primary) return mapped;   // nothing later can outrank it
 
                     Domain d = Domain.DomainUndefined;
                     try { d = conn.Domain; } catch (Exception dEx) { StingLog.WarnRateLimited("SysConnectorDomain", $"Connector domain unreadable on {el.Id}: {dEx.Message}"); }
-                    if (inDomain == null && preferred != Domain.DomainUndefined && d == preferred) inDomain = mapped;
-                    if (nonAuxiliary == null && !AuxiliaryServices.Contains(mapped)) nonAuxiliary = mapped;
-                    if (first == null) first = mapped;
+                    services.Add(new ConnectorService(mapped, false, ToServiceDomain(d)));
                 }
-                return inDomain ?? nonAuxiliary ?? first;
+                return SysConnectorChoice.Choose(services, SysConnectorChoice.PreferredDomain(categoryName));
             }
             catch (Exception ex) { StingLog.Warn($"SYS detection from connector failed: {ex.Message}"); }
             return null;
         }
 
-        /// <summary>Services that are a connection TO equipment rather than what it is for.</summary>
-        private static readonly HashSet<string> AuxiliaryServices =
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GAS", "FOL", "CON", "DRN", "CND" };
-
-        private static Domain PreferredConnectorDomain(string categoryName)
+        private static ServiceDomain ToServiceDomain(Domain d)
         {
-            switch (categoryName ?? "")
+            switch (d)
             {
-                case "Mechanical Equipment":
-                case "Air Terminals":
-                case "Duct Accessories":
-                case "Duct Fittings":
-                    return Domain.DomainHvac;
-                case "Plumbing Fixtures":
-                case "Plumbing Equipment":
-                case "Pipe Accessories":
-                case "Pipe Fittings":
-                case "Sprinklers":
-                    return Domain.DomainPiping;
-                case "Electrical Equipment":
-                case "Electrical Fixtures":
-                case "Lighting Fixtures":
-                case "Lighting Devices":
-                    return Domain.DomainElectrical;
-                default:
-                    return Domain.DomainUndefined;
+                case Domain.DomainHvac: return ServiceDomain.Hvac;
+                case Domain.DomainPiping: return ServiceDomain.Piping;
+                case Domain.DomainElectrical: return ServiceDomain.Electrical;
+                default: return ServiceDomain.Undefined;
             }
         }
 
@@ -3730,21 +3718,17 @@ namespace StingTools.Core
         /// </summary>
         private static string RefineHydronic(string code, string sourceText, Document doc, ElementId systemTypeId)
         {
-            if (!string.Equals(code, "HWS", StringComparison.OrdinalIgnoreCase)) return code;
-            if (string.IsNullOrEmpty(sourceText)
-                || sourceText.IndexOf("HYDRONIC", StringComparison.OrdinalIgnoreCase) < 0) return code;
+            // Only an HWS read from the word HYDRONIC is in question; skip the API read otherwise.
+            if (SysConnectorChoice.RefineHydronic(code, sourceText, SysConnectorChoice.ChilledWaterMaxKelvin) == code) return code;
+            double? kelvin = null;
             try
             {
-                if (doc == null || systemTypeId == null || systemTypeId == ElementId.InvalidElementId) return code;
-                if (doc.GetElement(systemTypeId) is Autodesk.Revit.DB.Plumbing.PipingSystemType pst)
-                {
-                    // FluidTemperature is in Revit internal units (kelvin).
-                    double kelvin = pst.FluidTemperature;
-                    if (kelvin > 0 && kelvin <= 288.15) return "CHW";
-                }
+                if (doc != null && systemTypeId != null && systemTypeId != ElementId.InvalidElementId
+                    && doc.GetElement(systemTypeId) is Autodesk.Revit.DB.Plumbing.PipingSystemType pst)
+                    kelvin = pst.FluidTemperature;   // Revit internal units: kelvin
             }
             catch (Exception ex) { StingLog.WarnRateLimited("RefineHydronic", $"Hydronic temperature check: {ex.Message}"); }
-            return code;
+            return SysConnectorChoice.RefineHydronic(code, sourceText, kelvin);
         }
 
         /// <summary>Layer 2: Read RBS_DUCT_SYSTEM_TYPE or RBS_PIPING_SYSTEM_TYPE parameter.</summary>
