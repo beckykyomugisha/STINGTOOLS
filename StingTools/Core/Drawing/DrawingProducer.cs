@@ -677,7 +677,11 @@ namespace StingTools.Core.Drawing
                         }
                         : new AnnotationRunOptions { SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true },
                     SkipSymbolDriftCheck = true, // batch producer — drift via standalone command
-                    ContextScopeBox = ctx?.ScopeBox
+                    ContextScopeBox = ctx?.ScopeBox,
+                    // DTW-97: a new view with no depth of its own takes the type's section-marker
+                    // far clip. Not on refresh (a depth someone adjusted stays) and not when the
+                    // caller built the section box (CustomBounds carries its own depth).
+                    ApplyTypeFarClip = ctx?.CustomBounds == null
                 };
                 var presResult = DrawingTypePresentation.Apply(doc, view, dt, applyOpts);
                 result.Warnings.AddRange(presResult.Warnings);
@@ -1685,8 +1689,7 @@ namespace StingTools.Core.Drawing
                         var ssi = ScheduleSheetInstance.Create(doc, sheetId, scheduleView.Id, pt);
                         if (ssi != null)
                         {
-                            try { StingTools.Core.ParameterHelpers.SetInt(ssi, ParamRegistry.STING_AUTO_PLACED_BOOL, 1, overwrite: true); }
-                            catch (Exception ex) { StingLog.Warn($"AutoPlaced stamp: {ex.Message}"); }
+                            SheetPlacementBridge.MarkAutoPlaced(ssi); // DTW-98: ES, not an unbindable parameter
                             return ssi.Id;
                         }
                     }
@@ -1700,8 +1703,7 @@ namespace StingTools.Core.Drawing
                 var vp = Viewport.Create(doc, sheetId, viewId, pt);
                 if (vp == null) return ElementId.InvalidElementId;
 
-                try { StingTools.Core.ParameterHelpers.SetInt(vp, ParamRegistry.STING_AUTO_PLACED_BOOL, 1, overwrite: true); }
-                catch (Exception ex) { StingLog.Warn($"AutoPlaced stamp: {ex.Message}"); }
+                SheetPlacementBridge.MarkAutoPlaced(vp); // DTW-98: ES, not an unbindable parameter
 
                 // SLOT-1: the slot's viewport type wins; otherwise the drawing
                 // type's own viewportTypeName. All 93 corporate types declare one
@@ -1799,7 +1801,7 @@ namespace StingTools.Core.Drawing
         {
             var el = doc.GetElement(vpId);
             if (el == null) return;
-            try { StingTools.Core.ParameterHelpers.SetInt(el, ParamRegistry.STING_AUTO_PLACED_BOOL, 1, overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            SheetPlacementBridge.MarkAutoPlaced(el); // DTW-98
         }
 
         /// <summary>
