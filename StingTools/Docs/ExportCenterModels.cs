@@ -158,8 +158,9 @@ namespace StingTools.Docs
 
     public class NwcExportSettings
     {
-        public string Scope { get; set; } = "Selected";          // Entire / Selected / CurrentView
-        public string CoordinateSystem { get; set; } = "Project";
+        // NW-1: was "Selected" / "Project" - an empty selection in internal coordinates. See NwcExportPlan.
+        public string Scope { get; set; } = NwcExportPlan.DefaultScope;              // Entire / CurrentView
+        public string CoordinateSystem { get; set; } = NwcExportPlan.DefaultCoordinates; // Shared / Internal
         public bool ExportElementIdsForClash { get; set; } = true;
     }
 

@@ -171,6 +171,7 @@
     <Compile Include="..\StingTools\Core\Cobie\CobieFieldMap.cs" Link="Core\Cobie\CobieFieldMap.cs" />
     <Compile Include="..\StingTools\Docs\ReviewCommentTracker.cs" Link="Docs\ReviewCommentTracker.cs" />
     <Compile Include="..\StingTools\Docs\ScheduledExportSummary.cs" Link="Docs\ScheduledExportSummary.cs" />
+    <Compile Include="..\StingTools\Docs\NwcExportPlan.cs" Link="Docs\NwcExportPlan.cs" />
     <Compile Include="..\StingTools\Core\PluginSchemaVersion.cs" Link="Core\PluginSchemaVersion.cs" />
     <Compile Include="..\StingTools\Core\PluginTelemetry.cs" Link="Core\PluginTelemetry.cs" />
     <Compile Include="..\StingTools\Core\JsonStoreFile.cs" Link="Core\JsonStoreFile.cs" />

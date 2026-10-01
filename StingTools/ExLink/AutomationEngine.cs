@@ -149,6 +149,15 @@ namespace StingTools.ExLink
             outputDir = StingTools.Docs.ExportCenterEngine.DisciplineSubFolder(
                 doc, outputDir, StingTools.Docs.ExportCenterEngine.ModelDiscipline(doc));
 
+            // NW-1: without the Navisworks exporter Revit throws a bare error; say what is missing.
+            if (!OptionalFunctionalityUtils.IsNavisworksExporterAvailable())
+            {
+                resultMsg = "NWC export failed: the Navisworks NWC Export Utility is not installed for this Revit. " +
+                            "Install it from Autodesk (free) and restart Revit.";
+                StingLog.Warn("AutomationEngine.ExportToNWC: " + resultMsg);
+                return;
+            }
+
             try
             {
                 string safeName = SanitizeFileName(Path.GetFileNameWithoutExtension(doc.PathName ?? doc.Title ?? "Model"));
@@ -159,6 +168,10 @@ namespace StingTools.ExLink
                     ExportScope = NavisworksExportScope.Model,
                     Coordinates = NavisworksCoordinates.Shared,
                     ConvertElementProperties = true,
+                    // NW-1: element ids let Navisworks clash results and ACC Model Coordination
+                    // point back at Revit elements; all parameters let search sets use STING tokens.
+                    ExportElementIds = true,
+                    Parameters = NavisworksParameters.All,
                     ExportLinks = true,
                     ExportRoomAsAttribute = true,
                     ExportUrls = false,
@@ -166,6 +179,12 @@ namespace StingTools.ExLink
                 };
 
                 doc.Export(outputDir, safeName, nwcOptions);
+                if (!File.Exists(nwcPath))
+                {
+                    resultMsg = $"NWC export failed: Revit reported no error but wrote no file at {nwcPath}.";
+                    StingLog.Warn("AutomationEngine.ExportToNWC: " + resultMsg);
+                    return;
+                }
                 success = true;
                 resultMsg = $"NWC exported successfully.\n\n{nwcPath}";
                 StingLog.Info($"AutomationEngine: NWC export — {nwcPath}");

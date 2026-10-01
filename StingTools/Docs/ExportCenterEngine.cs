@@ -2503,11 +2503,12 @@ namespace StingTools.Docs
                     ResolveNaming(doc, doc.ActiveView, profile.Output.NamingTemplate, profile.Output),
                     profile.Output.IllegalCharReplacement);
 
-                bool ok = ExportCenterNwcExporter.Export(doc, folder, stem, profile.Nwc);
+                bool ok = ExportCenterNwcExporter.Export(doc, folder, stem, profile.Nwc, out string nwcErr, out var nwcNotes);
+                foreach (var n in nwcNotes) result.Warnings.Add("NWC: " + n);
                 row.OutputPath = Path.Combine(folder, stem + ".nwc");
                 row.Success = ok && File.Exists(row.OutputPath);
                 if (row.Success) row.FileSizeBytes = new FileInfo(row.OutputPath).Length;
-                else row.Error ??= "NWC export returned false";
+                else row.Error ??= "NWC export failed: " + (nwcErr ?? "no reason given");
                 tick?.Invoke("NWC");
             }
             catch (Exception ex) { row.Success = false; row.Error = ex.Message; }

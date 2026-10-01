@@ -878,15 +878,16 @@ namespace StingTools.UI
             });
 
             var scope = new ComboBox();
-            foreach (var v in new[] { "Selected", "CurrentView", "Entire" }) scope.Items.Add(v);
-            scope.SelectedItem = _profile.Nwc.Scope;
-            scope.SelectionChanged += (_, __) => _profile.Nwc.Scope = scope.SelectedItem?.ToString() ?? "Selected";
+            foreach (var v in new[] { "Entire", "CurrentView" }) scope.Items.Add(v);
+            // NW-1: a profile saved with the old "Selected" default shows as Entire, which is what it exports.
+            scope.SelectedItem = scope.Items.Contains(_profile.Nwc.Scope) ? _profile.Nwc.Scope : NwcExportPlan.DefaultScope;
+            scope.SelectionChanged += (_, __) => _profile.Nwc.Scope = scope.SelectedItem?.ToString() ?? NwcExportPlan.DefaultScope;
             sp.Children.Add(LabelFor("Scope", scope));
 
             var coords = new ComboBox();
-            foreach (var v in new[] { "Project", "Shared" }) coords.Items.Add(v);
-            coords.SelectedItem = _profile.Nwc.CoordinateSystem;
-            coords.SelectionChanged += (_, __) => _profile.Nwc.CoordinateSystem = coords.SelectedItem?.ToString() ?? "Project";
+            foreach (var v in new[] { "Shared", "Internal" }) coords.Items.Add(v);
+            coords.SelectedItem = coords.Items.Contains(_profile.Nwc.CoordinateSystem) ? _profile.Nwc.CoordinateSystem : NwcExportPlan.DefaultCoordinates;
+            coords.SelectionChanged += (_, __) => _profile.Nwc.CoordinateSystem = coords.SelectedItem?.ToString() ?? NwcExportPlan.DefaultCoordinates;
             sp.Children.Add(LabelFor("Coordinates", coords));
 
             sp.Children.Add(BindCheck("Export element IDs (clash detective)",
