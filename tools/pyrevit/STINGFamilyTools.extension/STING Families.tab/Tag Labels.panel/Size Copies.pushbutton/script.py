@@ -45,9 +45,19 @@ def size_mm(doc, lab):
     p = t.get_Parameter(BuiltInParameter.TEXT_SIZE) if t else None
     return round(p.AsDouble() / MM, 2) if p else None
 
+def type_name(t):
+    # IronPython cannot read ElementType.Name (AttributeError: Name - the property is
+    # hidden by the ElementType overload); go through the base getter, then the parameter.
+    try:
+        from Autodesk.Revit.DB import Element
+        return Element.Name.GetValue(t)
+    except Exception:
+        p = t.get_Parameter(BuiltInParameter.SYMBOL_NAME_PARAM)
+        return p.AsString() if p else None
+
 def label_type(doc, base_type, name, mm):
     for t in FilteredElementCollector(doc).OfClass(TextElementType):
-        if t.Name == name and t.Category is not None and base_type.Category is not None \
+        if type_name(t) == name and t.Category is not None and base_type.Category is not None \
            and t.Category.Id == base_type.Category.Id:
             return t
     nt = base_type.Duplicate(name)
@@ -99,10 +109,12 @@ def process(doc):
     t.Start()
     try:
         done = {}
+        changed = []
         # 2.5 mm: the base label
         if base.Id.IntegerValue not in associated_ids(sw["2.5"]):
             associate(fm, base, sw["2.5"])
             log("  2.5 mm label -> TXT_2_5")
+            changed.append(1)
         done["2.5"] = base
         # 3.5 mm: reuse an existing 3.5 label, else copy the base
         l35 = (by_size.get("3.5") or [None])[0]
@@ -111,9 +123,11 @@ def process(doc):
             l35 = doc.GetElement(new_id)
             l35.ChangeTypeId(label_type(doc, doc.GetElement(base.GetTypeId()), "3.5mm", 3.5).Id)
             log("  3.5 mm copy created")
+            changed.append(1)
         if l35.Id.IntegerValue not in associated_ids(sw["3.5"]):
             associate(fm, l35, sw["3.5"])
             log("  3.5 mm label -> TXT_3_5")
+            changed.append(1)
         done["3.5"] = l35
         # Door box
         if is_door and view is not None:
@@ -139,6 +153,12 @@ def process(doc):
                     c.LineStyle = style
                     associate(fm, c, fp)
                 log("  box %s mm drawn (%.1f x %.1f mm) -> %s" % (s, (x1 - x0) / MM, (y1 - y0) / MM, name))
+                changed.append(1)
+        if not changed:
+            # Nothing to add: do not re-save, so the file (and its manifest checksum) is unchanged.
+            t.RollBack()
+            log("  already complete - not saved")
+            return True
         t.Commit()
     except Exception as ex:
         t.RollBack()
