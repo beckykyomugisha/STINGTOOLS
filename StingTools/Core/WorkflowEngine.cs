@@ -3103,7 +3103,7 @@ namespace StingTools.Core
                         {
                             new WorkflowStep { CommandTag = "BatchCreateViews", Label = "Batch Create Views" },
                             new WorkflowStep { CommandTag = "BatchCreateSheets", Label = "Batch Create Sheets" },
-                            new WorkflowStep { CommandTag = "AutoNumberSheets", Label = "Auto-Number Sheets" },
+                            new WorkflowStep { CommandTag = "AutoNumberSheets", Label = "Auto-Number Sheets", Params = new Dictionary<string, string> { ["apply"] = "true" } },
                             new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "Assign View Templates" },
                             new WorkflowStep { CommandTag = "TagSheets", Label = "Tag sheets with ISO 19650 document codes" },
                             new WorkflowStep { CommandTag = "DrawingRegister", Label = "Generate Drawing Register" },
@@ -3199,7 +3199,7 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "ValidateTags", Label = "3. Validate ISO 19650" },
                             new WorkflowStep { CommandTag = "TagRegisterExport", Label = "4. Export asset register CSV" },
                             new WorkflowStep { CommandTag = "COBieExport", Label = "5. COBie V2.4 export", MinCompliancePct = 60 },
-                            new WorkflowStep { CommandTag = "AutoNumberSheets", Label = "6. Auto-number sheets" },
+                            new WorkflowStep { CommandTag = "AutoNumberSheets", Label = "6. Auto-number sheets", Params = new Dictionary<string, string> { ["apply"] = "true" } },
                             new WorkflowStep { CommandTag = "DrawingRegister", Label = "7. Drawing register" },
                             new WorkflowStep { CommandTag = "CreateRevision", Label = "8. Create weekly revision" },
                         }
@@ -3432,7 +3432,7 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "RoomSpaceAudit", Label = "3. Room audit (dwelling areas, Part M)" },
                             new WorkflowStep { CommandTag = "ValidateTags", Label = "4. Validate tags" },
                             new WorkflowStep { CommandTag = "SheetNamingCheck", Label = "5. Sheet naming compliance" },
-                            new WorkflowStep { CommandTag = "AutoNumberSheets", Label = "6. Auto-number sheets by discipline" },
+                            new WorkflowStep { CommandTag = "AutoNumberSheets", Label = "6. Auto-number sheets by discipline", Params = new Dictionary<string, string> { ["apply"] = "true" } },
                             new WorkflowStep { CommandTag = "BOQExport", Label = "7. BOQ export" },
                             new WorkflowStep { CommandTag = "FullComplianceDashboard", Label = "8. Compliance dashboard" },
                         }
