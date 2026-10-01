@@ -793,6 +793,17 @@ namespace StingTools.Core.Drawing
                                 }
                                 catch (Exception ex) { r.Warnings.Add($"Assign managed template: {ex.Message}"); }
                             }
+
+                            // DTW-163: the template carries the pack's V/G and
+                            // filters and now controls them. What a template can
+                            // never carry — per-link element overrides — goes on
+                            // the view itself.
+                            if (resolvedPack.LinkOverrides != null)
+                            {
+                                var linkRes = new PackApplyResult();
+                                ViewStylePackApplier.ApplyLinkOverrides(doc, view, resolvedPack, linkRes);
+                                r.Warnings.AddRange(linkRes.Warnings);
+                            }
                         }
                         else
                         {
