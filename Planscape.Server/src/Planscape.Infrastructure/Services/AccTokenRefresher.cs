@@ -115,12 +115,18 @@ public static class AccTokenRefresher
                 return new Outcome(false, NoRefreshTokenError, ReconnectRequired: true);
             }
 
-            var result = await connector.RefreshTokenAsync(conn, ct);   // rotates onto the entity
+            // D6: once the refresh POST is sent, APS may rotate the token whatever happens to
+            // the caller. On controller paths ct is the request's abort token: a closed tab
+            // could cancel between APS rotating and the save, leaving the database with a token
+            // APS has invalidated (RECONNECT_REQUIRED for the whole team). The rotation and its
+            // save therefore run to completion, bounded by the HTTP client's own timeout.
+            var rotationCt = CancellationToken.None;
+            var result = await connector.RefreshTokenAsync(conn, rotationCt);   // rotates onto the entity
             if (result.Success)
             {
                 // Persist the rotation NOW — ACC has already invalidated the old refresh token.
-                await db.SaveChangesAsync(ct);
-                if (tx != null) await tx.CommitAsync(ct);
+                await db.SaveChangesAsync(rotationCt);
+                if (tx != null) await tx.CommitAsync(rotationCt);
                 return new Outcome(true);
             }
 
