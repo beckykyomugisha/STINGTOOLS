@@ -66,6 +66,10 @@ namespace StingTools.V6
         /// clash test has finished). Empty, and must not be reported as "clean".</summary>
         public bool NotReady { get; set; }
 
+        /// <summary>The Date header of the FIRST response of the read (UTC): when the read
+        /// started, on the server's clock. Null when not captured or not sent (E8).</summary>
+        public DateTime? ServerDateUtc { get; set; }
+
         public static AccFetchResult<T> Success(T value, bool empty) => new AccFetchResult<T>
         {
             Status = empty ? AccFetchStatus.EmptyOk : AccFetchStatus.Ok,

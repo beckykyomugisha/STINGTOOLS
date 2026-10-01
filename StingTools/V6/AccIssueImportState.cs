@@ -10,6 +10,12 @@
 // RULES
 //  * The watermark is the time the successful PULL STARTED, not when it finished: an issue
 //    edited while the pull was paging must fall inside the next window.
+//  * E8: it is ACC's time, not this workstation's. The Date header of the pull's first
+//    response is ACC's clock when the read started; without one, the newest updatedAt the pull
+//    returned (never moving the watermark backwards); with neither, the watermark is NOT
+//    advanced (the next run reads the same window again). The workstation clock used to be
+//    the watermark, so a PC running fast skipped every issue updated in the difference. The
+//    measured skew (ACC Date - local start) is logged and recorded.
 //  * The next window opens <see cref="Overlap"/> before the watermark, so clock skew between
 //    this workstation and ACC cannot open a gap. Re-reading an unchanged issue is harmless
 //    (the merge is idempotent); missing a changed one is not.
@@ -43,6 +49,8 @@ namespace StingTools.V6
         public DateTime? LastSuccessUtc { get; set; }
         /// <summary>UTC start of the last successful FULL pull.</summary>
         public DateTime? LastFullUtc { get; set; }
+        /// <summary>E8: ACC's clock minus this workstation's at the last pull, when measured.</summary>
+        public TimeSpan? LastSkew { get; set; }
 
         /// <summary>Read the state. Absent = empty state (first run is a full read). An
         /// unreadable file is an empty state plus a warning, never an exception - the worst
@@ -58,6 +66,9 @@ namespace StingTools.V6
                 s.ProjectId = (string)o["projectId"] ?? string.Empty;
                 s.LastSuccessUtc = ReadUtc(o["lastSuccessUtc"]);
                 s.LastFullUtc = ReadUtc(o["lastFullUtc"]);
+                var sk = o["lastSkewSeconds"];
+                if (sk != null && (sk.Type == JTokenType.Float || sk.Type == JTokenType.Integer))
+                    s.LastSkew = TimeSpan.FromSeconds((double)sk);
             }
             catch (Exception ex)
             {
@@ -79,6 +90,7 @@ namespace StingTools.V6
                     ["projectId"] = ProjectId ?? string.Empty,
                     ["lastSuccessUtc"] = Iso(LastSuccessUtc),
                     ["lastFullUtc"] = Iso(LastFullUtc),
+                    ["lastSkewSeconds"] = LastSkew.HasValue ? (JToken)Math.Round(LastSkew.Value.TotalSeconds, 1) : JValue.CreateNull(),
                 };
                 string dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
@@ -102,7 +114,9 @@ namespace StingTools.V6
             { reason = "full read (the ACC project changed since the last import)"; return null; }
             if (!LastFullUtc.HasValue || nowUtc - LastFullUtc.Value > FullEvery)
             { reason = $"full read (none in the last {FullEvery.TotalDays:F0} days, so deletions are re-checked)"; return null; }
-            if (LastSuccessUtc.Value > nowUtc.AddMinutes(1))
+            // The watermark is on ACC's clock: allow for the skew last measured.
+            var tolerance = TimeSpan.FromMinutes(1) + (LastSkew.HasValue ? LastSkew.Value.Duration() : TimeSpan.Zero);
+            if (LastSuccessUtc.Value > nowUtc + tolerance)
             { reason = "full read (the recorded import time is in the future - clock changed)"; return null; }
             var since = LastSuccessUtc.Value - Overlap;
             reason = $"incremental: issues updated since {since:yyyy-MM-dd HH:mm} UTC";
@@ -115,6 +129,49 @@ namespace StingTools.V6
             ProjectId = AccIds.ForAcc(projectId);
             LastSuccessUtc = pullStartedUtc;
             if (wasFull) LastFullUtc = pullStartedUtc;
+        }
+
+        /// <summary>E8: the watermark a successful pull earns, on ACC's clock. The first
+        /// response's Date header (the read's start, server time) when sent; else the newest
+        /// updatedAt the pull returned, never earlier than <paramref name="previousUtc"/>; else
+        /// null - not advanced. <paramref name="basis"/> says which, for the log.</summary>
+        public static DateTime? AccWatermark(DateTime? serverDateUtc, System.Collections.Generic.IEnumerable<DateTime?> updatedAtsUtc,
+            DateTime? previousUtc, out string basis)
+        {
+            if (serverDateUtc.HasValue)
+            {
+                basis = $"ACC response Date {serverDateUtc.Value:yyyy-MM-dd HH:mm:ss} UTC";
+                return DateTime.SpecifyKind(serverDateUtc.Value, DateTimeKind.Utc);
+            }
+            DateTime? max = null;
+            foreach (var u in updatedAtsUtc ?? System.Linq.Enumerable.Empty<DateTime?>())
+                if (u.HasValue && (!max.HasValue || u.Value > max.Value)) max = u.Value;
+            if (max.HasValue)
+            {
+                var m = DateTime.SpecifyKind(max.Value, DateTimeKind.Utc);
+                if (previousUtc.HasValue && previousUtc.Value > m)
+                {
+                    basis = "newest ACC updatedAt is older than the current watermark - kept";
+                    return DateTime.SpecifyKind(previousUtc.Value, DateTimeKind.Utc);
+                }
+                basis = $"newest ACC updatedAt {m:yyyy-MM-dd HH:mm:ss} UTC (no Date header)";
+                return m;
+            }
+            basis = "ACC gave no Date header and no updatedAt - the watermark is not advanced";
+            return null;
+        }
+
+        /// <summary>E8: advance to a watermark on ACC's clock. <paramref name="fullReadAtUtc"/>
+        /// (when the full read happened, for the weekly full-read timer) is recorded only for a
+        /// full read. A null watermark changes nothing - the next run reads the same window.</summary>
+        public bool RecordSuccess(string projectId, DateTime? accWatermarkUtc, bool wasFull, DateTime fullReadAtUtc, TimeSpan? skew)
+        {
+            if (skew.HasValue) LastSkew = skew;
+            if (!accWatermarkUtc.HasValue) return false;
+            ProjectId = AccIds.ForAcc(projectId);
+            LastSuccessUtc = accWatermarkUtc.Value;
+            if (wasFull) LastFullUtc = fullReadAtUtc;
+            return true;
         }
 
         private static DateTime? ReadUtc(JToken t)

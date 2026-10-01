@@ -216,7 +216,20 @@ namespace StingTools.Core.Clash
                 }
             }
 
-            state.RecordSuccess(creds.ProjectId, pullStartedUtc, wasFull: since == null);
+            // E8: the watermark is ACC's time (the pull's first Date header, else the newest
+            // updatedAt), never this workstation's clock; the measured skew is logged.
+            TimeSpan? skew = pull.ServerDateUtc.HasValue ? pull.ServerDateUtc.Value - pullStartedUtc : (TimeSpan?)null;
+            if (skew.HasValue)
+            {
+                string skewLine = $"ACC_ImportIssues: clock skew ACC - this PC = {skew.Value.TotalSeconds:F0} s";
+                if (skew.Value.Duration() > AccIssueImportState.Overlap) StingLog.Warn(skewLine + " — larger than the read overlap; the watermark uses ACC's clock");
+                else StingLog.Info(skewLine);
+            }
+            DateTime? mark = AccIssueImportState.AccWatermark(pull.ServerDateUtc, (pull.Value ?? new List<AccIssue>()).Select(i => i.UpdatedAt),
+                state.LastSuccessUtc, out string markBasis);
+            StingLog.Info("ACC_ImportIssues watermark: " + markBasis);
+            if (!state.RecordSuccess(creds.ProjectId, mark, wasFull: since == null, fullReadAtUtc: pull.ServerDateUtc ?? pullStartedUtc, skew: skew))
+                StingLog.Warn("ACC_ImportIssues: " + markBasis + " — the next run reads the same window again.");
             if (!state.Save(statePath, out string saveErr))
                 StingLog.Warn($"ACC_ImportIssues: import state not saved ({saveErr}) — the next run does a full read.");
 

@@ -332,6 +332,84 @@ namespace StingTools.Acc.Tests
             Assert.Single(rows);
         }
 
+        // ── E8: the incremental watermark is ACC's clock, not this PC's ───────────
+
+        private static readonly DateTime AccNow = new DateTime(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc);
+
+        [Fact]
+        public void Watermark_IsTheServersDate_WhenSent()
+        {
+            var m = AccIssueImportState.AccWatermark(AccNow, new DateTime?[] { AccNow.AddDays(-3) }, null, out string basis);
+            Assert.Equal(AccNow, m);
+            Assert.Contains("Date", basis);
+        }
+
+        [Fact]
+        public void Watermark_FallsBackToTheNewestUpdatedAt_NeverMovingBackwards()
+        {
+            var newest = AccNow.AddMinutes(-20);
+            Assert.Equal(newest, AccIssueImportState.AccWatermark(null,
+                new DateTime?[] { AccNow.AddDays(-2), newest, null }, AccNow.AddHours(-1), out _));
+            // A window that returned only older issues keeps the current watermark.
+            Assert.Equal(AccNow, AccIssueImportState.AccWatermark(null,
+                new DateTime?[] { AccNow.AddDays(-2) }, AccNow, out string kept));
+            Assert.Contains("kept", kept);
+        }
+
+        [Fact]
+        public void Watermark_WithNoAccTime_IsNotAdvanced_TheWorkstationClockIsNeverUsed()
+        {
+            var s = new AccIssueImportState();
+            s.RecordSuccess("p1", AccNow.AddHours(-1), wasFull: true);
+            var m = AccIssueImportState.AccWatermark(null, new DateTime?[0], s.LastSuccessUtc, out string basis);
+            Assert.Null(m);
+            Assert.Contains("not advanced", basis);
+            Assert.False(s.RecordSuccess("p1", m, wasFull: false, fullReadAtUtc: AccNow, skew: null));
+            Assert.Equal(AccNow.AddHours(-1), s.LastSuccessUtc);
+        }
+
+        [Fact]
+        public void APcRunningFast_DoesNotOpenAGap_TheNextWindowStartsAtAccsTime()
+        {
+            // This PC is 10 minutes ahead of ACC. Before E8 the watermark was the PC's start
+            // (AccNow + 10 min), so the next window (minus 5 min overlap) skipped 5 minutes.
+            DateTime pcStart = AccNow.AddMinutes(10);
+            var s = new AccIssueImportState();
+            var mark = AccIssueImportState.AccWatermark(AccNow, new DateTime?[0], null, out _);
+            TimeSpan skew = AccNow - pcStart;
+            Assert.True(s.RecordSuccess("p1", mark, wasFull: true, fullReadAtUtc: AccNow, skew: skew));
+            var since = s.SinceFor("p1", false, pcStart.AddHours(1), out _);
+            Assert.Equal(AccNow - AccIssueImportState.Overlap, since);
+            Assert.Equal(skew, s.LastSkew);
+        }
+
+        [Fact]
+        public void APcRunningSlow_IsNotForcedIntoAFullReadByTheFutureCheck()
+        {
+            // PC is 10 minutes BEHIND ACC: the ACC watermark looks "in the future" locally.
+            var s = new AccIssueImportState();
+            s.RecordSuccess("p1", AccNow, wasFull: true, fullReadAtUtc: AccNow, skew: TimeSpan.FromMinutes(10));
+            var since = s.SinceFor("p1", false, AccNow.AddMinutes(-9), out string why);
+            Assert.NotNull(since);
+            Assert.StartsWith("incremental", why);
+        }
+
+        [Fact]
+        public void TheMeasuredSkew_SurvivesSaveAndLoad()
+        {
+            string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "sting-skew-" + Guid.NewGuid().ToString("N") + ".json");
+            try
+            {
+                var s = new AccIssueImportState();
+                s.RecordSuccess("p1", AccNow, wasFull: true, fullReadAtUtc: AccNow, skew: TimeSpan.FromSeconds(-42));
+                Assert.True(s.Save(path, out string err), err);
+                var back = AccIssueImportState.Load(path, out _);
+                Assert.Equal(TimeSpan.FromSeconds(-42), back.LastSkew);
+                Assert.Equal(AccNow, back.LastSuccessUtc);
+            }
+            finally { try { System.IO.File.Delete(path); } catch (System.IO.IOException) { } }
+        }
+
         // ── E6: who raised it and when come from ACC; no invented priority ────────
 
         private static AccIssueImportRecord Raised(string id, string createdAt, string by = "acc-user-7", string byName = "")

@@ -787,6 +787,7 @@ namespace StingTools.V6
 
             int offset = 0, pagesRead = 0;
             int? total = null;
+            DateTime? firstServerDate = null;   // E8: ACC's clock when the read started
             for (int page = 0; page < maxPages; page++)
             {
                 int off = offset;
@@ -820,11 +821,17 @@ namespace StingTools.V6
                         "construction/issues/v1 payload shape has changed");
 
                 foreach (var t in results) list.Add(ParseIssue(t));
+                if (pagesRead == 0) firstServerDate = resp.ServerDateUtc;
                 pagesRead++;
                 total = (int?)j["pagination"]?["totalResults"] ?? total;
 
                 bool lastPage = total.HasValue ? list.Count >= total.Value || results.Count == 0 : results.Count < pageSize;
-                if (lastPage) return AccFetchResult<List<AccIssue>>.Success(list, list.Count == 0);
+                if (lastPage)
+                {
+                    var ok = AccFetchResult<List<AccIssue>>.Success(list, list.Count == 0);
+                    ok.ServerDateUtc = firstServerDate;
+                    return ok;
+                }
                 offset += results.Count;
             }
 
