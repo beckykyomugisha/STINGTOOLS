@@ -37,14 +37,18 @@ on:
   push:
     paths:
       - 'tools/sync_csv_from_txt.py'
+      - 'tools/sync_registry_from_txt.py'
       - 'StingTools/Data/MR_PARAMETERS.txt'
       - 'StingTools/Data/MR_PARAMETERS.csv'
+      - 'StingTools/Data/PARAMETER_REGISTRY.json'
       - '.github/workflows/param-csv-drift.yml'
   pull_request:
     paths:
       - 'tools/sync_csv_from_txt.py'
+      - 'tools/sync_registry_from_txt.py'
       - 'StingTools/Data/MR_PARAMETERS.txt'
       - 'StingTools/Data/MR_PARAMETERS.csv'
+      - 'StingTools/Data/PARAMETER_REGISTRY.json'
       - '.github/workflows/param-csv-drift.yml'
   workflow_dispatch:
 
@@ -88,4 +92,37 @@ jobs:
           git --no-pager diff --stat -- StingTools/Data/MR_PARAMETERS.csv
           echo
           git --no-pager diff -- StingTools/Data/MR_PARAMETERS.csv | head -200
+          exit 1
+
+      # DSCH-47. PARAMETER_REGISTRY.json carried a second, hand-kept copy of every
+      # description (about 1,014 had drifted), and two kinds of them carried
+      # behaviour: a warning's wording decided which side of its threshold warned,
+      # and a leading "DEPRECATED" hid a parameter. The behaviour is now in fields
+      # ("direction", "message", "deprecated", "replaced_by") and every registry
+      # description is generated from MR_PARAMETERS.txt. The generator also fails on
+      # a warning without a direction/message, a bad deprecation, or a registry entry
+      # for a parameter the .txt does not define.
+      - name: Regenerate PARAMETER_REGISTRY.json descriptions from MR_PARAMETERS.txt
+        run: python tools/sync_registry_from_txt.py
+
+      - name: Fail if the committed registry is not what the generator produces
+        run: |
+          set -o pipefail
+          if git diff --quiet -- StingTools/Data/PARAMETER_REGISTRY.json; then
+            echo "Parameter registry descriptions are current."
+            exit 0
+          fi
+          echo "::error::PARAMETER_REGISTRY.json descriptions differ from MR_PARAMETERS.txt."
+          echo
+          echo "MR_PARAMETERS.txt owns parameter descriptions (the Revit tooltip). Change"
+          echo "the description THERE and regenerate:"
+          echo
+          echo "    python tools/sync_registry_from_txt.py"
+          echo
+          echo "A warning's printed text is its \"message\" field and its comparison its"
+          echo "\"direction\" field -- edit those in the registry, not the description."
+          echo
+          git --no-pager diff --stat -- StingTools/Data/PARAMETER_REGISTRY.json
+          echo
+          git --no-pager diff -- StingTools/Data/PARAMETER_REGISTRY.json | head -200
           exit 1

@@ -96,6 +96,9 @@
     <Compile Include="..\StingTools\Core\Content\ContentRootReport.cs" Link="Core\Content\ContentRootReport.cs" />
     <Compile Include="..\StingTools\Core\Content\ContentFileFilter.cs" Link="Core\Content\ContentFileFilter.cs" />
     <Compile Include="..\StingTools\Core\Electrical\SpareCapacityTarget.cs" Link="Core\Electrical\SpareCapacityTarget.cs" />
+    <!-- DSCH-47: warning direction / message are registry fields, not prose. -->
+    <Compile Include="..\StingTools\Core\WarningThresholdRule.cs" Link="Core\WarningThresholdRule.cs" />
+    <Compile Include="..\StingTools\Core\NumberText.cs" Link="Core\NumberText.cs" />
     <Compile Include="..\StingTools\Core\Electrical\CircuitSlotParser.cs" Link="Core\Electrical\CircuitSlotParser.cs" />
     <!-- TAG7 / PARAM-5: a NUMBER-bound ELC_CKT_NR reads "3", not "3.00". -->
     <Compile Include="..\StingTools\Core\Electrical\CircuitNumberText.cs" Link="Core\Electrical\CircuitNumberText.cs" />

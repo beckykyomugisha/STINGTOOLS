@@ -158,11 +158,12 @@ namespace StingTools.Tags.Tests
             // read must degrade to the old check, not to no check.
             Assert.Equal("20", (string)def["threshold"]);
 
-            // "minimum" is what makes EvaluateWarning fire when the value is
-            // BELOW the threshold. Lose that word and the check inverts - it
-            // would warn about panels with plenty of spare and stay quiet about
-            // full ones.
-            Assert.Contains("minimum", (string)def["description"], StringComparison.OrdinalIgnoreCase);
+            // "min" is what makes EvaluateWarning fire when the value is BELOW the
+            // threshold. Flip it and the check inverts - it would warn about panels
+            // with plenty of spare and stay quiet about full ones. Since DSCH-47 this
+            // is the entry's "direction" field; it used to be the word "minimum" in
+            // the description.
+            Assert.Equal("min", (string)def["direction"]);
         }
     }
 }

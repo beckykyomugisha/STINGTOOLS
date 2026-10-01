@@ -23,11 +23,10 @@ parameter's tooltip, so it is the one that matters, but a description corrected 
 there after the parameter had started holding an incident-energy band, and 150 rows had
 drifted. param-csv-drift.yml regenerates this file and fails on any diff, so with step
 3 a description can no longer differ between the two files. PARAMETER_CATEGORIES.csv
-already takes its Description from the .txt (gen_binding_views.py). The "description"
-fields in PARAMETER_REGISTRY.json are NOT a copy of this one: warning_thresholds
-descriptions are the warning text the plugin prints, and their wording ("minimum",
-"limit") decides the comparison direction (ParamRegistry.EvaluateWarning), and a
-leading "DEPRECATED" flags a parameter -- so they are not overwritten from here.
+already takes its Description from the .txt (gen_binding_views.py). Since DSCH-47 the
+"description" fields in PARAMETER_REGISTRY.json are generated from the .txt too, by
+tools/sync_registry_from_txt.py; the behaviour they used to carry (a warning's printed
+text and comparison direction, a parameter's deprecation) is in fields of its own.
 """
 import csv
 import io
