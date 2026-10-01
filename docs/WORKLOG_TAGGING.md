@@ -7,20 +7,24 @@ gates + CI; never weaken a test; never renumber/overwrite a real model.
 
 ## Resume here
 
-1. **NEEDS REVIT CHECK #1** below: with Fire Door / Accessible Door / Room Finish open in Revit, run
-   pyRevit › Reload, then *STING Families › Tag Labels › Size Copies*. Copy the saved `.rfa` files from
-   `Documents\STING_TAG_BUILD` into `StingTools/Data/TagFamilies` and commit.
-2. Get PR #1020 (specialist tag labels) green and merged.
-3. Work the open list under **Findings** top-down (ZONE scope boxes first).
+1. Merge PR #1022 (TAGACC-18) and PR #1023 (TAGACC-19) when CI is green; #1023 will need main merged
+   in (ROADMAP/CHANGELOG rows sit side by side — keep both).
+2. **NEEDS REVIT CHECK #1** below (pyRevit Size Copies on Fire Door / Accessible Door / Room Finish),
+   then copy the saved `.rfa` files from `Documents\STING_TAG_BUILD` into `StingTools/Data/TagFamilies`.
+3. Next findings: F6 (tag-family consistency gate), then F5 (multi-user SEQ protocol), then a
+   deeper pass over other whole-file writers of shared JSON (same shape as TAGACC-19).
 
-## State (2026-10-01 03:00)
+## State (2026-10-01, pass 1)
 
-- PR #1019 merged (config-declared tag families, read-only hub buttons, untaggable categories).
-- PR #1020 open — branch `claude/specialist-tag-labels`, worktree `.claude/worktrees/tag-families-setup-976ed0`.
+- PR #1019 merged; PR #1020 merged (`51b14eb81`) — the four specialist labels are on main.
+- PR #1022 open — TAGACC-18 Token Confidence Audit (branch `claude/token-confidence-sources`).
+- PR #1023 open — TAGACC-19 config save keeps keys (branch `claude/config-save-keeps-keys`).
 - Live Revit build is `C:\Dev\STING_KUT_LIVE` (detached, ACC hardening + an early snapshot of TAGFAM-1). It does
-  **not** have #1018/#1019/#1020. Rebuilding it (merge `origin/main` into `claude/kut-combined-acc-tags`)
+  **not** have #1018 onward. Rebuilding it (merge `origin/main` into `claude/kut-combined-acc-tags`)
   is blocked for this agent by the auto-mode classifier ("Modify Shared Resources"); a person must do it.
   Steps are in the TAGFAM-2 ROADMAP row.
+- All work happens in worktree `.claude/worktrees/tag-families-setup-976ed0` (the session hook refuses
+  writes to other worktrees); switch branches there, one branch per change from `origin/main`.
 
 ## Hand configuration done in the Revit UI (reproducible record)
 
@@ -70,14 +74,23 @@ second Revit; the Claude desktop window can sit over Revit and swallow clicks.
   this agent cannot redeploy it; pyRevit runs against the open family with no deploy. The same logic goes
   into the plugin so it ships.
 - *Left-aligned labels* — user instruction (ISO); recorded in the build sheet and memory.
+- *Proximity is Medium, not Low* (TAGACC-18) — the value was copied from a tagged neighbour, so it is
+  plausible but not detected; Low is kept for "nothing located it, the policy fallback was written".
+- *An unreadable project_config.json is refused, not overwritten* (TAGACC-19) — the old writers would
+  have replaced it; now `SaveToFile` logs and returns false so the user's other keys are not lost.
+- *Save Config to Project no longer adds LEADER_CLEARANCE_MARGIN_FT when absent* — one writer; the
+  reader defaults it to 0.5 and an existing value is kept.
 
-## Findings (open)
+## Findings
 
-| # | Sev | Where | Finding | Plan |
+| # | Sev | Where | Finding | Status |
 |---|---|---|---|---|
-| F1 | High | scope boxes | ZONE never read from scope boxes; falls back to Z01 | add `STING-ZONE::` boxes mirroring `STING-LOC::` |
-| F2 | High | registry | `STING_SCOPE_BOX_TAG_TXT` not registered → `::<zone>` stamp no-op | register + bind, or remove the stamp |
-| F3 | Med | Token Conf | fallback-to-default not reported per element with reason | add report |
-| F4 | Med | config | Save Config to Project rewrites file — check every tagging key survives | test round-trip |
-| F5 | Med | SEQ | multi-user borrow/defer/re-sequence/repair — no Revit run | protocol + smoke |
-| F6 | Med | families | text types/sizes consistent; labels' params registered + bound; coverage; orphans | gate |
+| F1 | — | scope boxes | "ZONE never read from scope boxes" | **Stale** — `STING-ZONE::` boxes shipped in `1ace7ed81` (`BuildScopeBoxZoneIndex`, `DetectZoneFromScopeBox`, precedence after room/department) |
+| F2 | — | registry | "`STING_SCOPE_BOX_TAG_TXT` not registered" | **Stale** — in `MR_PARAMETERS.txt`, `PARAMETER_REGISTRY.json`, `RESOLVED_BINDINGS.csv` (`<ALL>`) and `ParamRegistry.STING_SCOPE_BOX_TAG` |
+| F3 | Med | Token Conf | audit called scope-box zones and proximity fills "Low / fallback"; no reason per element | **TAGACC-18**, PR #1022 |
+| F4 | **High** | config | both whole-file writers of `project_config.json` reset every key they did not list (SEQ_*, folder layout, COST_*) — wizard, auto-tagger toggle, Save Config | **TAGACC-19**, PR #1023 |
+| F5 | Med | SEQ | multi-user borrow/defer/re-sequence/repair — no Revit run | open — TAGACC-12 protocol + smoke (NEEDS REVIT) |
+| F6 | Med | families | text types/sizes consistent; labels' params registered + bound; coverage; orphans | open — gate |
+
+Lesson from F1/F2: the standing brief's "known items" were written from memory; check the code
+before planning a fix.
