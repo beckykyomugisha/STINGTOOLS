@@ -495,6 +495,51 @@ namespace StingTools.Core.Plumbing
             return longest * heightMm * 0.7 * widthFactor;
         }
 
+        /// <summary>
+        /// Centreline offsets (paper mm, the first at 0) of columns whose contents reach
+        /// <c>Left</c> / <c>Right</c> mm either side: each column clears its neighbour's
+        /// contents by <paramref name="gap"/>, and is never closer than
+        /// <paramref name="minPitch"/>. DTW-121: a fixed pitch let a stack's labels run
+        /// into the next stack.
+        /// </summary>
+        public static List<double> ColumnOffsets(IReadOnlyList<(double Left, double Right)> halfWidths,
+            double minPitch, double gap)
+        {
+            var x = new List<double>();
+            if (halfWidths == null) return x;
+            for (int i = 0; i < halfWidths.Count; i++)
+            {
+                if (i == 0) { x.Add(0); continue; }
+                double need = Math.Max(0, halfWidths[i - 1].Right) + gap + Math.Max(0, halfWidths[i].Left);
+                x.Add(x[i - 1] + Math.Max(minPitch, need));
+            }
+            return x;
+        }
+
+        /// <summary>
+        /// Side of each branch (true = left), branches at <paramref name="positions"/> along
+        /// the stack: the right unless the last branch put there is closer than
+        /// <paramref name="clearance"/> (its label would be hit), then the left; when both
+        /// sides are that close, whichever side's last branch is farther away.
+        /// </summary>
+        public static bool[] AssignSides(IReadOnlyList<double> positions, double clearance)
+        {
+            if (positions == null) return new bool[0];
+            var left = new bool[positions.Count];
+            double lastRight = double.NegativeInfinity, lastLeft = double.NegativeInfinity;
+            foreach (int i in Enumerable.Range(0, positions.Count).OrderBy(i => positions[i]))
+            {
+                double p = positions[i];
+                bool goLeft;
+                if (p - lastRight >= clearance) goLeft = false;
+                else if (p - lastLeft >= clearance) goLeft = true;
+                else goLeft = p - lastLeft > p - lastRight;
+                left[i] = goLeft;
+                if (goLeft) lastLeft = p; else lastRight = p;
+            }
+            return left;
+        }
+
         /// <summary>Printed height of <paramref name="text"/>, paper mm (lines × 1.5 × height).</summary>
         public static double EstimateTextHeightMm(string text, double heightMm)
         {

@@ -76,6 +76,26 @@ namespace StingTools.Tags.Tests
             Assert.Equal(0, SchematicFit.EstimateTextWidthMm("", 2.5));
         }
 
+        // ── DTW-121: labels sized from their text ─────────────────────────
+        [Fact]
+        public void Stacks_are_spaced_by_what_hangs_off_them_not_a_fixed_pitch()
+        {
+            // Stack 0 carries a 40 mm label to its right; stack 1 a 25 mm branch to its left.
+            var x = SchematicFit.ColumnOffsets(new List<(double, double)> { (3, 40), (25, 10), (3, 3) }, 30, 6);
+            Assert.Equal(new[] { 0.0, 71.0, 101.0 }, x);   // 40+6+25 = 71; then the 30 mm minimum
+            Assert.Empty(SchematicFit.ColumnOffsets(new List<(double, double)>(), 30, 6));
+        }
+
+        [Fact]
+        public void Branches_too_close_for_their_labels_go_to_the_other_side()
+        {
+            // Branches at rows 1.0, 1.1, 1.2 and 2.0; a label needs 0.5 rows of clearance.
+            var left = SchematicFit.AssignSides(new List<double> { 1.0, 1.1, 2.0, 1.2 }, 0.5);
+            Assert.Equal(new[] { false, true, false, false }, left);
+            // Spread out: all on one side, none crossing to the neighbour's.
+            Assert.All(SchematicFit.AssignSides(new List<double> { 0, 1, 2, 3 }, 0.5), Assert.False);
+        }
+
         // meter 1 — p2 — f3 — p4 — f5 — p6 — tee 7 — p8 — fixture 9
         //                                        \— p10 — fixture 11
         private static readonly Dictionary<long, long[]> Net = new Dictionary<long, long[]>

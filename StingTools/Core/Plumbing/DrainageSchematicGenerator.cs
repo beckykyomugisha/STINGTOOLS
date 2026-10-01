@@ -150,6 +150,26 @@ namespace StingTools.Core.Plumbing
         public bool     IsLeft;
     }
 
+    /// <summary>A stack's labels and the paper room (mm) they need either side of it.</summary>
+    internal class StackLabelPlan
+    {
+        public string StackLabel;
+        public double StackLabelH;
+        public string VentLabel;
+        public double HeadMm;
+        public double Left;
+        public double Right;
+        public List<BranchLabelPlan> Branches = new List<BranchLabelPlan>();
+    }
+
+    internal class BranchLabelPlan
+    {
+        public BranchLayout Branch;
+        public string       Label;          // DN / slope; null = none
+        public string       FixtureLabel;   // null = no fixture glyph
+        public double       LengthMm;       // paper length of the branch line
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // Generator
     // ──────────────────────────────────────────────────────────────────────────
@@ -167,10 +187,14 @@ namespace StingTools.Core.Plumbing
         // so a larger scale no longer helps and the overflow is reported instead.
         private const double MinStoreyPaperMm   = 16;
         private const double MinColumnPaperMm   = 30;
-        private const double LevelLabelColumnMm = 25;
-        private const double RightMarginMm      = 30;
-        private const double HeadMarginMm       = 20;
+        private const double HeadMarginMm       = 4;
         private const double FootMarginMm       = 5;
+        // DTW-121 label geometry, paper mm.
+        private const double LabelGapMm         = 4;
+        private const double TickHalfMm         = 3;
+        private const double VentOffsetMm       = 4;
+        private const double BranchMinMm        = 15;
+        private const double FixtureSymbolMm    = 2;
 
         // ── Main entry ────────────────────────────────────────────────────────
 
@@ -254,13 +278,37 @@ namespace StingTools.Core.Plumbing
                 double Row(double z) => SchematicFit.StoreyRow(levelElevs, z, fallbackStoreyFt);
                 double baseRow = Row(baseZ);
                 double rowSpan = Math.Max(0.0, Row(globalZMax) - baseRow);
-                int stackCount = layouts.Count;
+
+                // DTW-121: every label is sized from its text type, and each stack takes the
+                // room its own labels need. A fixed 18 mm branch with a 24 mm label ran into
+                // the next stack, a left label over the previous one, and the level names
+                // over stack 0.
+                var textTypeNormal = FindClosestTextType(doc, TextSizeNormal);
+                var textTypeSmall  = FindClosestTextType(doc, TextSizeSmall);
+                ElementId normalId = textTypeNormal?.Id ?? ElementId.InvalidElementId;
+                ElementId smallId  = textTypeSmall?.Id  ?? ElementId.InvalidElementId;
+                var (normalMm, normalWf) = TextMetrics(textTypeNormal, TextSizeNormal);
+                var (smallMm, smallWf)   = TextMetrics(textTypeSmall, TextSizeSmall);
+                double WSmall(string t)  => SchematicFit.EstimateTextWidthMm(t, smallMm, smallWf);
+                double WNormal(string t) => SchematicFit.EstimateTextWidthMm(t, normalMm, normalWf);
+                double smallH = smallMm * 1.5;
+
+                var plans = layouts.Select(sl => PlanLabels(sl, opts, Row, WSmall, WNormal, normalMm, smallH)).ToList();
+                double levelColumnMm = spannedLevels.Count == 0 ? 0
+                    : spannedLevels.Max(li => WSmall(levels[li].Name)) + LabelGapMm;
+                double headMm = plans.Max(p => p.HeadMm) + HeadMarginMm;
+                var halfWidths = plans.Select(p => (p.Left, p.Right)).ToList();
+
                 double StoreyPaper(int s) => Math.Max(opts.LevelHeightMm / s, MinStoreyPaperMm);
                 double ColumnPaper(int s) => Math.Max(opts.StackSpacingMm / s, MinColumnPaperMm);
-                var fit = SchematicFit.ChooseScale(
-                    s => (LevelLabelColumnMm + (stackCount - 1) * ColumnPaper(s) + RightMarginMm,
-                          rowSpan * StoreyPaper(s) + HeadMarginMm + FootMarginMm),
-                    opts.SlotWidthMm, opts.SlotHeightMm, opts.MinScale > 0 ? opts.MinScale : 50);
+                (double W, double H) Extent(int s)
+                {
+                    var xs = SchematicFit.ColumnOffsets(halfWidths, ColumnPaper(s), LabelGapMm);
+                    return (levelColumnMm + plans[0].Left + xs[xs.Count - 1] + plans[plans.Count - 1].Right,
+                            rowSpan * StoreyPaper(s) + headMm + FootMarginMm);
+                }
+                var fit = SchematicFit.ChooseScale(Extent, opts.SlotWidthMm, opts.SlotHeightMm,
+                    opts.MinScale > 0 ? opts.MinScale : 50);
                 result.Scale = fit.Scale;
                 if (fit.Problem() is string fitProblem) result.Warnings.Add(fitProblem);
 
@@ -282,13 +330,8 @@ namespace StingTools.Core.Plumbing
                 int scale = view.Scale;
                 double P(double paperMm) => SchematicLayoutMath.PaperMmToModelFt(paperMm, scale);
 
-                double stackSpacingFt = P(ColumnPaper(scale));
-                double storeyPitchFt  = P(StoreyPaper(scale));
-
-                var textTypeNormal = FindClosestTextType(doc, TextSizeNormal);
-                var textTypeSmall  = FindClosestTextType(doc, TextSizeSmall);
-                ElementId normalId = textTypeNormal?.Id ?? ElementId.InvalidElementId;
-                ElementId smallId  = textTypeSmall?.Id  ?? ElementId.InvalidElementId;
+                double storeyPitchFt = P(StoreyPaper(scale));
+                var columnX = SchematicFit.ColumnOffsets(halfWidths, ColumnPaper(scale), LabelGapMm);
 
                 var lineStyles = GetLineStyleIds(doc);
 
@@ -299,14 +342,15 @@ namespace StingTools.Core.Plumbing
                 else if (spannedLevels.Count == 0)
                     result.Warnings.Add("No Level lies within the height of the stacks — floor lines were not drawn.");
 
-                double tickHalf = P(3);
+                double tickHalf = P(TickHalfMm);
 
-                // 4. Floor labels (left of the first stack, from real Levels) ─────
+                // 4. Floor labels — left of everything stack 0 draws, centred on the level ─
                 foreach (int li in spannedLevels)
                 {
+                    string name = levels[li].Name;
                     if (TryPlaceTextNote(doc, view,
-                            new XYZ(-tickHalf - P(22), Y(levels[li].Elevation) + P(1.5), 0),
-                            levels[li].Name, smallId, result))
+                            new XYZ(-P(plans[0].Left + LabelGapMm + WSmall(name)), Y(levels[li].Elevation) + P(smallH / 2), 0),
+                            name, smallId, result))
                         result.LevelsLabelled++;
                 }
 
@@ -314,7 +358,8 @@ namespace StingTools.Core.Plumbing
                 for (int si = 0; si < layouts.Count; si++)
                 {
                     var sl = layouts[si];
-                    double cx = si * stackSpacingFt;
+                    var plan = plans[si];
+                    double cx = P(columnX[si]);
                     double yBottom = Y(sl.ZMin);
                     double yTop    = Y(sl.ZMax);
 
@@ -330,16 +375,11 @@ namespace StingTools.Core.Plumbing
                         new XYZ(cx - P(2), yTop, 0), new XYZ(cx + P(2), yTop, 0),
                         lineStyles.Solid, result);
 
-                    // Stack label ──────────────────────────────────────────────
-                    if (opts.ShowDnLabels)
-                    {
-                        string stackLabel = sl.DnMm > 0 ? $"DN{sl.DnMm} STACK" : "STACK";
-                        if (!string.IsNullOrEmpty(sl.SystemName))
-                            stackLabel += $"\n{sl.SystemName}";
+                    // Stack label, above the head ──────────────────────────────
+                    if (!string.IsNullOrEmpty(plan.StackLabel))
                         TryPlaceTextNote(doc, view,
-                            new XYZ(cx + P(1), yTop + P(8), 0),
-                            stackLabel, normalId, result);
-                    }
+                            new XYZ(cx + P(1), yTop + P(2 + plan.StackLabelH), 0),
+                            plan.StackLabel, normalId, result);
 
                     // Floor level ticks — the Levels this stack passes ─────────
                     foreach (int li in SchematicLayoutMath.LevelsSpanning(levelElevs, sl.ZMin, sl.ZMax, LevelToleranceFt))
@@ -353,7 +393,7 @@ namespace StingTools.Core.Plumbing
                     // Vent — only a modelled Vent pipe connected to this stack ─
                     if (opts.ShowVents && sl.Vent != null)
                     {
-                        double ventX = cx + P(4);
+                        double ventX = cx + P(VentOffsetMm);
                         double vy0 = Y(sl.Vent.ZMin), vy1 = Y(sl.Vent.ZMax);
                         bool drawn;
                         if (vy1 - vy0 > P(1))
@@ -366,25 +406,25 @@ namespace StingTools.Core.Plumbing
                         else
                         {
                             drawn = TryDrawDetailLine(doc, view,
-                                new XYZ(cx, vy0, 0), new XYZ(ventX + P(4), vy0, 0), lineStyles.Dashed, result);
+                                new XYZ(cx, vy0, 0), new XYZ(ventX + P(VentOffsetMm), vy0, 0), lineStyles.Dashed, result);
                         }
                         if (drawn)
                         {
                             result.VentsDrawn++;
-                            if (opts.ShowDnLabels)
+                            if (!string.IsNullOrEmpty(plan.VentLabel))
                                 TryPlaceTextNote(doc, view,
-                                    new XYZ(ventX + P(1), (vy0 + vy1) * 0.5 + P(1), 0),
-                                    sl.Vent.DnMm > 0 ? $"DN{sl.Vent.DnMm} VENT" : "VENT",
-                                    smallId, result);
+                                    new XYZ(ventX + P(1), (vy0 + vy1) * 0.5 + P(smallH / 2), 0),
+                                    plan.VentLabel, smallId, result);
                         }
                     }
 
                     // Branches — drain pipes leaving fittings on the stack ─────
-                    foreach (var br in sl.Branches)
+                    foreach (var bp in plan.Branches)
                     {
+                        var br = bp.Branch;
+                        double dir    = br.IsLeft ? -1 : 1;
                         double by     = Y(br.Z);
-                        double brLen  = stackSpacingFt * 0.45;
-                        double brEndX = br.IsLeft ? cx - brLen : cx + brLen;
+                        double brEndX = cx + dir * P(bp.LengthMm);
 
                         if (!TryDrawDetailLine(doc, view,
                                 new XYZ(cx, by, 0), new XYZ(brEndX, by, 0),
@@ -392,26 +432,20 @@ namespace StingTools.Core.Plumbing
                             continue;
                         result.BranchesDrawn++;
 
-                        if (opts.ShowDnLabels || opts.ShowSlopeLabels)
-                        {
-                            var parts = new List<string>();
-                            if (opts.ShowDnLabels && br.BranchDnMm > 0)
-                                parts.Add($"DN{br.BranchDnMm}");
-                            if (opts.ShowSlopeLabels)
-                                parts.Add(SchematicLayoutMath.SlopeLabel(br.SlopePct));
-
-                            if (parts.Any())
-                                TryPlaceTextNote(doc, view,
-                                    new XYZ(Math.Min(cx, brEndX) + P(1), by + P(4), 0),
-                                    string.Join(" ", parts), smallId, result);
-                        }
-
-                        if (opts.ShowFixtureSymbols && br.FixtureCount > 0)
-                        {
-                            DrawFixtureSymbol(doc, view, brEndX, by, br.IsLeft, P(2), lineStyles.Solid, result);
+                        // DN / slope above the branch, along it from the stack.
+                        if (!string.IsNullOrEmpty(bp.Label))
                             TryPlaceTextNote(doc, view,
-                                new XYZ(brEndX + (br.IsLeft ? -P(20) : P(3)), by + P(4), 0),
-                                br.FixtureLabel, smallId, result);
+                                new XYZ(br.IsLeft ? cx - P(1 + WSmall(bp.Label)) : cx + P(1), by + P(1 + smallH), 0),
+                                bp.Label, smallId, result);
+
+                        // Fixtures beyond the branch end, centred on it.
+                        if (!string.IsNullOrEmpty(bp.FixtureLabel))
+                        {
+                            DrawFixtureSymbol(doc, view, brEndX, by, br.IsLeft, P(FixtureSymbolMm), lineStyles.Solid, result);
+                            TryPlaceTextNote(doc, view,
+                                new XYZ(br.IsLeft ? brEndX - P(FixtureSymbolMm + 1 + WSmall(bp.FixtureLabel)) : brEndX + P(FixtureSymbolMm + 1),
+                                        by + P(smallH / 2), 0),
+                                bp.FixtureLabel, smallId, result);
                         }
                     }
                 }
@@ -607,7 +641,6 @@ namespace StingTools.Core.Plumbing
                 // Branches: drain pipes leaving a fitting on the stack.
                 var groupSet = new HashSet<long>(g);
                 var seenBranchPipes = new HashSet<long>();
-                int branchIdx = 0;
                 var junctions = g.SelectMany(id => neighbours(id))
                                  .Distinct()
                                  .Where(id => !groupSet.Contains(id) && kind(id) == SchematicPipeKind.Fitting)
@@ -639,9 +672,8 @@ namespace StingTools.Core.Plumbing
                             BranchDnMm   = (int)Math.Round(bn.DnMm),
                             SlopePct     = slope,
                             FixtureLabel = fixtures > 0 ? $"FIXTURES × {fixtures}" : "",
-                            IsLeft       = branchIdx % 2 != 0
+                            // Side: PlanLabels, by the room its labels need.
                         });
-                        branchIdx++;
                     }
                 }
 
@@ -656,6 +688,68 @@ namespace StingTools.Core.Plumbing
             return layouts;
         }
 
+        // ── Label plan (DTW-121) ──────────────────────────────────────────────
+
+        /// <summary>
+        /// The labels a stack carries and the paper room (mm) they take either side of it,
+        /// measured from the text before anything is drawn. Also chooses each branch's side:
+        /// the right unless a branch just below already put its label there.
+        /// </summary>
+        private static StackLabelPlan PlanLabels(StackLayout sl, DrainageSchematicOptions opts,
+            Func<double, double> row, Func<string, double> wSmall, Func<string, double> wNormal,
+            double normalMm, double smallH)
+        {
+            var p = new StackLabelPlan();
+            double left = TickHalfMm, right = TickHalfMm;
+
+            if (opts.ShowDnLabels)
+            {
+                string stackLabel = sl.DnMm > 0 ? $"DN{sl.DnMm} STACK" : "STACK";
+                if (!string.IsNullOrEmpty(sl.SystemName)) stackLabel += $"\n{sl.SystemName}";
+                p.StackLabel = stackLabel;
+                p.StackLabelH = SchematicFit.EstimateTextHeightMm(stackLabel, normalMm);
+                right = Math.Max(right, 1 + wNormal(stackLabel));
+            }
+            p.HeadMm = 2 + p.StackLabelH;
+
+            if (opts.ShowVents && sl.Vent != null)
+            {
+                right = Math.Max(right, VentOffsetMm * 2);
+                if (opts.ShowDnLabels)
+                {
+                    p.VentLabel = sl.Vent.DnMm > 0 ? $"DN{sl.Vent.DnMm} VENT" : "VENT";
+                    right = Math.Max(right, VentOffsetMm + 1 + wSmall(p.VentLabel));
+                }
+            }
+
+            // A branch's labels reach from 2 mm below its line (the fixture glyph) to a
+            // text line above it; branches closer than that on one side would collide.
+            double clearanceRows = (1.5 * smallH + FixtureSymbolMm + 1) / MinStoreyPaperMm;
+            var sides = SchematicFit.AssignSides(sl.Branches.Select(b => row(b.Z)).ToList(), clearanceRows);
+            for (int i = 0; i < sl.Branches.Count; i++)
+            {
+                var br = sl.Branches[i];
+                br.IsLeft = sides[i];
+
+                var parts = new List<string>();
+                if (opts.ShowDnLabels && br.BranchDnMm > 0) parts.Add($"DN{br.BranchDnMm}");
+                if (opts.ShowSlopeLabels) parts.Add(SchematicLayoutMath.SlopeLabel(br.SlopePct));
+                string label = parts.Count > 0 ? string.Join(" ", parts) : null;
+                string fix = opts.ShowFixtureSymbols && br.FixtureCount > 0 && !string.IsNullOrEmpty(br.FixtureLabel)
+                    ? br.FixtureLabel : null;
+
+                // The branch is long enough for its own label to sit over it.
+                double len = Math.Max(BranchMinMm, label != null ? wSmall(label) + 2 : 0);
+                double reach = len + (fix != null ? FixtureSymbolMm + 1 + wSmall(fix) : 0);
+                if (br.IsLeft) left = Math.Max(left, reach); else right = Math.Max(right, reach);
+
+                p.Branches.Add(new BranchLabelPlan { Branch = br, Label = label, FixtureLabel = fix, LengthMm = len });
+            }
+
+            p.Left = left;
+            p.Right = right;
+            return p;
+        }
         // ── Drawing helpers ───────────────────────────────────────────────────
 
         /// <summary>Draws one detail line; true only when it was created.</summary>
