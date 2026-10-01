@@ -1905,20 +1905,9 @@ namespace StingTools.Core.Drawing
             catch (Exception ex) { result.Warnings.Add($"SheetNumber: {ex.Message}"); }
             try
             {
-                var sheetName = opts.OverrideSheetName ?? SubstituteTokens(dt.SheetNamePattern, dt, ctx, seq, tokens);
-                // DTW-51: every area box on a level produced a sheet with the same name
-                // ("Power Layout - Level 1") unless the pattern names {mark}. Say which
-                // area the sheet is when the pattern does not.
-                if (opts.OverrideSheetName == null && ctx.ScopeBox != null)
-                {
-                    var p = dt.SheetNamePattern ?? "";
-                    bool namesArea = p.IndexOf("{mark}", StringComparison.OrdinalIgnoreCase) >= 0
-                                  || p.IndexOf("{spool}", StringComparison.OrdinalIgnoreCase) >= 0;
-                    string area = !string.IsNullOrWhiteSpace(ctx.Tag) ? ctx.Tag : ctx.ScopeBox.Name;
-                    if (!namesArea && !string.IsNullOrWhiteSpace(area)
-                        && (sheetName ?? "").IndexOf(area, StringComparison.OrdinalIgnoreCase) < 0)
-                        sheetName = $"{sheetName} - {area}";
-                }
+                // DTW-198: the name takes the full level name ("Ground Floor", not the
+                // number's "GroundFl"); DTW-51: and the area when the pattern omits it.
+                var sheetName = opts.OverrideSheetName ?? GeneratedSheetName(dt, ctx, ctx.Level?.Name, seq, tokens);
                 sheet.Name = sheetName;
             }
             catch (Exception ex) { result.Warnings.Add($"SheetName: {ex.Message}"); }
@@ -2743,12 +2732,26 @@ namespace StingTools.Core.Drawing
         /// instead of the level name cut to eight characters ("Level1", "Mezzanin", and
         /// "Level 1" / "Level 1A" colliding). Every other pattern keeps the name.
         /// </summary>
+        /// <summary>
+        /// DTW-198: the name production gives a sheet for <paramref name="levelName"/> —
+        /// full level name, and the area of a scope-box sheet (DTW-51).
+        /// </summary>
+        private static string GeneratedSheetName(DrawingType dt, DrawingContext ctx, string levelName, int seq,
+            IDictionary<string, string> tokens)
+        {
+            string area = ctx?.ScopeBox == null ? null
+                : (!string.IsNullOrWhiteSpace(ctx.Tag) ? ctx.Tag : ctx.ScopeBox.Name);
+            return ProductionEdgeDecisions.SheetName(dt.SheetNamePattern, dt.Discipline ?? "",
+                levelName ?? dt.IsoNaming?.Level, dt.System ?? "", ctx?.Tag, dt.Purpose ?? "", seq, tokens, area);
+        }
+
         private static string LevelForPattern(string pattern, DrawingType dt, string levelName, IDictionary<string, string> extras)
         {
-            if (levelName != null && SheetNumberPolicy.IsAlreadyIso(pattern)
-                && extras != null && extras.TryGetValue(IsoLevelKey, out var iso) && !string.IsNullOrEmpty(iso))
-                return iso;
-            return levelName ?? dt?.IsoNaming?.Level ?? "";
+            string iso = null;
+            if (extras != null) extras.TryGetValue(IsoLevelKey, out iso);
+            // DTW-198: a non-ISO pattern takes ShortLevel (keeps "Basement 1" / "Basement 2"
+            // apart), the same in the number, its counter template and Renumber.
+            return ProductionEdgeDecisions.NumberLevel(pattern, levelName, iso, dt?.IsoNaming?.Level);
         }
 
         [ThreadStatic] private static Dictionary<string, string> _isoLevelMap;

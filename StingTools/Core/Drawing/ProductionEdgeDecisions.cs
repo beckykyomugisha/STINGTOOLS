@@ -76,6 +76,43 @@ namespace StingTools.Core.Drawing
              + $"{(string.IsNullOrWhiteSpace(newTemplate) ? "none" : "'" + newTemplate + "'")} (drawing type '{drawingTypeId}'). "
              + "Lock the view's style to keep a template chosen by hand.";
 
+        // ── DTW-198: names take the full level name, numbers a distinct short one ──
+
+        /// <summary>
+        /// {lvl} for a sheet NUMBER. An ISO-shaped pattern takes the level's ISO code when
+        /// one is known; any other pattern takes <see cref="SheetNumberEngine.ShortLevel"/>
+        /// of the name, which keeps a trailing number — "Basement 1" and "Basement 2" both
+        /// became "Basement" under the plain eight-character cut. No level: the fallback
+        /// (the profile's isoNaming level). Numbers stay on names, not level codes:
+        /// moving them would renumber every existing profile sheet (decision DTW-198).
+        /// </summary>
+        internal static string NumberLevel(string pattern, string levelName, string isoCode, string fallback)
+        {
+            if (levelName == null) return fallback ?? "";
+            if (SheetNumberPolicy.IsAlreadyIso(pattern) && !string.IsNullOrEmpty(isoCode)) return isoCode;
+            return SheetNumberEngine.ShortLevel(levelName);
+        }
+
+        /// <summary>
+        /// A produced sheet's NAME: the pattern with the full level name, mark and system
+        /// (<see cref="SheetNumberEngine.ApplyNamePattern"/>), plus — DTW-51 — the area when
+        /// the sheet is for a scope box and the pattern does not already name it.
+        /// </summary>
+        internal static string SheetName(string pattern, string disc, string levelName, string sys, string tag,
+            string purpose, int seq, IDictionary<string, string> extras, string areaName)
+        {
+            var name = SheetNumberEngine.ApplyNamePattern(pattern, disc, levelName, sys, tag ?? "", tag ?? "", purpose, seq, extras);
+            if (!string.IsNullOrWhiteSpace(areaName))
+            {
+                var p = pattern ?? "";
+                bool namesArea = p.IndexOf("{mark}", StringComparison.OrdinalIgnoreCase) >= 0
+                              || p.IndexOf("{spool}", StringComparison.OrdinalIgnoreCase) >= 0;
+                if (!namesArea && (name ?? "").IndexOf(areaName, StringComparison.OrdinalIgnoreCase) < 0)
+                    name = $"{name} - {areaName}";
+            }
+            return name;
+        }
+
         // ── DTW-199: a view moved to another sheet stays there ─────────
 
         /// <summary>The report line for a view kept on the sheet someone moved it to.</summary>

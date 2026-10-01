@@ -93,6 +93,47 @@ namespace StingTools.Tags.Tests
             Assert.Contains("Lock the view's style", line);
         }
 
+        // ── DTW-198 ───────────────────────────────────────────────────
+
+        [Fact]
+        public void Basement_1_and_2_get_distinct_number_tokens()
+        {
+            var b1 = ProductionEdgeDecisions.NumberLevel("E-{lvl}-{seq:D3}", "Basement 1", null, null);
+            var b2 = ProductionEdgeDecisions.NumberLevel("E-{lvl}-{seq:D3}", "Basement 2", null, null);
+            Assert.NotEqual(b1, b2);
+            Assert.Equal("Basemen1", b1);
+            // Through the real number engine, as the producer substitutes it.
+            Assert.NotEqual(
+                SheetNumberEngine.ApplyTokenPattern("E-{lvl}-{seq:D3}", "E", b1, "", "", "", "Plan", 1, null),
+                SheetNumberEngine.ApplyTokenPattern("E-{lvl}-{seq:D3}", "E", b2, "", "", "", "Plan", 1, null));
+        }
+
+        [Fact]
+        public void An_iso_pattern_keeps_the_iso_level_code()
+            => Assert.Equal("B1", ProductionEdgeDecisions.NumberLevel(SheetNumberPolicy.IsoPattern, "Basement 1", "B1", null));
+
+        [Fact]
+        public void No_level_falls_back_to_the_profile_level()
+            => Assert.Equal("ZZ", ProductionEdgeDecisions.NumberLevel("E-{lvl}", null, null, "ZZ"));
+
+        [Fact]
+        public void Sheet_names_carry_the_full_level_name()
+        {
+            Assert.Equal("Power Layout - Basement 1",
+                ProductionEdgeDecisions.SheetName("Power Layout - {lvl}", "E", "Basement 1", "", null, "Plan", 1, null, null));
+            Assert.Equal("Power Layout - Ground Floor",
+                ProductionEdgeDecisions.SheetName("Power Layout - {lvl}", "E", "Ground Floor", "", null, "Plan", 1, null, null));
+        }
+
+        [Fact]
+        public void An_area_sheet_name_says_which_area_unless_the_pattern_does()
+        {
+            Assert.Equal("Power Layout - Level 1 - North",
+                ProductionEdgeDecisions.SheetName("Power Layout - {lvl}", "E", "Level 1", "", "North", "Plan", 1, null, "North"));
+            Assert.Equal("Power - North",
+                ProductionEdgeDecisions.SheetName("Power - {mark}", "E", "Level 1", "", "North", "Plan", 1, null, "North"));
+        }
+
         // ── DTW-199 ───────────────────────────────────────────────────
 
         [Fact]
