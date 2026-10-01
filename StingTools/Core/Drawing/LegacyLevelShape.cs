@@ -90,5 +90,52 @@ namespace StingTools.Core.Drawing
             }
             return (currentTemplate, null, false);
         }
+
+        /// <summary>An existing sheet as the DTW-225 decision sees it.</summary>
+        internal readonly struct ExistingSheet
+        {
+            public ExistingSheet(string drawingTypeId, string context, string number)
+            { DrawingTypeId = drawingTypeId; Context = context; Number = number; }
+            public string DrawingTypeId { get; }
+            /// <summary>The sheet's production context stamp (STING_SHEET_CONTEXT_TXT).</summary>
+            public string Context { get; }
+            public string Number { get; }
+        }
+
+        /// <summary>
+        /// DTW-225: the {lvl} a NEW sheet's number takes when its drawing type already has
+        /// sheets on this level in the pre-DTW-198 shape. Null means "today's shape".
+        /// Without it a fourth sheet beside "E-Basement-001..003" came out "E-Basemen1-004"
+        /// and one level's numbers ran in two shapes. The caller uses the returned level for
+        /// the number AND its counter template, so the seed reads the old numbers too.
+        /// </summary>
+        internal static string NewSheetNumberLevel(string pattern, string drawingTypeId,
+            string levelName, long? levelId, string fallback,
+            string currentTemplate, string legacyTemplate, IEnumerable<ExistingSheet> existing)
+        {
+            // Only a non-ISO pattern on a long, digit-ending level ever had two shapes.
+            if (!NumberShapeChanged(pattern, levelName)) return null;
+            if (string.IsNullOrEmpty(legacyTemplate) || existing == null) return null;
+            foreach (var s in existing)
+            {
+                if (!string.Equals(s.DrawingTypeId, drawingTypeId, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!SameLevel(s.Context, levelName, levelId)) continue;
+                // Today's template is tried first, so a sheet already in the new shape
+                // never counts as legacy.
+                if (MatchTemplate(s.Number, currentTemplate, legacyTemplate).Legacy)
+                    return NumberLevel(pattern, levelName, fallback);
+            }
+            return null;
+        }
+
+        /// <summary>The stamp's level is this level: by id when both have one (a rename
+        /// keeps the id), else by the stamp's name part.</summary>
+        private static bool SameLevel(string context, string levelName, long? levelId)
+        {
+            if (string.IsNullOrEmpty(context)) return false;
+            var ids = ProductionContextIds.Parse(context);
+            if (ids.LevelId.HasValue && levelId.HasValue) return ids.LevelId.Value == levelId.Value;
+            return string.Equals(ProductionContextIds.LevelName(context), levelName, StringComparison.OrdinalIgnoreCase);
+        }
     }
 }
