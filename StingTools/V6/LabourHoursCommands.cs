@@ -84,7 +84,7 @@ namespace StingTools.V6
                 var perCat = new Dictionary<string, (int count, double hrs)>();
                 foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
                 {
-                    string hrsStr = ParameterHelpers.GetValueText(el, ParamRegistry.CST_INSTALL_HRS);
+                    string hrsStr = InstallHours.ReadValueText(el);
                     if (string.IsNullOrEmpty(hrsStr)) continue;
                     // InvariantCulture: STING param values are written by the plugin in
                     // invariant format and must be read back the same way regardless of

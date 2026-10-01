@@ -178,6 +178,9 @@ namespace StingTools.Tags.Tests
 
             Assert.Contains(all, o => (string)o["param_name"] == "ASS_INSTALL_DATE_TXT");
             Assert.Contains(all, o => (string)o["param_name"] == "ASS_INST_DATE_TXT");
+            // Same meaning as CST_INSTALL_HRS, which every reader and writer uses.
+            Assert.Contains(all, o => (string)o["param_name"] == "CST_LABOUR_HOURS"
+                                      && (string)o["replaced_by"] == "CST_INSTALL_HRS");
 
             var names = new HashSet<string>(root.Descendants().OfType<JObject>()
                 .Select(o => (string)o["param_name"]).Where(n => n != null), StringComparer.Ordinal);

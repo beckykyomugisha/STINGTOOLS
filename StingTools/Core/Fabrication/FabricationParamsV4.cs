@@ -214,8 +214,11 @@ namespace StingTools.Core.Fabrication
         public const string FX_RATE_USD_UGX             = "CST_FX_RATE_USD_UGX";
         public const string FX_RATE_USD_UGX_GUID        = "d4e003e1-1f43-5d22-93c1-d9e91d672c52";
 
-        public const string LABOUR_HOURS                = "CST_LABOUR_HOURS";
-        public const string LABOUR_HOURS_GUID           = "cb945ed3-ff4d-531c-89fa-c06f503ab46c";
+        // Migrated to canonical CST_INSTALL_HRS (GUID 5753b5aa-...-0010), as
+        // INSTALL_DATE_TXT above was. CST_LABOUR_HOURS (cb945ed3) meant the same and is
+        // deprecated; Core/InstallHours still reads it on older models.
+        public const string LABOUR_HOURS                = "CST_INSTALL_HRS";
+        public const string LABOUR_HOURS_GUID           = "5753b5aa-0005-4000-8000-000000000010";
 
         public const string LABOUR_RATE_UGX             = "CST_LABOUR_RATE_UGX";
         public const string LABOUR_RATE_UGX_GUID        = "3d736d48-cba0-570b-a521-844539bd998c";

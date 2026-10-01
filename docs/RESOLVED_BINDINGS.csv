@@ -875,7 +875,7 @@ CST_INTL_PRICE_TXT,2,cost-meta,<ALL>,CST_INTL_PRICE_USD display mirror [auto-gen
 CST_INTL_PRICE_USD,2,cost-meta,<ALL>,International supplier unit price in USD
 CST_INTL_PRICE_USD_DISP_TXT,2,cost-meta,<ALL>,International supplier unit price in USD — TEXT display mirror for tag labels
 CST_LABOUR_CREW_TXT,2,cost-meta,<ALL>,"Labour crew name or role (e.g. PIPEFITTER_2P, ELECTRICIAN_LEAD) used by crew-aware labour takeoff"
-CST_LABOUR_HOURS,2,cost-meta,<ALL>,Estimated labour hours per element for install takeoff
+CST_LABOUR_HOURS,2,cost-meta,<ALL>,"DEPRECATED -- use CST_INSTALL_HRS (same meaning). Estimated labour hours per element for install takeoff; still read where CST_INSTALL_HRS has no value, never written."
 CST_LABOUR_RATE_GBP,2,cost-meta,<ALL>,Labour rate in GBP per hour (override for UK projects)
 CST_LABOUR_RATE_UGX,2,cost-meta,<ALL>,Labour rate in UGX per hour
 CST_LAST_COSTED_DATE,13,cost-meta,<ALL>,Date of last BOQ cost calculation [ISO 19650-3:2020]

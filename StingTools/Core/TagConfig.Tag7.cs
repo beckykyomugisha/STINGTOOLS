@@ -1536,7 +1536,7 @@ namespace StingTools.Core
                 string ugx      = ParameterHelpers.GetDisplayText(el, ParamRegistry.CST_UG_PRICE_UGX);
                 string usd      = ParameterHelpers.GetDisplayText(el, ParamRegistry.CST_INTL_PRICE_USD);
                 string quote    = ParameterHelpers.GetDisplayText(el, ParamRegistry.CST_QUOTE_REF_TXT);
-                string hrs      = ParameterHelpers.GetDisplayText(el, ParamRegistry.CST_INSTALL_HRS);
+                string hrs      = InstallHours.ReadDisplayText(el);
                 string crew     = ParameterHelpers.GetDisplayText(el, ParamRegistry.CST_LABOUR_CREW_TXT);
                 string rate     = ParameterHelpers.GetDisplayText(el, ParamRegistry.CST_LABOUR_RATE_GBP);
                 var parts = new List<string>();

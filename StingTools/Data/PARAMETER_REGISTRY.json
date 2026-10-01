@@ -18873,7 +18873,9 @@
     {
       "param_name": "CST_LABOUR_HOURS",
       "guid": "cb945ed3-ff4d-531c-89fa-c06f503ab46c",
-      "description": "Estimated labour hours per element for install takeoff",
+      "description": "DEPRECATED -- use CST_INSTALL_HRS (same meaning). Estimated labour hours per element for install takeoff; still read where CST_INSTALL_HRS has no value, never written.",
+      "deprecated": true,
+      "replaced_by": "CST_INSTALL_HRS",
       "datatype": "NUMBER",
       "group_id": 2,
       "group_name": "CST_PROC",
@@ -33014,7 +33016,9 @@
         "key": "CST_LABOUR_HOURS",
         "param_name": "CST_LABOUR_HOURS",
         "guid": "cb945ed3-ff4d-531c-89fa-c06f503ab46c",
-        "description": "Estimated labour hours per element for install takeoff",
+        "description": "DEPRECATED -- use CST_INSTALL_HRS (same meaning). Estimated labour hours per element for install takeoff; still read where CST_INSTALL_HRS has no value, never written.",
+        "deprecated": true,
+        "replaced_by": "CST_INSTALL_HRS",
         "categories": [
           "ALL"
         ],

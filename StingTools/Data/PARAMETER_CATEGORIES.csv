@@ -873,7 +873,7 @@ CST_INTL_PRICE_TXT,Intl Price,TEXT,Instance,<ALL>,CST_PROC,afaa54ec-cd64-58a2-9d
 CST_INTL_PRICE_USD,Intl Price Usd,NUMBER,Instance,<ALL>,CST_PROC,c40720fa-3e80-5880-86c3-a82f43055fbf,International supplier unit price in USD
 CST_INTL_PRICE_USD_DISP_TXT,Intl Price Usd Disp,TEXT,Instance,<ALL>,CST_PROC,e1c19fcb-f0bf-552a-a795-9e28918bb81b,International supplier unit price in USD — TEXT display mirror for tag labels
 CST_LABOUR_CREW_TXT,Labour Crew,TEXT,Instance,<ALL>,CST_PROC,5753b5aa-0005-4000-8000-000000000011,"Labour crew name or role (e.g. PIPEFITTER_2P, ELECTRICIAN_LEAD) used by crew-aware labour takeoff"
-CST_LABOUR_HOURS,Labour Hours,NUMBER,Instance,<ALL>,CST_PROC,cb945ed3-ff4d-531c-89fa-c06f503ab46c,Estimated labour hours per element for install takeoff
+CST_LABOUR_HOURS,Labour Hours,NUMBER,Instance,<ALL>,CST_PROC,cb945ed3-ff4d-531c-89fa-c06f503ab46c,"DEPRECATED -- use CST_INSTALL_HRS (same meaning). Estimated labour hours per element for install takeoff; still read where CST_INSTALL_HRS has no value, never written."
 CST_LABOUR_RATE_GBP,Labour Rate Gbp,NUMBER,Instance,<ALL>,CST_PROC,5753b5aa-0005-4000-8000-000000000012,Labour rate in GBP per hour (override for UK projects)
 CST_LABOUR_RATE_UGX,Labour Rate Ugx,NUMBER,Instance,<ALL>,CST_PROC,3d736d48-cba0-570b-a521-844539bd998c,Labour rate in UGX per hour
 CST_LAST_COSTED_DATE,Last Costed Date,TEXT,Instance,<ALL>,PRJ_INFORMATION,91dba108-d8aa-4b40-862b-94fe107b6d43,Date of last BOQ cost calculation [ISO 19650-3:2020]
