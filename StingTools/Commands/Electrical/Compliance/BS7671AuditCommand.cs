@@ -95,7 +95,7 @@ namespace StingTools.Commands.Electrical.Compliance
             sb.AppendLine();
             sb.AppendLine($"✅ PASS         : {pass}");
             sb.AppendLine($"⚠ PASS_VIA_RCD : {viaRcd}  (Zs fails ADS but RCD makes it compliant per §411.4.5)");
-            sb.AppendLine($"❔ UNVERIFIED   : {unverified}  (Zs passes, but the adiabatic check needs a clearing time: no IEC 60898 band for this device, or the fault current is below its trip range)");
+            sb.AppendLine($"❔ UNVERIFIED   : {unverified}  (Zs passes, but the adiabatic check needs a clearing time: no IEC 60898 band for this device, or the fault current is below its trip range; or Zs itself is NOT CHECKED because the device's Ia comes from a time/current table, e.g. BS 88)");
             if (withAssumptions > 0) sb.AppendLine($"ℹ {withAssumptions} circuit(s) used ASSUMED inputs (see the Assumed inputs column) — verdicts on those rest on the assumptions.");
             sb.AppendLine($"❌ FAIL         : {fail}  (review CPC sizing, OCPD type, or apply RCD)");
 
@@ -242,8 +242,16 @@ namespace StingTools.Commands.Electrical.Compliance
                     ws.Cell(row, 4).Value = r.OcpdType ?? "";
                     ws.Cell(row, 5).Value = r.RatingA;
                     ws.Cell(row, 6).Value = r.ZsActualOhm;
-                    ws.Cell(row, 7).Value = r.ZsMaxOhm;
-                    ws.Cell(row, 8).Value = r.ZsMarginPct;
+                    if (r.ZsChecked)
+                    {
+                        ws.Cell(row, 7).Value = r.ZsMaxOhm;
+                        ws.Cell(row, 8).Value = r.ZsMarginPct;
+                    }
+                    else
+                    {
+                        ws.Cell(row, 7).Value = "NOT CHECKED";
+                        ws.Cell(row, 8).Value = "—";
+                    }
                     ws.Cell(row, 9).Value = r.ProspectivePscA / 1000.0;
                     if (double.IsNaN(r.ClearingTimeMs)) ws.Cell(row, 10).Value = "no band";
                     else ws.Cell(row, 10).Value = r.ClearingTimeMs;

@@ -117,14 +117,17 @@ namespace StingTools.Commands.Electrical.Compliance
             ws.Range(row, 1, row, 4).Style.Fill.BackgroundColor = XLColor.LightGray; row++;
             ws.Cell(row, 1).Value = "Zs computed";    ws.Cell(row, 2).Value = r.ZsActualOhm;
             ws.Cell(row, 3).Value = "Ω"; row++;
-            ws.Cell(row, 1).Value = "Zs max (Table 41.1)"; ws.Cell(row, 2).Value = r.ZsMaxOhm;
+            ws.Cell(row, 1).Value = "Zs max (Table 41.1)";
+            if (r.ZsChecked) ws.Cell(row, 2).Value = r.ZsMaxOhm; else ws.Cell(row, 2).Value = "NOT CHECKED";
             ws.Cell(row, 3).Value = "Ω"; row++;
-            ws.Cell(row, 1).Value = "Margin";         ws.Cell(row, 2).Value = r.ZsMarginPct;
+            ws.Cell(row, 1).Value = "Margin";
+            if (r.ZsChecked) ws.Cell(row, 2).Value = r.ZsMarginPct; else ws.Cell(row, 2).Value = "—";
             ws.Cell(row, 3).Value = "%"; row++;
             ws.Cell(row, 1).Value = "Result";
-            ws.Cell(row, 2).Value = r.ZsPasses ? "PASS" : "FAIL";
+            ws.Cell(row, 2).Value = !r.ZsChecked ? "NOT CHECKED" : r.ZsPasses ? "PASS" : "FAIL";
             ws.Cell(row, 2).Style.Font.Bold = true;
-            ws.Cell(row, 2).Style.Fill.BackgroundColor = r.ZsPasses ? XLColor.LightGreen : XLColor.LightSalmon;
+            ws.Cell(row, 2).Style.Fill.BackgroundColor = !r.ZsChecked ? XLColor.LightGray
+                : r.ZsPasses ? XLColor.LightGreen : XLColor.LightSalmon;
             row += 2;
 
             // Adiabatic
