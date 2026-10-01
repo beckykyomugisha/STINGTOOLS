@@ -707,8 +707,8 @@
     },
     "StingTools/Data/BLE_MATERIALS.csv": {
       "format": "csv-table",
-      "schemaVersion": 1,
-      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "schemaVersion": 2,
+      "description": "Material library. v2 (DSCH-16) appends MAT_COST_UNIT_OF_MEASURE as the LAST column, so positional readers keep their indexes. Filled by tools/fix_material_data.py --only uom (conservative rules; blank = not declared). Read by name by BOQ/Rates/MaterialCostUnits (the library rate's unit), MaterialRegistry, PlasteringEngine.",
       "columns": [
         {
           "name": "SOURCE_SHEET",
@@ -997,6 +997,20 @@
         {
           "name": "PROP_CARBON_BIOGENIC_KG_M3",
           "type": "num"
+        },
+        {
+          "name": "MAT_COST_UNIT_OF_MEASURE",
+          "type": "str",
+          "enum": [
+            "m",
+            "m2",
+            "m3",
+            "kg",
+            "tonne",
+            "L",
+            "each"
+          ],
+          "description": "Unit the material's MAT_COST_UNIT_* rate is quoted in. Blank when no rule could tell; a library rate with no unit is refused (D9)."
         }
       ]
     },
@@ -2170,8 +2184,8 @@
     },
     "StingTools/Data/MEP_MATERIALS.csv": {
       "format": "csv-table",
-      "schemaVersion": 1,
-      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "schemaVersion": 2,
+      "description": "Material library. v2 (DSCH-16) appends MAT_COST_UNIT_OF_MEASURE as the LAST column, so positional readers keep their indexes. Filled by tools/fix_material_data.py --only uom (conservative rules; blank = not declared). Read by name by BOQ/Rates/MaterialCostUnits (the library rate's unit), MaterialRegistry, PlasteringEngine.",
       "columns": [
         {
           "name": "SOURCE_SHEET",
@@ -2460,6 +2474,20 @@
         {
           "name": "PROP_CARBON_BIOGENIC_KG_M3",
           "type": "num"
+        },
+        {
+          "name": "MAT_COST_UNIT_OF_MEASURE",
+          "type": "str",
+          "enum": [
+            "m",
+            "m2",
+            "m3",
+            "kg",
+            "tonne",
+            "L",
+            "each"
+          ],
+          "description": "Unit the material's MAT_COST_UNIT_* rate is quoted in. Blank when no rule could tell; a library rate with no unit is refused (D9)."
         }
       ]
     },
