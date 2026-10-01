@@ -10,7 +10,7 @@ tables, and tagged categories with no family at all. TAGFAM-1 and TAGFAM-4 are i
 | ID | Status | Item |
 |---|---|---|
 | TAGFAM-2 | **PARTLY DONE — second run needed** | First Revit 2025 run (2026-09-30): the four specialist families were built with their types and parameter files; Curtain System was refused by Revit (declaration removed); nothing loaded because the Tag Families hub button was read-only (fixed, all 16 hub buttons). Still to see in Revit: a run with the fixed build that LOADS the families, and whether Revit accepts `STING - Temporary Structure Tag` and `STING - MEP Ancillary Framing Tag` (Generic Tag → their tag categories). Then *Propagate Universal* those two. |
-| TAGFAM-3 | **OPEN — manual** | Build the four specialist labels (`docs/SPECIALIST_TAG_BUILD_SHEET.md`), starting from the families TAGFAM-2 built; commit the finished `.rfa` files to `Data/TagFamilies`; then point the DT-2 drawing types (`arch-fire-strategy`, `arch-accessibility`, `arch-floor-finishes`) at them. The drawing-type test requires the `.rfa` to exist first, so the repoint comes after the files. |
+| TAGFAM-3 | **MOSTLY DONE 2026-10-01** | The four specialist labels are built (2.5 mm, left-aligned, every row per `docs/SPECIALIST_TAG_BUILD_SHEET.md`), committed to `Data/TagFamilies`, and the DT-2 drawing types point at them (`arch-fire-strategy` Doors/Rooms, `arch-accessibility` Doors, `arch-floor-finishes` Rooms). Still to do by hand: the 3.5 mm label copy tied to `TXT_3_5` and the door box. Not yet placed on a real drawing: tag a fire door and a room in a test project and read the tag. |
 | TAGFAM-4 | **DONE 2026-09-30** (see CHANGELOG) | Analytical Duct / Pipe Segments and Area Based Loads no longer tagged; `Wash` removed; `MEP Ancillary` renamed to Revit's `MEP Ancillary Framing`; Temporary Structures and MEP Ancillary Framing declared. Curtain Systems: Revit cannot make its tag family from the installed templates, so it stays tagged with nothing to display it. |
 | TAGFAM-5 | **OPEN — suspected, unverified** | `MigrateTagFamilies` and `Propagate Universal` build the arrowhead lookup from the PROJECT document (`BuildArrowheadLookup(doc)`) and set those ids on a FAMILY document's `LEADER_ARROWHEAD`. Element ids do not carry across documents, so the set may fail (logged, caught) or pick a different arrowhead. The declared-family step builds its lookup from the family document — and there, measured, the tag templates carry no "Arrow Open 30", so its types keep the template's arrowhead. |
 | TAGFAM-6 | **OPEN — performance** | `AddSharedParameters` took about 5 minutes per family in the 2026-09-30 run (199 parameters). Every creator path uses it, so a full 211-family build would take hours. Worth profiling before the next full rebuild. |
@@ -215,6 +215,11 @@ Left named rather than deleted so the requirement stays visible. Either author t
 families or drop the entries — but do not point them at a generic tag, which is the mistake
 this whole pass was undoing. `DrawingTypeTagFamilyTests.KnownAbsent` lists them; remove from
 there when the families land.
+
+*Update 2026-10-01: four of the six are closed — `STING_TAG_DDA`, `STING_TAG_FIRE_DOOR`,
+`STING_TAG_FINISH` and `STING_TAG_FIRE_COMPT` now resolve to the built Accessible Door, Fire
+Door, Room Finish and Fire Compartment tags (TAGFAM-3). `STING_TAG_MAT_CALLOUT` and
+`STING_TAG_SITE_CALLOUT` remain generic.*
 
 **DT-2 · Six drawing types asked for a SPECIALISED tag and now get a generic one.** The names
 `STING_TAG_DDA`, `STING_TAG_FIRE_DOOR`, `STING_TAG_FINISH`, `STING_TAG_FIRE_COMPT`,
