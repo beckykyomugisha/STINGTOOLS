@@ -33,12 +33,26 @@ namespace StingTools.Tags.Tests
 
         /// <summary>
         /// Entries whose direction was changed ON PURPOSE after the migration, so it
-        /// no longer matches what the old wording implied. Empty: the migration
-        /// changed no direction. Adding a name here is the deliberate act of changing
-        /// a check - say why beside it.
+        /// may no longer match what the old wording implied. The migration itself
+        /// changed none. Adding a name here is the deliberate act of changing a check
+        /// - say why beside it.
         /// </summary>
-        private static readonly HashSet<string> DeliberateDepartures =
-            new HashSet<string>(StringComparer.Ordinal);
+        private static readonly Dictionary<string, string> DeliberateDepartures =
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                // A minimum bar diameter; the old case-sensitive match missed "Minimum".
+                ["WARN_STR_REBAR_MIN_DIA"] = "min",
+                // Rw of a door is a minimum; message and direction had been copied from
+                // the duct sound-level limit and are now its own.
+                ["WARN_BLE_DOOR_ACOUSTIC"] = "min",
+                // An access clearance is a minimum space.
+                ["WARN_PLM_FIXTURE_ACCESS"] = "min",
+                // A provision count is a minimum.
+                ["WARN_RGL_ACCESSIBLE_WC"] = "min",
+                // The value is the board's rated short-circuit capacity, which must be
+                // at least the fault current (BS 7671 Reg 434.5.1).
+                ["WARN_ELC_PNL_SHORT_CIRCUIT"] = "min",
+            };
 
         [Fact]
         public void EveryWarningCarriesADirectionAndAMessage()
@@ -64,7 +78,11 @@ namespace StingTools.Tags.Tests
             foreach (var w in warnings)
             {
                 string name = (string)w["param_name"];
-                if (DeliberateDepartures.Contains(name)) continue;
+                if (DeliberateDepartures.TryGetValue(name, out var meant))
+                {
+                    Assert.True((string)w["direction"] == meant, $"{name}: direction is {(string)w["direction"]}, decided {meant}");
+                    continue;
+                }
                 Assert.True(WarningThresholdRule.TryParseDirection((string)w["direction"], out var now), name);
                 var before = WarningThresholdRule.LegacyDirectionFromText((string)w["message"]);
                 if (now != before) changed.Add($"{name}: was {before}, now {now}");
@@ -91,6 +109,38 @@ namespace StingTools.Tags.Tests
             Assert.Equal("[!LOW: Ceiling height minimum — 2600 mm exceeds 2400 mm]",
                 WarningThresholdRule.Evaluate(WarningDirection.Max, "LOW",
                     "Ceiling height minimum", "2600", "2400", "mm"));
+        }
+
+        [Theory]
+        [InlineData("3", "12", "25")]
+        [InlineData("1", "8", "12.5")]
+        [InlineData("0", "12", "0")]
+        [InlineData("3", "0", null)]
+        [InlineData("", "12", null)]
+        [InlineData("3", "n/a", null)]
+        public void SpareWaysAreAPercentageOfTheBoard(string part, string whole, string expected)
+            => Assert.Equal(expected, WarningThresholdRule.PercentOf(part, whole));
+
+        [Fact]
+        public void EveryWarningDataBranchReturnsSomething()
+        {
+            // A branch of GetWarningDataValue that lost its return (ecf1e8f21) made the
+            // next if its body, and two warnings - spare ways and pipe gradient - went
+            // silent for six months with nothing failing. Every `if (wp.Contains(...))`
+            // must be followed by a return or a block, never by another if.
+            string src = File.ReadAllText(Path.Combine(RepoRoot().FullName,
+                "StingTools", "Core", "TagConfig.Tag7.cs"));
+            int start = src.IndexOf("private static string GetWarningDataValue(", StringComparison.Ordinal);
+            Assert.True(start > 0, "GetWarningDataValue not found");
+            int end = src.IndexOf("// Generic fallback", start, StringComparison.Ordinal);
+            var lines = src.Substring(start, end - start).Split('\n')
+                .Select(l => l.Trim()).Where(l => l.Length > 0 && !l.StartsWith("//")).ToList();
+            var bad = new List<string>();
+            for (int i = 0; i < lines.Count - 1; i++)
+                if (lines[i].StartsWith("if (wp.Contains(") && !lines[i].EndsWith(";")
+                    && !(lines[i + 1].StartsWith("return") || lines[i + 1] == "{"))
+                    bad.Add(lines[i]);
+            Assert.True(bad.Count == 0, "branches without a return: " + string.Join(" | ", bad));
         }
 
         [Fact]

@@ -2267,6 +2267,9 @@ namespace StingTools.Core
             // Carbon footprint
             if (wp.Contains("CARBON"))
                 return ParameterHelpers.GetValueText(el, "PER_SUST_CARBON_FOOTPRINT_KG");
+            // Door sound insulation Rw (dB) - the value BOQParagraphEnhancer reads too.
+            if (wp.Contains("DOOR_ACOUSTIC"))
+                return ParameterHelpers.GetValueText(el, "BLE_DOOR_ACOUSTIC_RATING_DB");
             // Acoustic ratings
             if (wp.Contains("ACOUSTIC") && wp.Contains("STC"))
                 return ParameterHelpers.GetValueText(el, "PER_ACOUSTIC_WALL_STC");
@@ -2275,11 +2278,18 @@ namespace StingTools.Core
             // ELC efficiency
             if (wp.Contains("EFF_RATIO"))
                 return ParameterHelpers.GetValueText(el, "HVC_EFF_RATIO_NR");
-            // Short circuit
+            // Short circuit: the board's rated short-circuit capacity (kA). The
+            // board's prospective fault current is ELC_PNL_SHORT_CIRCUIT_RATING_KA.
             if (wp.Contains("SHORT_CIRCUIT"))
                 return ParameterHelpers.GetValueText(el, "ELC_PNL_SHORT_CIRCUIT_KA");
-            // Spare ways
+            // Spare ways, as a percentage of the board's ways. This branch lost its
+            // return in ecf1e8f21 (ELC_PNL_SPARE_WAYS_PCT deleted as dead), which
+            // made the NEXT if its body: from then until DSCH-47 neither the spare-ways
+            // nor the pipe-gradient warning was ever evaluated.
             if (wp.Contains("SPARE_WAYS"))
+                return WarningThresholdRule.PercentOf(
+                    ParameterHelpers.GetValueText(el, "ELC_PNL_SPARE_WAYS_NR"),
+                    ParameterHelpers.GetValueText(el, "ELC_PNL_NUM_OF_WAYS_NR"));
             // Pipe gradient
             if (wp.Contains("PIPE_GRADIENT"))
                 return ParameterHelpers.GetValueText(el, "PLM_PIPE_GRADIENT_PCT");

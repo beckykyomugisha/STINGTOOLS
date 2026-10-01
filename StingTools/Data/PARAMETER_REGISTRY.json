@@ -33724,14 +33724,14 @@
       "param_name": "WARN_BLE_DOOR_ACOUSTIC",
       "guid": "6779ce97-f00a-5e27-beb3-416149963133",
       "description": "Warning: Duct-borne sound level limit [MEDIUM]",
-      "message": "Duct-borne sound level limit",
-      "direction": "max",
+      "message": "Door sound insulation (Rw) minimum",
+      "direction": "min",
       "threshold": "35",
       "unit": "dB",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "universal",
-      "verify": "Message and direction were copied from the duct sound-level warning (max 35 dB). A door acoustic rating (Rw / STC) is normally a minimum. Confirm what value the check reads, then fix message and direction together."
+      "verify": "Message and direction corrected (they had been copied from the duct sound-level warning): a door's weighted sound reduction index Rw is a minimum. The 35 dB figure came with the copied entry and is not sourced; confirm the door Rw requirement for the room type (e.g. the project acoustic brief, BB93 or HTM 08-01)."
     },
     {
       "param_name": "WARN_BLE_DOOR_HEIGHT_MM",
@@ -34032,7 +34032,7 @@
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal",
-      "verify": "Direction is max (warns above 16 A). A connector rating is normally checked as a minimum against the load. Confirm which value is read."
+      "verify": "Direction left max: whether 16 A is a ceiling (connector over a socket-outlet rating) or a floor (connector rated at least the circuit current) cannot be told from the entry, and nothing feeds the check - GetWarningDataValue has no mapping, so it never evaluates. Decide what it checks first."
     },
     {
       "param_name": "WARN_ELC_CTR_FILL_RATIO",
@@ -34087,13 +34087,13 @@
       "guid": "fec31a6f-f79e-5631-99b2-753abe18b18c",
       "description": "Warning: Panel short circuit rating check [CRITICAL]",
       "message": "Panel short circuit rating check",
-      "direction": "max",
+      "direction": "min",
       "threshold": "25",
       "unit": "kA",
       "severity": "CRITICAL",
       "param_type": "TEXT",
       "binding": "universal",
-      "verify": "Direction is max (warns above 25 kA). If the checked value is the board's breaking capacity it should be a minimum (capacity >= PSC); if it is the prospective fault current, max is right. Confirm which value GetWarningDataValue reads."
+      "verify": "Direction is min. The value compared is ELC_PNL_SHORT_CIRCUIT_KA, the board's rated short-circuit capacity (the TAG7 panel paragraph prints it as the fault current the board is rated to withstand); a device's breaking capacity must be not less than the prospective fault current at its point of installation (BS 7671 Reg 434.5.1). The fixed 25 kA stands in for that fault current and is unsourced: the real comparison is against the board's own ELC_PNL_SHORT_CIRCUIT_RATING_KA (written by Fault Current), which Panel_ComplianceCheck already does per circuit."
     },
     {
       "param_name": "WARN_ELC_PNL_SPARE_WAYS",
@@ -34461,13 +34461,13 @@
       "guid": "5185c7a4-41de-51a6-8687-f9034dd632eb",
       "description": "Warning: Plumbing fixture access clearance [MEDIUM]",
       "message": "Plumbing fixture access clearance",
-      "direction": "max",
+      "direction": "min",
       "threshold": "450",
       "unit": "mm",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "universal",
-      "verify": "Direction is max (warns above 450 mm), but an access clearance is normally a minimum. Confirm with the public-health lead."
+      "verify": "Direction is min (an access clearance is a minimum space). Nothing feeds this check - GetWarningDataValue has no mapping - so it never evaluates. The 450 mm figure is unsourced; confirm against BS 6465-2 activity spaces."
     },
     {
       "param_name": "WARN_PLM_FIXTURE_FLOW",
@@ -34570,13 +34570,13 @@
       "guid": "259a2e84-0ea7-578c-aedf-c80013f18db4",
       "description": "Warning: Accessible WC provision compliance [CRITICAL]",
       "message": "Accessible WC provision compliance",
-      "direction": "max",
+      "direction": "min",
       "threshold": "1",
       "unit": "per floor",
       "severity": "CRITICAL",
       "param_type": "TEXT",
       "binding": "universal",
-      "verify": "Direction is max (warns above 1 per floor), but a provision count is normally a minimum. Confirm against the accessibility brief."
+      "verify": "Direction is min (a provision count is a minimum). This is a per-storey count, not an element value, and GetWarningDataValue has no mapping for it, so it never evaluates. Confirm the requirement against Approved Document M Vol 2 (WC provision) and decide where a per-storey count would be read from."
     },
     {
       "param_name": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
@@ -34637,7 +34637,7 @@
       "severity": "CRITICAL",
       "param_type": "TEXT",
       "binding": "universal",
-      "verify": "Threshold 250 with unit \"L/value\": if the value is the span/deflection ratio, a smaller ratio is worse and the check should be a min. Confirm the value read."
+      "verify": "Direction left max. It reads STR_BEAM_DEFLECTION, which nothing writes. If that holds a deflection (mm), max is right but 250 is not a deflection; if it holds the span/deflection ratio (unit \"L/value\"), a smaller ratio is worse and the check is a min. Decide what the parameter holds, then fix unit, threshold and direction together."
     },
     {
       "param_name": "WARN_STR_BEAM_SPAN_DEPTH",
@@ -34740,13 +34740,13 @@
       "guid": "e5916ade-77de-5b85-ad9a-2649c98240bc",
       "description": "Warning: Minimum rebar diameter [MEDIUM]",
       "message": "Minimum rebar diameter",
-      "direction": "max",
+      "direction": "min",
       "threshold": "10",
       "unit": "mm",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "universal",
-      "verify": "Direction is max (warns ABOVE 10 mm) because the old text check was case-sensitive and missed \"Minimum\"; a minimum bar diameter reads as a min. Confirm with the structural lead before changing."
+      "verify": "Direction is min (a minimum bar diameter). Two things still open: (1) nothing feeds this check - GetWarningDataValue has no mapping for it, and STR_REBAR_SIZE_MM holds an arrangement such as \"4H16\", not a diameter - so it never evaluates; (2) the 10 mm figure is unsourced: BS EN 1992-1-1 9.5.2(1) gives a recommended minimum longitudinal bar diameter for columns, varied by National Annex - confirm the value and the member type it applies to against the NA in use."
     },
     {
       "param_name": "WARN_STR_STIFFENER_WELD",
