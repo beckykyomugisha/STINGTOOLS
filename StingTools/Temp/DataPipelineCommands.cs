@@ -448,6 +448,12 @@ namespace StingTools.Temp
                     colCount = arr.Count;
                 else if (columns is JObject obj)
                     colCount = obj.Count;
+                else
+                    // DSCH round 5: MATERIAL_SCHEMA.json declares required_columns /
+                    // optional_columns, never "columns" or "fields", so this always
+                    // reported "0 columns defined" as a failure.
+                    colCount = ((schema["required_columns"] as JArray)?.Count ?? 0)
+                             + ((schema["optional_columns"] as JArray)?.Count ?? 0);
 
                 results.Add(new ValidationResult("Schema columns", "MODERATE",
                     colCount >= 20,
@@ -835,6 +841,18 @@ namespace StingTools.Temp
                     if (prop.Value["required"]?.Value<bool>() == true)
                         requiredColumns.Add(prop.Name);
                 }
+            }
+            else
+            {
+                // DSCH round 5: the shipped schema's own shape. Without this branch
+                // both sets stayed empty and the validation checked nothing.
+                foreach (var t in schema["required_columns"] as JArray ?? new JArray())
+                {
+                    expectedColumns.Add(t.ToString());
+                    requiredColumns.Add(t.ToString());
+                }
+                foreach (var t in schema["optional_columns"] as JArray ?? new JArray())
+                    expectedColumns.Add(t.ToString());
             }
 
             report.AppendLine($"Schema: {expectedColumns.Count} columns, {requiredColumns.Count} required");
