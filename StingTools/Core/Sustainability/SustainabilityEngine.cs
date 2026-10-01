@@ -837,7 +837,7 @@ namespace StingTools.Core.Sustainability
             // WS A4 / D3 — read real low-flow fixture flows from OST_PlumbingFixtures.
             // Only fall back to the 25%-below-baseline indicative default when the model
             // carries no fixture flow data (the IsIndicativeDefault flag stays honest).
-            var modelFlows = ReadDesignFixtureFlows(doc, out string flowNote);
+            var modelFlows = ReadDesignFixtureFlows(doc, baselineFlows, out string flowNote);
             bool indicative = modelFlows == null;
             var designFlows = modelFlows ?? new FixtureFlows
             {
@@ -871,14 +871,6 @@ namespace StingTools.Core.Sustainability
             return w;
         }
 
-        /// <summary>Read low-flow fixture flows from the model (WS A4 / D3). Scans
-        /// plumbing fixtures, classifies each (WC / urinal / basin / shower / kitchen),
-        /// reads an explicitly-stamped flow param when present + in-band, else the
-        /// largest supply MEP-connector flow (taps/showers), else parses the rating off
-        /// the fixture TYPE / family name (e.g. "Basin Mixer 5 L/min"), and aggregates
-        /// a median per kind. Returns null only when NO fixture yielded a rating (caller
-        /// then uses the indicative default). <paramref name="note"/> records which kinds
-        /// were read.</summary>
         // ── SUS-1 — EDGE-App design measures ─────────────────────────────────
         /// <summary>Collect the EDGE-App Design-tab measures from the data the engine
         /// already computed: envelope U/SHGC (ConstructionProfile), glazing/wall/roof
@@ -942,7 +934,7 @@ namespace StingTools.Core.Sustainability
             try
             {
                 var baseFlows = FixtureFlows.FromBaseline(baseline);
-                var modelFlows = ReadDesignFixtureFlows(doc, out _);
+                var modelFlows = ReadDesignFixtureFlows(doc, baseFlows, out _);
                 m.FixtureFlowsFromModel = modelFlows != null;
                 var d = modelFlows ?? new FixtureFlows
                 {
@@ -977,7 +969,17 @@ namespace StingTools.Core.Sustainability
         private static void AddTo(Dictionary<string, double> map, string k, double v)
             => map[k] = (map.TryGetValue(k, out var c) ? c : 0) + v;
 
-        private static FixtureFlows ReadDesignFixtureFlows(Document doc, out string note)
+        /// <summary>Read low-flow fixture flows from the model (WS A4 / D3). Scans
+        /// plumbing fixtures, classifies each (FixtureFlowReader.ClassifyKind), reads an
+        /// explicitly-stamped flow param when present + in-band, else the largest supply
+        /// MEP-connector flow (taps/showers), else parses the rating off the fixture TYPE /
+        /// family name (e.g. "Basin Mixer 5 L/min"), and builds the count-weighted mean
+        /// per kind with WaterFixtureAggregator.BuildOrNull against
+        /// <paramref name="baselineFlows"/> - a kind with no rating keeps the baseline
+        /// flow and claims no saving. Returns null only when NO fixture yielded a rating
+        /// (caller then uses the labelled indicative default). <paramref name="note"/>
+        /// says which kinds were read and which kept the baseline.</summary>
+        private static FixtureFlows ReadDesignFixtureFlows(Document doc, FixtureFlows baselineFlows, out string note)
         {
             note = null;
             try
@@ -988,7 +990,11 @@ namespace StingTools.Core.Sustainability
                     .ToList();
                 if (fixtures.Count == 0) return null;
 
-                var byKind = new Dictionary<FixtureKind, List<double>>();
+                // DSCH-46b - one aggregation: WaterFixtureAggregator, built against
+                // the BASELINE, so a kind with no rating claims no saving. This used
+                // to build its own FixtureFlows() and leave an unrated kind on the
+                // class low-flow default (6/4/8/10/8) - a saving nobody modelled.
+                var agg = new WaterFixtureAggregator();
                 foreach (var el in fixtures)
                 {
                     string name = FixtureNameText(doc, el);
@@ -1006,25 +1012,11 @@ namespace StingTools.Core.Sustainability
                     }
                     if (!v.HasValue) v = FixtureFlowReader.ParseFlow(kind, name);
 
-                    if (v.HasValue && v.Value > 0)
-                    {
-                        if (!byKind.TryGetValue(kind, out var list)) { list = new List<double>(); byKind[kind] = list; }
-                        list.Add(v.Value);
-                    }
+                    if (v.HasValue && v.Value > 0) agg.Add(kind, v.Value);
                 }
-                if (byKind.Count == 0) return null;
-
-                var f = new FixtureFlows();   // class low-flow defaults 6/4/8/10/8
-                var got = new List<string>();
-                if (TryMedian(byKind, FixtureKind.Wc, out var wc))        { f.WcLpf = wc;          got.Add($"WC {wc:0.#} L/flush"); }
-                if (TryMedian(byKind, FixtureKind.Urinal, out var ur))    { f.UrinalLpf = ur;      got.Add($"urinal {ur:0.#} L/flush"); }
-                if (TryMedian(byKind, FixtureKind.Basin, out var ba))     { f.BasinTapLpm = ba;    got.Add($"basin tap {ba:0.#} L/min"); }
-                if (TryMedian(byKind, FixtureKind.Shower, out var sh))    { f.ShowerLpm = sh;      got.Add($"shower {sh:0.#} L/min"); }
-                if (TryMedian(byKind, FixtureKind.KitchenTap, out var kt)){ f.KitchenTapLpm = kt;  got.Add($"kitchen tap {kt:0.#} L/min"); }
-                if (got.Count == 0) return null;
-
-                note = "Design fixture flows read from the model: " + string.Join(", ", got) +
-                       " (kinds with no rating in the schedule kept the standard low-flow default).";
+                var f = agg.BuildOrNull(baselineFlows);
+                if (f == null) return null;
+                note = agg.Summary(f);
                 return f;
             }
             catch (Exception ex) { StingLog.Warn($"Sustain ReadDesignFixtureFlows: {ex.Message}"); note = null; return null; }
@@ -1088,16 +1080,6 @@ namespace StingTools.Core.Sustainability
                 return maxLs * 60.0;   // L/s → L/min
             }
             catch { return 0; }
-        }
-
-        private static bool TryMedian(Dictionary<FixtureKind, List<double>> byKind, FixtureKind kind, out double median)
-        {
-            median = 0;
-            if (!byKind.TryGetValue(kind, out var list) || list.Count == 0) return false;
-            var sorted = list.OrderBy(x => x).ToList();
-            int n = sorted.Count;
-            median = (n % 2 == 1) ? sorted[n / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0;
-            return true;
         }
 
         /// <summary>Combined searchable name text for a fixture: family + type +

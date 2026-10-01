@@ -162,7 +162,7 @@ namespace StingTools.Core.Drawing
                 // Carry every field not explicitly merged below. Without
                 // this the fold dropped TitleBlockParams,
                 // TitleBlockParamsBySymbol, TitleBlockSymbolType,
-                // IsoNaming, System, MaterialPack, OptionScope,
+                // IsoNaming, System, OptionScope,
                 // ProductionRules, PackageId, TitleBlockVariantRules and
                 // TagTextSizeMm — including the leaf's own values, since
                 // the leaf is just the last link of this same chain. A
