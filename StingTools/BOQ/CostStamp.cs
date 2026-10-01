@@ -182,7 +182,7 @@ namespace StingTools.BOQ
                     // registry with no CSV/COBie rates. Now CST_MODELED_TOTAL_UGX uses
                     // the same rate source as the bill.
                     var rateRegistry = RateProviderRegistry.Get(doc,
-                        BOQCostManager.LoadCsvRates(),
+                        BOQCostManager.LoadCsvRates(doc),
                         BOQCostManager.LoadCobieCostCodes(),
                         ugxPerUsd, ugxPerGbp);
                     var req = new RateRequest

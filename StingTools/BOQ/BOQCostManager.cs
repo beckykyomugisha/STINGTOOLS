@@ -568,7 +568,7 @@ namespace StingTools.BOQ
             //   (a) project cost_rates_5d.csv  — highest priority
             //   (b) COBie type map             — category → cost-rate code
             //   (c) Scheduling4DEngine defaults — lowest priority
-            Dictionary<string, (double rate, string unit)> csvRates = LoadCsvRates();
+            Dictionary<string, (double rate, string unit)> csvRates = LoadCsvRates(doc);
             Dictionary<string, string> cobieCostCodes = LoadCobieCostCodes();
 
             // ── STEP 3: Embodied carbon factors ──────────────────────────
@@ -1059,7 +1059,7 @@ namespace StingTools.BOQ
                 try { BoqEpdStore.Invalidate(doc); } catch (Exception ex) { StingLog.Warn($"ElementCostContext EPD: {ex.Message}"); }
                 return new ElementCostContext
                 {
-                    CsvRates = LoadCsvRates(),
+                    CsvRates = LoadCsvRates(doc),
                     CobieCostCodes = LoadCobieCostCodes(),
                     Std = MeasurementStandardRegistry.Get(stdId)
                 };
@@ -2785,7 +2785,7 @@ namespace StingTools.BOQ
             if (doc == null || elementIds == null) return outcome;
             try
             {
-                var csvRates = LoadCsvRates();
+                var csvRates = LoadCsvRates(doc);
                 var cobie = LoadCobieCostCodes();
                 double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
                 double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
@@ -3423,9 +3423,30 @@ namespace StingTools.BOQ
         }
 
         internal static Dictionary<string, (double rate, string unit)> LoadCsvRates()
+            => LoadCsvRates(null);
+
+        /// <summary>
+        /// DSCH-1: the cost-rate file for this project. The Cost File Browser saves
+        /// an override path per project (_BIM_COORD/cost_rates_override.json); it
+        /// wins when it names a file that exists. Otherwise the corporate card
+        /// (TagConfig.CostRatesFileName, default cost_rates_5d.csv). Every reader
+        /// that has a Document asks this, so the BOQ, the 5D trace and the stamp
+        /// price from the same file.
+        /// </summary>
+        internal static string ResolveCostRatesPath(Document doc)
         {
-            string costFile = TagConfig.CostRatesFileName ?? "cost_rates_5d.csv";
-            string path = StingToolsApp.FindDataFile(costFile);
+            try
+            {
+                string ov = doc != null ? StingTools.BIMManager.CostFileBrowserCommand.LoadOverridePath(doc) : null;
+                if (!string.IsNullOrEmpty(ov) && File.Exists(ov)) return ov;
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveCostRatesPath: override unreadable ({ex.Message}); using the corporate card."); }
+            return StingToolsApp.FindDataFile(TagConfig.CostRatesFileName ?? "cost_rates_5d.csv");
+        }
+
+        internal static Dictionary<string, (double rate, string unit)> LoadCsvRates(Document doc)
+        {
+            string path = ResolveCostRatesPath(doc);
             long ticks = SafeWriteTicks(path);
             lock (_rateMemoLock)
             {
@@ -3433,7 +3454,7 @@ namespace StingTools.BOQ
                     && m.data is Dictionary<string, (double rate, string unit)> cached)
                     return cached;
             }
-            var loaded = LoadCsvRatesUncached();
+            var loaded = LoadCsvRatesUncached(path);
             lock (_rateMemoLock) { _csvRatesMemo = (path, ticks, loaded.Count, loaded); }
             return loaded;
         }
@@ -3444,11 +3465,10 @@ namespace StingTools.BOQ
             catch { return 0; }
         }
 
-        private static Dictionary<string, (double rate, string unit)> LoadCsvRatesUncached()
+        private static Dictionary<string, (double rate, string unit)> LoadCsvRatesUncached(string path)
         {
             var rates = new Dictionary<string, (double rate, string unit)>(StringComparer.OrdinalIgnoreCase);
-            string costFile = TagConfig.CostRatesFileName ?? "cost_rates_5d.csv";
-            string path = StingToolsApp.FindDataFile(costFile);
+            string costFile = string.IsNullOrEmpty(path) ? (TagConfig.CostRatesFileName ?? "cost_rates_5d.csv") : Path.GetFileName(path);
             if (string.IsNullOrEmpty(path) || !File.Exists(path)) return rates;
             try
             {

@@ -2634,7 +2634,7 @@ namespace StingTools.BIMManager
             // category map only fills the fallback for as-yet-uncosted types.
             // UGX matches the UGX-named parameter (the old reader mislabelled a
             // USD column as the UGX replacement cost).
-            var costRateByCategory = StingTools.BOQ.BOQCostManager.LoadCsvRates();
+            var costRateByCategory = StingTools.BOQ.BOQCostManager.LoadCsvRates(doc);
             StingLog.Info($"IG-01: ReplacementCost fallback from {costRateByCategory.Count} canonical cost rates");
 
             var types = new List<Dictionary<string, string>>();

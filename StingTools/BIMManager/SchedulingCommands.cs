@@ -2263,7 +2263,7 @@ namespace StingTools.BIMManager
                 var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
                 // Load cost rates from CSV
-                var costRates = LoadCostRates();
+                var costRates = LoadCostRates(doc);
                 if (costRates.Count == 0)
                 {
                     TaskDialog.Show("5D Cost Trace", "No cost rates found. Check cost_rates_5d.csv.");
@@ -2404,12 +2404,13 @@ namespace StingTools.BIMManager
             public string Description { get; set; } = "";
         }
 
-        private Dictionary<string, CostRateEntry> LoadCostRates()
+        private Dictionary<string, CostRateEntry> LoadCostRates(Document doc)
         {
             var rates = new Dictionary<string, CostRateEntry>(StringComparer.OrdinalIgnoreCase);
-            // Phase 40: Use configurable cost rates filename from project_config.json
-            string costFile = Core.TagConfig.CostRatesFileName ?? "cost_rates_5d.csv";
-            string path = StingToolsApp.FindDataFile(costFile);
+            // DSCH-1: the same file the BOQ prices from (the project's Cost File
+            // Browser override, else the corporate card).
+            string path = StingTools.BOQ.BOQCostManager.ResolveCostRatesPath(doc);
+            string costFile = string.IsNullOrEmpty(path) ? "cost_rates_5d.csv" : System.IO.Path.GetFileName(path);
             if (string.IsNullOrEmpty(path)) return rates;
 
             try
@@ -2499,7 +2500,8 @@ namespace StingTools.BIMManager
             UI.BIMCoordinationCenter.CurrentInstance?.Show4DInlineResult("Configure Cost File",
                 // DSCH round 7: this described a file in the model folder (FindDataFile
                 // never looks there) and a column layout no reader understands.
-                "5D Cost Rate File: data/cost_rates_5d.csv in the plugin folder\n" +
+                "5D Cost Rate File: this project's Cost File Browser override if set,\n" +
+                "else data/cost_rates_5d.csv in the plugin folder\n" +
                 "(or the file named by CostRatesFileName in project_config.json).\n" +
                 "Columns, by name: Category, PROD, MAT_CODE, MAT_DISCIPLINE, Unit_Rate_USD,\n" +
                 "Unit_Rate_UGX, Unit, Description - see tools/data_schemas.json.\n" +

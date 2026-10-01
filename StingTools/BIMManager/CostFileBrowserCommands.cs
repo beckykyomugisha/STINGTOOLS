@@ -92,14 +92,13 @@ namespace StingTools.BIMManager
                 StingLog.Info($"CostFileBrowser: override set to '{chosenPath}'");
                 TaskDialog.Show("STING — Cost File Browser",
                     $"Cost rate file override saved.\n\nFile: {chosenPath}\n\n" +
-                    // DSCH-1: no rate loader reads cost_rates_override.json yet
-                    // (BOQCostManager.LoadCsvRates resolves TagConfig.CostRatesFileName
-                    // and has no document). This used to say "All 5D commands will use
-                    // this file", which nothing made true. ROADMAP DSCH-1.
-                    "The path is recorded for this project. Pricing does NOT read it yet:\n" +
-                    "the BOQ and 5D commands still use data/cost_rates_5d.csv (or the file\n" +
-                    "named by CostRatesFileName in project_config.json). To price from this\n" +
-                    "file today, copy it over that file. Use 'Clear override' to remove it.");
+                    // DSCH-1: BOQCostManager.ResolveCostRatesPath(doc) reads this
+                    // override, so the BOQ, the cost stamp, the 5D Cost Trace, COBie
+                    // replacement cost and the plumbing BOQ all price from it.
+                    "The BOQ, cost stamps and the 5D Cost Trace for this project now price\n" +
+                    "from this file instead of data/cost_rates_5d.csv. If the file is moved\n" +
+                    "or deleted, pricing falls back to the corporate card.\n" +
+                    "Use 'Clear override' to revert.");
 
                 return Result.Succeeded;
             }
