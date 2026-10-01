@@ -747,6 +747,33 @@ public partial class AccServerIntegrationTests
         Assert.NotNull(e2);
     }
 
+    // H-7: choosing a hub stored no region unless the caller sent one, so a non-US hub's Issues
+    // and webhook calls went without x-ads-region. It is now read from the hub itself.
+    [Fact]
+    public async Task Choosing_a_hub_takes_its_region_from_the_hub_and_a_failed_lookup_saves_nothing()
+    {
+        var fx = new Fx();
+        await fx.SeedAsync(openIssues: 0);
+        fx.Http.Respond = (req, _) => req.RequestUri!.AbsolutePath.EndsWith("/project/v1/hubs")
+            ? Json(HttpStatusCode.OK, new { data = new[] { new { id = "b.hub-emea", attributes = new { name = "KUT", region = "EMEA" } } }, links = new { } })
+            : new HttpResponseMessage(HttpStatusCode.NotFound);
+        using (var db = fx.Db())
+            Assert.Null(await fx.Service(db).SaveSelectionAsync(fx.ProjectId, "b.hub-emea", "b.acc-proj", null, null, default));
+        var cfg = JObject.Parse((await fx.ReadConnAsync()).ConfigJson!);
+        Assert.Equal("EMEA", (string?)cfg[AccSyncService.KeyRegion]);
+
+        var fx2 = new Fx();
+        await fx2.SeedAsync(openIssues: 0);
+        fx2.Http.Respond = (_, _) => new HttpResponseMessage(HttpStatusCode.InternalServerError);
+        string? err;
+        using (var db = fx2.Db())
+            err = await fx2.Service(db).SaveSelectionAsync(fx2.ProjectId, "b.hub-emea", "b.other", null, null, default);
+        Assert.Contains("Nothing was saved", err);
+        var c2 = await fx2.ReadConnAsync();
+        Assert.NotEqual("other", c2.ExternalProjectId);
+        Assert.Null(JObject.Parse(c2.ConfigJson!)[AccSyncService.KeyHubId]);
+    }
+
     // H-2: the PUT used to REPLACE the whole object, so turning SSA on dropped the hub, region and
     // subtype, and a later PUT without accAuthMode silently turned SSA off.
     [Fact]

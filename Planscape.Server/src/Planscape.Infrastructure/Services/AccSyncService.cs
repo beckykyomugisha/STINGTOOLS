@@ -274,11 +274,32 @@ public class AccSyncService
     /// Store the chosen hub / ACC project / region / subtype on the connection. Any
     /// argument left null is left unchanged. User-owned config keys only.
     /// </summary>
+    /// <summary>x-ads-region values (APS acc-regions page).</summary>
+    internal static readonly IReadOnlyList<string> KnownRegions = new[] { "US", "CAN", "EMEA", "GBR", "DEU", "IND", "JPN", "AUS" };
+
     public async Task<string?> SaveSelectionAsync(Guid projectId, string? hubId, string? accProjectId, string? region, string? subtypeId, CancellationToken ct)
     {
         var conn = await FindActiveAsync(projectId, ct);
         if (conn == null) return "No active ACC connection for this project.";
         if (!TryParseConfig(conn, out var cfg, out var cfgErr)) return cfgErr;
+
+        // H-7: a hub chosen without a region used to store none, so every server Issues and
+        // webhooks call for a non-US hub went without x-ads-region. Take it from the hub's own
+        // Data Management record (attributes.region) - before saving anything, so a lookup that
+        // fails refuses the whole selection rather than leaving it half-applied.
+        if (hubId != null && region == null && string.IsNullOrWhiteSpace((string?)cfg[KeyRegion]))
+        {
+            var (hubs, hubErr) = await ListHubsAsync(projectId, ct);
+            if (hubs == null)
+                return $"The hub's region could not be read ({hubErr}). Nothing was saved; send \"region\" with the selection.";
+            string want = ApsEndpoints.StripHubPrefix(hubId.Trim());
+            var hub = hubs.FirstOrDefault(h => string.Equals(ApsEndpoints.StripHubPrefix(h.Id), want, StringComparison.OrdinalIgnoreCase));
+            if (hub == null)
+                return $"Hub {hubId} is not among the hubs this ACC grant can see. Nothing was saved.";
+            string r = (hub.Region ?? "").Trim().ToUpperInvariant();
+            if (KnownRegions.Contains(r)) region = r;
+            else _logger.LogWarning("ACC hub {Hub} reports region '{Region}', not a known x-ads-region value; none stored.", hubId, hub.Region);
+        }
         if (accProjectId != null) conn.ExternalProjectId = ApsEndpoints.StripHubPrefix(accProjectId.Trim());
         if (hubId != null) cfg[KeyHubId] = hubId.Trim();
         if (region != null) cfg[KeyRegion] = region.Trim().ToUpperInvariant();
