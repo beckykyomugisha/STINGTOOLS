@@ -47,6 +47,8 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
     <!-- Same version as the main plugin to avoid transitive mismatch. -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <!-- DTW-179..183: the Drawing Type Excel round-trip (Revit-free half) is exercised end to end. -->
+    <PackageReference Include="ClosedXML" Version="0.104.2" />
   </ItemGroup>
 
   <ItemGroup>
@@ -274,6 +276,7 @@
     <Compile Include="..\StingTools\Core\Drawing\DrawingRoutingMatcher.cs" Link="Core\Drawing\DrawingRoutingMatcher.cs" />
     <Compile Include="..\StingTools\Core\Drawing\DrawingOverrideSource.cs" Link="Core\Drawing\DrawingOverrideSource.cs" />
     <Compile Include="..\StingTools\Core\Drawing\CatalogueIds.cs" Link="Core\Drawing\CatalogueIds.cs" />
+    <Compile Include="..\StingTools\BIMManager\DrawingTypeExcelEngine.cs" Link="BIMManager\DrawingTypeExcelEngine.cs" />
     <Compile Include="..\StingTools\Core\Drawing\DrawingRouteRequests.cs" Link="Core\Drawing\DrawingRouteRequests.cs" />
     <!-- Board name + per-board sheet keys. PanelViewSchedule and PanelDoorDiagram call this same file. -->
     <Compile Include="..\StingTools\Core\Drawing\BoardNaming.cs" Link="Core\Drawing\BoardNaming.cs" />
