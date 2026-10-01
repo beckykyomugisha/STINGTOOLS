@@ -109,7 +109,8 @@ namespace StingTools.Core
             }
         }
 
-        /// <summary>WF-01/ED-01: Check compliance-fall triggers after tagging operations.</summary>
+        /// <summary>WF-01/ED-01: Check compliance-fall triggers. Called by ComplianceScan.Scan
+        /// after every fresh project scan.</summary>
         public static void CheckComplianceFallTriggers(Document doc, double currentCompliance)
         {
             if (doc == null) return;
