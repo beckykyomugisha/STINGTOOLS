@@ -2846,14 +2846,22 @@ namespace StingTools.Tags
                     return false;
                 }
 
-                // Log group count for diagnostics
+                // TAGFAM-6: walk the file ONCE. The lookup below used to re-walk every
+                // group and definition through the API for each of ~199 parameters
+                // (~650k reads against the 3,300-definition file), on top of a separate
+                // counting pass. First match by exact name wins, as before.
                 int groupCount = 0;
                 int defCount = 0;
+                var defsByName = new Dictionary<string, ExternalDefinition>(StringComparer.Ordinal);
                 foreach (DefinitionGroup grp in defFile.Groups)
                 {
                     groupCount++;
                     foreach (Definition d in grp.Definitions)
+                    {
                         defCount++;
+                        if (d is ExternalDefinition ed && !defsByName.ContainsKey(ed.Name))
+                            defsByName[ed.Name] = ed;
+                    }
                 }
                 StingLog.Info($"Shared parameter file opened: {groupCount} groups, {defCount} definitions");
 
@@ -2877,8 +2885,7 @@ namespace StingTools.Tags
                     var idx = TagParamInjector.BuildIndex(famDoc);
                     foreach (string paramName in paramsToAdd)
                     {
-                        ExternalDefinition extDef = FindSharedDefinition(defFile, paramName);
-                        if (extDef == null)
+                        if (paramName == null || !defsByName.TryGetValue(paramName, out ExternalDefinition extDef))
                         {
                             StingLog.Warn($"Shared parameter '{paramName}' not found in file");
                             continue;
@@ -3059,20 +3066,6 @@ namespace StingTools.Tags
                 StingLog.Warn($"VerifyFamilyHasParams failed for {rfaPath}: {ex.Message}");
                 return false;
             }
-        }
-
-        /// <summary>Search all groups in the shared parameter file for a definition by name.</summary>
-        private ExternalDefinition FindSharedDefinition(DefinitionFile defFile, string paramName)
-        {
-            foreach (DefinitionGroup group in defFile.Groups)
-            {
-                foreach (Definition def in group.Definitions)
-                {
-                    if (def.Name == paramName && def is ExternalDefinition extDef)
-                        return extDef;
-                }
-            }
-            return null;
         }
 
         /// <summary>
