@@ -62,6 +62,20 @@ ACC seam audit A1–A16: all fixed (see "Findings (done)"). Open work is the rev
 | C9 | CDE routing | AccModelUpload.cs:263-290; ExportCenterEngine.cs:1148 | P2 | No cdeFolders → every state to one folder; row drops FolderReason | **Done** c4d960d03: WIP refused without cdeFolders (UnroutedWipRefusal); rows name their folder |
 | C10 | Server push | Planscape.Server AccSyncService.cs:398-485 | P2 | Planscape edits (status/title) never reach ACC after first push | **Done** 1760fcf38: PATCH mapped Planscape-born issues edited since last push; never reopen an ACC close; legacy baseline; precision bug caught by the test |
 
+## Findings — ACC round 3: transport and lifecycle (audit 2026-10-01)
+| Id | Area | Where | Sev | Defect | Plan |
+|---|---|---|---|---|---|
+| D1 | Plugin auth | UI/BIMCoordinationCenter.cs:5626-5642 Gather/SaveAcc; V6/AccIssueSync.cs:267,413 | P1 | The card writes the refresh token loaded at open over a rotated one (Save/Test/Sign in/Find/Upload); ResolveIssueTypeAsync saves unlocked; adopt takes any DIFFERENT token, so a stale file poisons valid sessions | Gather keeps the token only if the user edited it; SaveCredentials never replaces a newer RefreshTokenIssuedAt; adopt only newer |
+| D2 | Server sync | Aps/ApsRetry.cs:49,57; AccSyncService catches `!OperationCanceledException` | P1 | An HttpClient timeout (TaskCanceledException) escapes, aborts the multi-tenant sweep, leaves the old OK status, Hangfire retries 10x; an unclear create is POSTed again → duplicate ACC issues | Catch timeouts as failures; unclear create = pending-verify, not re-posted; job retries 0 |
+| D3 | Clash paging | V6/AccModelCoordSync.cs:178-262,367-391 | P1 | Clash tests / model sets read one page; continuationToken not followed → latest test may be missed | Follow continuationToken; fail loudly at cap (NEEDS MANUAL CHECK live sort) |
+| D4 | Plugin refresh race | AccIssueSync.cs:222,242 | P2 | Losing a refresh race (lock wait 20 s < possible hold) reports "sign in again" though the file holds a rotated token | Re-adopt from file on 400/401 before Rejected |
+| D5 | Server token | AccSyncService.cs:389 | P2 | Token refreshed once per sync; a long push outlives it → 401s counted as rejections | Refresh-and-retry once on 401 |
+| D6 | Server token | AccTokenRefresher.cs:118-123 | P2 | Rotated refresh token saved under the request's cancellation → lost rotation → RECONNECT_REQUIRED for the team | Refresh + save with CancellationToken.None, bounded |
+| D7 | BCC card | BIMCoordinationCenter.cs:5605,5673 | P2 | "Saved" shown when the credentials save failed | Use SaveCredentials(c, out err); stop follow-on action |
+| D8 | Paging caps | V6/AccReviews.cs:321-361,481-509; server GetDmPagedAsync, issue types, read-back | P2 | Caps return success with next pages unread | INCOMPLETE failure at the cap |
+| D9 | Retire copy | V6/AccDocsLifecycle.cs:73,112-130 | P2 | Own HttpClient: no 429/Retry-After, no refresh | Route through AccHttp |
+| D10 | Policy key | AccOperatingPolicy.cs:199; AccRetireDeliverable.ReadMode | P2 | retireSupersededInAcc accepted but never validated; a typo silently = "ask" | Parse in Load (ask/always/never, else Malformed); drop ReadMode |
+
 ## Findings (done)
 - 2026-10-01 audit fixes on `claude/acc-audit-fixes-y` (not pushed): **A7** `eec4bf778` (review on the live tip version) ·
   **A10** `17a5ebb59` (push assignee resolved via AccProjectMembers) · **A12** `036d9a0b1` (AccUploadGate shared by
