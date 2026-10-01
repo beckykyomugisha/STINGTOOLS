@@ -110,20 +110,30 @@ def load_registry(path=REGISTRY_PATH):
 #  C# POCO property extraction
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Auto-properties only: `public string Foo { get; set; }`. Deliberately narrow —
-# a property with a body is not a Newtonsoft binding target we care about here,
-# and a loose regex that mis-parses would produce false CI failures, which is
-# worse than a gap.
-_PROP = re.compile(
-    r"public\s+(?:virtual\s+|override\s+|new\s+)?"
-    r"[\w<>,\[\]\?\.\s]+?\s+(\w+)\s*\{\s*get\s*;\s*set\s*;\s*\}"
+# What Newtonsoft can bind on a class: public instance properties (auto or with a
+# body - a body with a setter still binds) and public instance fields. Not static,
+# const, or expression-bodied (`Name => ...`, no setter), and not [JsonIgnore].
+# A [JsonProperty("x")] attribute renames the JSON key to "x".
+#
+# Deliberately conservative in the direction that matters: a member this misses
+# turns into a FALSE "unknown key" failure, which the self-test guards against; a
+# member it wrongly accepts only weakens the check for that one key.
+_MEMBER = re.compile(
+    r"\bpublic\s+(?!static\b|const\b|class\b|enum\b|struct\b|record\b|interface\b"
+    r"|event\b|delegate\b|abstract\b|partial\b|sealed\b)"
+    r"(?:(?:virtual|override|new|readonly|required|unsafe|volatile)\s+)*"
+    r"[\w<>,\[\]\?\.\s:]+?\s+(\w+)\s*(\{|=(?!>)|;)"
 )
-_CLASS = re.compile(r"\b(?:class|record)\s+(\w+)")
+_CLASS = re.compile(r"\b(?:class|record|struct)\s+(\w+)")
+_JSON_PROP = re.compile(
+    r"JsonProperty\s*\(\s*(?:PropertyName\s*=\s*)?@?\"((?:[^\"\\]|\\.)*)\"")
 
 _source_cache = {}
 
 
 def _read_source(rel_path):
+    """(raw, code_only) for a source file. code_only has comments and string
+    literals blanked to spaces, so offsets in the two are identical."""
     if rel_path in _source_cache:
         return _source_cache[rel_path]
     full = os.path.join(REPO, rel_path)
@@ -131,7 +141,8 @@ def _read_source(rel_path):
         _source_cache[rel_path] = None
         return None
     with io.open(full, "r", encoding="utf-8-sig", errors="replace") as fh:
-        _source_cache[rel_path] = _code_only(fh.read())
+        raw = fh.read()
+    _source_cache[rel_path] = (raw, _code_only(raw))
     return _source_cache[rel_path]
 
 
@@ -157,65 +168,120 @@ def _code_only(src):
     return _CODE_NOISE.sub(lambda m: " " * len(m.group(0)), src)
 
 
-def poco_properties(rel_path, class_name):
-    """
-    Auto-property names declared on `class_name` in `rel_path`.
+def _match_brace(text, brace):
+    depth, i, n = 0, brace, len(text)
+    while i < n:
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return i
+        i += 1
+    return n
 
-    Scans from the class declaration to its matching closing brace, so sibling
+
+def poco_properties(rel_paths, class_name, _depth=0):
+    """
+    JSON key names Newtonsoft binds on `class_name`, found in `rel_paths` (one
+    path or a list - a partial class is the union of its parts).
+
+    Scans from each class declaration to its matching closing brace, so sibling
     classes in the same file (DrawingType.cs holds ~20) do not bleed into each
-    other. Returns None when the class cannot be located — the caller treats
+    other, and blanks nested types so their members are not attributed to the
+    outer one. Returns None when the class cannot be located - the caller treats
     that as a warning, not a failure, because a missing POCO means the check
     could not run, not that the data is wrong.
     """
-    src = _read_source(rel_path)
-    if src is None:
-        return None
-
-    for m in _CLASS.finditer(src):
-        if m.group(1) != class_name:
+    paths = [rel_paths] if isinstance(rel_paths, str) else list(rel_paths)
+    found, names = False, set()
+    for rel in paths:
+        src = _read_source(rel)
+        if src is None:
             continue
-        brace = src.find("{", m.end())
-        if brace < 0:
-            continue
-        depth, i, n = 0, brace, len(src)
-        while i < n:
-            ch = src[i]
-            if ch == "{":
-                depth += 1
-            elif ch == "}":
-                depth -= 1
-                if depth == 0:
-                    break
-            i += 1
-        body = src[brace:i]
-        # Strip nested class bodies so an inner type's properties are not
-        # attributed to the outer one.
-        return {p.group(1) for p in _PROP.finditer(_strip_nested_classes(body))}
-    return None
+        raw, code = src
+        for m in _CLASS.finditer(code):
+            if m.group(1) != class_name:
+                continue
+            brace = code.find("{", m.end())
+            semi = code.find(";", m.end())
+            if brace < 0 or (0 <= semi < brace):
+                continue                     # a primary-ctor record or a declaration only
+            end = _match_brace(code, brace)
+            found = True
+            # Inherited members bind too (LccOptionConfig : LccOption). The first
+            # base type is followed wherever it is declared; an interface or a
+            # framework type is simply not found and contributes nothing.
+            decl = code[m.end():brace]
+            if ":" in decl and _depth < 4:
+                base = re.match(r"\s*([A-Za-z_]\w*)", decl.split(":", 1)[1].split("where")[0])
+                if base and base.group(1) != class_name:
+                    inherited = poco_properties(_files_declaring(base.group(1)), base.group(1),
+                                                _depth + 1)
+                    if inherited:
+                        names |= inherited
+            body = _blank_nested_types(code[brace + 1:end])
+            raw_body = raw[brace + 1:end]
+            prev = 0
+            for mm in _MEMBER.finditer(body):
+                # Attributes sit between the previous member's end and this one.
+                lead_start = max(body.rfind(";", 0, mm.start()), body.rfind("}", 0, mm.start()),
+                                 body.rfind("{", 0, mm.start()), prev)
+                lead_code = body[lead_start:mm.start()]
+                lead_raw = raw_body[lead_start:mm.start()]
+                prev = mm.end()
+                if re.search(r"\bJsonIgnore\b", lead_code):
+                    continue
+                jp = _JSON_PROP.search(lead_raw) if "JsonProperty" in lead_code else None
+                names.add(jp.group(1) if jp else mm.group(1))
+            # Newtonsoft also binds a NON-public member that carries [JsonProperty] -
+            # the legacy-alias idiom: `[JsonProperty("instance")] private bool
+            # LegacyInstance { set => ... }`. Take every attributed name in the body.
+            for am in re.finditer(r"\[\s*JsonProperty\b", body):
+                jp = _JSON_PROP.match(raw_body, am.start() + raw_body[am.start():].find("JsonProperty"))
+                if jp:
+                    names.add(jp.group(1))
+    return names if found else None
 
 
-def _strip_nested_classes(body):
-    out, i, n = [], 0, len(body)
-    while i < n:
+_decl_index = None
+
+
+def _files_declaring(class_name):
+    """Every plugin source file that declares `class_name` (built once, lazily)."""
+    global _decl_index
+    if _decl_index is None:
+        _decl_index = {}
+        for dp, dns, fns in os.walk(os.path.join(REPO, "StingTools")):
+            dns[:] = [d for d in dns if d not in ("obj", "bin")]
+            for fn in fns:
+                if not fn.endswith(".cs"):
+                    continue
+                rel = os.path.relpath(os.path.join(dp, fn), REPO).replace(os.sep, "/")
+                src = _read_source(rel)
+                if src:
+                    for m in _CLASS.finditer(src[1]):
+                        _decl_index.setdefault(m.group(1), []).append(rel)
+    return _decl_index.get(class_name, [])
+
+
+def _blank_nested_types(body):
+    """Replace nested type bodies with spaces (offsets kept)."""
+    out = list(body)
+    i = 0
+    while True:
         m = _CLASS.search(body, i)
         if not m:
-            out.append(body[i:])
             break
-        out.append(body[i:m.start()])
         brace = body.find("{", m.end())
         if brace < 0:
             break
-        depth, j = 0, brace
-        while j < n:
-            if body[j] == "{":
-                depth += 1
-            elif body[j] == "}":
-                depth -= 1
-                if depth == 0:
-                    break
-            j += 1
-        i = j + 1
+        end = _match_brace(body, brace)
+        for k in range(m.start(), min(end + 1, len(body))):
+            out[k] = " "
+        i = end + 1
     return "".join(out)
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -286,7 +352,16 @@ def pairs_dict(pairs):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def allowed_keys(schema, where):
-    """Resolve a schema's allowed key set, from the POCO or the explicit list."""
+    """Resolve a schema's allowed key set: the POCO's (or the explicit list) plus any
+    declared docKeys - keys the type does not bind but that are kept on purpose,
+    each with its reason in the registry (documentation, or a second reader)."""
+    base = _allowed_keys(schema, where)
+    if base is None:
+        return None
+    return base | {k.lower() for k in schema.get("docKeys", {})}
+
+
+def _allowed_keys(schema, where):
     if "poco" in schema:
         rel, cls = schema["poco"]
         props = poco_properties(rel, cls)
@@ -325,7 +400,7 @@ def validate_object(obj, schema, where):
 
     allowed = allowed_keys(schema, where)
     types = schema.get("types", {})
-    children = schema.get("children", {})
+    children = {k.lower(): v for k, v in schema.get("children", {}).items()}
 
     for key, value in obj.items():
         if key.startswith("_"):
@@ -337,8 +412,8 @@ def validate_object(obj, schema, where):
             continue
         if key in types and value is not None and not type_ok(value, types[key]):
             err(f"{where}.{key}: expected {types[key]}, found {type(value).__name__}")
-        if key in children and value is not None:
-            validate_node(value, children[key], f"{where}.{key}")
+        if key.lower() in children and value is not None:
+            validate_node(value, children[key.lower()], f"{where}.{key}")
 
     lower = {k.lower() for k in obj}
     for r in schema.get("req", []):
@@ -354,6 +429,14 @@ def validate_node(node, schema, where):
             return
         for i, item in enumerate(node):
             validate_object(item, schema, f"{where}[{i}]")
+    elif kind == "dict-of-object":
+        # Dictionary<string, T>: the keys are data, each value is a T.
+        if not isinstance(node, dict):
+            err(f"{where}: expected an object keyed by name, found {type(node).__name__}")
+            return
+        for k, item in node.items():
+            if not k.startswith("_"):
+                validate_object(item, schema, f"{where}[{k!r}]")
     else:
         validate_object(node, schema, where)
 
@@ -613,6 +696,21 @@ def check_coverage(reg):
             if rel not in on_disk and not os.path.isfile(os.path.join(REPO, rel)):
                 err(f"{rel}: registered under \"{section}\" in tools/data_schemas.json "
                     f"but the file does not exist. Remove the entry with the file.")
+    for r in reg["roots"]:
+        if not r.get("uniqueBasenames"):
+            continue
+        seen = {}
+        for f in files:
+            if not f.startswith(r["path"].rstrip("/") + "/"):
+                continue
+            if any(fnmatch.fnmatchcase(f, "*" + g.lstrip("*")) for g in r.get("uniqueBasenamesIgnore", [])):
+                continue
+            seen.setdefault(os.path.basename(f).lower(), []).append(f)
+        for name, paths in sorted(seen.items()):
+            if len(paths) > 1:
+                err(f"{paths[1]}: has the same file name as {paths[0]}. "
+                    f"{r.get('uniqueBasenamesReason', 'Names must be unique under this root.')} "
+                    f"Rename one of them.")
     both = set(reg.get("schemas", {})) & set(reg.get("structural", {}))
     for rel in sorted(both):
         err(f"{rel}: registered under both \"schemas\" and \"structural\" — pick one.")
@@ -894,6 +992,33 @@ def self_test(reg):
         if not {"WetZoneClass", "BuildingType", "WetZoneExclusion"} <= props:
             failures.append("POCO scan: a comment containing 'class' truncated PlacementRule "
                             "- correctly-bound keys would be reported UNKNOWN")
+        # Members bound other than as a public auto-property: an inherited one, and
+        # a private [JsonProperty] alias. Missing either is a false UNKNOWN KEY.
+        lcc = poco_properties("StingTools/Commands/Hvac/HvacLifeCycleCompareCommand.cs",
+                              "LccOptionConfig") or set()
+        if "CapitalCost" not in lcc:
+            failures.append("POCO scan: inherited members (LccOptionConfig : LccOption) not followed")
+        par = poco_properties("StingTools/Core/Symbols/SymbolDefinition.cs", "ParameterDefinition") or set()
+        if not {"instance", "isInstance"} <= par:
+            failures.append("POCO scan: a private [JsonProperty(\"instance\")] alias was not counted")
+        total += 3
+
+        # Two data files with one name: FindDataFile reads only the first.
+        global tracked_files
+        real_tracked = tracked_files
+        try:
+            dup = "StingTools/Data/Plumbing/cost_rates_5d.csv"
+            tracked_files = lambda r: sorted(real_tracked(r) + [dup])
+            errors = []
+            fake2 = dict(reg)
+            fake2["structural"] = dict(reg.get("structural", {}))
+            fake2["structural"][dup] = "csv-sections"
+            check_coverage(fake2)
+            if not any("same file name" in e for e in errors):
+                failures.append("coverage: two data files sharing a name were NOT caught")
+        finally:
+            tracked_files = real_tracked
+        total += 1
     finally:
         ROOT = REPO
         errors, warnings, checked_files = [], [], 0
