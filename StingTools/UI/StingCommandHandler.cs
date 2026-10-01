@@ -3480,17 +3480,21 @@ namespace StingTools.UI
                             string csvPath = Core.StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
                             if (!string.IsNullOrEmpty(csvPath) && System.IO.File.Exists(csvPath))
                             {
-                                foreach (string line in System.IO.File.ReadAllLines(csvPath))
-                                {
-                                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-                                    string[] parts = Core.StingToolsApp.ParseCsvLine(line);
-                                    if (parts.Length > 3 && parts[0].Trim().Equals("SCHEDULE", StringComparison.OrdinalIgnoreCase))
+                                // DSCH-2: Record_Type / Schedule_Name by header name, not position
+                                var schedTable = Core.CsvTable.Parse(System.IO.File.ReadAllLines(csvPath), Core.StingToolsApp.ParseCsvLine);
+                                var schedMissing = schedTable.Missing("Record_Type", "Schedule_Name");
+                                if (schedMissing.Count > 0)
+                                    Core.StingLog.Warn($"ScheduleWizard: MR_SCHEDULES.csv header lacks column(s) {string.Join(", ", schedMissing)}");
+                                else
+                                    foreach (var schedRow in schedTable.Rows)
                                     {
-                                        string schedName = parts[3].Trim();
-                                        if (!string.IsNullOrEmpty(schedName))
-                                            csvDefs.Add(schedName);
+                                        if (schedRow["Record_Type"].Equals("SCHEDULE", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string schedName = schedRow["Schedule_Name"];
+                                            if (!string.IsNullOrEmpty(schedName))
+                                                csvDefs.Add(schedName);
+                                        }
                                     }
-                                }
                             }
                             if (doc != null)
                             {

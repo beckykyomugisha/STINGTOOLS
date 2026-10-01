@@ -58,23 +58,31 @@ namespace StingTools.Temp
                 StingLog.Info($"Loaded {remapCount} field remaps from SCHEDULE_FIELD_REMAP.csv");
 
             // Parse all schedule definitions to let user choose categories/disciplines
-            var allLines = File.ReadAllLines(csvPath)
-                .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
-                .Skip(1)
-                .ToList();
-
-            // Extract unique disciplines and categories from CSV columns:
-            // col[0]=Record_Type, col[1]=Source_File, col[2]=Discipline, col[3]=Schedule_Name, col[4]=Category
-            var scheduleDefs = new List<(string discipline, string name, string category, string line)>();
-            foreach (string rawLine in allLines)
+            // DSCH-2: columns are read by header name (Record_Type, Discipline,
+            // Schedule_Name, Category, ...), not by position.
+            var table = CsvTable.Parse(File.ReadAllLines(csvPath), StingToolsApp.ParseCsvLine);
+            var missingCols = table.Missing("Record_Type", "Discipline", "Schedule_Name", "Category");
+            if (missingCols.Count > 0)
             {
-                string[] rawCols = StingToolsApp.ParseCsvLine(rawLine);
-                if (rawCols.Length < 4) continue;
-                string discCol = rawCols.Length > 2 ? rawCols[2].Trim() : "General";
-                string nameCol = rawCols.Length > 3 ? rawCols[3].Trim() : "";
-                string catCol = rawCols.Length > 4 ? rawCols[4].Trim() : "";
+                StingLog.Warn($"MR_SCHEDULES.csv: header lacks column(s) {string.Join(", ", missingCols)} ({csvPath})");
+                TaskDialog.Show("Batch Schedules",
+                    $"MR_SCHEDULES.csv header lacks column(s): {string.Join(", ", missingCols)}.");
+                return Result.Failed;
+            }
+            int nameMin = table.Col("Schedule_Name") + 1;
+            int recordMin = Math.Max(Math.Max(table.Col("Record_Type"), table.Col("Discipline")),
+                Math.Max(table.Col("Schedule_Name"), table.Col("Category"))) + 1;
+
+            // Extract unique disciplines and categories
+            var scheduleDefs = new List<(string discipline, string name, string category, CsvRow row)>();
+            foreach (var rawRow in table.Rows)
+            {
+                if (rawRow.Count < nameMin) continue;
+                string discCol = rawRow["Discipline"];
+                string nameCol = rawRow["Schedule_Name"];
+                string catCol = rawRow["Category"];
                 if (string.IsNullOrEmpty(nameCol)) continue;
-                scheduleDefs.Add((discCol, nameCol, catCol, rawLine));
+                scheduleDefs.Add((discCol, nameCol, catCol, rawRow));
             }
 
             // Step: Let user pick which disciplines/categories to create
@@ -134,10 +142,10 @@ namespace StingTools.Temp
             {
                 tx.Start();
 
-                var lines = filteredDefs.Select(d => d.line);
+                var rows = filteredDefs.Select(d => d.row);
 
                 int lineNum = 0;
-                foreach (string line in lines)
+                foreach (CsvRow row in rows)
                 {
                     // Cancellation check every 20 schedules
                     if (++lineNum % 20 == 0 && EscapeChecker.IsEscapePressed())
@@ -146,15 +154,14 @@ namespace StingTools.Temp
                         break;
                     }
 
-                    string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 5) continue;
+                    if (row.Count < recordMin) continue;
 
                     // DAT-004: Handle VIEW_FILTER records
-                    string recordType = cols[0].Trim();
+                    string recordType = row["Record_Type"];
                     if (recordType.Equals("VIEW_FILTER", StringComparison.OrdinalIgnoreCase))
                     {
-                        string filterName = cols.Length > 3 ? cols[3].Trim() : "";
-                        string filterCats = cols.Length > 4 ? cols[4].Trim() : "";
+                        string filterName = row["Schedule_Name"];
+                        string filterCats = row["Category"];
                         if (string.IsNullOrEmpty(filterName) || existingFilterNames.Contains(filterName))
                             continue;
 
@@ -186,24 +193,20 @@ namespace StingTools.Temp
                         continue;
                     }
 
-                    // Parse all 16 columns (0-indexed):
-                    // 0=Record_Type, 1=Source_File, 2=Discipline, 3=Schedule_Name,
-                    // 4=Category, 5=Schedule_Type, 6=Multi_Categories, 7=Fields,
-                    // 8=Filters, 9=Sorting, 10=Grouping, 11=Totals, 12=Formulas,
-                    // 13=Header_Color, 14=Text_Color, 15=Background_Color
-                    string name = cols.Length > 3 ? cols[3].Trim() : "";
-                    string category = cols.Length > 4 ? cols[4].Trim() : "";
-                    string scheduleType = cols.Length > 5 ? cols[5].Trim() : "";
-                    string multiCats = cols.Length > 6 ? cols[6].Trim() : "";
-                    string fieldsSpec = cols.Length > 7 ? cols[7].Trim() : "";
-                    string filterSpec = cols.Length > 8 ? cols[8].Trim() : "";
-                    string sortSpec = cols.Length > 9 ? cols[9].Trim() : "";
-                    string groupSpec = cols.Length > 10 ? cols[10].Trim() : "";
-                    string totalSpec = cols.Length > 11 ? cols[11].Trim() : "";
-                    string formulaSpec = cols.Length > 12 ? cols[12].Trim() : "";
-                    string headerColor = cols.Length > 13 ? cols[13].Trim() : "";
-                    string textColor = cols.Length > 14 ? cols[14].Trim() : "";
-                    string bgColor = cols.Length > 15 ? cols[15].Trim() : "";
+                    // Read the definition columns by name ("" when absent or short)
+                    string name = row["Schedule_Name"];
+                    string category = row["Category"];
+                    string scheduleType = row["Schedule_Type"];
+                    string multiCats = row["Multi_Categories"];
+                    string fieldsSpec = row["Fields"];
+                    string filterSpec = row["Filters"];
+                    string sortSpec = row["Sorting"];
+                    string groupSpec = row["Grouping"];
+                    string totalSpec = row["Totals"];
+                    string formulaSpec = row["Formulas"];
+                    string headerColor = row["Header_Color"];
+                    string textColor = row["Text_Color"];
+                    string bgColor = row["Background_Color"];
 
                     if (string.IsNullOrEmpty(name)) continue;
                     if (existingNames.Contains(name))
@@ -521,18 +524,24 @@ namespace StingTools.Temp
 
             try
             {
-                var lines = File.ReadAllLines(path)
-                    .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
-                    .Skip(1);
-
-                foreach (string line in lines)
+                // DSCH-2: by column name, not position.
+                var table = CsvTable.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                string[] required = { "Old_Schedule_Field", "Consolidated_Parameter", "Action" };
+                var missingCols = table.Missing(required);
+                if (missingCols.Count > 0)
                 {
-                    string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 3) continue;
+                    StingLog.Warn($"SCHEDULE_FIELD_REMAP.csv: header lacks column(s) {string.Join(", ", missingCols)} — field remapping disabled ({path})");
+                    return remaps;
+                }
+                int minFields = required.Max(c => table.Col(c)) + 1;
 
-                    string oldField = cols[0].Trim();
-                    string newField = cols[1].Trim();
-                    string action = cols[2].Trim();
+                foreach (var row in table.Rows)
+                {
+                    if (row.Count < minFields) continue;
+
+                    string oldField = row["Old_Schedule_Field"];
+                    string newField = row["Consolidated_Parameter"];
+                    string action = row["Action"];
 
                     if (action.Equals("REMAPPED", StringComparison.OrdinalIgnoreCase)
                         && !string.IsNullOrEmpty(oldField)

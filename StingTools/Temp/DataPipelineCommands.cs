@@ -268,12 +268,17 @@ namespace StingTools.Temp
                 categoryCount >= 20 && paramRows >= 10,
                 $"{paramRows} params × {categoryCount} categories"));
 
-            // Check for empty rows
+            // Check for empty rows. DSCH-2: the parameter-name cell is never blank or
+            // "0", so testing the whole row counted nothing — test the category cells.
+            int nameCol = Array.FindIndex(headers, h => h.Trim().TrimStart('﻿')
+                .Equals("Parameter_Name", StringComparison.OrdinalIgnoreCase));
+            if (nameCol < 0)
+                StingLog.Warn($"BINDING_COVERAGE_MATRIX.csv: header lacks column Parameter_Name ({path})");
             int emptyRows = 0;
             for (int i = 1; i < lines.Length; i++)
             {
                 var cols = StingToolsApp.ParseCsvLine(lines[i]);
-                if (cols.All(c => string.IsNullOrWhiteSpace(c) || c == "0"))
+                if (cols.Where((c, ci) => ci != nameCol).All(c => string.IsNullOrWhiteSpace(c) || c == "0"))
                     emptyRows++;
             }
             results.Add(new ValidationResult("BCM empty parameters", "LOW",
@@ -319,17 +324,24 @@ namespace StingTools.Temp
                     $"{headers.Length} columns, Name={hasName}, Color={hasColor}"));
             }
 
-            // Check for duplicate material codes
+            // Check for duplicate material codes. DSCH-2: read MAT_CODE by name — the
+            // positional cols[0] is SOURCE_SHEET, which reported ~800 false duplicates.
             if (lines.Length > 1)
             {
+                var table = CsvTable.Parse(lines, StingToolsApp.ParseCsvLine);
+                if (!table.Has("MAT_CODE"))
+                {
+                    StingLog.Warn($"{fileName}: header lacks column MAT_CODE — duplicate check skipped ({path})");
+                    return;
+                }
                 var codes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 int dupes = 0;
-                for (int i = 1; i < lines.Length; i++)
+                foreach (var row in table.Rows)
                 {
-                    var cols = StingToolsApp.ParseCsvLine(lines[i]);
-                    if (cols.Length > 0 && !string.IsNullOrWhiteSpace(cols[0]))
+                    string code = row["MAT_CODE"];
+                    if (!string.IsNullOrWhiteSpace(code))
                     {
-                        if (!codes.Add(cols[0])) dupes++;
+                        if (!codes.Add(code)) dupes++;
                     }
                 }
                 results.Add(new ValidationResult($"{fileName} duplicates", "MODERATE",
@@ -392,9 +404,11 @@ namespace StingTools.Temp
             if (lines.Length > 1)
             {
                 var headers = StingToolsApp.ParseCsvLine(lines[0]);
-                int depIdx = Array.FindIndex(headers, h =>
-                    h.IndexOf("Dep", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    h.IndexOf("Level", StringComparison.OrdinalIgnoreCase) >= 0);
+                // DSCH-2: exact column name, not the first header containing "Dep"/"Level".
+                int depIdx = Array.FindIndex(headers, h => h.Trim().TrimStart('﻿')
+                    .Equals("Dependency_Level", StringComparison.OrdinalIgnoreCase));
+                if (depIdx < 0)
+                    StingLog.Warn($"FORMULAS_WITH_DEPENDENCIES.csv: header lacks column Dependency_Level ({path})");
 
                 if (depIdx >= 0)
                 {
