@@ -7,17 +7,18 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 
 ## Resume here
 
-1. Merge `fix/dt-review4` (DTW-103, 105..108, 110) into `fix/drawing-review` when its agent
-   reports. Then re-run build, tests, `tools/run_ci_gates.py --quick` and the checksum check,
-   update this file and ROADMAP, and push. PR #1021 is a draft.
-2. Next research pass, round 5. Not yet reviewed in depth: placement (`Core/Placement/**`), the
-   plumbing schematic code merged this loop, `MergeRecoveryStubs` filter indexes,
-   `PresetStepInputs`, and linked-level handling in `DrawingProducer`. Then edge cases:
-   multi-building, re-runs after model edits, and both sheet-number policies end to end.
-3. When nothing high or medium is open: mark PR #1021 ready, merge it once CI is green, and
-   redeploy. The live plugin is `C:\Dev\STING_KUT_LIVE`, owned by the ACC session on
-   `claude/kut-combined-acc-tags`: merge `main` into that branch, or ask that session to, and
-   run its `deploy.bat`. Never deploy a build without its work.
+The loop has converged. Round 7 found only low and medium-low items (DTW-146..148, fixed).
+Open: DTW-82 (in-Revit checks, below) and DTW-102 (linked MEP runs reported, not dimensioned,
+an accepted limit).
+
+1. Mark PR #1021 ready, wait for CI green, and merge.
+2. Redeploy. The live plugin is `C:\Dev\STING_KUT_LIVE`, owned by the ACC session on
+   `claude/kut-combined-acc-tags`: merge `main` into that branch, or ask that session to, then
+   run its `deploy.bat`. Remind the user to re-run Load Shared Parameters on existing projects
+   (the binding upgrade).
+3. Run the NEEDS REVIT CHECK list in Revit. Whether Revit accepts parameters on Lines decides
+   whether match-line keys move to Extensible Storage. Then start a fresh audit pass on
+   whatever those checks turn up.
 
 ## State (2026-10-01)
 
@@ -200,6 +201,9 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-143 | ScopeBoxStyle / RenamePattern / MatchLineEngine | Low | Box names parsed by hand, not through ScopeBoxNames | Merged | Done |
 | DTW-144 | LOC index (ParameterHelpers ~1735) | Low-Med | Stricter grammar drops user-typed LOC names silently (log only) | Merged | Done |
 | DTW-145 | TaggingModels scope-box report | Low | The report copies the latest box-name audit; it can be stale if tagging reuses a cached setup or ran on another model in between | Cache hit sets the report's audit from the context | Done |
+| DTW-146 | ParameterHelpers level-map key | Med-Low | spatial_codes.json edits not seen: the registry kept its old cache | Reload the registry on a key miss | Done |
+| DTW-147 | ResolveAllIssuesCommand ~122 | Low-Med | Report showed another run's scope-box audit | Take the model's own audit after the context builds | Done |
+| DTW-148 | AnnotationRunner matchline frame | Low-Med | Stamped frame never followed a crop change | Redraw when incomplete or not matching the crop | Done |
 
 ## Decisions
 
