@@ -2,6 +2,18 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGFAM-6 follow-up: one shared-parameter index for every tag command, 2026-10-01)
+
+- Three more commands carried a private `FindSharedDefinition` that walked the whole shared-parameter
+  file for every name: `MigrateTagLabelReferencesCommand` (once per remapped name **per family**, across
+  the library), `FamilyLabelAuthor.BindSharedParameters` (per label parameter per family) and
+  `StampGateStatusCommand` (4 names). All four sites, the creator included, now use
+  `Tags/SharedParamDefinitionIndex` — built once per opened file (Migrate: once per run), first exact-name
+  match as before. The private copies are removed.
+- **Gate** `SharedParamLookupGateTests`: no source file defines a per-name `FindSharedDefinition` walk
+  again (fails with any one copy restored). Build 0 / 0; `StingTools.Tags.Tests` 5,082 passing.
+  **Not timed in Revit.**
+
 #### Completed (TAGFAM-6 shared-parameter lookup indexed once per family, 2026-10-01)
 
 - `TagFamilyCreatorCommand.AddSharedParameters` found each of ~199 parameters by walking every group and
