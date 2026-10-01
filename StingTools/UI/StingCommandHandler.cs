@@ -2747,6 +2747,20 @@ namespace StingTools.UI
                         break;
                     }
 
+                    // DSCH-40: a preset queued by a WorkflowScheduler trigger, handed over
+                    // by the Idling drain (WorkflowTriggerDrainJob); the name is p1.
+                    case "Workflow_RunQueued":
+                    {
+                        if (string.IsNullOrEmpty(p1))
+                        {
+                            StingTools.Core.StingLog.Warn("Workflow_RunQueued: no preset name");
+                            break;
+                        }
+                        SetExtraParam("WorkflowPresetName", p1);
+                        RunCommand<Core.WorkflowPresetCommand>(app);
+                        break;
+                    }
+
                     // Phase 48: Enhanced workflow dispatch
                     case "RepeatLastWorkflow":
                     {
