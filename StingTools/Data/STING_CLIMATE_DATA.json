@@ -1,30 +1,34 @@
 {
   "_schema": "STING_CLIMATE_DATA",
-  "_version": "1.1",
+  "_version": "1.2",
   "_notes": [
     "Climate design data for load calc + air-density correction.",
     "Sources: ASHRAE Climate Data Center 2021, CIBSE Guide A 2015.",
     "Cooling design = 0.4% / 1% / 2% annual exceedance dry-bulb (DB)",
     "with coincident wet-bulb (MCWB).",
     "Heating design = 99.6% / 99% annual exceedance DB.",
-    "HDD / CDD are 18 \u00c2\u00b0C / 10 \u00c2\u00b0C base respectively (CIBSE convention).",
+    "HDD / CDD are 18 \u00b0C / 10 \u00b0C base respectively (CIBSE convention).",
     "Project override at <project>/_BIM_COORD/climate_data.json adds custom sites.",
     "",
     "v1.1 additions (Phase 187g):",
-    "  utcOffsetHours        \u00e2\u20ac\u201d site standard-time offset from UTC",
-    "  observesDstInSummer   \u00e2\u20ac\u201d true when DST is in effect on the cooling",
+    "  utcOffsetHours        - site standard-time offset from UTC",
+    "  observesDstInSummer   - true when DST is in effect on the cooling",
     "                          design day (typically July in N-hemisphere",
-    "                          \u00e2\u2020\u2019 DST=true for N-hemi DST observers; S-hemi",
-    "                          observers are in their winter on July \u00e2\u2020\u2019 false).",
+    "                          -> DST=true for N-hemi DST observers; S-hemi",
+    "                          observers are in their winter on July -> false).",
     "BlockLoadEngine adds these to convert local-clock 'hour' to solar",
     "time so the solar-noon hour aligns with the actual sun position.",
     "",
-    "Design wind (infiltration only): optional per-site heatingWindMs / coolingWindMs, m/s,",
-    "  = ASHRAE 2021 Fundamentals Ch. 14 mean coincident wind speed at 10 m,",
-    "  heating = MCWS to 99.6 % DB, cooling = MCWS to 0.4 % DB. Transcribe from the licensed",
-    "  ASHRAE tables (record the station in source); never estimate. NEVER a structural",
-    "  design wind (BS EN 1991-1-4 vb,0). Absent: 4.0 m/s is assumed and reported (DesignWind.cs).",
-    "  The legacy key designWindMs is still read for both days. No site below carries them yet."
+    "Design wind (infiltration only): per-site heatingWindMs / coolingWindMs, m/s, = mean coincident",
+    "  wind speed at the 10 m met station: heating = 'MCWS to 99.6% DB', cooling = 'MCWS to 0.4% DB'",
+    "  (ASHRAE Fundamentals Ch. 14 climatic design conditions). NEVER a structural design wind",
+    "  (BS EN 1991-1-4 vb,0). Absent: 4.0 m/s is assumed and reported (DesignWind.cs).",
+    "  Every site's values come from the climate.onebuilding.org redistribution of the 2025 ASHRAE",
+    "  Handbook design conditions (TMYx 2009-2023 .stat, cross-checked against the .ddy), recorded per",
+    "  site in windSource (station, WMO, edition, period, URL) with a verify note: they have not been",
+    "  checked against the printed handbook. The wind is from the 2025 edition while the temperatures",
+    "  above are labelled ASHRAE 2021, so the wind is coincident with the 2025 99.6% / 0.4% DB, which",
+    "  can differ from heating996DbC / cooling996DbC here. The legacy key designWindMs is still read."
   ],
   "sites": [
     {
@@ -42,6 +46,17 @@
       "rainfallMmYr": 690,
       "utcOffsetHours": 0,
       "observesDstInSummer": true,
+      "heatingWindMs": 2.1,
+      "coolingWindMs": 3.9,
+      "windSource": {
+        "station": "London-Heathrow.Intl.AP ENG GBR",
+        "wmo": "037720",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/GBR_United_Kingdom/ENG_England/GBR_ENG_London-Heathrow.Intl.AP.037720_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / EGLL"
     },
     {
@@ -59,6 +74,17 @@
       "rainfallMmYr": 810,
       "utcOffsetHours": 0,
       "observesDstInSummer": true,
+      "heatingWindMs": 1.3,
+      "coolingWindMs": 3.4,
+      "windSource": {
+        "station": "Manchester.AP ENG GBR",
+        "wmo": "033340",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/GBR_United_Kingdom/ENG_England/GBR_ENG_Manchester.AP.033340_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / EGCC"
     },
     {
@@ -76,6 +102,17 @@
       "rainfallMmYr": 700,
       "utcOffsetHours": 0,
       "observesDstInSummer": true,
+      "heatingWindMs": 1.3,
+      "coolingWindMs": 4.7,
+      "windSource": {
+        "station": "Edinburgh.AP SCT GBR",
+        "wmo": "031600",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/GBR_United_Kingdom/SCT_Scotland/GBR_SCT_Edinburgh.AP.031600_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / EGPH"
     },
     {
@@ -93,6 +130,17 @@
       "rainfallMmYr": 1150,
       "utcOffsetHours": 0,
       "observesDstInSummer": true,
+      "heatingWindMs": 3.9,
+      "coolingWindMs": 3.8,
+      "windSource": {
+        "station": "Cardiff.AP WAL GBR",
+        "wmo": "037150",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/GBR_United_Kingdom/WAL_Wales/GBR_WAL_Cardiff.AP.037150_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / EGFF"
     },
     {
@@ -110,6 +158,17 @@
       "rainfallMmYr": 850,
       "utcOffsetHours": 0,
       "observesDstInSummer": true,
+      "heatingWindMs": 1.5,
+      "coolingWindMs": 3.9,
+      "windSource": {
+        "station": "Belfast.Intl.AP NIR GBR",
+        "wmo": "039170",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/GBR_United_Kingdom/NIR_Northern_Ireland/GBR_NIR_Belfast.Intl.AP.039170_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / EGAA"
     },
     {
@@ -127,6 +186,17 @@
       "rainfallMmYr": 720,
       "utcOffsetHours": 0,
       "observesDstInSummer": true,
+      "heatingWindMs": 1.5,
+      "coolingWindMs": 3.7,
+      "windSource": {
+        "station": "Birmingham.AP ENG GBR",
+        "wmo": "035340",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/GBR_United_Kingdom/ENG_England/GBR_ENG_Birmingham.AP.035340_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / EGBB"
     },
     {
@@ -144,6 +214,17 @@
       "rainfallMmYr": 670,
       "utcOffsetHours": 0,
       "observesDstInSummer": true,
+      "heatingWindMs": 1.4,
+      "coolingWindMs": 3.5,
+      "windSource": {
+        "station": "Newcastle.Intl.AP ENG GBR",
+        "wmo": "032433",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/GBR_United_Kingdom/ENG_England/GBR_ENG_Newcastle.Intl.AP.032433_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / EGNT"
     },
     {
@@ -161,6 +242,17 @@
       "rainfallMmYr": 1100,
       "utcOffsetHours": 0,
       "observesDstInSummer": true,
+      "heatingWindMs": 0.8,
+      "coolingWindMs": 3.9,
+      "windSource": {
+        "station": "Glasgow.AP SCT GBR",
+        "wmo": "031400",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/GBR_United_Kingdom/SCT_Scotland/GBR_SCT_Glasgow.AP.031400_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / EGPF"
     },
     {
@@ -178,6 +270,17 @@
       "rainfallMmYr": 730,
       "utcOffsetHours": 0,
       "observesDstInSummer": true,
+      "heatingWindMs": 3.3,
+      "coolingWindMs": 4.9,
+      "windSource": {
+        "station": "Dublin.AP EM IRL",
+        "wmo": "039690",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/IRL_Ireland/EM_Eastern_and_Midland/IRL_EM_Dublin.AP.039690_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / EIDW"
     },
     {
@@ -195,6 +298,17 @@
       "rainfallMmYr": 640,
       "utcOffsetHours": 1,
       "observesDstInSummer": true,
+      "heatingWindMs": 2.6,
+      "coolingWindMs": 3.7,
+      "windSource": {
+        "station": "Paris-Orly.AP IF FRA",
+        "wmo": "071490",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/FRA_France/IF_Ile-de-France/FRA_IF_Paris-Orly.AP.071490_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / LFPO"
     },
     {
@@ -212,6 +326,17 @@
       "rainfallMmYr": 570,
       "utcOffsetHours": 1,
       "observesDstInSummer": true,
+      "heatingWindMs": 2.9,
+      "coolingWindMs": 4.0,
+      "windSource": {
+        "station": "Berlin-Schonefeld.AP BE DEU",
+        "wmo": "103850",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/DEU_Germany/BE_Berlin/DEU_BE_Berlin-Schonefeld.AP.103850_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / EDDB"
     },
     {
@@ -229,6 +354,17 @@
       "rainfallMmYr": 960,
       "utcOffsetHours": 1,
       "observesDstInSummer": true,
+      "heatingWindMs": 1.4,
+      "coolingWindMs": 2.9,
+      "windSource": {
+        "station": "Munich.AP BY DEU",
+        "wmo": "108700",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/DEU_Germany/BY_Bayern/DEU_BY_Munich.AP.108700_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / EDDM"
     },
     {
@@ -246,6 +382,17 @@
       "rainfallMmYr": 840,
       "utcOffsetHours": 1,
       "observesDstInSummer": true,
+      "heatingWindMs": 4.0,
+      "coolingWindMs": 4.3,
+      "windSource": {
+        "station": "Amsterdam-Schipol.AP NH NLD",
+        "wmo": "062400",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/NLD_Netherlands/NH_Noord-Holland/NLD_NH_Amsterdam-Schipol.AP.062400_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / EHAM"
     },
     {
@@ -263,6 +410,17 @@
       "rainfallMmYr": 850,
       "utcOffsetHours": 1,
       "observesDstInSummer": true,
+      "heatingWindMs": 2.4,
+      "coolingWindMs": 3.0,
+      "windSource": {
+        "station": "Brussels.Natl.AP BRU BEL",
+        "wmo": "064510",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/BEL_Belgium/BRU_Brussels_Region/BEL_BRU_Brussels.Natl.AP.064510_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / EBBR"
     },
     {
@@ -280,6 +438,17 @@
       "rainfallMmYr": 1050,
       "utcOffsetHours": 1,
       "observesDstInSummer": true,
+      "heatingWindMs": 2.1,
+      "coolingWindMs": 2.5,
+      "windSource": {
+        "station": "Zurich.AP ZH CHE",
+        "wmo": "066700",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/CHE_Switzerland/ZH_Zurich/CHE_ZH_Zurich.AP.066700_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / LSZH"
     },
     {
@@ -297,6 +466,17 @@
       "rainfallMmYr": 620,
       "utcOffsetHours": 1,
       "observesDstInSummer": true,
+      "heatingWindMs": 3.8,
+      "coolingWindMs": 4.7,
+      "windSource": {
+        "station": "Wien-Schwechat.AP NO AUT",
+        "wmo": "110360",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/AUT_Austria/NO_Lower_Austria/AUT_NO_Wien-Schwechat.AP.110360_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / LOWW"
     },
     {
@@ -314,6 +494,17 @@
       "rainfallMmYr": 600,
       "utcOffsetHours": 1,
       "observesDstInSummer": true,
+      "heatingWindMs": 4.6,
+      "coolingWindMs": 4.4,
+      "windSource": {
+        "station": "Copenhagen-Kastrup.AP HS DNK",
+        "wmo": "061800",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/DNK_Denmark/HS_Capital/DNK_HS_Copenhagen-Kastrup.AP.061800_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / EKCH"
     },
     {
@@ -331,6 +522,17 @@
       "rainfallMmYr": 540,
       "utcOffsetHours": 1,
       "observesDstInSummer": true,
+      "heatingWindMs": 1.8,
+      "coolingWindMs": 4.3,
+      "windSource": {
+        "station": "Stockholm.Arlanda.AP ST SWE",
+        "wmo": "024600",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/SWE_Sweden/ST_Stockholm/SWE_ST_Stockholm.Arlanda.AP.024600_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / ESSA"
     },
     {
@@ -348,6 +550,17 @@
       "rainfallMmYr": 760,
       "utcOffsetHours": 1,
       "observesDstInSummer": true,
+      "heatingWindMs": 1.3,
+      "coolingWindMs": 3.5,
+      "windSource": {
+        "station": "Oslo.AP-Gardermoen AK NOR",
+        "wmo": "013840",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/NOR_Norway/AK_Akershus/NOR_AK_Oslo.AP-Gardermoen.013840_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / ENGM"
     },
     {
@@ -365,6 +578,17 @@
       "rainfallMmYr": 420,
       "utcOffsetHours": 1,
       "observesDstInSummer": true,
+      "heatingWindMs": 1.5,
+      "coolingWindMs": 4.0,
+      "windSource": {
+        "station": "Madrid-Barajas-Suarez.AP MD ESP",
+        "wmo": "082210",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/ESP_Spain/MD_Madrid/ESP_MD_Madrid-Barajas-Suarez.AP.082210_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / LEMD"
     },
     {
@@ -382,6 +606,18 @@
       "rainfallMmYr": 800,
       "utcOffsetHours": 1,
       "observesDstInSummer": true,
+      "heatingWindMs": 2.6,
+      "coolingWindMs": 4.8,
+      "windSource": {
+        "station": "Rome-Fiumicino-da.Vinci.AP LZ ITA",
+        "wmo": "162420",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/ITA_Italy/LZ_Lazio/ITA_LZ_Rome-Fiumicino-da.Vinci.AP.162420_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station.",
+        "note": "The site's source label says LIRA (Ciampino), but its lat/lon/elevation (41.8, 12.25, 3 m) are Fiumicino; the wind is Fiumicino's (WMO 162420)."
+      },
       "source": "ASHRAE 2021 / LIRA"
     },
     {
@@ -399,6 +635,17 @@
       "rainfallMmYr": 730,
       "utcOffsetHours": 0,
       "observesDstInSummer": true,
+      "heatingWindMs": 2.8,
+      "coolingWindMs": 4.4,
+      "windSource": {
+        "station": "Lisboa.Portela.AP LB PRT",
+        "wmo": "085360",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_6_Europe/PRT_Portugal/LB_Lisboa/PRT_LB_Lisboa.Portela.AP.085360_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / LPPT"
     },
     {
@@ -416,6 +663,17 @@
       "rainfallMmYr": 1200,
       "utcOffsetHours": -5,
       "observesDstInSummer": true,
+      "heatingWindMs": 7.6,
+      "coolingWindMs": 5.8,
+      "windSource": {
+        "station": "New.York-Kennedy.Intl.AP NY USA",
+        "wmo": "744860",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_4_North_and_Central_America/USA_United_States_of_America/NY_New_York/USA_NY_New.York-Kennedy.Intl.AP.744860_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / KJFK"
     },
     {
@@ -433,6 +691,17 @@
       "rainfallMmYr": 990,
       "utcOffsetHours": -6,
       "observesDstInSummer": true,
+      "heatingWindMs": 4.7,
+      "coolingWindMs": 5.1,
+      "windSource": {
+        "station": "Chicago.OHare.Intl.AP IL USA",
+        "wmo": "725300",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_4_North_and_Central_America/USA_United_States_of_America/IL_Illinois/USA_IL_Chicago.OHare.Intl.AP.725300_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / KORD"
     },
     {
@@ -450,6 +719,17 @@
       "rainfallMmYr": 380,
       "utcOffsetHours": -8,
       "observesDstInSummer": true,
+      "heatingWindMs": 1.8,
+      "coolingWindMs": 3.8,
+      "windSource": {
+        "station": "Los.Angeles.Intl.AP CA USA",
+        "wmo": "722950",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_4_North_and_Central_America/USA_United_States_of_America/CA_California/USA_CA_Los.Angeles.Intl.AP.722950_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / KLAX"
     },
     {
@@ -467,6 +747,17 @@
       "rainfallMmYr": 1260,
       "utcOffsetHours": -6,
       "observesDstInSummer": true,
+      "heatingWindMs": 2.6,
+      "coolingWindMs": 3.4,
+      "windSource": {
+        "station": "Houston-Bush.Intercontinental.AP TX USA",
+        "wmo": "722430",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_4_North_and_Central_America/USA_United_States_of_America/TX_Texas/USA_TX_Houston-Bush.Intercontinental.AP.722430_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / KIAH"
     },
     {
@@ -484,6 +775,17 @@
       "rainfallMmYr": 1310,
       "utcOffsetHours": -5,
       "observesDstInSummer": true,
+      "heatingWindMs": 5.1,
+      "coolingWindMs": 3.8,
+      "windSource": {
+        "station": "Atlanta-Hartsfield-Jackson.Intl.AP GA USA",
+        "wmo": "722190",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_4_North_and_Central_America/USA_United_States_of_America/GA_Georgia/USA_GA_Atlanta-Hartsfield-Jackson.Intl.AP.722190_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / KATL"
     },
     {
@@ -501,6 +803,17 @@
       "rainfallMmYr": 380,
       "utcOffsetHours": -7,
       "observesDstInSummer": true,
+      "heatingWindMs": 3.5,
+      "coolingWindMs": 4.2,
+      "windSource": {
+        "station": "Denver.Intl.AP CO USA",
+        "wmo": "725650",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_4_North_and_Central_America/USA_United_States_of_America/CO_Colorado/USA_CO_Denver.Intl.AP.725650_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / KDEN"
     },
     {
@@ -518,6 +831,18 @@
       "rainfallMmYr": 1570,
       "utcOffsetHours": -5,
       "observesDstInSummer": true,
+      "heatingWindMs": 3.2,
+      "coolingWindMs": 4.3,
+      "windSource": {
+        "station": "Miami.Natl.Hurricane.Center FL USA",
+        "wmo": "722020",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_4_North_and_Central_America/USA_United_States_of_America/FL_Florida/USA_FL_Miami.Natl.Hurricane.Center.722020_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station.",
+        "note": "onebuilding.org files WMO 722020 as 'Miami Natl Hurricane Center' (25.755, -80.384), about 7 km from the site's Miami Intl AP coordinates; the design conditions are those published for WMO 722020."
+      },
       "source": "ASHRAE 2021 / KMIA"
     },
     {
@@ -535,6 +860,17 @@
       "rainfallMmYr": 950,
       "utcOffsetHours": -8,
       "observesDstInSummer": true,
+      "heatingWindMs": 3.7,
+      "coolingWindMs": 4.1,
+      "windSource": {
+        "station": "Seattle-Tacoma.Intl.AP WA USA",
+        "wmo": "727930",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_4_North_and_Central_America/USA_United_States_of_America/WA_Washington/USA_WA_Seattle-Tacoma.Intl.AP.727930_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / KSEA"
     },
     {
@@ -552,6 +888,17 @@
       "rainfallMmYr": 830,
       "utcOffsetHours": -5,
       "observesDstInSummer": true,
+      "heatingWindMs": 5.4,
+      "coolingWindMs": 6.1,
+      "windSource": {
+        "station": "Toronto-Pearson.Intl.AP ON CAN",
+        "wmo": "716240",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_4_North_and_Central_America/CAN_Canada/ON_Ontario/CAN_ON_Toronto-Pearson.Intl.AP.716240_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / CYYZ"
     },
     {
@@ -569,6 +916,17 @@
       "rainfallMmYr": 1190,
       "utcOffsetHours": -8,
       "observesDstInSummer": true,
+      "heatingWindMs": 3.1,
+      "coolingWindMs": 3.7,
+      "windSource": {
+        "station": "Vancouver.Intl.AP BC CAN",
+        "wmo": "718920",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_4_North_and_Central_America/CAN_Canada/BC_British_Columbia/CAN_BC_Vancouver.Intl.AP.718920_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / CYVR"
     },
     {
@@ -586,6 +944,17 @@
       "rainfallMmYr": 1210,
       "utcOffsetHours": 10,
       "observesDstInSummer": false,
+      "heatingWindMs": 4.5,
+      "coolingWindMs": 7.3,
+      "windSource": {
+        "station": "Mascot.AP-Sydney.Intl.AP NSW AUS",
+        "wmo": "947670",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_5_Southwest_Pacific/AUS_Australia/NSW_New_South_Wales/AUS_NSW_Mascot.AP-Sydney.Intl.AP.947670_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / YSSY"
     },
     {
@@ -603,6 +972,17 @@
       "rainfallMmYr": 650,
       "utcOffsetHours": 10,
       "observesDstInSummer": false,
+      "heatingWindMs": 3.5,
+      "coolingWindMs": 7.6,
+      "windSource": {
+        "station": "Tullamarine-Melbourne.Intl.AP VIC AUS",
+        "wmo": "948660",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_5_Southwest_Pacific/AUS_Australia/VIC_Victoria/AUS_VIC_Tullamarine-Melbourne.Intl.AP.948660_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / YMML"
     },
     {
@@ -620,6 +1000,17 @@
       "rainfallMmYr": 2340,
       "utcOffsetHours": 8,
       "observesDstInSummer": false,
+      "heatingWindMs": 1.8,
+      "coolingWindMs": 3.6,
+      "windSource": {
+        "station": "Singapore-Changi.Intl.AP SG SGP",
+        "wmo": "486980",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_5_Southwest_Pacific/SGP_Singapore/SGP_SG_Singapore-Changi.Intl.AP.486980_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / WSSS"
     },
     {
@@ -637,6 +1028,17 @@
       "rainfallMmYr": 100,
       "utcOffsetHours": 4,
       "observesDstInSummer": false,
+      "heatingWindMs": 2.2,
+      "coolingWindMs": 4.5,
+      "windSource": {
+        "station": "Dubai.Intl.AP DU ARE",
+        "wmo": "411940",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_2_Asia/ARE_United_Arab_Emirates/ARE_DU_Dubai.Intl.AP.411940_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / OMDB"
     },
     {
@@ -654,6 +1056,17 @@
       "rainfallMmYr": 1530,
       "utcOffsetHours": 9,
       "observesDstInSummer": false,
+      "heatingWindMs": 5.1,
+      "coolingWindMs": 6.9,
+      "windSource": {
+        "station": "Tokyo.Intl.AP-Haneda.AP TK JPN",
+        "wmo": "476710",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_2_Asia/JPN_Japan/TK_Tokyo/JPN_TK_Tokyo.Intl.AP-Haneda.AP.476710_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / RJTT"
     },
     {
@@ -671,6 +1084,18 @@
       "rainfallMmYr": 710,
       "utcOffsetHours": 2,
       "observesDstInSummer": false,
+      "heatingWindMs": 4.3,
+      "coolingWindMs": 4.9,
+      "windSource": {
+        "station": "Johannesburg-Tambo.Intl.AP GT ZAF",
+        "wmo": "683680",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1996-2020",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_1_Africa/ZAF_South_Africa/GT_Gauteng/ZAF_GT_Johannesburg-Tambo.Intl.AP.683680_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station.",
+        "note": "Design-condition period for this station is 1996-2020."
+      },
       "source": "ASHRAE 2021 / FAOR"
     },
     {
@@ -688,6 +1113,17 @@
       "rainfallMmYr": 510,
       "utcOffsetHours": 2,
       "observesDstInSummer": false,
+      "heatingWindMs": 1.4,
+      "coolingWindMs": 5.3,
+      "windSource": {
+        "station": "Cape.Town.Intl.AP WC ZAF",
+        "wmo": "688160",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_1_Africa/ZAF_South_Africa/WC_Western_Cape/ZAF_WC_Cape.Town.Intl.AP.688160_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / FACT"
     },
     {
@@ -705,6 +1141,17 @@
       "rainfallMmYr": 870,
       "utcOffsetHours": 3,
       "observesDstInSummer": false,
+      "heatingWindMs": 2.0,
+      "coolingWindMs": 5.9,
+      "windSource": {
+        "station": "Nairobi-Kenyatta.Intl.AP NB KEN",
+        "wmo": "637400",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_1_Africa/KEN_Kenya/NB_Nairobi/KEN_NB_Nairobi-Kenyatta.Intl.AP.637400_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "ASHRAE 2021 / HKJK"
     },
     {
@@ -722,6 +1169,18 @@
       "rainfallMmYr": 1180,
       "utcOffsetHours": 3,
       "observesDstInSummer": false,
+      "heatingWindMs": 2.1,
+      "coolingWindMs": 4.0,
+      "windSource": {
+        "station": "Entebbe.Intl.AP CEN UGA",
+        "wmo": "637050",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "2000-2023",
+        "grade": "B",
+        "url": "https://climate.onebuilding.org/WMO_Region_1_Africa/UGA_Uganda/UGA_CEN_Entebbe.Intl.AP.637050_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station.",
+        "note": "Entebbe Intl AP (HUEN, WMO 637050) used as the proxy for Kampala, as the site's lat/lon/elevation already are. Design-condition grade B, period 2000-2023. Note: WMO 636800 (cited in this site's temperature source) is onebuilding.org's Kampala station, not Entebbe."
+      },
       "source": "Area estimate from Entebbe Intl (ASHRAE 2021 stn HUEN / WMO 636800) climate normals; confirm 0.4% DB / 99.6% design values against ASHRAE 2021 before design use"
     },
     {
@@ -739,6 +1198,17 @@
       "rainfallMmYr": 1500,
       "utcOffsetHours": 1,
       "observesDstInSummer": false,
+      "heatingWindMs": 0.6,
+      "coolingWindMs": 2.4,
+      "windSource": {
+        "station": "Bangui.M-Poko.Intl.AP BG CAF",
+        "wmo": "646500",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "1999-2023",
+        "grade": "A",
+        "url": "https://climate.onebuilding.org/WMO_Region_1_Africa/CAF_Central_African_Republic/CAF_BG_Bangui.M-Poko.Intl.AP.646500_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station."
+      },
       "source": "Estimate from NASA POWER + Bangui M'Poko (FEFF) normals; hot-humid 0A; confirm 0.4% DB / 99.6% design values against ASHRAE 2021 before design use"
     }
   ]

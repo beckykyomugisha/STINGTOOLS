@@ -291,6 +291,9 @@ namespace StingTools.Core.Climate
                 if (site.Wind.RejectedKeys.Count > 0)
                     StingTools.Core.StingLog.Warn($"ClimateRegistry: site '{site.Id}' {string.Join(", ", site.Wind.RejectedKeys)} " +
                                   "is not a positive number (m/s) — ignored, design wind treated as not recorded");
+                if (site.Wind.RecordedWithoutSource)
+                    StingTools.Core.StingLog.Warn($"ClimateRegistry: site '{site.Id}' records a design wind speed with no windSource " +
+                                  "(station / WMO / edition) - reported as unverified in the load report");
                 // Project override replaces an existing entry with the same id
                 int existing = data.Sites.FindIndex(x => string.Equals(x.Id, site.Id, StringComparison.OrdinalIgnoreCase));
                 if (existing >= 0) data.Sites[existing] = site;

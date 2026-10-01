@@ -3867,6 +3867,119 @@
         }
       }
     },
+    "StingTools/Data/STING_CLIMATE_DATA.json": {
+      "format": "json",
+      "schemaVersion": 2,
+      "description": "Climate design sites, read by ClimateRegistry.Apply as JObject (keys listed by hand; ClimateSite is not a deserialisation target). DSCH-37: heatingWindMs / coolingWindMs are the ASHRAE Ch. 14 mean coincident wind speeds (MCWS to 99.6% / 0.4% DB, m/s) read by DesignWind.FromSiteRecord; windSource names the station, WMO, edition and URL with a verify note. Range (0.5-20 m/s) and the presence of windSource are held by StingTools.Mep.Tests DesignWindTests.ShippedDesignWindIsInRangeAndSourced.",
+      "readers": [
+        "StingTools/Core/Climate/ClimateRegistry.cs",
+        "StingTools/Core/Climate/DesignWind.cs"
+      ],
+      "kind": "object",
+      "keys": [
+        "sites"
+      ],
+      "req": [
+        "sites"
+      ],
+      "children": {
+        "sites": {
+          "kind": "array-of-object",
+          "keys": [
+            "id",
+            "label",
+            "country",
+            "lat",
+            "lon",
+            "elevationM",
+            "cooling996DbC",
+            "cooling996McwbC",
+            "cooling99DbC",
+            "cooling98DbC",
+            "heating996DbC",
+            "heating99DbC",
+            "hdd18",
+            "cdd10",
+            "rainfallMmYr",
+            "source",
+            "utcOffsetHours",
+            "observesDstInSummer",
+            "heatingWindMs",
+            "coolingWindMs",
+            "designWindMs",
+            "windSource"
+          ],
+          "req": [
+            "id",
+            "label",
+            "lat",
+            "lon",
+            "elevationM",
+            "cooling996DbC",
+            "cooling996McwbC",
+            "heating996DbC",
+            "source"
+          ],
+          "types": {
+            "id": "str",
+            "label": "str",
+            "country": "str",
+            "lat": "num",
+            "lon": "num",
+            "elevationM": "num",
+            "cooling996DbC": "num",
+            "cooling996McwbC": "num",
+            "cooling99DbC": "num",
+            "cooling98DbC": "num",
+            "heating996DbC": "num",
+            "heating99DbC": "num",
+            "hdd18": "num",
+            "cdd10": "num",
+            "rainfallMmYr": "num",
+            "source": "str",
+            "utcOffsetHours": "num",
+            "observesDstInSummer": "bool",
+            "heatingWindMs": "num",
+            "coolingWindMs": "num",
+            "designWindMs": "num"
+          },
+          "children": {
+            "windSource": {
+              "kind": "object",
+              "keys": [
+                "station",
+                "wmo",
+                "ashraeEdition",
+                "verify"
+              ],
+              "req": [
+                "station",
+                "wmo",
+                "ashraeEdition",
+                "url",
+                "verify"
+              ],
+              "types": {
+                "station": "str",
+                "wmo": "str",
+                "ashraeEdition": "str",
+                "designConditionsPeriod": "str",
+                "grade": "str",
+                "url": "str",
+                "verify": "str",
+                "note": "str"
+              },
+              "docKeys": {
+                "designConditionsPeriod": "Provenance: period of record of the ASHRAE design conditions; for the reviewer, no reader binds it.",
+                "grade": "Provenance: ASHRAE data-quality grade of the station; for the reviewer, no reader binds it.",
+                "url": "Provenance: the climate.onebuilding.org download the figures were read from; checked present by DesignWindTests.",
+                "note": "Provenance: station-choice remarks for the reviewer; no reader binds it."
+              }
+            }
+          }
+        }
+      }
+    },
     "StingTools/Data/STING_COMCHECK_SPACE_MAP.csv": {
       "format": "csv-table",
       "schemaVersion": 1,
@@ -10319,6 +10432,119 @@
         "ClassificationPolicy"
       ]
     },
+    "project-templates/KUT/_BIM_COORD/climate_data.json": {
+      "format": "json",
+      "schemaVersion": 2,
+      "description": "Climate design sites, read by ClimateRegistry.Apply as JObject (keys listed by hand; ClimateSite is not a deserialisation target). DSCH-37: heatingWindMs / coolingWindMs are the ASHRAE Ch. 14 mean coincident wind speeds (MCWS to 99.6% / 0.4% DB, m/s) read by DesignWind.FromSiteRecord; windSource names the station, WMO, edition and URL with a verify note. Range (0.5-20 m/s) and the presence of windSource are held by StingTools.Mep.Tests DesignWindTests.ShippedDesignWindIsInRangeAndSourced. KUT project overlay: replaces the corporate 'kampala' record whole, so it carries the Entebbe wind too.",
+      "readers": [
+        "StingTools/Core/Climate/ClimateRegistry.cs",
+        "StingTools/Core/Climate/DesignWind.cs"
+      ],
+      "kind": "object",
+      "keys": [
+        "sites"
+      ],
+      "req": [
+        "sites"
+      ],
+      "children": {
+        "sites": {
+          "kind": "array-of-object",
+          "keys": [
+            "id",
+            "label",
+            "country",
+            "lat",
+            "lon",
+            "elevationM",
+            "cooling996DbC",
+            "cooling996McwbC",
+            "cooling99DbC",
+            "cooling98DbC",
+            "heating996DbC",
+            "heating99DbC",
+            "hdd18",
+            "cdd10",
+            "rainfallMmYr",
+            "source",
+            "utcOffsetHours",
+            "observesDstInSummer",
+            "heatingWindMs",
+            "coolingWindMs",
+            "designWindMs",
+            "windSource"
+          ],
+          "req": [
+            "id",
+            "label",
+            "lat",
+            "lon",
+            "elevationM",
+            "cooling996DbC",
+            "cooling996McwbC",
+            "heating996DbC",
+            "source"
+          ],
+          "types": {
+            "id": "str",
+            "label": "str",
+            "country": "str",
+            "lat": "num",
+            "lon": "num",
+            "elevationM": "num",
+            "cooling996DbC": "num",
+            "cooling996McwbC": "num",
+            "cooling99DbC": "num",
+            "cooling98DbC": "num",
+            "heating996DbC": "num",
+            "heating99DbC": "num",
+            "hdd18": "num",
+            "cdd10": "num",
+            "rainfallMmYr": "num",
+            "source": "str",
+            "utcOffsetHours": "num",
+            "observesDstInSummer": "bool",
+            "heatingWindMs": "num",
+            "coolingWindMs": "num",
+            "designWindMs": "num"
+          },
+          "children": {
+            "windSource": {
+              "kind": "object",
+              "keys": [
+                "station",
+                "wmo",
+                "ashraeEdition",
+                "verify"
+              ],
+              "req": [
+                "station",
+                "wmo",
+                "ashraeEdition",
+                "url",
+                "verify"
+              ],
+              "types": {
+                "station": "str",
+                "wmo": "str",
+                "ashraeEdition": "str",
+                "designConditionsPeriod": "str",
+                "grade": "str",
+                "url": "str",
+                "verify": "str",
+                "note": "str"
+              },
+              "docKeys": {
+                "designConditionsPeriod": "Provenance: period of record of the ASHRAE design conditions; for the reviewer, no reader binds it.",
+                "grade": "Provenance: ASHRAE data-quality grade of the station; for the reviewer, no reader binds it.",
+                "url": "Provenance: the climate.onebuilding.org download the figures were read from; checked present by DesignWindTests.",
+                "note": "Provenance: station-choice remarks for the reviewer; no reader binds it."
+              }
+            }
+          }
+        }
+      }
+    },
     "project-templates/KUT/_BIM_COORD/lod_matrix.json": {
       "format": "json",
       "schemaVersion": 1,
@@ -10710,10 +10936,6 @@
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },
     "StingTools/Data/STING_CARBON_FACTORS_UG.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/STING_CLIMATE_DATA.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },
@@ -11242,10 +11464,6 @@
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },
     "StingTools/Data/tag_style_catalogue.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "project-templates/KUT/_BIM_COORD/climate_data.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },

@@ -23,11 +23,15 @@
 //   infiltration rest on the same assumption. It is a convention, not site
 //   data.
 //
-// Site records: the corporate STING_CLIMATE_DATA.json carries no wind figures
-// yet — they must be transcribed from the licensed ASHRAE tables, never
-// estimated. A project override may supply them. The legacy single key
-// "designWindMs" is still read and applies to whichever design day has no
-// specific value.
+// Site records: every site in the corporate STING_CLIMATE_DATA.json carries
+// heatingWindMs / coolingWindMs and a windSource object (station, WMO number,
+// ASHRAE edition, design-conditions period, URL). The figures were read from
+// the climate.onebuilding.org redistribution of the ASHRAE 2025 design
+// conditions, not the printed handbook, so each windSource keeps a "verify"
+// note; it is carried here as Source / Verify and the load report repeats it.
+// Never estimate a value: a site without one stays at the default and flagged.
+// A project override may supply them. The legacy single key "designWindMs" is
+// still read and applies to whichever design day has no specific value.
 
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
@@ -51,6 +55,19 @@ namespace StingTools.Core.Climate
         public double MsFor(bool cooling) => cooling ? CoolingMs : HeatingMs;
         public bool AssumedFor(bool cooling) => cooling ? CoolingAssumed : HeatingAssumed;
 
+        /// <summary>Where the recorded figures come from, from the site's windSource
+        /// object ("station, WMO n, edition"); empty when the record names none.</summary>
+        public string Source { get; set; } = "";
+
+        /// <summary>The windSource "verify" note: what is still unconfirmed about the
+        /// recorded figures. Empty when the record carries none.</summary>
+        public string Verify { get; set; } = "";
+
+        /// <summary>True when a speed is recorded for at least one design day but the
+        /// record does not say where it comes from.</summary>
+        public bool RecordedWithoutSource =>
+            (HeatingRecordedMs.HasValue || CoolingRecordedMs.HasValue) && Source.Length == 0;
+
         /// <summary>Wind keys present in the record but not usable (not a positive
         /// number). The caller logs them; they are treated as not recorded.</summary>
         public List<string> RejectedKeys { get; } = new List<string>();
@@ -72,6 +89,18 @@ namespace StingTools.Core.Climate
             double? legacy = Read(site, "designWindMs", w);
             w.HeatingRecordedMs = Read(site, "heatingWindMs", w) ?? legacy;
             w.CoolingRecordedMs = Read(site, "coolingWindMs", w) ?? legacy;
+            if (site["windSource"] is JObject src)
+            {
+                string station = ((string)src["station"] ?? "").Trim();
+                string wmo     = ((string)src["wmo"] ?? "").Trim();
+                string edition = ((string)src["ashraeEdition"] ?? "").Trim();
+                var parts = new List<string>();
+                if (station.Length > 0) parts.Add(station);
+                if (wmo.Length > 0) parts.Add("WMO " + wmo);
+                if (edition.Length > 0) parts.Add(edition);
+                w.Source = string.Join(", ", parts);
+                w.Verify = ((string)src["verify"] ?? "").Trim();
+            }
             return w;
         }
 
