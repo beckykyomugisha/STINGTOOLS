@@ -181,7 +181,20 @@ def _match_brace(text, brace):
     return n
 
 
+_poco_memo = {}
+
+
 def poco_properties(rel_paths, class_name, _depth=0):
+    """Memoised: allowed_keys asks once per array ELEMENT, and a scan per element
+    took the run from seconds to two minutes."""
+    key = (tuple([rel_paths]) if isinstance(rel_paths, str) else tuple(rel_paths), class_name)
+    if key not in _poco_memo:
+        _poco_memo[key] = _poco_properties(rel_paths, class_name, _depth)
+    r = _poco_memo[key]
+    return set(r) if r is not None else None
+
+
+def _poco_properties(rel_paths, class_name, _depth=0):
     """
     JSON key names Newtonsoft binds on `class_name`, found in `rel_paths` (one
     path or a list - a partial class is the union of its parts).

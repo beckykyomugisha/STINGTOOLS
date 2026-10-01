@@ -3392,6 +3392,61 @@
         }
       ]
     },
+    "StingTools/Data/Routing/STING_SEPARATION_RULES.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "Rows bound by RoutingRules (SeparationRule, ToObject) and, for separation, also read by key in SeparationValidator. DSCH round 5: the POCO had no [JsonProperty] for the snake_case keys, so every rule loaded empty.",
+      "readers": [
+        "StingTools/Core/Routing/RoutingRules.cs",
+        "StingTools/Core/Validation/SeparationValidator.cs"
+      ],
+      "kind": "object",
+      "keys": [
+        "rules",
+        "version",
+        "description",
+        "notes",
+        "standard",
+        "source",
+        "units"
+      ],
+      "children": {
+        "rules": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Routing/RoutingRules.cs",
+            "SeparationRule"
+          ]
+        }
+      }
+    },
+    "StingTools/Data/Routing/STING_SERVICE_CORRIDORS.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "Rows bound by RoutingRules (CorridorBand, ToObject) and, for separation, also read by key in SeparationValidator. DSCH round 5: the POCO had no [JsonProperty] for the snake_case keys, so every rule loaded empty.",
+      "readers": [
+        "StingTools/Core/Routing/RoutingRules.cs"
+      ],
+      "kind": "object",
+      "keys": [
+        "bands",
+        "version",
+        "description",
+        "notes",
+        "standard",
+        "source",
+        "units"
+      ],
+      "children": {
+        "bands": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Routing/RoutingRules.cs",
+            "CorridorBand"
+          ]
+        }
+      }
+    },
     "StingTools/Data/SCHEDULE_FIELD_REMAP.csv": {
       "format": "csv-table",
       "schemaVersion": 1,
@@ -10289,14 +10344,6 @@
       "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
     },
     "StingTools/Data/Routing/MEP_INSULATION_PARAMS.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Routing/STING_SEPARATION_RULES.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Routing/STING_SERVICE_CORRIDORS.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },
