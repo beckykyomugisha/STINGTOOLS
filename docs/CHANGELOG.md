@@ -2,6 +2,31 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (ACC audit round 4 — plugin, E1–E11, 2026-10-01)
+
+Findings E1, E3–E11 from the fourth ACC audit pass. Build 0/0. Acc (697), Tags (4,730) and Cost (169) tests green; `check_unattended_cycle.py`, `check_kut_workflow_tags.py`, `check_workflow_wiring.ps1`, `check_path_discipline.ps1` and `check_export_routing.ps1` pass. No live ACC call was made and none of this has been run in Revit.
+
+- **E1 — a clash closed in ACC while it still clashes is not raised again.** `ACC_SyncIssueStatus` used to un-track every closed / void escalation, so the next pull raised it again. The decision is now `AccEscalationReconcile.Decide` (Revit-free). An escalation leaves tracking for good only when its clash is absent from the latest complete pull, recorded per model set in `acc/acc_clash_presence.json`. Otherwise it is held in `closedInAcc`, beside the append-only origin entries. `ACC_PullClashes` refuses to raise a held clash and reports it as "closed in ACC, still clashing". A later complete pull without the clash releases the hold. An issue deleted in ACC (NOT_FOUND) is un-tracked and reported.
+- **E3 — a review decision attaches to the right transmittal.** The transmittal for the exact version wins. Matching by item is used only when exactly one transmittal has that item and it records no other version; any other case is refused with a reason.
+- **E4 — register writes from accepted ACC approvals.**
+  - Rows are found by doc_number, then file_name, then doc_id.
+  - The approved file's revision is carried, and a row at another revision is refused.
+  - The code is checked with `Iso19650RevisionRules.Check`. A contradicted code is not stored, and the row is flagged `iso_conflict`.
+  - `UpdateDocumentSuitability` returns found / saved / refused, and anything not written is reported as NOT applied. The pure part is `AccRegisterSuitability`.
+- **E5 / E7 — MIDP CSV.**
+  - Dates are read ISO first, then day-first (`params.dateOrder = "mdy"` switches to month-first). A date that order cannot read is refused and counted, never re-read the other way round.
+  - A file with no code column, or no date / relative-month column, is refused and the missing column is named.
+  - Rows with an empty code are counted as skipped.
+  - "Information Container ID" and similar headers are recognised as the code column.
+- **E6 — imported ACC issues.**
+  - They keep ACC's createdAt and createdBy (a name from the member list when known), not the import time and the importing user.
+  - They get no invented priority (`priority_defaulted`), and both SLA checks report them as "no SLA".
+  - The issue CSV export adds the ACC display id and the assignee name.
+- **E8 — the incremental-import watermark uses ACC's clock.** It is the Date header of the pull's first response, else the newest updatedAt, else it is not advanced. Clock skew is measured, logged and recorded.
+- **E9 — comment-only changes are pushed.** A status note goes to ACC even when ACC already agrees or the status cannot be pushed. Sent comments are keyed by a content hash; legacy counts are still honoured.
+- **E10 — one CSV cell writer (`AccCsv`) for every ACC report.** It guards against formula injection.
+- **E11 — `dueDate` is sent in the invariant culture.** Before this fix, th-TH wrote a Buddhist-era year.
+
 #### Completed (KUT workflows run without modal waits, area 3, 2026-10-01)
 
 No step of a `WORKFLOW_KUT_*.json` preset waits on a window in an unattended run, and a person running the same workflow by hand still gets every prompt they had before. Build 0/0. Tags (4,730) and Acc (614) tests green. `check_unattended_cycle.py`, `check_kut_workflow_tags.py` and `check_workflow_wiring.ps1` pass. None of this has been run in Revit.
