@@ -23,6 +23,7 @@
       "deltaParam": "CLN_PRESS_DELTA_DESIGN_PA_NR",
       "regimeParam": "CLN_PRESS_REGIME_TXT",
       "achParam":   "HVC_AIR_CHANGES_PER_HR",
+      "standard": "HTM 03-01",
       "_note": "Aliases the historic healthcare validator; left here so users can see the shape.",
       "classes": [
         { "id": "OR1",          "regime": "POS", "deltaPa": 15, "minAch": 20, "notes": "Operating room class 1" },
@@ -39,7 +40,7 @@
       "deltaParam": "CLN_PRESS_DELTA_DESIGN_PA_NR",
       "regimeParam": "CLN_PRESS_REGIME_TXT",
       "achParam":   "HVC_AIR_CHANGES_PER_HR",
-      "_standard": "EU GMP Annex 1 (Aug 2022)",
+      "standard": "EU GMP Annex 1 (Aug 2022)",
       "classes": [
         { "id": "Grade-A",  "regime": "POS", "deltaPa": 15, "minAch": 240, "notes": "Critical zone, unidirectional flow" },
         { "id": "Grade-B",  "regime": "POS", "deltaPa": 10, "minAch": 40 },
@@ -54,7 +55,7 @@
       "deltaParam": "CLN_PRESS_DELTA_DESIGN_PA_NR",
       "regimeParam": "CLN_PRESS_REGIME_TXT",
       "achParam":   "HVC_AIR_CHANGES_PER_HR",
-      "_standard": "ISO 14644-4:2022 (cleanroom design)",
+      "standard": "ISO 14644-4:2022 (cleanroom design)",
       "classes": [
         { "id": "ISO-5",  "regime": "POS", "deltaPa": 15, "minAch": 240 },
         { "id": "ISO-6",  "regime": "POS", "deltaPa": 15, "minAch": 90 },
@@ -69,7 +70,7 @@
       "deltaParam": "CLN_PRESS_DELTA_DESIGN_PA_NR",
       "regimeParam": "CLN_PRESS_REGIME_TXT",
       "achParam":   "HVC_AIR_CHANGES_PER_HR",
-      "_standard": "BS EN 12128 + ACDP / WHO BSL framework",
+      "standard": "BS EN 12128 + ACDP / WHO BSL framework",
       "classes": [
         { "id": "BSL-1",  "regime": "EITHER", "deltaPa": 0,  "minAch": 6 },
         { "id": "BSL-2",  "regime": "NEG",    "deltaPa": 10, "minAch": 10 },
