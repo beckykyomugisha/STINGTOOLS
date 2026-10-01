@@ -236,6 +236,49 @@ namespace StingTools.Core.Drawing
                 N(rule.LevelMatches), N(rule.ProjectCodeMatches), N(rule.OptionMatches));
         }
 
+        /// <summary>Signature plus target: two rules that match the same calls
+        /// AND send them to the same drawing type are the same rule.</summary>
+        public static string SignatureWithTarget(DrawingRoutingRule rule)
+            => Signature(rule) + "=>" + (rule?.DrawingTypeId ?? "").Trim();
+
+        /// <summary>
+        /// Layer project routing over the corporate table: project rules are
+        /// prepended (first match wins), and a later rule whose
+        /// <see cref="Signature"/> was already seen is dropped because it can
+        /// never be reached.
+        ///
+        /// DTW-191: a project rule identical (signature AND target) to a
+        /// corporate rule is dropped from the project side before the
+        /// prepend, so the corporate rule keeps its "corporate" origin. Project
+        /// files written before routing carried an origin froze all ~113
+        /// corporate rules into the override, where they loaded as project
+        /// rules and were re-saved for ever — a later corporate edit to one of
+        /// those keys could never reach that project. Returns the number of
+        /// such stale copies dropped.
+        /// </summary>
+        public static List<DrawingRoutingRule> MergeRouting(
+            IEnumerable<DrawingRoutingRule> corporate,
+            IEnumerable<DrawingRoutingRule> project,
+            out int droppedStaleCopies)
+        {
+            droppedStaleCopies = 0;
+            var corp = (corporate ?? Enumerable.Empty<DrawingRoutingRule>()).Where(r => r != null).ToList();
+            var corpKeys = new HashSet<string>(corp.Select(SignatureWithTarget), StringComparer.OrdinalIgnoreCase);
+            var combined = new List<DrawingRoutingRule>();
+            foreach (var r in project ?? Enumerable.Empty<DrawingRoutingRule>())
+            {
+                if (r == null) continue;
+                if (corpKeys.Contains(SignatureWithTarget(r))) { droppedStaleCopies++; continue; }
+                combined.Add(r);
+            }
+            combined.AddRange(corp);
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var deduped = new List<DrawingRoutingRule>(combined.Count);
+            foreach (var r in combined)
+                if (seen.Add(Signature(r))) deduped.Add(r);
+            return deduped;
+        }
+
         private static bool IsMatchEverything(string pattern)
             => pattern == ".*" || pattern == "^.*$" || pattern == ".+" || pattern == "^.+$" || pattern == ".*?";
 

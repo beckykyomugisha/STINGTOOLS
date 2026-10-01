@@ -56,5 +56,44 @@ namespace StingTools.Tags.Tests
             Assert.Contains("DrawingRoutingMatcher.", src);
             Assert.DoesNotContain("rule.ProjectCodeMatches ?? \"\");", src);
         }
+
+        // ── DTW-191 ───────────────────────────────────────────────────────
+
+        [Fact]
+        public void A_frozen_copy_of_the_whole_corporate_table_loads_as_corporate()
+        {
+            var corp = DrawingCatalogueFixture.Shipped().Routing;
+            foreach (var r in corp) r.Origin = "corporate";
+            // An override written before routing had an origin: every corporate
+            // rule copied in, stamped "project" by the loader.
+            var frozen = corp.Select(r => new DrawingRoutingRule {
+                Discipline = r.Discipline, Phase = r.Phase, DocType = r.DocType,
+                DisciplineMatches = r.DisciplineMatches, PhaseMatches = r.PhaseMatches,
+                DocTypeMatches = r.DocTypeMatches, LevelMatches = r.LevelMatches,
+                ProjectCodeMatches = r.ProjectCodeMatches, OptionMatches = r.OptionMatches,
+                DrawingTypeId = r.DrawingTypeId, Origin = "project" }).ToList();
+            var mine = Rule("M", "PLAN", "my-mep-plan", origin: "project");
+            frozen.Insert(0, mine);
+
+            var merged = DrawingRoutingMatcher.MergeRouting(corp, frozen, out int stale);
+
+            Assert.Equal(corp.Count, stale);
+            Assert.Single(merged.Where(r => r.IsProjectRule));
+            Assert.Same(mine, merged[0]);
+            // The corporate table survives intact behind the project rule, minus
+            // only rules the project rule shadows by signature.
+            Assert.True(merged.Count >= corp.Count, $"{merged.Count} < {corp.Count}");
+        }
+
+        [Fact]
+        public void A_project_rule_with_a_different_target_still_wins()
+        {
+            var corp = new List<DrawingRoutingRule> { Rule("A", "PLAN", "arch-plan", origin: "corporate") };
+            var proj = new List<DrawingRoutingRule> { Rule("A", "PLAN", "my-plan", origin: "project") };
+            var merged = DrawingRoutingMatcher.MergeRouting(corp, proj, out int stale);
+            Assert.Equal(0, stale);
+            Assert.Single(merged);
+            Assert.Equal("my-plan", merged[0].DrawingTypeId);
+        }
     }
 }

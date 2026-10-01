@@ -465,16 +465,16 @@ namespace StingTools.Core.Drawing
             // never-reached trailing rule.
             if (over.Routing != null && over.Routing.Count > 0)
             {
-                merged.Routing.InsertRange(0, over.Routing);
-                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                var deduped = new List<DrawingRoutingRule>();
-                foreach (var rule in merged.Routing)
-                {
-                    if (rule == null) continue;
-                    // DTW-185: every predicate field, OptionMatches included.
-                    if (seen.Add(DrawingRoutingMatcher.Signature(rule))) deduped.Add(rule);
-                }
-                merged.Routing = deduped;
+                // DTW-191: a project rule identical (signature + target) to a
+                // corporate rule is a stale copy from an override written
+                // before routing carried an origin — drop it so the corporate
+                // rule keeps its origin and the editor stops re-saving it.
+                merged.Routing = DrawingRoutingMatcher.MergeRouting(
+                    baseLib?.Routing, over.Routing, out int stale);
+                if (stale > 0)
+                    StingTools.Core.StingLog.Info(
+                        $"DrawingTypeRegistry: ignored {stale} project routing rule(s) identical to a corporate rule " +
+                        "(frozen copies from an older override; the next editor save drops them from the file).");
             }
 
             return merged;
