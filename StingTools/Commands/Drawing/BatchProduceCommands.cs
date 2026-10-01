@@ -542,7 +542,7 @@ namespace StingTools.Commands.Drawing
                         {
                             StingLog.Warn($"ProduceViewsPerLevel level={level.Name}: {innerEx.Message}");
                             warnings.Add($"{level.Name}: {innerEx.Message} — rolled back.");
-                            t.RollBack();
+                            if (t.HasStarted() && !t.HasEnded()) t.RollBack();   // DTW-107
                         }
                     }
                 }
@@ -776,7 +776,7 @@ namespace StingTools.Commands.Drawing
                         {
                             StingLog.Warn($"ProduceFromScopeBoxes box={scope.Name}: {innerEx.Message}");
                             warnings.Add($"{scope.Name}: {innerEx.Message} — rolled back.");
-                            t.RollBack();
+                            if (t.HasStarted() && !t.HasEnded()) t.RollBack();   // DTW-107
                         }
                     }
                 }
@@ -856,7 +856,7 @@ namespace StingTools.Commands.Drawing
                             {
                                 StingLog.Warn($"ProduceInteriorElevations room={roomLabel}: {innerEx.Message}");
                                 warnings.Add($"{roomLabel}: {innerEx.Message} — rolled back.");
-                                t.RollBack();
+                                if (t.HasStarted() && !t.HasEnded()) t.RollBack();   // DTW-107
                             }
                         }
                     }
@@ -987,7 +987,7 @@ namespace StingTools.Commands.Drawing
                             {
                                 StingLog.Warn($"ProduceSections context={dctx.Tag}: {innerEx.Message}");
                                 warnings.Add($"{dctx.Tag}: {innerEx.Message} — rolled back.");
-                                t.RollBack();
+                                if (t.HasStarted() && !t.HasEnded()) t.RollBack();   // DTW-107
                             }
                         }
                     }
@@ -1299,7 +1299,7 @@ namespace StingTools.Commands.Drawing
                             {
                                 StingLog.Warn($"RegeneratePackTemplates pack={pack.Name}: {innerEx.Message}");
                                 warnings.Add($"{pack.Name}: {innerEx.Message} — rolled back.");
-                                t.RollBack();
+                                if (t.HasStarted() && !t.HasEnded()) t.RollBack();   // DTW-107
                             }
                         }
                     }
