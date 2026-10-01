@@ -160,31 +160,24 @@ StingTools/Docs/SheetTemplateCommands.cs::SheetComplianceCheckCommand|new TaskDi
 StingTools/Docs/TitleBlockCommands.cs::RevisionSyncCommand|TaskDialog.Show|1	GATED - the first-line no-document guard, written `if (ctx == null || ctx.Doc == null)` so the checker's guard exemption does not match it; WorkflowEngine never starts without a document, so it cannot run in a workflow. The result goes through PresetDialog.Show.
 
 # FohlioAuditCommand — step Fohlio_Audit in DeliverableB, DeliverableC, DeliverableD, FFESync
-StingTools/ExLink/FohlioCommands.cs::FohlioAuditCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
 
 # FohlioExportCommand — step Fohlio_Export in FFESync
-StingTools/ExLink/FohlioCommands.cs::FohlioExportCommand|TaskDialog.Show|2	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
-StingTools/ExLink/FohlioCommands.cs::FohlioExportCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
 
 # FohlioImportCommand — step Fohlio_Import in DeliverableD, FFESync, LifecycleReconcile
-StingTools/ExLink/FohlioCommands.cs::FohlioImportCommand|AddCommandLink|2	UNGATED - a choice offered in a TaskDialog, always shown. A real blocker to unattended operation.
-StingTools/ExLink/FohlioCommands.cs::FohlioImportCommand|OpenFileDialog|1	UNGATED - asks a person for an input file; nothing configures the path, so the step cannot run unattended.
-StingTools/ExLink/FohlioCommands.cs::FohlioImportCommand|ShowDialog|1	UNGATED - the modal file chooser (or WPF window) opened for that input.
-StingTools/ExLink/FohlioCommands.cs::FohlioImportCommand|TaskDialog.Show|3	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
-StingTools/ExLink/FohlioCommands.cs::FohlioImportCommand|TaskDialogResult|2	UNGATED - reading a dialog answer, i.e. a branch on a click. A real blocker to unattended operation.
-StingTools/ExLink/FohlioCommands.cs::FohlioImportCommand|new TaskDialog|2	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
+StingTools/ExLink/FohlioCommands.cs::FohlioImportCommand|AddCommandLink|2	GATED - the fill/overwrite preview is built only when !PresetDialog.Quiet; inside a preset the diff goes to the log and the step's params.mode ("fill"|"overwrite") decides - a step without it writes nothing and fails naming the param.
+StingTools/ExLink/FohlioCommands.cs::FohlioImportCommand|OpenFileDialog|1	GATED - the Fohlio export picker, built only when !PresetDialog.Quiet; inside a preset the step's params.fohlioExport names the file (PresetDialog.InputFile) and a step without it fails naming the param.
+StingTools/ExLink/FohlioCommands.cs::FohlioImportCommand|ShowDialog|1	GATED - that picker's ShowDialog; same branch.
+StingTools/ExLink/FohlioCommands.cs::FohlioImportCommand|TaskDialogResult|2	GATED - reading the fill/overwrite preview; same branch.
+StingTools/ExLink/FohlioCommands.cs::FohlioImportCommand|new TaskDialog|1	GATED - the preview window; same branch (the result goes through PresetDialog.Show).
 
 # FohlioExportFinishesCommand — step Fohlio_ExportFinishes in DeliverableB, DeliverableC, DeliverableD
-StingTools/ExLink/FohlioFinishesCommands.cs::FohlioExportFinishesCommand|TaskDialog.Show|2	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
-StingTools/ExLink/FohlioFinishesCommands.cs::FohlioExportFinishesCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
 
 # FohlioImportFinishesCommand — step Fohlio_ImportFinishes in DeliverableB, DeliverableC
-StingTools/ExLink/FohlioFinishesCommands.cs::FohlioImportFinishesCommand|AddCommandLink|2	UNGATED - a choice offered in a TaskDialog, always shown. A real blocker to unattended operation.
-StingTools/ExLink/FohlioFinishesCommands.cs::FohlioImportFinishesCommand|OpenFileDialog|1	UNGATED - asks a person for an input file; nothing configures the path, so the step cannot run unattended.
-StingTools/ExLink/FohlioFinishesCommands.cs::FohlioImportFinishesCommand|ShowDialog|1	UNGATED - the modal file chooser (or WPF window) opened for that input.
-StingTools/ExLink/FohlioFinishesCommands.cs::FohlioImportFinishesCommand|TaskDialog.Show|2	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
-StingTools/ExLink/FohlioFinishesCommands.cs::FohlioImportFinishesCommand|TaskDialogResult|2	UNGATED - reading a dialog answer, i.e. a branch on a click. A real blocker to unattended operation.
-StingTools/ExLink/FohlioFinishesCommands.cs::FohlioImportFinishesCommand|new TaskDialog|2	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
+StingTools/ExLink/FohlioFinishesCommands.cs::FohlioImportFinishesCommand|AddCommandLink|2	GATED - the fill/overwrite preview is built only when !PresetDialog.Quiet; inside a preset the diff goes to the log and the step's params.mode ("fill"|"overwrite") decides - a step without it writes nothing and fails naming the param.
+StingTools/ExLink/FohlioFinishesCommands.cs::FohlioImportFinishesCommand|OpenFileDialog|1	GATED - the finishes export picker, built only when !PresetDialog.Quiet; inside a preset the step's params.finishesExport names the file (PresetDialog.InputFile) and a step without it fails naming the param.
+StingTools/ExLink/FohlioFinishesCommands.cs::FohlioImportFinishesCommand|ShowDialog|1	GATED - that picker's ShowDialog; same branch.
+StingTools/ExLink/FohlioFinishesCommands.cs::FohlioImportFinishesCommand|TaskDialogResult|2	GATED - reading the fill/overwrite preview; same branch.
+StingTools/ExLink/FohlioFinishesCommands.cs::FohlioImportFinishesCommand|new TaskDialog|1	GATED - the preview window; same branch (the result goes through PresetDialog.Show).
 
 # AuditTagsCSVCommand — step AuditTagsCSV in DeliverableD
 
