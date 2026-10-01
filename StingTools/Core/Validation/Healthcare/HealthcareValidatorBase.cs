@@ -48,7 +48,7 @@ namespace StingTools.Core.Validation.Healthcare
                 if (p == null || !p.HasValue) return null;
                 if (p.StorageType == StorageType.Double) return p.AsDouble();
                 if (p.StorageType == StorageType.Integer) return (double)p.AsInteger();
-                if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out var v)) return v;
+                if (p.StorageType == StorageType.String && StingTools.Core.NumberText.TryParse(p.AsString(), out var v)) return v;
                 return null;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }

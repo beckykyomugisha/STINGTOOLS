@@ -466,7 +466,7 @@ namespace StingTools.Core.Plumbing
                     if (p.StorageType == StorageType.Double)  return p.AsDouble();
                     if (p.StorageType == StorageType.Integer) return p.AsInteger();
                     if (p.StorageType == StorageType.String)
-                        if (double.TryParse(p.AsString(), out var v)) return v;
+                        if (StingTools.Core.NumberText.TryParse(p.AsString(), out var v)) return v;
                 }
             }
             catch { }

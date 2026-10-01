@@ -214,7 +214,7 @@ namespace StingTools.Core.Plumbing
                 var bt = ReadString(pi, ParamRegistry.PLM_BLDG_TYPE);
                 if (!string.IsNullOrEmpty(bt)) c.BuildingType = bt;
                 var k  = ReadString(pi, ParamRegistry.PLM_K_FACTOR);
-                if (!string.IsNullOrEmpty(k) && double.TryParse(k, out var kv) && kv > 0) c.KFactor = kv;
+                if (!string.IsNullOrEmpty(k) && StingTools.Core.NumberText.TryParse(k, out var kv) && kv > 0) c.KFactor = kv;
                 var sd = ReadString(pi, ParamRegistry.PLM_STD_DRAIN);
                 if (!string.IsNullOrEmpty(sd)) c.DrainStandard  = sd;
                 var ss = ReadString(pi, ParamRegistry.PLM_STD_SUPPLY);
@@ -235,7 +235,7 @@ namespace StingTools.Core.Plumbing
                 var p = el?.LookupParameter(name);
                 if (p == null || p.IsReadOnly) return;
                 if (p.StorageType == StorageType.String) p.Set(value ?? "");
-                else if (p.StorageType == StorageType.Double && double.TryParse(value, out var dv)) p.Set(dv);
+                else if (p.StorageType == StorageType.Double && StingTools.Core.NumberText.TryParse(value, out var dv)) p.Set(dv);
                 else if (p.StorageType == StorageType.Integer && int.TryParse(value, out var iv)) p.Set(iv);
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }

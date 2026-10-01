@@ -398,7 +398,7 @@ namespace StingTools.Core.Plumbing
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
                 if (p.StorageType == StorageType.String)
                 {
-                    if (double.TryParse(p.AsString(), out var d)) return d;
+                    if (StingTools.Core.NumberText.TryParse(p.AsString(), out var d)) return d;
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }

@@ -268,7 +268,7 @@ namespace StingTools.Core.Placement.Matrix
         private static string Norm(string s) => (s ?? "").Trim().ToLowerInvariant();
         private static string SafeStr(IXLCell c) { try { return c.GetString()?.Trim() ?? ""; } catch { return ""; } }
         private static int SafeInt(IXLCell c) { try { return (int)Math.Round(c.GetDouble()); } catch { return int.TryParse(SafeStr(c), out var v) ? v : 0; } }
-        private static double SafeDouble(IXLCell c) { try { return c.GetDouble(); } catch { return double.TryParse(SafeStr(c), out var v) ? v : 0; } }
+        private static double SafeDouble(IXLCell c) { try { return c.GetDouble(); } catch { return StingTools.Core.NumberText.TryParse(SafeStr(c), out var v) ? v : 0; } }
         private static bool SafeBool(IXLCell c, bool dflt) { try { return c.GetBoolean(); } catch { var s = SafeStr(c); return string.IsNullOrEmpty(s) ? dflt : (s.Equals("true", StringComparison.OrdinalIgnoreCase) || s == "1"); } }
     }
 }
