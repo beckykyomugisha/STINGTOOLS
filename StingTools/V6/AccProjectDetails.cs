@@ -219,7 +219,8 @@ namespace StingTools.V6
     /// information only, STING has no parameter for it.</summary>
     public enum AccInfoTargetKind { BuiltIn, Shared, None }
 
-    public enum AccInfoRowState { Same, Differs, AccEmpty, NoTarget }
+    /// <summary>NotACode (P10): the ACC value cannot be an ISO 19650 project code - shown, never offered.</summary>
+    public enum AccInfoRowState { Same, Differs, AccEmpty, NoTarget, NotACode }
 
     public sealed class AccProjectInfoRow
     {
@@ -269,6 +270,11 @@ namespace StingTools.V6
             Row("name", "Project name", AccInfoTargetKind.BuiltIn, BuiltInName, d.Name);
             Row("jobNumber", "Project number (ACC job number)", AccInfoTargetKind.BuiltIn, BuiltInNumber, d.JobNumber);
             Row("projectCode", "ISO 19650 project code (from ACC job number)", AccInfoTargetKind.Shared, projectCodeParam, d.JobNumber);
+            // P10: the project code is the first field of every ISO file name and the project
+            // folder name. A job number such as "KUT 2026/001" or "PRJ-01" would put a space, a
+            // slash or a field separator there - shown, never offered as a write.
+            var code = rows[rows.Count - 1];
+            if (code.State == AccInfoRowState.Differs && !IsIsoProjectCode(code.AccValue)) code.State = AccInfoRowState.NotACode;
             Row("address", "Project address", AccInfoTargetKind.BuiltIn, BuiltInAddress, d.AddressBlock);
             Row("status", "Project status", AccInfoTargetKind.BuiltIn, BuiltInStatus, d.Status);
             Row("currency", "Project currency", AccInfoTargetKind.Shared, currencyParam, d.Currency);
@@ -284,6 +290,11 @@ namespace StingTools.V6
                 d.Latitude.Length == 0 && d.Longitude.Length == 0 ? "" : d.Latitude + ", " + d.Longitude);
             return rows;
         }
+
+        /// <summary>P10: 2-8 letters or digits - one ISO 19650 name field, no separator, and short
+        /// enough for the project folder (which keeps 8).</summary>
+        public static bool IsIsoProjectCode(string s)
+            => !string.IsNullOrEmpty(s) && System.Text.RegularExpressions.Regex.IsMatch(s, "^[A-Za-z0-9]{2,8}$");
 
         /// <summary>Compare ignoring case, surrounding and repeated whitespace, and line breaks
         /// (Revit's address box keeps newlines; ACC's lines are comma-joined here).</summary>

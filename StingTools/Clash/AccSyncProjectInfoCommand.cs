@@ -196,6 +196,7 @@ namespace StingTools.Core.Clash
                     AccInfoRowState.Same => "same",
                     AccInfoRowState.Differs => "DIFFERS",
                     AccInfoRowState.AccEmpty => "not set in ACC",
+                    AccInfoRowState.NotACode => "NOT a valid project code (2-8 letters/digits) - not offered",
                     _ => r.TargetKind == AccInfoTargetKind.None ? "info only" : "no parameter in model",
                 };
                 sb.AppendLine($"  [{state}] {r.Label}: ACC '{Short(r.AccValue)}'" +

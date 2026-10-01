@@ -142,6 +142,32 @@ namespace StingTools.Acc.Tests
             Assert.Equal(new[] { "jobNumber", "status" }, rows.Where(r => r.Writable).Select(r => r.Key).ToArray());
         }
 
+        // P10: the ACC job number was offered as the ISO project code whatever it held.
+        [Theory]
+        [InlineData("KUT 2026/001")]
+        [InlineData("PRJ-01")]
+        [InlineData("K")]
+        [InlineData("TOOLONGCODE")]
+        public void Diff_AJobNumberThatIsNotAProjectCode_IsShownButNeverOfferedAsTheCode(string job)
+        {
+            var d = new AccProjectDetails { Name = "X", JobNumber = job };
+            var rows = AccProjectInfoDiff.Build(d, (k, t) => "OLD", "P", "C");
+            Assert.Equal(AccInfoRowState.NotACode, rows.Single(r => r.Key == "projectCode").State);
+            Assert.False(rows.Single(r => r.Key == "projectCode").Writable);
+            Assert.True(rows.Single(r => r.Key == "jobNumber").Writable);   // Revit's free-text number may take it
+        }
+
+        [Theory]
+        [InlineData("KUT")]
+        [InlineData("kut2026")]
+        [InlineData("AB")]
+        public void Diff_AJobNumberThatIsAProjectCode_IsOffered(string job)
+        {
+            var d = new AccProjectDetails { Name = "X", JobNumber = job };
+            var rows = AccProjectInfoDiff.Build(d, (k, t) => "OLD", "P", "C");
+            Assert.True(rows.Single(r => r.Key == "projectCode").Writable);
+        }
+
         [Fact]
         public void Diff_AnAccValueThatIsEmpty_IsNeverOfferedAsAWrite()
         {
