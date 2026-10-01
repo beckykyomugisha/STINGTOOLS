@@ -3057,7 +3057,7 @@ PARAM	c8d4f6e2-1102-4d27-8c61-0e7a3f9b6002	HVC_HEPA_GRADE_TXT	TEXT		5	1	HEPA gra
 PARAM	c8d4f6e2-1103-4d27-8c61-0e7a3f9b6003	HVC_HEPA_LAST_TST_DT	TEXT		5	1	Last DOP / PAO test date (ISO 8601)	1
 PARAM	c8d4f6e2-1104-4d27-8c61-0e7a3f9b6004	HVC_ACH_OUTSIDE_NR	INTEGER		5	1	Outside-air ACH component (total ACH reuses HVC_AIR_CHANGES_PER_HR)	1
 PARAM	c8d4f6e2-1201-4d27-8c61-0e7a3f9b7001	PLM_TMV_TYPE_TXT	TEXT		6	1	Thermostatic mixing valve type: TMV2 / TMV3 / NONE [HTM 04-01]	1
-PARAM	c8d4f6e2-1202-4d27-8c61-0e7a3f9b7002	PLM_DEAD_LEG_M_NR	NUMBER		6	1	Spur length from main to outlet (m) [HTM 04-01 Pt A 12.5: generally <= 3 m]	1
+PARAM	c8d4f6e2-1202-4d27-8c61-0e7a3f9b7002	PLM_DEAD_LEG_M_NR	NUMBER		6	1	Spur length from main to outlet (m) [HTM 04-01 Pt A 12.5: healthcare spur generally <= 3 m; blended pipe after a TMV <= 2 m, Pt A 10.48]	1
 PARAM	c8d4f6e2-1203-4d27-8c61-0e7a3f9b7003	PLM_AUG_CARE_BOOL	YESNO		6	1	Augmented-care wing rules apply [HTM 04-01 Pt C -- Pseudomonas]	1
 PARAM	c8d4f6e2-1204-4d27-8c61-0e7a3f9b7004	PLM_POU_FILTER_BOOL	YESNO		6	1	Point-of-use filter fitted [HTM 04-01]	1
 PARAM	c8d4f6e2-1205-4d27-8c61-0e7a3f9b7005	PLM_SENTINEL_BOOL	YESNO		6	1	Sentinel temperature monitoring point [HTM 04-01]	1

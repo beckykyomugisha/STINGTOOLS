@@ -21125,7 +21125,7 @@
     {
       "param_name": "PLM_DEAD_LEG_M_NR",
       "guid": "c8d4f6e2-1202-4d27-8c61-0e7a3f9b7002",
-      "description": "Spur length from main to outlet (m) [HTM 04-01 Pt A 12.5: generally <= 3 m]",
+      "description": "Spur length from main to outlet (m) [HTM 04-01 Pt A 12.5: healthcare spur generally <= 3 m; blended pipe after a TMV <= 2 m, Pt A 10.48]",
       "datatype": "NUMBER",
       "group_id": 6,
       "group_name": "PLM_DRN",

@@ -1933,7 +1933,7 @@ PLM_CONN_FROM_TAG,6,tag-container,<ALL>,Routed pipe connection-from fixture tag 
 PLM_CONN_TO_TAG,6,tag-container,<ALL>,Routed pipe connection-to fixture tag [Plumbing routing]
 PLM_CONN_TYPE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Conn Type [ISO 19650]
 PLM_DEAD_LEG_LENGTH_M,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Dead-leg length m flagged by DeadLegDetector (limits in STING_TMV_STANDARDS.json) [DSCH-25]
-PLM_DEAD_LEG_M_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Spur length from main to outlet (m) [HTM 04-01 Pt A 12.5: generally <= 3 m]
+PLM_DEAD_LEG_M_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Spur length from main to outlet (m) [HTM 04-01 Pt A 12.5: healthcare spur generally <= 3 m; blended pipe after a TMV <= 2 m, Pt A 10.48]"
 PLM_DEMAND_FLOW_LPS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Design flow rate l/s for pipe or branch [Phase 178b]
 PLM_DFU_COUNT_INT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,IPC 2021 Drainage Fixture Units assigned to fixture or pipe segment [Phase 178b]
 PLM_DRN_ACCESS_POINTS_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Access Points Txt [ISO 19650-1:2018]

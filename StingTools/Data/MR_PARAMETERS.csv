@@ -2772,7 +2772,7 @@ Generic Models,MGS_ZVB_REF_TXT,c8d4f6e2-b007-4d27-8c61-0e7a3f9b1007,TEXT,MGS_SYS
 Generic Models,MNT_CAL_LAST_DT,c8d4f6e2-1401-4d27-8c61-0e7a3f9b9001,TEXT,COMMISSIONING,Type,Last calibration date (ISO 8601) -- distinct from service date,False,,,MULTI,1,0
 Generic Models,MNT_CAL_NEXT_DT,c8d4f6e2-1402-4d27-8c61-0e7a3f9b9002,TEXT,COMMISSIONING,Type,Next calibration due (ISO 8601),False,,,MULTI,1,0
 Generic Models,PLM_AUG_CARE_BOOL,c8d4f6e2-1203-4d27-8c61-0e7a3f9b7003,YESNO,PLM_DRN,Type,Augmented-care wing rules apply [HTM 04-01 Pt C -- Pseudomonas],False,,,PLUMBING,1,0
-Generic Models,PLM_DEAD_LEG_M_NR,c8d4f6e2-1202-4d27-8c61-0e7a3f9b7002,NUMBER,PLM_DRN,Type,Spur length from main to outlet (m) [HTM 04-01 Pt A 12.5: generally <= 3 m],False,,,PLUMBING,1,0
+Generic Models,PLM_DEAD_LEG_M_NR,c8d4f6e2-1202-4d27-8c61-0e7a3f9b7002,NUMBER,PLM_DRN,Type,"Spur length from main to outlet (m) [HTM 04-01 Pt A 12.5: healthcare spur generally <= 3 m; blended pipe after a TMV <= 2 m, Pt A 10.48]",False,,,PLUMBING,1,0
 Generic Models,PLM_FLUSH_LOG_REF_TXT,c8d4f6e2-1206-4d27-8c61-0e7a3f9b7006,TEXT,PLM_DRN,Type,Flushing-log document reference,False,,,PLUMBING,1,0
 Generic Models,PLM_POU_FILTER_BOOL,c8d4f6e2-1204-4d27-8c61-0e7a3f9b7004,YESNO,PLM_DRN,Type,Point-of-use filter fitted [HTM 04-01],False,,,PLUMBING,1,0
 Generic Models,PLM_RO_LOOP_BOOL,c8d4f6e2-1207-4d27-8c61-0e7a3f9b7007,YESNO,PLM_DRN,Type,Belongs to dialysis Reverse Osmosis loop,False,,,PLUMBING,1,0
