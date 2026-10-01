@@ -981,7 +981,8 @@ namespace StingTools.BOQ
             try
             {
                 var ovr = StingCostRateOverrideSchema.Read(el);
-                if (ovr != null && (ovr.OverheadPercent > 0 || ovr.ProfitPercent > 0))
+                if (ovr != null && ovr.Outcome == StingTools.BOQ.Rates.RateOutcome.Priced
+                    && (ovr.OverheadPercent > 0 || ovr.ProfitPercent > 0))
                 {
                     line.RateIncludesOhp = true;
                     string ohpNote = $"Rate loaded (OH {ovr.OverheadPercent:0.##}% + profit " +
