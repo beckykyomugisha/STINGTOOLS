@@ -29369,7 +29369,7 @@
         "key": "ELC_ARC_FLASH_PPE",
         "param_name": "ELC_ARC_FLASH_PPE_CAT",
         "guid": "a2e7f8d9-1003-5179-9179-100000000003",
-        "description": "NFPA 70E Table 130.5(G) PPE category 0\u20134 (-1 = exceeds Cat 4) [STING Phase 179]",
+        "description": "Incident-energy band at the working distance, e.g. 4-8 cal/cm2, from the bands in STING_ARC_FLASH_PPE.json; N/A when not calculated. Not an NFPA 70E PPE category: 130.5(H) puts incident energy or a category on a label, not both [IEEE 1584-2018 / STING DSCH-25]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -29432,7 +29432,7 @@
         "key": "ELC_ARC_FLASH_LABEL",
         "param_name": "ELC_ARC_FLASH_LABEL_TXT",
         "guid": "a2e7f8d9-1005-5179-9179-100000000005",
-        "description": "Formatted NFPA 70E arc flash warning label text [STING Phase 179]",
+        "description": "Arc flash label text: ANSI Z535.4 signal word (WARNING / DANGER), voltage, incident energy at the working distance, arc flash boundary, clearing time and basis; no PPE category. NOT CALCULATED text with the reason when no result [IEEE 1584-2018 / STING DSCH-25]",
         "categories": [
           "Electrical Equipment"
         ]

@@ -1033,8 +1033,8 @@ ELC_ARC_FLASH_ENCL_H_MM,4,elc-sub,Electrical Equipment|Electrical Circuits,"IEEE
 ELC_ARC_FLASH_ENCL_W_MM,4,elc-sub,Electrical Equipment|Electrical Circuits,"IEEE 1584-2018 enclosure width in mm - blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]"
 ELC_ARC_FLASH_GAP_MM,4,elc-sub,Electrical Equipment|Electrical Circuits,"IEEE 1584-2018 conductor gap in mm - blank = the typical gap for the equipment class, noted on the label [STING MEPG-11]"
 ELC_ARC_FLASH_IE_CAL_CM2,4,elc-sub,Electrical Equipment|Electrical Circuits,Calculated incident energy in cal/cm2 at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179]
-ELC_ARC_FLASH_LABEL_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Formatted NFPA 70E arc flash warning label text -- voltage / energy / boundary / PPE [STING Phase 179]
-ELC_ARC_FLASH_PPE_CAT,4,elc-sub,Electrical Equipment|Electrical Circuits,NFPA 70E Table 130.5(G) PPE category 0-4 (-1 = exceeds Cat 4 / dangerous) [STING Phase 179]
+ELC_ARC_FLASH_LABEL_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,"Arc flash label text: ANSI Z535.4 signal word (WARNING / DANGER), voltage, incident energy at the working distance, arc flash boundary, clearing time and basis; no PPE category. NOT CALCULATED text with the reason when no result [IEEE 1584-2018 / STING DSCH-25]"
+ELC_ARC_FLASH_PPE_CAT,4,elc-sub,Electrical Equipment|Electrical Circuits,"Incident-energy band at the working distance, e.g. 4-8 cal/cm2, from the bands in STING_ARC_FLASH_PPE.json; N/A when not calculated. Not an NFPA 70E PPE category: 130.5(H) puts incident energy or a category on a label, not both [IEEE 1584-2018 / STING DSCH-25]"
 ELC_ARC_FLASH_WORK_DIST_MM,4,elc-sub,Electrical Equipment|Electrical Circuits,Working distance from the arc source in mm (default 455 mm for LV equipment per IEEE 1584) [STING Phase 179]
 ELC_ATS_TEST_LOG_REF_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,ATS test log document reference [H-27]
 ELC_ATS_TIME_S_NR,4,elc-sub,Electrical Equipment|Electrical Circuits,Required Automatic Transfer Switch time (s) -- NFPA 99 <=10 s for LS/CR
