@@ -215,6 +215,27 @@ namespace StingTools.Core.Drawing
         private static bool PredicateCovers(string a, string b)
             => string.IsNullOrEmpty(a) || string.Equals(a, b, StringComparison.Ordinal);
 
+        /// <summary>
+        /// The match key of a routing rule: every field that takes part in
+        /// matching, and nothing else. Two rules with the same signature are
+        /// the same predicate, so the later one can never fire (first match
+        /// wins). DTW-185: the de-dup in DrawingTypeRegistry.Merge used to
+        /// leave OptionMatches out, so a value-engineering rule and its
+        /// baseline twin — identical but for optionMatches, which is exactly
+        /// how the Phase 175 design-option routing is meant to be written —
+        /// collapsed to one and the option split vanished.
+        /// </summary>
+        public static string Signature(DrawingRoutingRule rule)
+        {
+            if (rule == null) return "";
+            static string N(string s) => string.IsNullOrEmpty(s) ? "" : s.Trim();
+            static string W(string s) => string.IsNullOrWhiteSpace(s) ? "*" : s.Trim();
+            return string.Join("|",
+                W(rule.Discipline), W(rule.Phase), W(rule.DocType),
+                N(rule.DisciplineMatches), N(rule.PhaseMatches), N(rule.DocTypeMatches),
+                N(rule.LevelMatches), N(rule.ProjectCodeMatches), N(rule.OptionMatches));
+        }
+
         private static bool IsMatchEverything(string pattern)
             => pattern == ".*" || pattern == "^.*$" || pattern == ".+" || pattern == "^.+$" || pattern == ".*?";
 

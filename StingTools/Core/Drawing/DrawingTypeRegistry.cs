@@ -471,16 +471,8 @@ namespace StingTools.Core.Drawing
                 foreach (var rule in merged.Routing)
                 {
                     if (rule == null) continue;
-                    string sig = string.Join("|",
-                        rule.Discipline ?? "*",
-                        rule.Phase ?? "*",
-                        rule.DocType ?? "*",
-                        rule.DisciplineMatches ?? "",
-                        rule.PhaseMatches ?? "",
-                        rule.DocTypeMatches ?? "",
-                        rule.LevelMatches ?? "",
-                        rule.ProjectCodeMatches ?? "");
-                    if (seen.Add(sig)) deduped.Add(rule);
+                    // DTW-185: every predicate field, OptionMatches included.
+                    if (seen.Add(DrawingRoutingMatcher.Signature(rule))) deduped.Add(rule);
                 }
                 merged.Routing = deduped;
             }
