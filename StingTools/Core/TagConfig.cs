@@ -966,6 +966,10 @@ namespace StingTools.Core
                             if (string.IsNullOrEmpty(p.DefaultDisc))
                                 p.DefaultDisc = kvp.Key; // Use the dictionary key as DefaultDisc if not explicitly set
                             DisciplineProfiles[kvp.Key] = p;
+                            var ignored = p.IgnoredSettings();
+                            if (ignored.Count > 0)
+                                StingLog.Warn($"TagConfig: DISCIPLINE_PROFILES.{kvp.Key} sets {string.Join(", ", ignored)}, " +
+                                    "which tagging does not apply yet (TAGACC-25) — they have no effect.");
                         }
                     }
                     if (DisciplineProfiles.Count > 0)

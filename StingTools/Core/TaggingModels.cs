@@ -67,6 +67,24 @@ namespace StingTools.Core
         /// </summary>
         public int? DefaultParagraphDepth { get; set; }
 
+        /// <summary>
+        /// TAGACC-25: the settings on this profile that the tagging pipeline does not apply.
+        /// They load, but nothing reads them — a project that sets one gets no effect. Until
+        /// they are implemented (a decision: they change how tokens and SEQ keys are built),
+        /// the loader and the Discipline Profiles report name them instead of staying silent.
+        /// </summary>
+        public List<string> IgnoredSettings()
+        {
+            var names = new List<string>();
+            if (CollisionMode.HasValue) names.Add(nameof(CollisionMode));
+            if (SeqScheme.HasValue) names.Add(nameof(SeqScheme));
+            if (!string.IsNullOrEmpty(DefaultZone)) names.Add(nameof(DefaultZone));
+            if (!string.IsNullOrEmpty(DefaultLoc)) names.Add(nameof(DefaultLoc));
+            if (SeqIncludeZone.HasValue) names.Add(nameof(SeqIncludeZone));
+            if (SeqPadWidth.HasValue) names.Add(nameof(SeqPadWidth));
+            return names;
+        }
+
         /// <summary>Parse a DisciplineProfile from a JSON dictionary.</summary>
         public static DisciplineProfile FromDict(Dictionary<string, object> dict)
         {
