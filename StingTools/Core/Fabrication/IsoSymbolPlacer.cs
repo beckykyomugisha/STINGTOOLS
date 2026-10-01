@@ -858,19 +858,22 @@ namespace StingTools.Core.Fabrication
             }
             try
             {
-                bool first = true;
-                foreach (var line in File.ReadAllLines(path))
+                // DSCH-2: columns by header name, not position.
+                var t = CsvTable.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                var missing = t.Missing("symbol_code", "family_filename", "category", "description");
+                if (missing.Count > 0)
+                    StingLog.Warn($"IsoSymbolPlacer: {path} header has no {string.Join(", ", missing)} column; index left empty.");
+                int last = missing.Count > 0 ? int.MaxValue
+                    : new[] { t.Col("symbol_code"), t.Col("family_filename"), t.Col("category"), t.Col("description") }.Max();
+                foreach (var r in t.Rows)
                 {
-                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-                    if (first) { first = false; continue; }
-                    var cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols == null || cols.Length < 4) continue;
+                    if (r.Count <= last) continue;
                     var entry = new SymbolEntry
                     {
-                        SymbolCode  = cols[0],
-                        FamilyFile  = cols[1],
-                        Category    = cols[2],
-                        Description = cols[3],
+                        SymbolCode  = r["symbol_code"],
+                        FamilyFile  = r["family_filename"],
+                        Category    = r["category"],
+                        Description = r["description"],
                     };
                     entry.Tokens = (entry.SymbolCode ?? "")
                         .ToUpperInvariant()
