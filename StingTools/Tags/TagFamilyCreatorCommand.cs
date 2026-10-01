@@ -358,10 +358,10 @@ namespace StingTools.Tags
         /// </summary>
         public static readonly (BuiltInCategory bic, string template, string display, string suffix)[] TieInPointFamilies =
         {
-            (BuiltInCategory.OST_PipeCurves,     "Pipe Tag.rft",                "Tie-In Point (Pipe)",            "Tie-In Point Tag (Pipe — Plumbing & Hydraulic)"),
-            (BuiltInCategory.OST_DuctCurves,     "Duct Tag.rft",                "Tie-In Point (Duct)",            "Tie-In Point Tag (Duct — HVAC)"),
+            (BuiltInCategory.OST_PipeCurves,     "Pipe Tag.rft",                "Tie-In Point (Pipe)",            "Tie-In Pipe"),
+            (BuiltInCategory.OST_DuctCurves,     "Duct Tag.rft",                "Tie-In Point (Duct)",            "Tie-In Duct"),
             (BuiltInCategory.OST_Conduit,        "Conduit Tag.rft",             "Tie-In Point (Conduit)",         "Tie-In Conduit"),
-            (BuiltInCategory.OST_CableTray,      "Cable Tray Tag.rft",          "Tie-In Point (Cable Tray)",      "Tie-In Point Tag (Cable Tray — Electrical)"),
+            (BuiltInCategory.OST_CableTray,      "Cable Tray Tag.rft",          "Tie-In Point (Cable Tray)",      "Tie-In Cable Tray"),
             (BuiltInCategory.OST_Sprinklers,     "Sprinkler Tag.rft",           "Tie-In Point (Fire Protection)", "Tie-In Fire Protection"),
             (BuiltInCategory.OST_GenericModel,    "Generic Tag.rft",             "Tie-In Point (Gas)",             "Tie-In Gas"),
             // Pipe system-specific tie-in variants (from MEP CSV #49, #50)
@@ -543,6 +543,13 @@ namespace StingTools.Tags
         };
 
         /// <summary>
+        /// TAGFAM-7: family names STING used to ship, mapped to their canonical names. The
+        /// one alias table; it lives in the Revit-free <see cref="TagFamilyNameAliases"/> so
+        /// PerFamilyTierMap and the gate tests read the same entries.
+        /// </summary>
+        public static IReadOnlyDictionary<string, string> LegacyFamilyNames => TagFamilyNameAliases.LegacyFamilyNames;
+
+        /// <summary>
         /// Per-BuiltInCategory override for the family-name segment used by
         /// <see cref="GetFamilyName"/>. CSVs ship singular family names
         /// ("STING - Door Tag", "STING - Wall Tag") while Revit's category
@@ -702,7 +709,10 @@ namespace StingTools.Tags
             var creatorNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
             foreach (var kv in CategoryTemplateMap)
                 creatorNames.Add(GetFamilyName(kv.Key).Replace($"{FamilyPrefix} - ", "").Replace(" Tag", ""));
-            foreach (var v in TieInPointFamilies)          creatorNames.Add(v.suffix);
+            // TAGFAM-7: tie-in suffixes are short keys now; the label key is the declared name.
+            foreach (var v in TieInPointFamilies)
+                creatorNames.Add(VariantSuffixToCsvName.TryGetValue(v.suffix, out string tieInCsv)
+                    ? tieInCsv.Replace($"{FamilyPrefix} - ", "") : v.suffix);
             foreach (var v in DisciplineSheetFamilies)     creatorNames.Add(v.suffix);
             foreach (var v in StructuralVariantFamilies)   creatorNames.Add(v.suffix);
             foreach (var v in MepVariantFamilies)          creatorNames.Add(v.suffix);
@@ -1923,12 +1933,21 @@ namespace StingTools.Tags
             // ── Step 5b: Create tie-in point tag families ──
             report.AppendLine();
             report.AppendLine("── Tie-In Point Families ──");
+            // TAGFAM-7: rename a tie-in family this project holds under its old doubled-"Tag"
+            // name, so it is kept (with its placed tags) rather than loaded a second time.
+            var tieInRename = TagFamilyLegacyRename.Apply(doc, TagFamilyConfig.TieInPointFamilies
+                .Select(t => Path.GetFileNameWithoutExtension(TagFamilyConfig.GetTieInFamilyFileName(t.suffix))));
+            foreach (var line in tieInRename.Lines()) report.AppendLine(line);
+            if (tieInRename.Renamed.Count > 0)
+                foreach (Family fam in new FilteredElementCollector(doc).OfClass(typeof(Family)).Cast<Family>())
+                    loadedFamilies.Add(fam.Name);
             foreach (var tiein in TagFamilyConfig.TieInPointFamilies)
             {
                 string famName = TagFamilyConfig.GetTieInFamilyName(tiein.suffix);
                 string fileName = TagFamilyConfig.GetTieInFamilyFileName(tiein.suffix);
 
-                if (loadedFamilies.Contains(famName))
+                if (loadedFamilies.Contains(famName)
+                    || loadedFamilies.Contains(Path.GetFileNameWithoutExtension(fileName)))
                 {
                     report.AppendLine($"  [SKIP] {tiein.display} — already loaded");
                     continue;
@@ -3317,6 +3336,11 @@ namespace StingTools.Tags
 
             StingLog.Info($"LoadTagFamilies: {rfaFiles.Length} family/families across {roots.Count} root(s).");
 
+            // TAGFAM-7: a family this project loaded under a name STING no longer ships is
+            // renamed in place to the library's name first, so its placed tags are kept and
+            // the load below updates it instead of adding a second family beside it.
+            var legacyRename = TagFamilyLegacyRename.Apply(doc, byName.Keys);
+
             // Check which are already loaded
             var loadedFamilies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (Family fam in new FilteredElementCollector(doc)
@@ -3330,6 +3354,12 @@ namespace StingTools.Tags
             int failed = 0;
             int repaired = 0;
             var report = new StringBuilder();
+            if (legacyRename.Any)
+            {
+                report.AppendLine("Families renamed from a name STING no longer ships:");
+                foreach (var line in legacyRename.Lines()) report.AppendLine(line);
+                report.AppendLine();
+            }
 
             var toLoad = new List<string>();
             var inProject = new List<string>();
@@ -3508,6 +3538,9 @@ namespace StingTools.Tags
                     "or were changed outside Promote Library; they were used anyway. Show details, then run " +
                     "Promote Library to bring the share in line.\n" : "") +
                 $"Not loaded: {failed}" +
+                (legacyRename.Renamed.Count > 0 ? $"\nRenamed to the current library name: {legacyRename.Renamed.Count} (placed tags kept)" : "") +
+                (legacyRename.BothPresent.Count > 0 ? $"\nOld and current name both in the project: {legacyRename.BothPresent.Count} (left unchanged, see details)" : "") +
+                (legacyRename.Failed.Count > 0 ? $"\nCould not rename: {legacyRename.Failed.Count} (see details)" : "") +
                 (repaired > 0 ? "\n\nRepaired families had parameters stored as Text that this project holds " +
                     "as numbers, lengths or yes/no, so Revit refused them. Where a family parameter held it, the label now reads " +
                     "the Text display mirror; where only a label read it, that field was removed from " +
@@ -3521,7 +3554,8 @@ namespace StingTools.Tags
             else td.Show();
 
             StingLog.Info($"LoadTagFamilies: loaded={loaded}, updated={updated}/{toUpdate.Count}, repaired={repaired}, " +
-                          $"skipped={skipped}, failed={failed}");
+                          $"skipped={skipped}, failed={failed}, legacyRenamed={legacyRename.Renamed.Count}, " +
+                          $"legacyBothPresent={legacyRename.BothPresent.Count}, legacyRenameFailed={legacyRename.Failed.Count}");
             return Result.Succeeded;
         }
     }
