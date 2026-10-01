@@ -106,17 +106,27 @@ namespace StingTools.Core
         }
 
         // ── Specialist ─────────────────────────────────────────────────
+        // Defaults below come from Data/Healthcare/Specialist/*.json through
+        // HcSpecialistData where the file agrees with the code constant (the
+        // constant stays as the fallback); where it disagrees the constant is
+        // kept and the difference logged (HcSpecialistData.KeepCode).
         public static string SpecialistKind => Get("Hc.Specialist.Kind", "HybridOr");
 
         // HybridOr / CathLab / IR
         public static string HorRoom        => Get   ("Hc.Specialist.Hor.Room", "");
-        public static double HorMinAreaM2   => GetDouble("Hc.Specialist.Hor.MinAreaM2", 70.0);
+        public static double HorMinAreaM2   => GetDouble("Hc.Specialist.Hor.MinAreaM2",
+            HcSpecialistData.Get("STING_HC_HYBRID_OR.json", "minAreaM2['OR-HYBRID']", 70.0));
         public static bool   HorIncludeIr   => GetBool("Hc.Specialist.Hor.IncludeIr", false);
 
         // Pharmacy USP <797> / <800>
         public static string UspStandard    => Get("Hc.Specialist.Usp.Standard", "USP-797");
-        public static double UspAchMin      => GetDouble("Hc.Specialist.Usp.AchMin", 30.0);
-        public static double UspDpPa        => GetDouble("Hc.Specialist.Usp.DpPa", 2.5);
+        public static double UspAchMin      => GetDouble("Hc.Specialist.Usp.AchMin",
+            HcSpecialistData.Get("STING_HC_PHARMACY_USP.json", "sterileCascade[?(@.code == 'BUF-797')].achMin", 30.0));
+        // Not read from data: STING_HC_PHARMACY_USP.json gives 5 Pa for the <797>
+        // buffer/anteroom cascade (2.5 Pa only for the <800> CSEC); the code's
+        // 2.5 Pa is kept and the difference logged.
+        public static double UspDpPa        => GetDouble("Hc.Specialist.Usp.DpPa",
+            HcSpecialistData.KeepCode("STING_HC_PHARMACY_USP.json", "sterileCascade[?(@.code == 'BUF-797')].deltaPaToAnteroomMin", 2.5));
         public static bool   UspHasBuffer   => GetBool("Hc.Specialist.Usp.HasBuffer", true);
         public static bool   UspHasAnteroom => GetBool("Hc.Specialist.Usp.HasAnteroom", true);
 
@@ -127,12 +137,16 @@ namespace StingTools.Core
 
         // Mortuary
         public static int    MortBeds       => (int)GetDouble("Hc.Specialist.Mort.BedCount", 0);
-        public static double MortPctBays    => GetDouble("Hc.Specialist.Mort.PctBaysOfBeds", 0.5);
+        // Percent of beds; STING_HC_MORTUARY.json carries the same figure as a
+        // fraction (fridgeBaysPerBeds 0.005 = 0.5 %).
+        public static double MortPctBays    => GetDouble("Hc.Specialist.Mort.PctBaysOfBeds",
+            HcSpecialistData.Get("STING_HC_MORTUARY.json", "fridgeBaysPerBeds", 0.005) * 100.0);
 
         // Maternity / NICU
         public static bool   MatMaternity   => GetBool("Hc.Specialist.Mat.Maternity", true);
         public static bool   MatNicu        => GetBool("Hc.Specialist.Mat.Nicu", true);
-        public static int    MatNrLimit     => (int)GetDouble("Hc.Specialist.Mat.NicuNrLimit", 35);
+        public static int    MatNrLimit     => (int)GetDouble("Hc.Specialist.Mat.NicuNrLimit",
+            HcSpecialistData.Get("STING_HC_MATERNITY.json", "noiseNrMax.NICU", 35));
 
         // HSDU
         public static string HsduRoom        => Get("Hc.Specialist.Hsdu.Room", "");

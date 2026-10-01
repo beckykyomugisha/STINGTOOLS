@@ -218,8 +218,8 @@ namespace StingTools.Core.Cad.Mep
             string s = layerName ?? "";
             var rect = RectRx.Match(s);
             if (rect.Success &&
-                double.TryParse(rect.Groups[1].Value, out double w) &&
-                double.TryParse(rect.Groups[2].Value, out double h) &&
+                StingTools.Core.NumberText.TryParse(rect.Groups[1].Value, out double w) &&
+                StingTools.Core.NumberText.TryParse(rect.Groups[2].Value, out double h) &&
                 w >= 20 && h >= 20)
             {
                 // P6-1.3 — a pipe/conduit is round; a W×H on its layer is not a real pipe
@@ -231,7 +231,7 @@ namespace StingTools.Core.Cad.Mep
             }
 
             var dia = DiaRx.Match(s);
-            if (dia.Success && double.TryParse(dia.Groups[1].Value, out double d) && d >= 10 && d <= 1200)
+            if (dia.Success && StingTools.Core.NumberText.TryParse(dia.Groups[1].Value, out double d) && d >= 10 && d <= 1200)
                 return new MepSize { IsRound = true, DiameterMm = d, FromLayer = true };
 
             return Default(kind);

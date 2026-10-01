@@ -11,6 +11,7 @@ using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.Standards.BSEN12056;
 
 namespace StingTools.Core.Plumbing
 {
@@ -57,6 +58,7 @@ namespace StingTools.Core.Plumbing
         private static readonly object _lock = new object();
         private static JObject _drainage;
         private static JObject _supply;
+        private static JObject _tmvStandards;
         private static List<MaterialHydraulic> _materials;
         private static List<FixtureUnitRow> _fixtureUnits;
         private static List<FittingEquivLength> _fittings;
@@ -70,6 +72,42 @@ namespace StingTools.Core.Plumbing
 
         public static JObject Drainage     { get { EnsureLoaded(); return _drainage; } }
         public static JObject Supply       { get { EnsureLoaded(); return _supply;   } }
+
+        /// <summary>STING_TMV_STANDARDS.json (BS 8680 / HTM 04-01 TMV limits); empty when absent.</summary>
+        public static JObject TmvStandards
+        {
+            get
+            {
+                if (_tmvStandards != null) return _tmvStandards;
+                lock (_lock)
+                {
+                    if (_tmvStandards == null) _tmvStandards = LoadJson("STING_TMV_STANDARDS.json");
+                    return _tmvStandards;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The number at a JSON path (SelectToken syntax) under <paramref name="root"/>,
+        /// or null when the root, path or value is absent or not numeric.
+        /// </summary>
+        public static double? NumberAt(JToken root, string path)
+        {
+            try
+            {
+                var t = root?.SelectToken(path);
+                if (t != null && (t.Type == JTokenType.Float || t.Type == JTokenType.Integer))
+                {
+                    double v = t.Value<double>();
+                    if (!double.IsNaN(v) && !double.IsInfinity(v)) return v;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("PlumbingTables.NumberAt", $"PlumbingTables: '{path}' unreadable: {ex.Message}");
+            }
+            return null;
+        }
         public static IReadOnlyList<MaterialHydraulic> Materials       { get { EnsureLoaded(); return _materials; } }
         public static IReadOnlyList<FixtureUnitRow>    FixtureUnits    { get { EnsureLoaded(); return _fixtureUnits; } }
         public static IReadOnlyList<FittingEquivLength> Fittings       { get { EnsureLoaded(); return _fittings; } }
@@ -79,6 +117,7 @@ namespace StingTools.Core.Plumbing
             lock (_lock)
             {
                 _drainage = _supply = null;
+                _tmvStandards = null;
                 _materials = null;
                 _fixtureUnits = null;
                 _fittings = null;
@@ -402,6 +441,70 @@ namespace StingTools.Core.Plumbing
                 return 125;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 100; }
+        }
+
+        /// <summary>
+        /// A number from STING_PLUMBING_SUPPLY_TABLES.json at <c>section.key</c>,
+        /// or <paramref name="fallback"/> when the file, section or key is
+        /// absent or not numeric.
+        /// </summary>
+        public static double SupplyNumber(string section, string key, double fallback)
+            => ReadNumber(Supply, section, key, fallback);
+
+        private static double ReadNumber(JObject root, string section, string key, double fallback)
+        {
+            try
+            {
+                var t = root?[section]?[key];
+                if (t != null && (t.Type == JTokenType.Float || t.Type == JTokenType.Integer))
+                {
+                    double v = t.Value<double>();
+                    if (!double.IsNaN(v) && !double.IsInfinity(v)) return v;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("PlumbingTables.ReadNumber",
+                    $"PlumbingTables: {section}.{key} unreadable ({ex.Message}); using {fallback}");
+            }
+            return fallback;
+        }
+
+        /// <summary>
+        /// Minimum drain gradient (%) for a nominal DN — the first
+        /// <c>minSlopePct</c> row in STING_PLUMBING_DRAINAGE_TABLES.json whose
+        /// <c>dnMm</c> is at least <paramref name="dnMm"/>; branch or main column.
+        /// A stack has no gradient (0). A DN beyond the table, or a missing or
+        /// unreadable table, falls back to BSen12056Standards.GetMinimumSlopePct.
+        /// </summary>
+        public static double MinSlopePct(int dnMm, bool isMain, bool isStack = false)
+        {
+            double fallback = BSen12056Standards.GetMinimumSlopePct(dnMm, isStack, isMain);
+            if (isStack) return fallback;
+            try
+            {
+                var arr = Drainage?["minSlopePct"] as JArray;
+                if (arr == null || arr.Count == 0) return fallback;
+                JToken best = null;
+                int bestDn = int.MaxValue;
+                foreach (var row in arr)
+                {
+                    var dnTok = row?["dnMm"];
+                    if (dnTok == null) continue;
+                    int rowDn = dnTok.Value<int>();
+                    if (rowDn >= dnMm && rowDn < bestDn) { best = row; bestDn = rowDn; }
+                }
+                var pctTok = best?[isMain ? "mainPct" : "branchPct"];
+                if (pctTok == null) return fallback;
+                double pct = pctTok.Value<double>();
+                return pct > 0 ? pct : fallback;
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("PlumbingTables.MinSlopePct",
+                    $"PlumbingTables.MinSlopePct(DN{dnMm}): {ex.Message}; using BS EN 12056 constant {fallback}");
+                return fallback;
+            }
         }
 
         public static double StackCapacityDu(int dnMm)

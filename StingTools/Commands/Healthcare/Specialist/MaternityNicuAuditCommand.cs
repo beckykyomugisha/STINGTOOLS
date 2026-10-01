@@ -58,7 +58,7 @@ namespace StingTools.Commands.Healthcare.Specialist
                     {
                         // Noise check — threshold from panel.
                         if (Get(r,"PER_ACOUSTICS_BACKGROUND_NOISE_DB") is var n && !string.IsNullOrEmpty(n) &&
-                            double.TryParse(n, out var nv) && nv > nrLimit)
+                            StingTools.Core.NumberText.TryParse(n, out var nv) && nv > nrLimit)
                             sb.AppendLine($"[WARNING] MAT.NICU.NR {r.Name} background noise {nv:F0} dB > {nrLimit} (HBN 09-03)");
                     }
                 }

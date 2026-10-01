@@ -459,6 +459,19 @@ namespace StingTools.Core.Sustainability
                 // site's annual rainfall so RWH isn't silently 0 on a rainy site.
                 if (hit.AnnualRainfallMm <= 0 && ds != null && ds.RainfallMmYr > 0)
                     for (int m = 0; m < 12; m++) hit.RainfallMm[m] = ds.RainfallMmYr / 12.0;
+                // STING_CLIMATE_MONTHLY.json records carry no latitude, so LatitudeDeg
+                // read 0 (the equator) and the vertical-solar transposition treated
+                // every site as equatorial. Take it from the design-day site with the
+                // same id (STING_CLIMATE_DATA.json carries lat).
+                if (!hit.LatitudeRecorded)
+                {
+                    var byId = ClimateRegistry.Get(doc)?.ById(hit.Id);
+                    if (byId != null && System.Math.Abs(byId.Lat) > 1e-9)
+                        hit.LatitudeDeg = byId.Lat;
+                    else
+                        StingLog.WarnRateLimited("Sustain.MonthlyLat",
+                            $"Sustainability: monthly climate '{hit.Id}' has no latitude and no design-day site supplies one; solar transposition uses 0°");
+                }
                 return hit;
             }
 

@@ -37,8 +37,8 @@ namespace StingTools.Core.Plumbing
 
         public Dictionary<string, double> VelocityMps { get; set; } = new Dictionary<string, double>
         {
-            { "DCW_Max",            2.0 },
-            { "DHW_Max",            1.5 },
+            { "DCW_Max",            PlumbingTables.SupplyNumber("velocityLimitsMps", "DCW_Max", 2.0) },
+            { "DHW_Max",            PlumbingTables.SupplyNumber("velocityLimitsMps", "DHW_Max", 1.5) },
             { "Drain_SelfCleansing",0.7 },
             { "Drain_Max",          3.5 }
         };
@@ -53,7 +53,9 @@ namespace StingTools.Core.Plumbing
 
         public double MaxFillRatio  { get; set; } = 0.50;
         public double SupplyPressureBarAtEntry { get; set; } = 3.0;
-        public double MaxPressureDropPaPerM     { get; set; } = 300.0;
+        // Default from STING_PLUMBING_SUPPLY_TABLES.json pressureDropLimitsPaM.Default
+        // (300 Pa/m there too); the constant is the fallback when the file is absent.
+        public double MaxPressureDropPaPerM     { get; set; } = PlumbingTables.SupplyNumber("pressureDropLimitsPaM", "Default", 300.0);
         public double FittingsEquivLengthFactor { get; set; } = 1.30;
 
         // Phase 187 — supply hydraulic configuration borrowed from Plumber.
@@ -212,7 +214,7 @@ namespace StingTools.Core.Plumbing
                 var bt = ReadString(pi, ParamRegistry.PLM_BLDG_TYPE);
                 if (!string.IsNullOrEmpty(bt)) c.BuildingType = bt;
                 var k  = ReadString(pi, ParamRegistry.PLM_K_FACTOR);
-                if (!string.IsNullOrEmpty(k) && double.TryParse(k, out var kv) && kv > 0) c.KFactor = kv;
+                if (!string.IsNullOrEmpty(k) && StingTools.Core.NumberText.TryParse(k, out var kv) && kv > 0) c.KFactor = kv;
                 var sd = ReadString(pi, ParamRegistry.PLM_STD_DRAIN);
                 if (!string.IsNullOrEmpty(sd)) c.DrainStandard  = sd;
                 var ss = ReadString(pi, ParamRegistry.PLM_STD_SUPPLY);
@@ -233,7 +235,7 @@ namespace StingTools.Core.Plumbing
                 var p = el?.LookupParameter(name);
                 if (p == null || p.IsReadOnly) return;
                 if (p.StorageType == StorageType.String) p.Set(value ?? "");
-                else if (p.StorageType == StorageType.Double && double.TryParse(value, out var dv)) p.Set(dv);
+                else if (p.StorageType == StorageType.Double && StingTools.Core.NumberText.TryParse(value, out var dv)) p.Set(dv);
                 else if (p.StorageType == StorageType.Integer && int.TryParse(value, out var iv)) p.Set(iv);
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
@@ -260,8 +262,12 @@ namespace StingTools.Core.Plumbing
         public string MaterialFor(string service)
             => GetOrDefault(Materials, service, "COPPER_R250");
 
+        // A key the config does not carry reads STING_PLUMBING_SUPPLY_TABLES.json
+        // velocityLimitsMps before the 2.0 m/s constant.
         public double VelocityMaxFor(string key)
-            => (VelocityMps != null && VelocityMps.TryGetValue(key, out var v)) ? v : 2.0;
+            => (VelocityMps != null && VelocityMps.TryGetValue(key, out var v))
+                ? v
+                : PlumbingTables.SupplyNumber("velocityLimitsMps", key ?? "", 2.0);
 
         public double SlopeMinFor(int dnMm)
         {
