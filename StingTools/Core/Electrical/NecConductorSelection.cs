@@ -64,9 +64,9 @@ namespace StingTools.Core.Electrical
                     return pick;   // a larger conductor will not create a larger rating
                 }
                 if (sel.Blocked) continue;
-                int limit = NECStandards.GetSmallConductorMaxOcpd(size, material);
-                if (limit > 0 && sel.ProposedA > limit)
+                if (ApplySmallConductorLimit(sel, size, material))
                 {
+                    int limit = NECStandards.GetSmallConductorMaxOcpd(size, material);
                     pick.UpsizedPast.Add($"{size} AWG (needs {sel.ProposedA} A > 240.4(D) {limit} A)");
                     continue;
                 }
@@ -81,6 +81,26 @@ namespace StingTools.Core.Electrical
                   "310.15(B)(1) ambient and 310.15(C)(1) adjustment. Parallel conductors " +
                   "(310.10(G)) are required and are not sized here.";
             return pick;
+        }
+
+        /// <summary>
+        /// The 240.4(D) small-conductor ceiling applied to a device already selected for
+        /// <paramref name="size"/>: when the device exceeds it, the selection is BLOCKED
+        /// (and no longer needs 240.4(B) confirmation) and the note says why. Returns true
+        /// when it blocked. Sizes 240.4(D) does not cover are left alone.
+        /// </summary>
+        public static bool ApplySmallConductorLimit(ProtectiveDeviceSelection.Selection sel, string size,
+            ConductorMaterial material)
+        {
+            if (sel == null || sel.Blocked || sel.ProposedA <= 0) return false;
+            int limit = NECStandards.GetSmallConductorMaxOcpd(size, material);
+            if (limit <= 0 || sel.ProposedA <= limit) return false;
+            sel.Blocked = true;
+            sel.NeedsConfirmation = false;
+            sel.Note = (string.IsNullOrEmpty(sel.Note) ? "" : sel.Note + "; ") +
+                       $"OCPD {sel.ProposedA} A > the NEC 240.4(D) limit {limit} A for {size} AWG " +
+                       (material == ConductorMaterial.Aluminum ? "Al" : "Cu") + " — upsize the conductor, do not apply";
+            return true;
         }
     }
 }

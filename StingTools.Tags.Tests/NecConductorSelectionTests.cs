@@ -102,6 +102,22 @@ namespace StingTools.Tags.Tests
             => Assert.Equal(expected, NECStandards.GetSmallConductorMaxOcpd(size, ConductorMaterial.Aluminum));
 
         [Fact]
+        public void Breaker_on_an_existing_12_AWG_above_20A_is_blocked_by_240_4D()
+        {
+            // What the Breaker Sizer does with a circuit's recorded wire size: 22 A on 12 AWG
+            // Cu (25 A ampacity) → 25 A passes 240.4(B) on ampacity but not 240.4(D).
+            var sel = ProtectiveDeviceSelection.Select(22, true, false, Nec, izA: 25);
+            Assert.False(sel.Blocked);
+            Assert.True(NecConductorSelection.ApplySmallConductorLimit(sel, "12", ConductorMaterial.Copper));
+            Assert.True(sel.Blocked);
+            Assert.Contains("240.4(D)", sel.Note);
+            // 8 AWG has no 240.4(D) limit: untouched.
+            var big = ProtectiveDeviceSelection.Select(42, true, false, Nec, izA: 50);
+            Assert.False(NecConductorSelection.ApplySmallConductorLimit(big, "8", ConductorMaterial.Copper));
+            Assert.False(big.Blocked);
+        }
+
+        [Fact]
         public void Eight_AWG_is_no_longer_capped_below_its_ampacity()
         {
             // 42 A: 8 AWG (50 A) with a 45 A device. The old table capped 8 AWG at 40 A < 42 A.

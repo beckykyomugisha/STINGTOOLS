@@ -128,6 +128,8 @@ namespace StingTools.Commands.Electrical
 
                         double? iz = null;
                         string izBasis = null;
+                        string necSizeForLimit = null;
+                        var necMatForLimit = StingTools.Standards.NEC2023.ConductorMaterial.Copper;
                         if (!useNec)
                         {
                             string wire = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM)?.AsString() ?? "";
@@ -175,6 +177,8 @@ namespace StingTools.Commands.Electrical
                                 try
                                 {
                                     iz = StingTools.Standards.NEC2023.NECStandards.GetConductorAmpacity(necSize, necMat, 75);
+                                    necSizeForLimit = necSize;
+                                    necMatForLimit = necMat;
                                     izBasis = $"Table 310.16 {(necMat == StingTools.Standards.NEC2023.ConductorMaterial.Aluminum ? "Al" : "Cu")} " +
                                               $"{StingTools.Commands.Electrical.CableSizer.CableSizerEngine.NecSizeLabel(necSize)} @75°C, uncorrected (30 °C, ≤ 3 CCC)";
                                 }
@@ -184,6 +188,10 @@ namespace StingTools.Commands.Electrical
 
                         var sel = StingTools.Core.Electrical.ProtectiveDeviceSelection.Select(
                             iA, useNec, continuous, ratings, iz, izBasis);
+                        // NEC 240.4(D): 14/12/10 AWG (Cu) and 12/10 AWG (Al) have a fixed
+                        // device ceiling below their tabulated ampacity.
+                        if (useNec && necSizeForLimit != null)
+                            StingTools.Core.Electrical.NecConductorSelection.ApplySmallConductorLimit(sel, necSizeForLimit, necMatForLimit);
                         string note = sel.Note;
                         if (ratings.Length == 0)
                             note = "rating list not loaded: " + (VoltageDropEngine.BreakerSizesLoadError ?? "empty list");
