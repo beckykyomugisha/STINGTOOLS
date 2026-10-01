@@ -547,14 +547,30 @@ namespace StingTools.Core.Drawing
                 var tokens = BuildTokenDict(doc, dt, ctx, seq);
                 var expected = GeneratedSheetName(dt, ctx, ctx.Level?.Name, seq, tokens);
                 var stored = ProducedViewState.Read(sheet)?.GeneratedSheetName;
-                string legacy = null;
+                var legacies = new List<string>();
                 if (string.IsNullOrEmpty(stored))
                 {
                     var oldLevel = ProductionContextIds.LevelName(result.PriorSheetStamp ?? DrawingTypeStamper.ReadSheetContext(sheet));
-                    if (!string.IsNullOrEmpty(oldLevel)) legacy = GeneratedSheetName(dt, ctx, oldLevel, seq, tokens);
+                    if (!string.IsNullOrEmpty(oldLevel)) legacies.Add(GeneratedSheetName(dt, ctx, oldLevel, seq, tokens));
+                    // DTW-221: a sheet named before DTW-198 carries the level as number shaping
+                    // cut it ("GroundFl"), plus the DTW-51 area. Compare with that name too —
+                    // under the old level name, or the current one when the stamp has none.
+                    string area = ctx?.ScopeBox == null ? null
+                        : (!string.IsNullOrWhiteSpace(ctx.Tag) ? ctx.Tag : ctx.ScopeBox.Name);
+                    string iso = null;
+                    tokens?.TryGetValue(IsoLevelKey, out iso);
+                    legacies.Add(LegacyLevelShape.SheetName(dt.SheetNamePattern, dt.Discipline ?? "",
+                        !string.IsNullOrEmpty(oldLevel) ? oldLevel : ctx.Level?.Name, iso, dt.IsoNaming?.Level,
+                        dt.System ?? "", ctx?.Tag, dt.Purpose ?? "", seq, tokens, area));
                 }
-                var rename = ProductionEdgeDecisions.ReusedSheetRename(sheet.Name, stored, legacy, expected,
-                    DrawingTypeStamper.IsLocked(sheet));
+                if (legacies.Count == 0) legacies.Add(null);
+                string rename = null;
+                foreach (var legacy in legacies)
+                {
+                    rename = ProductionEdgeDecisions.ReusedSheetRename(sheet.Name, stored, legacy, expected,
+                        DrawingTypeStamper.IsLocked(sheet));
+                    if (rename != null) break;
+                }
                 if (rename != null)
                 {
                     var old = sheet.Name;
