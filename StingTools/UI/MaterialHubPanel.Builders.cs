@@ -112,6 +112,7 @@ namespace StingTools.UI
                 ("Import CSV…",      "MAT_ImportCsv"),
                 ("Open Template",    "MAT_TemplateCsv"),
                 ("Audit Family…",    "MAT_FamilyAudit"),
+                ("Family Materials", "MAT_FamilyMaterials"),
                 ("Generate RFQ",     "MAT_GenerateRfq"),
             }));
             actionBar.Items.Add(MakeActionGroup("LIBRARY",    new[]
@@ -136,6 +137,8 @@ namespace StingTools.UI
                 ("Healthcare",       "MAT_HealthcareGate"),
                 ("Fire-Wall",        "MAT_FireWallGate"),
                 ("EPD Format",       "MAT_EpdFormatCheck"),
+                ("Sust. Rules…",     "MAT_SustainabilityEdit"),
+                ("Health Rules…",    "MAT_HealthcareEdit"),
             }));
             actionBar.Items.Add(MakeActionGroup("PIVOT",      new[]
             {
