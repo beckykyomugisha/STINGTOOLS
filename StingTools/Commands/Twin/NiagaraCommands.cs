@@ -45,10 +45,10 @@ namespace StingTools.Commands.Twin
             var devices = new IoTDeviceRegistry(doc).All().ToList();
             if (devices.Count == 0)
             {
-                TaskDialog.Show("Niagara — Export Points",
+                PresetDialog.Show("Niagara — Export Points",
                     "No BMS/IoT points found.\n\n" +
                     "Tag BMS controllers/points with ICT_HEALTHIOT_DEVICE_ID_TXT " +
-                    "(+ _PROTOCOL_TXT / _ENDPOINT_TXT / _ALERT_BAND_TXT), then re-run.");
+                    "(+ _PROTOCOL_TXT / _ENDPOINT_TXT / _ALERT_BAND_TXT), then re-run.", ref msg);
                 return Result.Succeeded;
             }
 
@@ -82,17 +82,14 @@ namespace StingTools.Commands.Twin
             catch (Exception ex)
             {
                 StingLog.Error("Niagara_ExportPoints", ex);
-                TaskDialog.Show("Niagara — Export Points", "Export failed:\n" + ex.Message);
+                PresetDialog.Show("Niagara — Export Points", "Export failed:\n" + ex.Message, ref msg);
                 return Result.Failed;
             }
 
-            new TaskDialog("Niagara — Export Points")
-            {
-                MainInstruction = $"Exported {devices.Count} BMS point(s)",
-                MainContent = $"{noEndpoint} point(s) have no endpoint address (incomplete controls submittal).\n\n" +
-                              $"CSV: {path}\n\nIngest into the Niagara station, then run Niagara Reconcile " +
-                              "against the station export to close the loop."
-            }.Show();
+            PresetDialog.Show("Niagara — Export Points", $"Exported {devices.Count} BMS point(s)",
+                $"{noEndpoint} point(s) have no endpoint address (incomplete controls submittal).\n\n" +
+                $"CSV: {path}\n\nIngest into the Niagara station, then run Niagara Reconcile " +
+                "against the station export to close the loop.", ref msg);
             StingLog.Info($"Niagara_ExportPoints: {devices.Count} points, {noEndpoint} no-endpoint → {path}");
             return Result.Succeeded;
         }
@@ -110,21 +107,27 @@ namespace StingTools.Commands.Twin
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            var dlg = new Microsoft.Win32.OpenFileDialog
-            {
-                Title = "Select the Niagara / BACnet station export (CSV or XLSX with a point/device id column)",
-                Filter = "Station export (*.csv;*.xlsx)|*.csv;*.xlsx",
-                InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "AssetRegister")
-            };
-            if (dlg.ShowDialog() != true) return Result.Cancelled;
+            // Input rule (PresetDialog): params when set; else this picker for a person; else fail.
+            string stationPath = PresetDialog.InputFile(doc, "Niagara_Reconcile", "stationExport", "the Niagara / BACnet station export",
+                () =>
+                {
+                    var dlg = new Microsoft.Win32.OpenFileDialog
+                    {
+                        Title = "Select the Niagara / BACnet station export (CSV or XLSX with a point/device id column)",
+                        Filter = "Station export (*.csv;*.xlsx)|*.csv;*.xlsx",
+                        InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "AssetRegister")
+                    };
+                    return dlg.ShowDialog() == true ? dlg.FileName : null;
+                }, ref msg, out var fileStop);
+            if (stationPath == null) return fileStop;
 
             HashSet<string> stationIds;
-            try { stationIds = ReadIds(dlg.FileName); }
-            catch (Exception ex) { TaskDialog.Show("Niagara Reconcile", "Could not read the station export:\n" + ex.Message); return Result.Failed; }
+            try { stationIds = ReadIds(stationPath); }
+            catch (Exception ex) { PresetDialog.Show("Niagara Reconcile", "Could not read the station export:\n" + ex.Message, ref msg); return Result.Failed; }
             if (stationIds.Count == 0)
             {
-                TaskDialog.Show("Niagara Reconcile",
-                    "No point ids read — the export needs a column like Device/Point/Object/Name/Id.");
+                PresetDialog.Show("Niagara Reconcile",
+                    "No point ids read — the export needs a column like Device/Point/Object/Name/Id.", ref msg);
                 return Result.Succeeded;
             }
 
@@ -153,11 +156,9 @@ namespace StingTools.Commands.Twin
             }
             if (report != null) { sb.AppendLine(); sb.AppendLine("Report: " + report); }
 
-            new TaskDialog("Niagara Reconcile")
-            {
-                MainInstruction = $"{matched} matched · {inStationNotModel.Count} station-only · {inModelNotStation.Count} model-only",
-                MainContent = sb.ToString()
-            }.Show();
+            PresetDialog.Show("Niagara Reconcile",
+                $"{matched} matched · {inStationNotModel.Count} station-only · {inModelNotStation.Count} model-only",
+                sb.ToString(), ref msg);
             StingLog.Info($"Niagara_Reconcile: matched={matched} stationOnly={inStationNotModel.Count} modelOnly={inModelNotStation.Count}");
             return Result.Succeeded;
         }

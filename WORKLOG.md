@@ -146,4 +146,27 @@ Seam audit (2026-10-01):
 - **C9:** WIP without cdeFolders is refused, not opted in by a new key. ISO 19650 keeps WIP out of shared areas, and the fix is mapping cdeFolders (a key that already exists).
 - **C10:** the status is withheld (and reported) whenever ACC last said closed and Planscape says anything else, completed included. Undoing ACC's close is never the sync's call.
 - **Area 3 RetagStale:** the scope is a step param, failing when missing, not defaulted. KUT steps set "project" because their labels say "since the last gate".
+- **Area 3 remaining KUT steps (UNGATED 74 → 0) — the input rule.** Results and report windows are quiet in ANY preset (`PresetDialog.Show`, main's design). Every INPUT a KUT step takes (picker, fill/overwrite mode, input file, scope, LOD milestone, CDE status) follows one rule, `PresetDialog.CanAsk` = `!WorkflowEngine.IsUnattended`:
+  1. The step's `params` value, when set, is used, attended or not, so a workflow author can always pin it. A set but invalid value fails.
+  2. Missing, and a person is present (a button click, or an ATTENDED preset run): the original prompt or picker, exactly as before.
+  3. Missing, and the run is unattended: the step fails naming the param. Never defaulted.
+- **Why this rule (reversal within this branch):** the first pass gated inputs on `PresetDialog.Quiet` (any preset), which made a person running a KUT workflow by hand get "needs params.x" failures instead of pickers. The coordinator chose the most flexible option above. Pickers are back for attended runs, so their baseline lines read "shown only when a person is present (PresetDialog.CanAsk)". No baseline count rose: every picker had stayed in its person branch.
+- **Params set in the WORKFLOW_KUT_*.json files** (pinned for attended and unattended runs alike, because the label or the workflow's purpose settles them):
+  - Mobilisation `CDEStatus` `status=WIP`: "Initialise CDE state register" at kick-off, and ISO 19650 information starts in WIP.
+  - Deliverable A/B/C/D `LOD_Verify` `milestone=deliverable-a/-b/-c/-d`: each label already named the id to pick.
+  - Deliverable D `LOD_Stamp` `milestone=deliverable-d`: it stamps "the verified milestone", which step 6 verifies.
+  - Deliverable A and GateAudit `PreTagAudit` `scope=project`: a deliverable gate audits the model, not whichever view is open.
+- **Params deliberately NOT set.** Attended runs ask as before; unattended runs fail naming the param:
+  - GateAudit `LOD_Verify` milestone: "the milestone you are approaching" is the author's call.
+  - Every input file: `midpCsv`, `programTemplate`, `specToc`, `stationExport`, `fohlioExport`, `finishesExport`. None has a canonical location in the project.
+  - `CSI_Assign` / `Fohlio_Import` / `Fohlio_ImportFinishes` `mode` (fill | overwrite): fill keeps stale values and overwrite discards manual ones, and no label says which.
+- **Optional inputs, unattended:** reported, not failed, where a person's Cancel already meant "skip":
+  - MIDP relative-month rows without `params.m0` are left out and counted.
+  - `KUT_LifecycleReconcile` without `params.stationExport` skips the commissioned-unpriced check and the report names the param.
+- **Gate overrides:** `CDEStatus`'s compliance-gate and role-gate override confirms follow rule 2/3. A person present is asked as before; an unattended run never overrides and fails naming the gate.
+- **ExportSheetRegister save path — the one deliberate exception to rule 3:** `params.output` (a folder or `.csv`, relative to the routed SheetRegister folder) when set; else the save prompt for a person; else (unattended) the routed SheetRegister folder, the prompt's own "Project folder for this export" choice. It does not fail, because where an export lands is a project convention, not an input someone must supply.
+- **Helpers in `PresetDialog`:**
+  - `CanAsk`, `Param(key)` and `MissingParam(...)`.
+  - `InputFile(doc, command, key, what, ask, ref msg, out stop)`, where `ask` is the command's own picker lambda. Keeping the picker in the command keeps it visible to the unattended gate.
+  - `Show(title, instruction, content, ref msg)` for the hand-built result window.
 - **CHANGELOG merge conflicts:** always keep both entries (tool: scratchpad keepboth.py refuses >1 region).

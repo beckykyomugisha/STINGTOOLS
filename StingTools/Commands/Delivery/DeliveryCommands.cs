@@ -231,20 +231,26 @@ namespace StingTools.Commands.Delivery
                 Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
-                var dlg = new Microsoft.Win32.OpenFileDialog
-                {
-                    Title = "Pick a MIDP/TIDP CSV (Code,Title,Discipline,Milestone,PlannedDate,RequiredSuitability)",
-                    Filter = "CSV (*.csv)|*.csv|All files (*.*)|*.*",
-                };
-                if (dlg.ShowDialog() != true) return Result.Cancelled;
+                // Input rule (PresetDialog): params when set; else this picker for a person; else fail.
+                string midpPath = PresetDialog.InputFile(doc, "Midp_DriftReport", "midpCsv", "the MIDP/TIDP CSV",
+                    () =>
+                    {
+                        var dlg = new Microsoft.Win32.OpenFileDialog
+                        {
+                            Title = "Pick a MIDP/TIDP CSV (Code,Title,Discipline,Milestone,PlannedDate,RequiredSuitability)",
+                            Filter = "CSV (*.csv)|*.csv|All files (*.*)|*.*",
+                        };
+                        return dlg.ShowDialog() == true ? dlg.FileName : null;
+                    }, ref message, out var fileStop);
+                if (midpPath == null) return fileStop;
 
-                var plan = ParseMidpInteractive(dlg.FileName, out int skipped, out int relativeLeftOut);
+                var plan = ParseMidpInteractive(midpPath, out int skipped, out int relativeLeftOut);
                 if (relativeLeftOut > 0) StingLog.Warn($"Midp_DriftReport: {relativeLeftOut} row(s) left out — relative month only");
                 if (plan.Count == 0)
                 {
-                    StingResultPanel.Create("MIDP drift")
+                    PresetDialog.Show(StingResultPanel.Create("MIDP drift")
                         .AddSection("NO ROWS").Text("No deliverable rows parsed. Expected header columns: "
-                            + "Code,Title,Discipline,Milestone,PlannedDate,RequiredSuitability.").Show();
+                            + "Code,Title,Discipline,Milestone,PlannedDate,RequiredSuitability."), ref message);
                     return Result.Cancelled;
                 }
 
@@ -280,7 +286,7 @@ namespace StingTools.Commands.Delivery
                     panel.Text($"[{d.State}] {d.Code} {d.Title} (planned {d.PlannedDate:yyyy-MM-dd})");
                 if (skipped > 0) panel.Text($"{skipped} row(s) skipped (unparseable date).");
                 if (relativeLeftOut > 0) panel.Text($"{relativeLeftOut} row(s) left out: only a relative month (M0, M1 …), no Planned Date.");
-                panel.Text($"CSV: {Path.GetFileName(csv)}").Show();
+                PresetDialog.Show(panel.Text($"CSV: {Path.GetFileName(csv)}"), ref message);
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -313,6 +319,24 @@ namespace StingTools.Commands.Delivery
             var plan = ParseMidpCsv(path, out skipped, out int rel, null);
             relativeLeftOut = rel;
             if (rel == 0) return plan;
+
+            // Input rule (PresetDialog): the step's params.m0 (yyyy-MM-dd) dates those rows when
+            // set; else a person is asked below; else (unattended) they stay left out and the
+            // caller reports the count — the same outcome as "Leave those rows out", never a
+            // date chosen on someone's behalf.
+            string raw = PresetDialog.Param("m0");
+            if (raw.Length > 0 || !PresetDialog.CanAsk)
+            {
+                if (raw.Length == 0) return plan;
+                if (!DateTime.TryParseExact(raw, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out var stepM0))
+                {
+                    StingLog.Warn($"Midp: params.m0 '{raw}' is not yyyy-MM-dd; {rel} relative-month row(s) left out.");
+                    return plan;
+                }
+                relativeLeftOut = 0;
+                return ParseMidpCsv(path, out skipped, out _, stepM0);
+            }
 
             var td = new Autodesk.Revit.UI.TaskDialog("MIDP — relative months")
             {

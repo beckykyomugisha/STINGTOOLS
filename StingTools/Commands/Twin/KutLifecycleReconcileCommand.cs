@@ -53,8 +53,8 @@ namespace StingTools.Commands.Twin
 
             BOQDocument boq;
             try { boq = BOQCostManager.BuildBOQDocument(doc); }
-            catch (Exception ex) { StingLog.Error("KUT_LifecycleReconcile BOQ", ex); TaskDialog.Show("KUT Lifecycle", "Could not build the BOQ:\n" + ex.Message); return Result.Failed; }
-            if (boq == null) { TaskDialog.Show("KUT Lifecycle", "No BOQ document."); return Result.Succeeded; }
+            catch (Exception ex) { StingLog.Error("KUT_LifecycleReconcile BOQ", ex); PresetDialog.Show("KUT Lifecycle", "Could not build the BOQ:\n" + ex.Message, ref msg); return Result.Failed; }
+            if (boq == null) { PresetDialog.Show("KUT Lifecycle", "No BOQ document.", ref msg); return Result.Succeeded; }
 
             // BMS devices by element.
             var devByElem = new Dictionary<long, IoTDeviceRef>();
@@ -67,15 +67,29 @@ namespace StingTools.Commands.Twin
 
             // Optional Niagara station export (drives COMMISSIONED_UNPRICED).
             HashSet<string> stationIds = null;
-            var dlg = new Microsoft.Win32.OpenFileDialog
+            // Input rule (PresetDialog): params.stationExport when set; else the picker for a
+            // person (Cancel skips the check); else (unattended) the check is skipped exactly as
+            // a person's Cancel skips it, and the report names the unset param. It is optional.
+            string stationPath = null;
+            if (PresetDialog.Param("stationExport").Length > 0 || PresetDialog.CanAsk)
             {
-                Title = "Optional: select the Niagara / BACnet station export (Cancel to skip the commissioned-unpriced check)",
-                Filter = "Station export (*.csv;*.xlsx)|*.csv;*.xlsx",
-                InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "AssetRegister")
-            };
-            if (dlg.ShowDialog() == true)
+                stationPath = PresetDialog.InputFile(doc, "KUT_LifecycleReconcile", "stationExport",
+                    "the Niagara / BACnet station export",
+                    () =>
+                    {
+                        var dlg = new Microsoft.Win32.OpenFileDialog
+                        {
+                            Title = "Optional: select the Niagara / BACnet station export (Cancel to skip the commissioned-unpriced check)",
+                            Filter = "Station export (*.csv;*.xlsx)|*.csv;*.xlsx",
+                            InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "AssetRegister")
+                        };
+                        return dlg.ShowDialog() == true ? dlg.FileName : null;
+                    }, ref msg, out var fileStop);
+                if (stationPath == null && fileStop == Result.Failed) return Result.Failed;
+            }
+            if (stationPath != null)
             {
-                try { stationIds = ReadIds(dlg.FileName); }
+                try { stationIds = ReadIds(stationPath); }
                 catch (Exception ex) { StingLog.Warn("KUT station read: " + ex.Message); }
             }
 
@@ -145,7 +159,9 @@ namespace StingTools.Commands.Twin
             sb.AppendLine();
             sb.AppendLine($"PRICED_NO_BMS_POINT:    {pricedNoBms.Count}  (UGX {pricedNoBmsUgx:N0} priced, no/incomplete BMS point)");
             sb.AppendLine(stationIds == null
-                ? "COMMISSIONED_UNPRICED:  (skipped — no station export selected)"
+                ? (!PresetDialog.CanAsk && stationPath == null
+                    ? "COMMISSIONED_UNPRICED:  (skipped — unattended run, the step sets no params.stationExport)"
+                    : "COMMISSIONED_UNPRICED:  (skipped — no station export selected)")
                 : $"COMMISSIONED_UNPRICED:  {commissionedUnpriced.Count}  (station point, no priced BOQ line)");
             if (pricedNoBms.Count > 0)
             {
@@ -156,11 +172,9 @@ namespace StingTools.Commands.Twin
             }
             if (xlsx != null) { sb.AppendLine(); sb.AppendLine("Register: " + xlsx); }
 
-            new TaskDialog("KUT Lifecycle Reconcile")
-            {
-                MainInstruction = $"{register.Count} assets · {pricedNoBms.Count} priced-no-BMS · {commissionedUnpriced.Count} commissioned-unpriced",
-                MainContent = sb.ToString()
-            }.Show();
+            PresetDialog.Show("KUT Lifecycle Reconcile",
+                $"{register.Count} assets · {pricedNoBms.Count} priced-no-BMS · {commissionedUnpriced.Count} commissioned-unpriced",
+                sb.ToString(), ref msg);
             StingLog.Info($"KUT_LifecycleReconcile: assets={register.Count} pricedNoBms={pricedNoBms.Count}(UGX {pricedNoBmsUgx:N0}) " +
                 $"commissionedUnpriced={commissionedUnpriced.Count}");
             return Result.Succeeded;

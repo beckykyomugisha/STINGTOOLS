@@ -361,9 +361,9 @@ namespace StingTools.Commands.Kpi
             var snap = OwnerKpiEngine.Gather(doc);
             if (snap.TotalElements == 0)
             {
-                TaskDialog.Show($"{OwnerKpiEngine.OwnerCode(doc)} KPI Dashboard",
+                PresetDialog.Show($"{OwnerKpiEngine.OwnerCode(doc)} KPI Dashboard",
                     "No taggable elements found (or compliance scan still warming up). " +
-                    "Load TagConfig / run a tag pass first, then retry.");
+                    "Load TagConfig / run a tag pass first, then retry.", ref msg);
                 return Result.Succeeded;
             }
             var prev = OwnerKpiEngine.LoadPrevious(doc);

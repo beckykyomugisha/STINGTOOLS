@@ -52,23 +52,23 @@ namespace StingTools.Commands.Twin
             if (snap.Source == CommissioningSourceKind.None || snap.Points.Count == 0)
             {
                 if (conn == null || string.IsNullOrEmpty(conn.BaseUrl))
-                    TaskDialog.Show("BMS valuation",
+                    PresetDialog.Show("BMS valuation",
                         "No Niagara station configured and no cached snapshot.\n\nCreate " +
                         "<project>/_BIM_COORD/niagara_connection.json with { \"baseUrl\": \"http://station:port\", " +
                         "\"pointsPath\": \"/obix/...\" } (and apiKey or username/password). This file is gitignored — " +
-                        "never commit station credentials. Run once while the station is reachable to cache a snapshot.");
+                        "never commit station credentials. Run once while the station is reachable to cache a snapshot.", ref msg);
                 else
-                    TaskDialog.Show("BMS valuation",
+                    PresetDialog.Show("BMS valuation",
                         "Could not read live points from the Niagara station and no cached snapshot exists " +
-                        "(see StingTools.log). Check the URL / credentials / network and retry.");
+                        "(see StingTools.log). Check the URL / credentials / network and retry.", ref msg);
                 return Result.Failed;
             }
             var points = snap.Points;
 
             BOQDocument boq;
             try { boq = BOQCostManager.BuildBOQDocument(doc); }
-            catch (Exception ex) { StingLog.Error("KUT_ValuationFromBms BOQ", ex); TaskDialog.Show("BMS valuation", "Could not build the BOQ:\n" + ex.Message); return Result.Failed; }
-            if (boq == null) { TaskDialog.Show("BMS valuation", "No BOQ document."); return Result.Succeeded; }
+            catch (Exception ex) { StingLog.Error("KUT_ValuationFromBms BOQ", ex); PresetDialog.Show("BMS valuation", "Could not build the BOQ:\n" + ex.Message, ref msg); return Result.Failed; }
+            if (boq == null) { PresetDialog.Show("BMS valuation", "No BOQ document.", ref msg); return Result.Succeeded; }
 
             var devByElem = new Dictionary<long, IoTDeviceRef>();
             try
@@ -129,7 +129,7 @@ namespace StingTools.Commands.Twin
                 $"Commissioning valuation: {r.CommissionedValueFraction:P1} of monitorable value.\n\n" +
                 "Feed this % to PayCert_Create for the monitorable scope. " +
                 (string.IsNullOrEmpty(csvPath) ? "" : "Per-asset CSV:\n" + csvPath);
-            TaskDialog.Show("BMS commissioning valuation", body);
+            PresetDialog.Show("BMS commissioning valuation", body, ref msg);
             return Result.Succeeded;
         }
     }

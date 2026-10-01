@@ -165,11 +165,37 @@ namespace StingTools.Commands.Validation
             return scope;
         }
 
-        public static LodMilestone PickMilestone(Document doc, string action)
+        /// <summary>
+        /// The milestone to verify/stamp, by the input rule (PresetDialog): the step's
+        /// <c>"params": {"milestone": "&lt;id&gt;"}</c> when set (an unknown id fails); else
+        /// picked by a person; else (unattended) null with <paramref name="message"/> set.
+        /// Never defaulted — which milestone a gate certifies is the workflow author's call.
+        /// On null, <paramref name="stop"/> is Cancelled (the person cancelled) or Failed.
+        /// </summary>
+        public static LodMilestone PickMilestone(Document doc, string action, ref string message, out Result stop)
         {
+            stop = Result.Failed;
             var matrix = LodMatrixRegistry.Get(doc);
             var milestones = matrix.Milestones ?? new List<LodMilestone>();
             if (milestones.Count == 0) return null;
+            string want = PresetDialog.Param("milestone");
+            string ids = string.Join(", ", milestones.Select(m => m.Id));
+            if (want.Length > 0)
+            {
+                var hit = milestones.FirstOrDefault(m => string.Equals(m.Id, want, StringComparison.OrdinalIgnoreCase));
+                if (hit == null)
+                {
+                    message = $"LOD_{action}: params.milestone '{want}' is not a milestone in the LOD matrix - one of: {ids}. Nothing was verified.";
+                    StingLog.Warn(message);
+                }
+                return hit;
+            }
+            if (!PresetDialog.CanAsk)
+            {
+                PresetDialog.MissingParam($"LOD_{action}", "milestone", "\"<id>\"", $"one of: {ids}. Nothing was verified.", ref message);
+                return null;
+            }
+            stop = Result.Cancelled;
             var labels = milestones.Select(m => $"{m.Name}  (LOD {m.Lod})").ToList();
             string pick = StingListPicker.Show($"LOD {action} — pick milestone",
                 "Verification is a parameter/naming/geometry-presence maturity proxy, not a geometric survey.",
@@ -360,14 +386,14 @@ namespace StingTools.Commands.Validation
             var matrix = LodMatrixRegistry.Get(doc);
             if (matrix.Milestones == null || matrix.Milestones.Count == 0)
             {
-                TaskDialog.Show("LOD Verify",
+                PresetDialog.Show("LOD Verify",
                     "No LOD matrix found.\n\nShip STING_LOD_MATRIX.json in data/ or add a project " +
-                    "overlay at <project>/_BIM_COORD/lod_matrix.json.");
+                    "overlay at <project>/_BIM_COORD/lod_matrix.json.", ref msg);
                 return Result.Succeeded;
             }
 
-            var ms = LodScope.PickMilestone(doc, "Verify");
-            if (ms == null) return Result.Cancelled;
+            var ms = LodScope.PickMilestone(doc, "Verify", ref msg, out var pickStop);
+            if (ms == null) return pickStop;
 
             var scope = LodScope.Collect(ctx.UIDoc, doc, out var scopeReport);
             var r = LodVerificationEngine.Verify(doc, ms.Id, scope);
@@ -379,16 +405,13 @@ namespace StingTools.Commands.Validation
             if (csvPath != null) { report.AppendLine(); report.AppendLine($"CSV: {csvPath}"); }
             if (gatePath != null) report.AppendLine($"Gate report: {gatePath}");
 
-            new TaskDialog("LOD Verify")
-            {
-                // The headline must not say "100.0% mature (0/0)".
-                MainInstruction = r.RungAssertsNothing
-                    ? $"{r.MilestoneName}: NOT ASSESSED — LOD {r.Lod} asserts nothing"
-                    : r.NoElementsInScope
-                        ? $"{r.MilestoneName}: NO ELEMENTS IN SCOPE — nothing verified"
-                        : $"{r.MilestoneName}: {r.OverallPct:F1}% mature ({r.Passed}/{r.Total})",
-                MainContent = report.ToString()
-            }.Show();
+            // The headline must not say "100.0% mature (0/0)".
+            string headline = r.RungAssertsNothing
+                ? $"{r.MilestoneName}: NOT ASSESSED — LOD {r.Lod} asserts nothing"
+                : r.NoElementsInScope
+                    ? $"{r.MilestoneName}: NO ELEMENTS IN SCOPE — nothing verified"
+                    : $"{r.MilestoneName}: {r.OverallPct:F1}% mature ({r.Passed}/{r.Total})";
+            PresetDialog.Show("LOD Verify", headline, report.ToString(), ref msg);
             StingLog.Info($"LOD_Verify: {r.MilestoneId} {r.Passed}/{r.Total} pass ({scopeReport.Label}), " +
                           $"{scopeReport.ExcludedCount} element(s) not scanned");
             return Result.Succeeded;
@@ -408,12 +431,12 @@ namespace StingTools.Commands.Validation
             var matrix = LodMatrixRegistry.Get(doc);
             if (matrix.Milestones == null || matrix.Milestones.Count == 0)
             {
-                TaskDialog.Show("LOD Stamp", "No LOD matrix found.");
+                PresetDialog.Show("LOD Stamp", "No LOD matrix found.", ref msg);
                 return Result.Succeeded;
             }
 
-            var ms = LodScope.PickMilestone(doc, "Stamp");
-            if (ms == null) return Result.Cancelled;
+            var ms = LodScope.PickMilestone(doc, "Stamp", ref msg, out var pickStop);
+            if (ms == null) return pickStop;
 
             var scope = LodScope.Collect(ctx.UIDoc, doc, out var scopeReport);
             var r = LodVerificationEngine.Verify(doc, ms.Id, scope);
@@ -425,11 +448,11 @@ namespace StingTools.Commands.Validation
             // standard; writing it off an unassessable rung would make that claim false.
             if (r.RungAssertsNothing)
             {
-                TaskDialog.Show("LOD Stamp",
+                PresetDialog.Show("LOD Stamp",
                     $"{ms.Name} (LOD {ms.Lod}) states no requirement any element could fail, so " +
                     $"nothing was verified and nothing was stamped.\n\n" +
                     $"{r.NotAssessed} element(s) were in scope. Give LOD {ms.Lod} a check in " +
-                    "STING_LOD_MATRIX.json before binding a milestone to it.");
+                    "STING_LOD_MATRIX.json before binding a milestone to it.", ref msg);
                 StingLog.Warn($"LOD_Stamp refused: milestone '{ms.Id}' (LOD {ms.Lod}) asserts nothing.");
                 return Result.Succeeded;
             }
@@ -449,14 +472,12 @@ namespace StingTools.Commands.Validation
                 t.Commit();
             }
 
-            new TaskDialog("LOD Stamp")
-            {
-                MainInstruction = $"Stamped {stamped} passing element(s) with '{ms.Id}'",
-                MainContent = $"Milestone: {ms.Name} (LOD {ms.Lod})\n" +
-                              string.Join("\n", scopeReport.DisclosureLines()) + "\n" +
-                              $"Passed: {r.Passed}/{r.Total}\nStamped: {stamped}\nLocked/skipped: {locked}\n\n" +
-                              $"ASS_LOD_VERIFIED_TXT now records the highest milestone each element has passed."
-            }.Show();
+            string stampHead = $"Stamped {stamped} passing element(s) with '{ms.Id}'";
+            string stampBody = $"Milestone: {ms.Name} (LOD {ms.Lod})\n" +
+                               string.Join("\n", scopeReport.DisclosureLines()) + "\n" +
+                               $"Passed: {r.Passed}/{r.Total}\nStamped: {stamped}\nLocked/skipped: {locked}\n\n" +
+                               $"ASS_LOD_VERIFIED_TXT now records the highest milestone each element has passed.";
+            PresetDialog.Show("LOD Stamp", stampHead, stampBody, ref msg);
             StingLog.Info($"LOD_Stamp: {stamped} stamped '{ms.Id}', {locked} locked ({scopeReport.Label})");
             return Result.Succeeded;
         }

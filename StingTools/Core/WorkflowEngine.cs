@@ -3941,9 +3941,9 @@ namespace StingTools.Core
             var records = WorkflowEngine.LoadRunRecords(doc, 100);
             if (records.Count == 0)
             {
-                TaskDialog.Show("Workflow Trend",
+                PresetDialog.Show("Workflow Trend",
                     "No workflow run records found.\n\n" +
-                    "Run a workflow preset to start collecting history.");
+                    "Run a workflow preset to start collecting history.", ref message);
                 return Result.Cancelled;
             }
 
@@ -4008,7 +4008,7 @@ namespace StingTools.Core
                 report.AppendLine($"  {date,-20} {r.PresetName,-20} {result,-12} {r.DurationSeconds,7:F1}s");
             }
 
-            TaskDialog.Show("Workflow Trend", report.ToString());
+            PresetDialog.Show("Workflow Trend", report.ToString(), ref message);
             StingLog.Info($"WorkflowTrend: displayed {records.Count} run records");
             return Result.Succeeded;
         }

@@ -15,7 +15,7 @@
     { "commandTag": "Fohlio_ExportFinishes", "label": "9. Export room finishes in Fohlio shape (matched by ROOM NUMBER, not by tag)" },
     { "commandTag": "Fohlio_ImportFinishes", "label": "10. Import the Fohlio finishes register back onto the rooms", "optional": true },
     { "commandTag": "Fohlio_Audit", "label": "11. FF&E currency audit — missing FOHLIO_REF_TXT + stale rows", "optional": true },
-    { "commandTag": "LOD_Verify", "label": "12. LOD 350 verification (pick 'deliverable-c' at the milestone prompt)" },
+    { "commandTag": "LOD_Verify", "params": { "milestone": "deliverable-c" }, "label": "12. LOD 350 verification (milestone 'deliverable-c')" },
     { "commandTag": "ClashRun", "label": "13. Rule-based clash — the issued set must be coordinated" },
     { "commandTag": "ClashBcfExport", "label": "14. Export grouped clashes to BCF 2.1 (import as ACC Issues)", "optional": true },
     { "commandTag": "SheetComplianceCheck", "label": "15. Sheet compliance — the issued-for-bidding set is checked as a set", "optional": true },

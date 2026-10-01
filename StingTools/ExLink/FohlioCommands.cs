@@ -50,8 +50,8 @@ namespace StingTools.ExLink
             var scope = FohlioScope.Collect(doc, map);
             if (scope.Count == 0)
             {
-                TaskDialog.Show("Fohlio Export", "No FF&E elements found in the mapped categories " +
-                    $"({string.Join(", ", map.Categories)}).");
+                PresetDialog.Show("Fohlio Export", "No FF&E elements found in the mapped categories " +
+                    $"({string.Join(", ", map.Categories)}).", ref msg);
                 return Result.Succeeded;
             }
 
@@ -66,17 +66,14 @@ namespace StingTools.ExLink
             }
             catch (Exception ex)
             {
-                TaskDialog.Show("Fohlio Export", $"Export failed:\n{ex.Message}");
+                PresetDialog.Show("Fohlio Export", $"Export failed:\n{ex.Message}", ref msg);
                 return Result.Failed;
             }
 
-            new TaskDialog("Fohlio Export")
-            {
-                MainInstruction = $"Exported {scope.Count} FF&E item(s)",
-                MainContent = $"Columns: {string.Join(", ", map.Columns.Select(c => c.Header))}\n\n" +
-                              $"CSV: {path}\n\nImport this into Fohlio, then run Fohlio Import on the Fohlio export " +
-                              "to write FOHLIO_REF_TXT back (link, never duplicate)."
-            }.Show();
+            PresetDialog.Show("Fohlio Export", $"Exported {scope.Count} FF&E item(s)",
+                $"Columns: {string.Join(", ", map.Columns.Select(c => c.Header))}\n\n" +
+                $"CSV: {path}\n\nImport this into Fohlio, then run Fohlio Import on the Fohlio export " +
+                "to write FOHLIO_REF_TXT back (link, never duplicate).", ref msg);
             StingLog.Info($"Fohlio_Export: {scope.Count} items → {path}");
             return Result.Succeeded;
         }
@@ -98,25 +95,31 @@ namespace StingTools.ExLink
             Document doc = ctx.Doc;
 
             var map = FohlioMap.Load(doc);
-            var dlg = new Microsoft.Win32.OpenFileDialog
-            {
-                Title = "Select the Fohlio export (CSV or XLSX)",
-                Filter = "Fohlio export (*.csv;*.xlsx)|*.csv;*.xlsx",
-                InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule")
-            };
-            if (dlg.ShowDialog() != true) return Result.Cancelled;
+            // Input rule (PresetDialog): params when set; else this picker for a person; else fail.
+            string importPath = PresetDialog.InputFile(doc, "Fohlio_Import", "fohlioExport", "the Fohlio export (.csv or .xlsx)",
+                () =>
+                {
+                    var dlg = new Microsoft.Win32.OpenFileDialog
+                    {
+                        Title = "Select the Fohlio export (CSV or XLSX)",
+                        Filter = "Fohlio export (*.csv;*.xlsx)|*.csv;*.xlsx",
+                        InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule")
+                    };
+                    return dlg.ShowDialog() == true ? dlg.FileName : null;
+                }, ref msg, out var fileStop);
+            if (importPath == null) return fileStop;
 
             // Tag column drives matching back to the model.
             var tagCol = map.Columns.FirstOrDefault(c => string.Equals(c.Param, "ASS_TAG_1_TXT", StringComparison.OrdinalIgnoreCase));
             if (tagCol == null)
             {
-                TaskDialog.Show("Fohlio Import", "The mapping has no Item Tag (ASS_TAG_1_TXT) column to match on.");
+                PresetDialog.Show("Fohlio Import", "The mapping has no Item Tag (ASS_TAG_1_TXT) column to match on.", ref msg);
                 return Result.Failed;
             }
 
             List<Dictionary<string, string>> rows;
-            try { rows = ReadRows(dlg.FileName, map); }
-            catch (Exception ex) { TaskDialog.Show("Fohlio Import", $"Read failed:\n{ex.Message}"); return Result.Failed; }
+            try { rows = ReadRows(importPath, map); }
+            catch (Exception ex) { PresetDialog.Show("Fohlio Import", $"Read failed:\n{ex.Message}", ref msg); return Result.Failed; }
 
             // Model index by tag
             var scope = FohlioScope.Collect(doc, map);
@@ -173,8 +176,8 @@ namespace StingTools.ExLink
             bool anyCost = costData.Values.Any(c => c.cost > 0);
             if (changes.Count == 0 && !anyCost)
             {
-                TaskDialog.Show("Fohlio Import",
-                    $"Matched {matched} row(s), {unmatched} unmatched. No field or cost changes to write.");
+                PresetDialog.Show("Fohlio Import",
+                    $"Matched {matched} row(s), {unmatched} unmatched. No field or cost changes to write.", ref msg);
                 return Result.Succeeded;
             }
 
@@ -192,18 +195,42 @@ namespace StingTools.ExLink
                     preview.AppendLine($"  {c.El.Id} {c.Header}: '{c.Old}' → '{c.New}'");
                 if (changes.Count > 15) preview.AppendLine($"  … +{changes.Count - 15} more");
 
-                var confirm = new TaskDialog("Fohlio Import — preview")
+                // Input rule (PresetDialog): the step's params.mode ("fill"|"overwrite") when
+                // set; else the review below for a person; else (unattended) nothing is written
+                // and the step fails. Never defaulted.
+                string mode = PresetDialog.Param("mode").ToLowerInvariant();
+                if (mode.Length > 0 || !PresetDialog.CanAsk)
                 {
-                    MainInstruction = "Review before writing to the model",
-                    MainContent = preview.ToString(),
-                    CommonButtons = TaskDialogCommonButtons.Cancel,
-                    AllowCancellation = true
-                };
-                confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Apply — fill empty only", "Write only where the model value is currently blank");
-                confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Apply — overwrite", "Overwrite existing model values with the Fohlio values");
-                var choice = confirm.Show();
-                if (choice == TaskDialogResult.Cancel) return Result.Cancelled;
-                overwrite = choice == TaskDialogResult.CommandLink2;
+                    StingLog.Info("Fohlio Import preview:\n" + preview);
+                    if (mode.Length == 0)
+                    {
+                        PresetDialog.MissingParam("Fohlio_Import", "mode", "\"fill\" (or \"overwrite\")",
+                            $"{changes.Count} field change(s) were proposed and nothing was written (preview in the STING log).", ref msg);
+                        return Result.Failed;
+                    }
+                    if (mode != "fill" && mode != "overwrite")
+                    {
+                        msg = $"Fohlio_Import: params.mode '{mode}' must be \"fill\" or \"overwrite\"; nothing was written.";
+                        StingLog.Warn(msg);
+                        return Result.Failed;
+                    }
+                    overwrite = mode == "overwrite";
+                }
+                else
+                {
+                    var confirm = new TaskDialog("Fohlio Import — preview")
+                    {
+                        MainInstruction = "Review before writing to the model",
+                        MainContent = preview.ToString(),
+                        CommonButtons = TaskDialogCommonButtons.Cancel,
+                        AllowCancellation = true
+                    };
+                    confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Apply — fill empty only", "Write only where the model value is currently blank");
+                    confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Apply — overwrite", "Overwrite existing model values with the Fohlio values");
+                    var choice = confirm.Show();
+                    if (choice == TaskDialogResult.Cancel) return Result.Cancelled;
+                    overwrite = choice == TaskDialogResult.CommandLink2;
+                }
             }
 
             string fxDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
@@ -247,15 +274,12 @@ namespace StingTools.ExLink
                 t.Commit();
             }
 
-            new TaskDialog("Fohlio Import")
-            {
-                MainInstruction = $"Wrote {written} field value(s) + {costWritten} cost(s)",
-                MainContent = $"Matched: {matched}\nUnmatched: {unmatched}\nSnapshots stored: {snapshots.Count}\n" +
-                              $"Procurement costs written: {costWritten}\n\n" +
-                              "FOHLIO_REF_TXT links each item to Fohlio; FOHLIO_UNIT_COST_NR feeds the BOQ " +
-                              "(FohlioRateProvider), and ASS_CST_FX_DATE_DT records the FX-fixing date, which the " +
-                              "BOQ Item Schedule reports beside the converted rate."
-            }.Show();
+            PresetDialog.Show("Fohlio Import", $"Wrote {written} field value(s) + {costWritten} cost(s)",
+                $"Matched: {matched}\nUnmatched: {unmatched}\nSnapshots stored: {snapshots.Count}\n" +
+                $"Procurement costs written: {costWritten}\n\n" +
+                "FOHLIO_REF_TXT links each item to Fohlio; FOHLIO_UNIT_COST_NR feeds the BOQ " +
+                "(FohlioRateProvider), and ASS_CST_FX_DATE_DT records the FX-fixing date, which the " +
+                "BOQ Item Schedule reports beside the converted rate.", ref msg);
             StingLog.Info($"Fohlio_Import: matched={matched} wrote={written} costs={costWritten} snapshots={snapshots.Count}");
             return Result.Succeeded;
         }
@@ -382,11 +406,8 @@ namespace StingTools.ExLink
                 sb.AppendLine("Stale samples: " + string.Join(", ", staleSamples));
             }
 
-            new TaskDialog("Fohlio Audit")
-            {
-                MainInstruction = $"{linked:F0}% linked — {missingRef} missing ref, {stale} stale",
-                MainContent = sb.ToString()
-            }.Show();
+            PresetDialog.Show("Fohlio Audit", $"{linked:F0}% linked — {missingRef} missing ref, {stale} stale",
+                sb.ToString(), ref msg);
             StingLog.Info($"Fohlio_Audit: total={total} missingRef={missingRef} stale={stale} current={current}");
             return Result.Succeeded;
         }

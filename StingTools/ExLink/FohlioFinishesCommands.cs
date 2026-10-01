@@ -54,7 +54,7 @@ namespace StingTools.ExLink
             Document doc = ctx.Doc;
 
             var rooms = FohlioFinishes.Rooms(doc);
-            if (rooms.Count == 0) { TaskDialog.Show("Fohlio Finishes Export", "No placed rooms found."); return Result.Succeeded; }
+            if (rooms.Count == 0) { PresetDialog.Show("Fohlio Finishes Export", "No placed rooms found.", ref msg); return Result.Succeeded; }
 
             string path;
             try
@@ -75,15 +75,12 @@ namespace StingTools.ExLink
                 path = OutputLocationHelper.GetRoutedPath(doc, "Schedule", $"STING_Fohlio_Finishes_{DateTime.Now:yyyyMMdd}.csv");
                 File.WriteAllLines(path, rows, Encoding.UTF8);
             }
-            catch (Exception ex) { TaskDialog.Show("Fohlio Finishes Export", "Export failed:\n" + ex.Message); return Result.Failed; }
+            catch (Exception ex) { PresetDialog.Show("Fohlio Finishes Export", "Export failed:\n" + ex.Message, ref msg); return Result.Failed; }
 
-            new TaskDialog("Fohlio Finishes Export")
-            {
-                MainInstruction = $"Exported finishes for {rooms.Count} room(s)",
-                MainContent = "Columns: Room Number, Room Name, Floor/Wall/Ceiling/Base Finish, Area m², Fohlio Ref.\n\n" +
-                              $"CSV: {path}\n\nUpdate finishes in Fohlio, then run Fohlio Import Finishes to write them " +
-                              "back (matched by Room Number)."
-            }.Show();
+            PresetDialog.Show("Fohlio Finishes Export", $"Exported finishes for {rooms.Count} room(s)",
+                "Columns: Room Number, Room Name, Floor/Wall/Ceiling/Base Finish, Area m², Fohlio Ref.\n\n" +
+                $"CSV: {path}\n\nUpdate finishes in Fohlio, then run Fohlio Import Finishes to write them " +
+                "back (matched by Room Number).", ref msg);
             StingLog.Info($"Fohlio_ExportFinishes: {rooms.Count} rooms → {path}");
             return Result.Succeeded;
         }
@@ -99,17 +96,23 @@ namespace StingTools.ExLink
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            var dlg = new Microsoft.Win32.OpenFileDialog
-            {
-                Title = "Select the Fohlio finishes export (CSV or XLSX with a Room Number column)",
-                Filter = "Fohlio finishes (*.csv;*.xlsx)|*.csv;*.xlsx",
-                InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule")
-            };
-            if (dlg.ShowDialog() != true) return Result.Cancelled;
+            // Input rule (PresetDialog): params when set; else this picker for a person; else fail.
+            string importPath = PresetDialog.InputFile(doc, "Fohlio_ImportFinishes", "finishesExport", "the Fohlio finishes export (.csv or .xlsx)",
+                () =>
+                {
+                    var dlg = new Microsoft.Win32.OpenFileDialog
+                    {
+                        Title = "Select the Fohlio finishes export (CSV or XLSX with a Room Number column)",
+                        Filter = "Fohlio finishes (*.csv;*.xlsx)|*.csv;*.xlsx",
+                        InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule")
+                    };
+                    return dlg.ShowDialog() == true ? dlg.FileName : null;
+                }, ref msg, out var fileStop);
+            if (importPath == null) return fileStop;
 
             List<Dictionary<string, string>> rows;
-            try { rows = ReadRows(dlg.FileName); }
-            catch (Exception ex) { TaskDialog.Show("Fohlio Import Finishes", "Read failed:\n" + ex.Message); return Result.Failed; }
+            try { rows = ReadRows(importPath); }
+            catch (Exception ex) { PresetDialog.Show("Fohlio Import Finishes", "Read failed:\n" + ex.Message, ref msg); return Result.Failed; }
 
             var byNum = new Dictionary<string, Element>(StringComparer.OrdinalIgnoreCase);
             foreach (var r in FohlioFinishes.Rooms(doc))
@@ -144,7 +147,7 @@ namespace StingTools.ExLink
 
             if (changes.Count == 0)
             {
-                TaskDialog.Show("Fohlio Import Finishes", $"Matched {matched} room(s), {unmatched} unmatched. No finish changes to write.");
+                PresetDialog.Show("Fohlio Import Finishes", $"Matched {matched} room(s), {unmatched} unmatched. No finish changes to write.", ref msg);
                 return Result.Succeeded;
             }
 
@@ -155,18 +158,43 @@ namespace StingTools.ExLink
             foreach (var c in changes.Take(15)) prev.AppendLine($"  {FohlioFinishes.Num(c.room)} {c.label}: '{c.oldV}' → '{c.newV}'");
             if (changes.Count > 15) prev.AppendLine($"  … +{changes.Count - 15} more");
 
-            var confirm = new TaskDialog("Fohlio Import Finishes — preview")
+            bool overwrite;
+            // Input rule (PresetDialog): the step's params.mode ("fill"|"overwrite") when set;
+            // else the review below for a person; else (unattended) nothing is written and the
+            // step fails. Never defaulted.
+            string mode = PresetDialog.Param("mode").ToLowerInvariant();
+            if (mode.Length > 0 || !PresetDialog.CanAsk)
             {
-                MainInstruction = "Review before writing to the model",
-                MainContent = prev.ToString(),
-                CommonButtons = TaskDialogCommonButtons.Cancel,
-                AllowCancellation = true
-            };
-            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Apply — fill empty only", "Write only where the room value is currently blank");
-            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Apply — overwrite", "Overwrite existing room finish values");
-            var choice = confirm.Show();
-            if (choice == TaskDialogResult.Cancel) return Result.Cancelled;
-            bool overwrite = choice == TaskDialogResult.CommandLink2;
+                StingLog.Info("Fohlio Import Finishes preview:\n" + prev);
+                if (mode.Length == 0)
+                {
+                    PresetDialog.MissingParam("Fohlio_ImportFinishes", "mode", "\"fill\" (or \"overwrite\")",
+                        $"{changes.Count} finish change(s) were proposed and nothing was written (preview in the STING log).", ref msg);
+                    return Result.Failed;
+                }
+                if (mode != "fill" && mode != "overwrite")
+                {
+                    msg = $"Fohlio_ImportFinishes: params.mode '{mode}' must be \"fill\" or \"overwrite\"; nothing was written.";
+                    StingLog.Warn(msg);
+                    return Result.Failed;
+                }
+                overwrite = mode == "overwrite";
+            }
+            else
+            {
+                var confirm = new TaskDialog("Fohlio Import Finishes — preview")
+                {
+                    MainInstruction = "Review before writing to the model",
+                    MainContent = prev.ToString(),
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                    AllowCancellation = true
+                };
+                confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Apply — fill empty only", "Write only where the room value is currently blank");
+                confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Apply — overwrite", "Overwrite existing room finish values");
+                var choice = confirm.Show();
+                if (choice == TaskDialogResult.Cancel) return Result.Cancelled;
+                overwrite = choice == TaskDialogResult.CommandLink2;
+            }
 
             int written = 0;
             using (var t = new Transaction(doc, "STING Fohlio Import Finishes"))
@@ -194,12 +222,10 @@ namespace StingTools.ExLink
                 t.Commit();
             }
 
-            new TaskDialog("Fohlio Import Finishes")
-            {
-                MainInstruction = $"Wrote {written} finish value(s) ({(overwrite ? "overwrite" : "fill empty")})",
-                MainContent = $"Matched: {matched}\nUnmatched: {unmatched}\n\n" +
-                              "Fohlio remains authoritative for finishes; FOHLIO_REF links each room."
-            }.Show();
+            PresetDialog.Show("Fohlio Import Finishes",
+                $"Wrote {written} finish value(s) ({(overwrite ? "overwrite" : "fill empty")})",
+                $"Matched: {matched}\nUnmatched: {unmatched}\n\n" +
+                "Fohlio remains authoritative for finishes; FOHLIO_REF links each room.", ref msg);
             StingLog.Info($"Fohlio_ImportFinishes: matched={matched} wrote={written}");
             return Result.Succeeded;
         }

@@ -837,18 +837,21 @@ namespace StingTools.Organise
                 try
                 {
                     string dir = System.IO.Path.GetDirectoryName(path);
-                    if (System.IO.Directory.Exists(dir))
+                    // Not inside a workflow preset: nobody is there to look at an Explorer window.
+                    if (!PresetDialog.Quiet && System.IO.Directory.Exists(dir))
                         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true })?.Dispose();
                 }
-                catch (Exception) { }
+                catch (Exception exOpen) { StingLog.Warn($"AuditCSV open folder: {exOpen.Message}"); }
 
-                TaskDialog.Show("Audit CSV",
-                    $"Exported {total} elements to:\n{path}\n+XLSX mirror");
+                PresetDialog.Show("Audit CSV",
+                    $"Exported {total} elements to:\n{path}\n+XLSX mirror", ref msg);
             }
             catch (Exception ex)
             {
-                TaskDialog.Show("Audit CSV", $"Export failed: {ex.Message}");
+                PresetDialog.Show("Audit CSV", $"Export failed: {ex.Message}", ref msg);
                 StingLog.Error("AuditCSV export failed", ex);
+                // A failed export is a failed step, not a success with an error message.
+                return Result.Failed;
             }
 
             return Result.Succeeded;
@@ -5783,20 +5786,23 @@ namespace StingTools.Organise
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            // Scope: asked of a person; inside a workflow preset it is the step's
-            // "params": {"scope": "project" | "view"} — the workflow author's decision, never a
-            // default (a project-wide retag on someone's behalf is not a guess to make).
-            string scopeChoice;   // "view" | "project" | null (cancelled)
-            if (PresetDialog.Quiet)
+            // Scope — the input rule (PresetDialog): the step's params.scope ("project"|"view")
+            // when set; else asked of a person; else (unattended) the step fails. Never
+            // defaulted: a project-wide retag on someone's behalf is not a guess to make.
+            string scopeChoice = PresetDialog.Param("scope").ToLowerInvariant();   // "view" | "project" | null (cancelled)
+            if (scopeChoice.Length > 0)
             {
-                scopeChoice = (WorkflowEngine.StepParam("scope") ?? "").Trim().ToLowerInvariant();
                 if (scopeChoice != "project" && scopeChoice != "view")
                 {
-                    message = "RetagStale in a workflow needs \"params\": {\"scope\": \"project\"} (or \"view\") on its step; " +
-                              "nothing was retagged.";
-                    StingLog.Warn("RetagStale: " + message);
+                    message = $"RetagStale: params.scope '{scopeChoice}' must be \"project\" or \"view\"; nothing was retagged.";
+                    StingLog.Warn(message);
                     return Result.Failed;
                 }
+            }
+            else if (!PresetDialog.CanAsk)
+            {
+                PresetDialog.MissingParam("RetagStale", "scope", "\"project\" (or \"view\")", "nothing was retagged.", ref message);
+                return Result.Failed;
             }
             else
             {

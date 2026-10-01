@@ -100,9 +100,9 @@ namespace StingTools.Commands.Validation
             var pack = DeviceCoordRegistry.Get(doc);
             if (pack.Rules == null || pack.Rules.Count == 0)
             {
-                TaskDialog.Show("Device Coordination",
+                PresetDialog.Show("Device Coordination",
                     "No device-coordination rules found. Ship STING_DEVICE_COORD_RULES.json in data/ " +
-                    "or add _BIM_COORD/device_coord_rules.json.");
+                    "or add _BIM_COORD/device_coord_rules.json.", ref msg);
                 return Result.Succeeded;
             }
 
@@ -133,13 +133,11 @@ namespace StingTools.Commands.Validation
                 sb.AppendLine($"   [{f.Severity}] {f.RuleId} — {f.DeviceId} ({f.Room}): {f.Detail}");
             if (csv != null) { sb.AppendLine(); sb.AppendLine($"CSV: {csv}"); }
 
-            new TaskDialog("Device Coordination Audit")
-            {
-                MainInstruction = findings.Count == 0
+            PresetDialog.Show("Device Coordination Audit",
+                findings.Count == 0
                     ? "No device-coordination issues found"
                     : $"{findings.Count} issue(s): {warn} WARN, {info} INFO",
-                MainContent = sb.ToString()
-            }.Show();
+                sb.ToString(), ref msg);
             StingLog.Info($"DeviceCoord_Audit: {findings.Count} findings ({block}/{warn}/{info})");
             return Result.Succeeded;
         }

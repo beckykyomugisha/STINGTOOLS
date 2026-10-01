@@ -505,13 +505,47 @@ namespace StingTools.Docs
             if (ctx.Doc == null) return Result.Failed;
             var doc = ctx.Doc;
 
-            string filePath = OutputLocationHelper.PromptForExportPath(doc,
-                $"SheetRegister_{DateTime.Now:yyyyMMdd_HHmmss}.csv", "CSV Files|*.csv", "SheetRegister");
-            if (string.IsNullOrEmpty(filePath)) return Result.Cancelled;
+            string fileName = $"SheetRegister_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            // Save path — the input rule (PresetDialog), with one deliberate difference for an
+            // OUTPUT location: params.output when set (a folder or .csv path; relative to the
+            // routed SheetRegister folder); else the save prompt for a person; else (unattended)
+            // the project's routed SheetRegister folder — the prompt's own "Project folder for
+            // this export" choice — rather than a failure, because where an export lands is a
+            // project convention, not an input someone must supply.
+            string filePath;
+            string outParam = PresetDialog.Param("output").Trim('"');
+            if (outParam.Length > 0)
+            {
+                string routedDir = OutputLocationHelper.GetRoutedDirectory(doc, "SheetRegister");
+                string target = System.IO.Path.IsPathRooted(outParam) ? outParam : System.IO.Path.Combine(routedDir ?? "", outParam);
+                filePath = target.EndsWith(".csv", StringComparison.OrdinalIgnoreCase) ? target : System.IO.Path.Combine(target, fileName);
+                try { System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(filePath)); }
+                catch (Exception ex)
+                {
+                    message = $"ExportSheetRegister: params.output '{outParam}' cannot be used ({ex.Message}); nothing was written.";
+                    StingLog.Warn(message);
+                    return Result.Failed;
+                }
+            }
+            else if (!PresetDialog.CanAsk)
+            {
+                filePath = OutputLocationHelper.GetRoutedPath(doc, "SheetRegister", fileName);
+                if (string.IsNullOrEmpty(filePath))
+                {
+                    message = "ExportSheetRegister: no project export folder could be resolved (is the model saved?); nothing was written.";
+                    StingLog.Warn(message);
+                    return Result.Failed;
+                }
+            }
+            else
+            {
+                filePath = OutputLocationHelper.PromptForExportPath(doc, fileName, "CSV Files|*.csv", "SheetRegister");
+                if (string.IsNullOrEmpty(filePath)) return Result.Cancelled;
+            }
 
             SheetTemplateEngine.ExportSheetRegister(doc, filePath);
 
-            TaskDialog.Show("Sheet Register", $"Sheet register exported to:\n{filePath}");
+            PresetDialog.Show("Sheet Register", $"Sheet register exported to:\n{filePath}", ref message);
             return Result.Succeeded;
         }
     }

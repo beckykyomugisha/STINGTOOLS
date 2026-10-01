@@ -104,24 +104,46 @@ namespace StingTools.Tags
 
             double scanBefore = ComplianceScan.Scan(doc).CompliancePercent;
 
-            // Scope selection
-            TaskDialog scopeDlg = new TaskDialog("Pre-Tag Audit");
-            scopeDlg.MainInstruction = "Audit scope — predict tag assignments";
-            scopeDlg.MainContent =
-                "This is a READ-ONLY audit. No changes will be made.\n" +
-                "It predicts exactly what tagging will do before you commit.";
-            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Active View", "Audit elements visible in current view");
-            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Entire Project", "Audit all taggable elements in the model");
-            scopeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            // Scope — the input rule (PresetDialog): the step's params.scope ("project"|"view")
+            // when set; else asked of a person; else (unattended) the step fails. Never defaulted.
+            string scopeChoice = PresetDialog.Param("scope").ToLowerInvariant();   // "view" | "project" | null (cancelled)
+            if (scopeChoice.Length > 0)
+            {
+                if (scopeChoice != "project" && scopeChoice != "view")
+                {
+                    message = $"PreTagAudit: params.scope '{scopeChoice}' must be \"project\" or \"view\"; nothing was audited.";
+                    StingLog.Warn(message);
+                    return Result.Failed;
+                }
+            }
+            else if (!PresetDialog.CanAsk)
+            {
+                PresetDialog.MissingParam("PreTagAudit", "scope", "\"project\" (or \"view\")", "nothing was audited.", ref message);
+                return Result.Failed;
+            }
+            else
+            {
+                TaskDialog scopeDlg = new TaskDialog("Pre-Tag Audit");
+                scopeDlg.MainInstruction = "Audit scope — predict tag assignments";
+                scopeDlg.MainContent =
+                    "This is a READ-ONLY audit. No changes will be made.\n" +
+                    "It predicts exactly what tagging will do before you commit.";
+                scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Active View", "Audit elements visible in current view");
+                scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Entire Project", "Audit all taggable elements in the model");
+                scopeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var picked = scopeDlg.Show();
+                scopeChoice = picked == TaskDialogResult.CommandLink1 ? "view"
+                            : picked == TaskDialogResult.CommandLink2 ? "project" : null;
+            }
 
             List<Element> targetElements;
             string scopeLabel;
-            switch (scopeDlg.Show())
+            switch (scopeChoice)
             {
-                case TaskDialogResult.CommandLink1:
-                    if (doc.ActiveView == null) { TaskDialog.Show("Pre-Tag Audit", "No active view."); return Result.Failed; }
+                case "view":
+                    if (doc.ActiveView == null) { PresetDialog.Show("Pre-Tag Audit", "No active view.", ref message); return Result.Failed; }
                     {
                         var auditViewColl = new FilteredElementCollector(doc, doc.ActiveView.Id)
                             .WhereElementIsNotElementType();
@@ -132,7 +154,7 @@ namespace StingTools.Tags
                     }
                     scopeLabel = $"active view '{doc.ActiveView.Name}'";
                     break;
-                case TaskDialogResult.CommandLink2:
+                case "project":
                     {
                         var auditProjColl = new FilteredElementCollector(doc)
                             .WhereElementIsNotElementType();
@@ -600,7 +622,7 @@ namespace StingTools.Tags
                 {
                     bool autoOpen = !string.Equals(TagConfig.GetConfigValue("OPEN_EXPORTS_AUTOMATICALLY"), "false",
                         StringComparison.OrdinalIgnoreCase);
-                    if (autoOpen)
+                    if (autoOpen && !PresetDialog.Quiet)
                         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(csvPath)
                         { UseShellExecute = true })?.Dispose();
                 }
@@ -691,7 +713,9 @@ namespace StingTools.Tags
                 });
             }
 
-            panel.Show();
+            // The action buttons above (and their messages) exist only in the window a person
+            // sees; inside a preset the panel goes to the log and the step message instead.
+            PresetDialog.Show(panel, ref message);
 
             StingLog.Info($"PreTagAudit: {totalTaggable} elements, {predictedCollisions} predicted collisions, " +
                 $"{isoViolations} ISO violations, {willBeTagged} untagged" +
