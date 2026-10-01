@@ -258,8 +258,12 @@ namespace StingTools.Core.Drawing
             }
             catch (Exception ex) { StingLog.Warn($"BuildForExistingSheet stamps ({sheet?.Id}): {ex.Message}"); }
 
+            // DTW-134: the stamp's name part is the level's name when produced; the id it
+            // carries names the level, and its current name is what the ISO map knows
+            // (as DrawingRenumberCommand.ReadProductionContext reads it, DTW-118).
             var known = ExistingSheetTokens.Resolve(
-                ctxStamp, lvlStamp, seqStamp, ExtractSeqFromSheetNumber(sheet?.SheetNumber));
+                ctxStamp, lvlStamp, seqStamp, ExtractSeqFromSheetNumber(sheet?.SheetNumber),
+                id => CurrentLevelName(doc, id, sheet));
 
             // DTW-79: {lvl} the way production resolved it. Under an ISO-shaped
             // number pattern (the ISO policy, or a profile already ISO) production
@@ -291,6 +295,22 @@ namespace StingTools.Core.Drawing
             if (level == null) d.Remove("lvl");
             if (known.Mark == null) { d.Remove("mark"); d.Remove("spool"); }
             return d;
+        }
+
+        /// <summary>DTW-134 — the current name of the level a context stamp's id names;
+        /// null when it is gone (the stamped name then stands).</summary>
+        private static string CurrentLevelName(Document doc, long levelId, ViewSheet sheet)
+        {
+            if (doc == null) return null;
+            try
+            {
+                return doc.GetElement(new ElementId(levelId)) is Level lvl && !string.IsNullOrEmpty(lvl.Name) ? lvl.Name : null;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BuildForExistingSheet level #{levelId} ({sheet?.Id}): {ex.Message}");
+                return null;
+            }
         }
 
         // THE RULE FOR EVERY TOKEN, not just the one that prompted it.
