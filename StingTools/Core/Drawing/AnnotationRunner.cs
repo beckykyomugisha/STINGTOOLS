@@ -1708,6 +1708,13 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
+                    // DTW-130: the frame is stamped, so a re-run finds it and draws no second one.
+                    if (Storage.StingAnnotationProvenanceSchema.Index(doc, view, typeof(CurveElement),
+                            AnnotationProvenance.DecoMatchlineFrame).Count > 0)
+                    {
+                        result.Skipped++;
+                        return;
+                    }
                     var inset = pack.MatchlineOffsetMm.Value / 304.8;
                     var min = outline.Min;
                     var max = outline.Max;
@@ -1715,9 +1722,17 @@ namespace StingTools.Core.Drawing
                     var p10 = new XYZ(max.X - inset, min.Y + inset, 0);
                     var p11 = new XYZ(max.X - inset, max.Y - inset, 0);
                     var p01 = new XYZ(min.X + inset, max.Y - inset, 0);
+                    int side = 0;
                     foreach (var (a, b) in new[] { (p00, p10), (p10, p11), (p11, p01), (p01, p00) })
                     {
-                        try { doc.Create.NewDetailCurve(view, Line.CreateBound(a, b)); }
+                        side++;
+                        try
+                        {
+                            var dc = doc.Create.NewDetailCurve(view, Line.CreateBound(a, b));
+                            if (!Storage.StingAnnotationProvenanceSchema.Stamp(dc, AnnotationProvenance.DecoMatchlineFrame,
+                                    AnnotationProvenance.Key(view.UniqueId, "side" + side)))
+                                result.Warnings.Add("Matchline frame line not stamped — a re-run may draw it again.");
+                        }
                         catch (Exception ex) { result.Warnings.Add("Matchline detail curve: " + ex.Message); }
                     }
                 }

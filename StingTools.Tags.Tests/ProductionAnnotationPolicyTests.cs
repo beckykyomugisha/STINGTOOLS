@@ -54,14 +54,16 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
-        public void A_refresh_holds_back_the_matchline_frame_and_says_why()
+        public void A_refresh_runs_the_decorative_pass_because_the_matchline_frame_is_stamped()
         {
+            // DTW-130: the frame carries provenance and is skipped when present, so a
+            // refresh no longer has to hold the whole decorative pass back.
             var c = ProductionAnnotationPolicy.Choose(true, true, true, true, true, refresh: true, packDrawsMatchlineFrame: true);
-            Assert.True(c.SkipDecorative);
+            Assert.False(c.SkipDecorative);
             Assert.False(c.SkipTags);
             Assert.False(c.SkipDims);
             Assert.False(c.SkipSpots);
-            Assert.Contains("matchline", c.HeldBack);
+            Assert.Null(c.HeldBack);
         }
 
         [Fact]

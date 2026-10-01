@@ -61,11 +61,9 @@ namespace StingTools.Core.Drawing
                 SkipDecorative = !runDecorative,
                 SkipSpots      = !runSpots,
             };
-            if (refresh && runDecorative && packDrawsMatchlineFrame)
-            {
-                c.SkipDecorative = true;
-                c.HeldBack = MatchlineHeldBack;
-            }
+            // DTW-130: the matchline frame is stamped and skipped when present, so the
+            // decorative pass is idempotent and runs on a refresh like the others.
+            // packDrawsMatchlineFrame is kept for callers; it no longer holds anything back.
             return c;
         }
 
