@@ -37,5 +37,39 @@ namespace StingTools.Core
             message = StepMessage.Summarise(null, text);
             return -1;
         }
+
+        /// <summary>
+        /// The input file a command would ask a person to pick, taken inside a preset from
+        /// the step's <c>"params": {"<paramref name="key"/>": "path"}</c>. A relative path is
+        /// resolved against the project's _BIM_COORD folder. Returns null — and sets
+        /// <paramref name="message"/> naming the param — when it is missing or the file does
+        /// not exist: a file is never guessed.
+        /// </summary>
+        internal static string InputFile(Autodesk.Revit.DB.Document doc, string command, string key,
+            string what, ref string message)
+        {
+            string raw = (WorkflowEngine.StepParam(key) ?? "").Trim().Trim('"');
+            if (raw.Length == 0)
+            {
+                message = $"{command} in a workflow needs \"params\": {{\"{key}\": \"<path to {what}>\"}} on its step " +
+                          "(absolute, or relative to the project's _BIM_COORD folder); nothing was read.";
+                StingLog.Warn(message);
+                return null;
+            }
+            string path = raw;
+            try
+            {
+                if (!System.IO.Path.IsPathRooted(path) && doc != null)
+                    path = System.IO.Path.Combine(StingPaths.Meta(doc, "_BIM_COORD"), raw);
+            }
+            catch (System.Exception ex) { StingLog.Warn($"{command}: resolving '{raw}': {ex.Message}"); }
+            if (!System.IO.File.Exists(path))
+            {
+                message = $"{command}: params.{key} names '{raw}', but no file exists at {path}; nothing was read.";
+                StingLog.Warn(message);
+                return null;
+            }
+            return path;
+        }
     }
 }

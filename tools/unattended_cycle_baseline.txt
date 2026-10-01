@@ -112,10 +112,10 @@ StingTools/Commands/Classification/CsiCommands.cs::SpecLinkReconcileCommand|new 
 StingTools/Commands/Classification/SpecLinkImportCommand.cs::SpecLinkImportCommand|TaskDialog.Show|5	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
 
 # MidpDriftReportCommand — step Midp_DriftReport in FortnightlyIssue
-StingTools/Commands/Delivery/DeliveryCommands.cs::MidpDriftReportCommand|AddCommandLink|3	UNGATED - a choice offered in a TaskDialog, always shown. A real blocker to unattended operation.
-StingTools/Commands/Delivery/DeliveryCommands.cs::MidpDriftReportCommand|OpenFileDialog|1	UNGATED - asks a person for an input file; nothing configures the path, so the step cannot run unattended.
-StingTools/Commands/Delivery/DeliveryCommands.cs::MidpDriftReportCommand|ShowDialog|1	UNGATED - the modal file chooser (or WPF window) opened for that input.
-StingTools/Commands/Delivery/DeliveryCommands.cs::MidpDriftReportCommand|TaskDialogResult|2	UNGATED - reading a dialog answer, i.e. a branch on a click. A real blocker to unattended operation.
+StingTools/Commands/Delivery/DeliveryCommands.cs::MidpDriftReportCommand|AddCommandLink|3	GATED - the "which date is M0?" picker in ParseMidpInteractive, reached only after its PresetDialog.Quiet early return; inside a preset the step's params.m0 (yyyy-MM-dd) dates relative-month rows, and without it they are left out and counted in the report (never dated by guess).
+StingTools/Commands/Delivery/DeliveryCommands.cs::MidpDriftReportCommand|OpenFileDialog|1	GATED - the MIDP CSV picker, built only when !PresetDialog.Quiet; inside a preset the step's params.midpCsv names the file (PresetDialog.InputFile) and a step without it fails naming the param.
+StingTools/Commands/Delivery/DeliveryCommands.cs::MidpDriftReportCommand|ShowDialog|1	GATED - that picker's ShowDialog; same branch.
+StingTools/Commands/Delivery/DeliveryCommands.cs::MidpDriftReportCommand|TaskDialogResult|2	GATED - reading the M0 picker; same PresetDialog.Quiet early return.
 
 # OwnerKpiDashboardCommand — step Owner_KpiDashboard, KUT_KpiDashboard in LifecycleReconcile, MonthlyReport
 StingTools/Commands/Kpi/OwnerKpiDashboardCommand.cs::OwnerKpiDashboardCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
@@ -179,7 +179,7 @@ StingTools/Docs/SheetTemplateCommands.cs::SheetComplianceCheckCommand|TaskDialog
 StingTools/Docs/SheetTemplateCommands.cs::SheetComplianceCheckCommand|new TaskDialog|1	GATED - same branch.
 
 # RevisionSyncCommand — step RevisionSync in FortnightlyIssue
-StingTools/Docs/TitleBlockCommands.cs::RevisionSyncCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
+StingTools/Docs/TitleBlockCommands.cs::RevisionSyncCommand|TaskDialog.Show|1	GATED - the first-line no-document guard, written `if (ctx == null || ctx.Doc == null)` so the checker's guard exemption does not match it; WorkflowEngine never starts without a document, so it cannot run in a workflow. The result goes through PresetDialog.Show.
 
 # FohlioAuditCommand — step Fohlio_Audit in DeliverableB, DeliverableC, DeliverableD, FFESync
 StingTools/ExLink/FohlioCommands.cs::FohlioAuditCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
