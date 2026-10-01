@@ -1140,6 +1140,56 @@ public partial class AccServerIntegrationTests
         Assert.IsType<BadRequestObjectResult>(again);
     }
 
+    // S8: signing in on an SSA connection used the person's token for an hour, then silently
+    // went back to the service account. The mode is now switched to the sign-in, and said.
+    [Fact]
+    public async Task Callback_on_an_SSA_connection_switches_it_to_the_signed_in_person_and_says_so()
+    {
+        var fx = new Fx();
+        await fx.SeedAsync(configJson: "{\"accHubId\":\"b.hub\",\"accAuthMode\":\"ssa\"}", access: "", refresh: "");
+        fx.Http.Respond = (req, body) => req.RequestUri!.AbsolutePath.EndsWith("/authentication/v2/token")
+            ? Json(HttpStatusCode.OK, new { access_token = "person-a", refresh_token = "person-r", expires_in = 3600 })
+            : new HttpResponseMessage(HttpStatusCode.NotFound);
+        var st = NewState(new EphemeralDataProtectionProvider(), new TestReplayGuard());
+        using var anon = fx.Db(withTenant: false);
+        var ctl = new AccOAuthController(anon, new Factory(fx.Http), fx.Config, st, NullLogger<AccOAuthController>.Instance)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
+        };
+
+        var page = Assert.IsType<ContentResult>(await ctl.Callback("c", st.Issue(fx.TenantId, fx.ProjectId, Guid.NewGuid()), default));
+
+        Assert.Contains("Secure Service Account", page.Content);
+        var row = await fx.ReadConnAsync();
+        var cfg = JObject.Parse(row.ConfigJson!);
+        Assert.Null(cfg["accAuthMode"]);                               // no longer SSA
+        Assert.Equal("b.hub", (string?)cfg["accHubId"]);               // everything else kept
+        Assert.Equal("person-r", row.RefreshToken);
+    }
+
+    // S7: the connection test demanded the browser-OAuth app even for an SSA connection, which
+    // uses its own app (H-3) - a server with only the server-to-server app reported "not configured".
+    [Fact]
+    public async Task The_connection_test_of_an_SSA_connection_does_not_need_the_browser_app()
+    {
+        var fx = new Fx();
+        await fx.SeedAsync(configJson: "{\"accAuthMode\":\"ssa\"}", access: "ssa-access", refresh: "", expires: DateTime.UtcNow.AddHours(1));
+        fx.Http.Respond = (req, _) => req.RequestUri!.AbsolutePath.EndsWith("/project/v1/hubs")
+            ? Json(HttpStatusCode.OK, new { data = new object[0] })
+            : new HttpResponseMessage(HttpStatusCode.NotFound);
+        var noBrowserApp = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Aps:BaseUrl"] = "https://aps.test",
+        }).Build();
+        var connector = new AccConnector(noBrowserApp, new Factory(fx.Http), NullLogger<AccConnector>.Instance);
+        using var db = fx.Db();
+        var conn = await db.PlatformConnections.SingleAsync();
+
+        var t = await connector.TestConnectionAsync(conn);
+
+        Assert.DoesNotContain("Acc:ClientId", t.Message ?? "");
+    }
+
     [Fact]
     public async Task Callback_does_not_echo_the_APS_error_body()
     {

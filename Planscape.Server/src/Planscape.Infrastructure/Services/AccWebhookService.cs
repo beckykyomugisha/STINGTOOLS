@@ -330,7 +330,7 @@ public class AccWebhookService
                 errors.Add($"{h.System}/{h.Event} {h.HookId}: HTTP {(int)resp.StatusCode}");
                 remaining.Add(h);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
             {
                 errors.Add($"{h.System}/{h.Event} {h.HookId}: {ex.Message}");
                 remaining.Add(h);
@@ -433,7 +433,7 @@ public class AccWebhookService
             if (url != null) return (null, $"stopped after 100 pages ({items.Count} entries) with more to read - the list is INCOMPLETE.");
             return (items, null);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             return (null, $"APS Data Management query failed: {ex.Message}");
         }
@@ -481,7 +481,7 @@ public class AccWebhookService
                 return (null, false, "APS created the hook but returned no Location header — its id is unknown, so it cannot be recorded or removed.");
             return (id, false, null);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             return (null, false, ex.Message);
         }
@@ -545,7 +545,7 @@ public class AccWebhookService
             }
             return (null, $"Could not set the APS webhook secret: create (POST tokens) HTTP {postCode}, update (PUT tokens/@me) HTTP {(int)put.StatusCode}.");
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             return (null, $"Could not set the APS webhook secret: {ex.Message}");
         }

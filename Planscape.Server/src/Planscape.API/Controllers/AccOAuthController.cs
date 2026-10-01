@@ -209,6 +209,16 @@ public class AccOAuthController : ControllerBase
             };
             _db.PlatformConnections.Add(row);
         }
+        // S8: a person signing in means this connection now acts as that person. An SSA
+        // connection would otherwise use their token for up to an hour and then silently go
+        // back to the service account - so the mode is switched explicitly, and said.
+        bool wasSsa = Planscape.Infrastructure.Services.Aps.ApsSsa.IsSsa(row);
+        if (wasSsa)
+        {
+            var (switched, _) = AccSyncService.MergeClientConfig(row.ConfigJson,
+                "{\"" + Planscape.Infrastructure.Services.Aps.ApsSsa.ModeKey + "\":null}");
+            if (switched != null) row.ConfigJson = switched;
+        }
         row.AccessToken    = accessToken;
         row.RefreshToken   = refreshToken;
         row.TokenExpiresAt = DateTime.UtcNow.AddSeconds(expiresIn - 60);
@@ -218,7 +228,10 @@ public class AccOAuthController : ControllerBase
         await _db.SaveChangesAsync(ct);
         _log.LogInformation("ACC connected for project {Project} (tenant {Tenant}) by user {User}.", p.ProjectId, p.TenantId, p.UserId);
 
-        return Content("<html><body><p>ACC connected. You can close this tab and return to Planscape.</p></body></html>",
+        return Content("<html><body><p>ACC connected. You can close this tab and return to Planscape.</p>" +
+                       (wasSsa ? "<p>This connection used a Secure Service Account; it now acts as the person who just signed in. " +
+                                 "Set accAuthMode to \"ssa\" again to switch back.</p>" : "") +
+                       "</body></html>",
             "text/html");
     }
 

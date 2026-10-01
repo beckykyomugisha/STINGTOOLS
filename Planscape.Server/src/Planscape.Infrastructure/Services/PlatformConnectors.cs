@@ -117,7 +117,7 @@ public class AccConnector : IPlatformConnector
             connection.TokenExpiresAt = expiry;
             return new PlatformTokenResult(true, access, refresh, expiry);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             _logger.LogWarning(ex, "ACC token refresh failed");
             return new PlatformTokenResult(false, Error: ex.Message);
@@ -188,7 +188,7 @@ public class AccConnector : IPlatformConnector
             connection.TokenExpiresAt = expiry;
             return new PlatformTokenResult(true, access, connection.RefreshToken, expiry);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             _logger.LogWarning(ex, "ACC SSA token exchange failed");
             return new PlatformTokenResult(false, Error: ex.Message);
@@ -205,7 +205,8 @@ public class AccConnector : IPlatformConnector
     public async Task<PlatformTestResult> TestConnectionAsync(PlatformConnection connection, CancellationToken ct = default)
     {
         var (id, secret) = AppCreds();
-        if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(secret))
+        // S7: an SSA connection uses its own app (H-3); the browser app may not exist at all.
+        if (!Aps.ApsSsa.IsSsa(connection) && (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(secret)))
             return new PlatformTestResult(false, "Acc:ClientId / Acc:ClientSecret not configured on the server.");
         if (!await EnsureTokenAsync(connection, ct))
             return new PlatformTestResult(false, "Couldn't obtain an ACC access token — (re)connect ACC first.");
@@ -223,7 +224,7 @@ public class AccConnector : IPlatformConnector
                 ? new PlatformTestResult(true, "ACC reachable.")
                 : new PlatformTestResult(false, $"ACC hubs query returned HTTP {(int)resp.StatusCode}.");
         }
-        catch (Exception ex) when (ex is not OperationCanceledException) { return new PlatformTestResult(false, ex.Message); }
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested) { return new PlatformTestResult(false, ex.Message); }
     }
 
     public async Task<PlatformSyncResult> SyncAsync(PlatformConnection connection, IReadOnlyList<TaggedElement> elements, CancellationToken ct = default)
@@ -255,7 +256,7 @@ public class AccConnector : IPlatformConnector
             // Element-centric pull-only path. The issue-centric PUSH lives in AccSyncService.
             return new PlatformSyncResult(true, PushedCount: 0, PulledCount: total.Value);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException) { return new PlatformSyncResult(false, Error: ex.Message); }
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested) { return new PlatformSyncResult(false, Error: ex.Message); }
     }
 
     public Task<PlatformWebhookResult> HandleWebhookAsync(PlatformConnection connection, string payload, string? signature, CancellationToken ct = default)
