@@ -630,11 +630,14 @@ namespace StingTools.Temp
                 }
             }
 
-            // Check 2: Missing STING filters
+            // Check 2: Missing STING filters. DTW-175: only the filters the STING VG
+            // scheme styles (CreateVGOverridesCommand.SchemeStyles) — every STING
+            // filter (300+, most with no override for this template) used to count,
+            // so every template always reported this issue and the fix attached them all.
             var stingFilters = new FilteredElementCollector(doc)
                 .OfClass(typeof(ParameterFilterElement))
                 .Cast<ParameterFilterElement>()
-                .Where(f => f.Name.StartsWith("STING"))
+                .Where(f => f.Name.StartsWith("STING - ") && CreateVGOverridesCommand.SchemeStyles(f.Name))
                 .ToList();
 
             var appliedIds = new HashSet<ElementId>(template.GetFilters());
@@ -2343,6 +2346,22 @@ namespace StingTools.Temp
                 { "Gas", new Color(255, 255, 0) },
             };
 
+        /// <summary>
+        /// DTW-175: the filters this command's layers style (status, QA, discipline
+        /// colour). Must match the branches in Execute — a filter outside them would
+        /// be attached with no override.
+        /// </summary>
+        internal static bool SchemeStyles(string filterName)
+        {
+            if (string.IsNullOrEmpty(filterName)) return false;
+            return filterName.Contains("Status: Demolished")
+                || filterName.Contains("Status: Existing")
+                || filterName.Contains("Status: Temporary")
+                || filterName.Contains("Untagged") || filterName.Contains("Missing")
+                || filterName.Contains("Incomplete")
+                || DisciplineColors.ContainsKey(filterName);
+        }
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
@@ -2351,16 +2370,32 @@ namespace StingTools.Temp
             UIDocument uidoc = ctx.UIDoc;
             Document doc = ctx.Doc;
 
-            // Determine target views
+            // Determine target views. DTW-175: the "all STING templates" branch was
+            // the else of "active view is not a template", which the UI never
+            // produces — so it was unreachable. The target is now an explicit choice.
             View activeView = uidoc.ActiveView;
-            List<View> targets = new List<View>();
+            var stingTemplates = new FilteredElementCollector(doc)
+                .OfClass(typeof(View)).Cast<View>()
+                .Where(v => v.IsTemplate && v.Name.StartsWith("STING")).ToList();
+            bool activeUsable = activeView != null && !activeView.IsTemplate;
 
-            if (activeView != null && !activeView.IsTemplate)
-                targets.Add(activeView);
-            else
-                targets = new FilteredElementCollector(doc)
-                    .OfClass(typeof(View)).Cast<View>()
-                    .Where(v => v.IsTemplate && v.Name.StartsWith("STING")).ToList();
+            List<View> targets = new List<View>();
+            if (activeUsable && stingTemplates.Count > 0 && !PresetDialog.Quiet)
+            {
+                var pick = new TaskDialog("VG Overrides")
+                {
+                    MainInstruction = "Apply STING VG overrides to…",
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                };
+                pick.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, $"Active view — {activeView.Name}");
+                pick.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, $"All {stingTemplates.Count} STING view templates");
+                var choice = pick.Show();
+                if (choice == TaskDialogResult.CommandLink1) targets.Add(activeView);
+                else if (choice == TaskDialogResult.CommandLink2) targets = stingTemplates;
+                else return Result.Cancelled;
+            }
+            else if (activeUsable) targets.Add(activeView);
+            else targets = stingTemplates;
 
             if (targets.Count == 0)
             {
@@ -2424,6 +2459,10 @@ namespace StingTools.Temp
                         foreach (var kvp in filters)
                         {
                             if (!kvp.Key.StartsWith("STING - ")) continue;
+                            // DTW-175: add only the filters this scheme styles. Every
+                            // "STING - *" filter (300+) used to be attached, most with
+                            // no override — clutter that also slows every view.
+                            if (!SchemeStyles(kvp.Key)) continue;
 
                             try
                             {
