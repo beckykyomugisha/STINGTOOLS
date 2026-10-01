@@ -27151,3 +27151,17 @@ Server ACC tests 183 passed (9 new cases). Live ACC acceptance of a closed creat
 
 Tests: Acc 710, Cost 171, server ACC integration 100. F3 and F4 were each shown to fail
 without the fix.
+
+#### ACC automation research and the no-input items (AUT-1 to AUT-7, 2026-10-01)
+
+Research and ranking: [`ACC_AUTOMATION_RESEARCH_2026-10.md`](ACC_AUTOMATION_RESEARCH_2026-10.md).
+
+- **AUT-1** A 409 upload's existing-item search reports its HTTP failure, or that it stopped at its page cap.
+- **AUT-2** Issue types and root causes are read across every page. A type past the first page used to be reported as missing.
+- **AUT-3** When the server's status read-back stops at its page cap, it reports an error instead of marking the unread ACC issues `not_found`.
+- **AUT-4** ISO 19650 attribute stamps go through the shared ACC transport, so an expired token is refreshed.
+- **AUT-5** The server subscribes to the documented Reviews event `review.closed-1.0` and passes it to the project's clients. The receiver's two old review cases are not in Autodesk's event list.
+- **AUT-6 — scope change.** The server's default grant adds `data:create`, which creating a webhook requires. **Existing server ACC connections must be reconnected once.** The Revit plugin's scopes are unchanged.
+- **AUT-7** Secure Service Account tokens on the server, opt-in per connection (`accAuthMode: "ssa"`). The settings are `Acc:Ssa:*`; a placeholder or missing value fails with the setting's name.
+
+Tests: Acc 721; server ACC 196 + 6 SSA. Not exercised against a live ACC tenant.
