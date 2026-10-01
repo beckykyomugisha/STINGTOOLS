@@ -379,6 +379,49 @@ namespace StingTools.Core.Drawing
             return cache.TryGetValue(familyName, out var d) ? d : null;
         }
 
+        /// <summary>
+        /// DTW-151 — place a schedule into a slot. A ScheduleSheetInstance's
+        /// point is its TOP-LEFT corner (TitleBlockFactory.PlaceRevisionSchedules
+        /// relies on the same), not its centre: passing the slot centre hung the
+        /// schedule off the slot's right and bottom edges. With a sized slot the
+        /// schedule goes to the slot's top-left; without one, to
+        /// <paramref name="fallback"/> as before. Afterwards the placed schedule
+        /// is measured and a schedule wider or taller than its slot is reported.
+        /// Throws what ScheduleSheetInstance.Create throws.
+        /// </summary>
+        internal static ScheduleSheetInstance PlaceScheduleInSlot(Document doc, ElementId sheetId,
+            ViewSchedule schedule, SlotPlacement sp, XYZ fallback, List<string> warnings)
+        {
+            XYZ pt = fallback ?? XYZ.Zero;
+            if (sp?.Center != null && sp.HasSize)
+                pt = new XYZ(sp.Center.X - sp.WidthFt / 2.0, sp.Center.Y + sp.HeightFt / 2.0, 0);
+
+            var ssi = ScheduleSheetInstance.Create(doc, sheetId, schedule.Id, pt);
+            if (ssi == null || sp == null || !sp.HasSize) return ssi;
+
+            try
+            {
+                // A new instance has no extent until the document regenerates.
+                doc.Regenerate();
+                var sheet = doc.GetElement(sheetId) as View;
+                var bb = ssi.get_BoundingBox(sheet);
+                if (bb != null)
+                {
+                    double w = bb.Max.X - bb.Min.X, h = bb.Max.Y - bb.Min.Y;
+                    double tolFt = MmToFt(1.0);
+                    if (w > sp.WidthFt + tolFt || h > sp.HeightFt + tolFt)
+                        warnings?.Add(
+                            $"Schedule '{schedule.Name}' is {w * MmPerFt:0} x {h * MmPerFt:0} mm, larger than slot " +
+                            $"'{sp.Slot?.Label}' ({sp.WidthFt * MmPerFt:0} x {sp.HeightFt * MmPerFt:0} mm) — it runs past the slot.");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"SheetPlacementBridge.PlaceScheduleInSlot: could not measure '{schedule.Name}': {ex.Message}");
+            }
+            return ssi;
+        }
+
         internal static PlacementResult PlaceAccordingToSlots(Document doc, ViewSheet sheet, DrawingType dt, List<ElementId> viewIds, ProduceResult result)
         {
             var pr = new PlacementResult();
@@ -450,7 +493,7 @@ namespace StingTools.Core.Drawing
                     {
                         try
                         {
-                            var ssi = ScheduleSheetInstance.Create(doc, sheet.Id, scheduleView.Id, pt);
+                            var ssi = PlaceScheduleInSlot(doc, sheet.Id, scheduleView, sp, pt, pr.Warnings); // DTW-151
                             if (ssi != null)
                             {
                                 pr.ViewportIds.Add(ssi.Id);

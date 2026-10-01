@@ -1908,7 +1908,7 @@ namespace StingTools.Core.Drawing
                 {
                     try
                     {
-                        var ssi = ScheduleSheetInstance.Create(doc, sheetId, scheduleView.Id, pt);
+                        var ssi = SheetPlacementBridge.PlaceScheduleInSlot(doc, sheetId, scheduleView, sp, pt, result.Warnings); // DTW-151: top-left, not centre
                         if (ssi != null)
                         {
                             SheetPlacementBridge.MarkAutoPlaced(ssi); // DTW-98: ES, not an unbindable parameter
