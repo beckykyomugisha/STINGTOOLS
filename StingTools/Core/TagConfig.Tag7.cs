@@ -1642,15 +1642,6 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Backward-compatible wrapper: returns the plain narrative string.
-        /// All existing callers use this — returns exactly the same output as before.
-        /// </summary>
-        public static string BuildTag7Narrative(Document doc, Element el, string categoryName, string[] tokenValues)
-        {
-            return BuildTag7Sections(doc, el, categoryName, tokenValues).PlainNarrative;
-        }
-
-        /// <summary>
         /// Phase 165 — Issue #5. Mode-aware overload of BuildTag7Sections.
         ///
         /// Both modes return identical SectionA-C (Identity / System / Spatial)

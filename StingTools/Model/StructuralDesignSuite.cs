@@ -1466,22 +1466,5 @@ namespace StingTools.Model
 
             return combos;
         }
-
-        /// <summary>
-        /// Returns standard ψ factors for common variable actions per EC0 Table A1.1.
-        /// </summary>
-        public static (double Psi0, double Psi1, double Psi2) GetPsiFactors(string actionType)
-        {
-            return actionType.ToLowerInvariant() switch
-            {
-                "office" or "residential" => (0.7, 0.5, 0.3),
-                "shopping" or "retail" => (0.7, 0.7, 0.6),
-                "storage" or "warehouse" => (1.0, 0.9, 0.8),
-                "wind" => (0.5, 0.2, 0.0),
-                "snow" => (0.5, 0.2, 0.0),
-                "traffic" => (0.7, 0.5, 0.3),
-                _ => (0.7, 0.5, 0.3),
-            };
-        }
     }
 }

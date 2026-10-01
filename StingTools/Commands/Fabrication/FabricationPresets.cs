@@ -170,14 +170,6 @@ namespace StingTools.Commands.Fabrication
             return p;
         }
 
-        public static void SaveLastSession(Document doc, IReadOnlyDictionary<string, bool> categoryMask, FabAction preferred)
-        {
-            var p = Capture(LastSessionName, doc, categoryMask, preferred);
-            Save(doc, p);
-        }
-
-        public static FabricationPreset LoadLastSession(Document doc) => Find(doc, LastSessionName);
-
         /// <summary>
         /// Applies a preset to FabricationOptions + ShopDrawing. Returns
         /// the category mask so the dialog can re-tick the boxes.

@@ -65,6 +65,8 @@
     <Compile Include="..\StingTools\Core\SysConnectorChoice.cs" Link="Core\SysConnectorChoice.cs" />
     <!-- DSCH-24: the plugin reader of the shared IFC pset map (Revit-free). -->
     <Compile Include="..\StingTools\V6\IfcPsetMapping.cs" Link="V6\IfcPsetMapping.cs" />
+    <!-- DSCH-46: the Companion/BCC contract (Revit-free; also compiled into the Companion and the plugin) - CompanionPaths.ProjectCodeFor. -->
+    <Compile Include="..\Planscape.Companion\CompanionIpcContract.cs" Link="Companion\CompanionIpcContract.cs" />
     <!-- DSCH-27: Revit category -> Tag Studio Scale-tab multiplier key. -->
     <Compile Include="..\StingTools\Core\ScaleTierCategoryKey.cs" Link="Core\ScaleTierCategoryKey.cs" />
     <!-- DSCH-27: SEQ_RANGE_ALLOCATION parser (Revit-free). -->

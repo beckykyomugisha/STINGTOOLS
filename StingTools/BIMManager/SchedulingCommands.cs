@@ -359,12 +359,25 @@ namespace StingTools.BIMManager
 
             tasks.Add(CreateTask(taskId++, "Handover", "HANDOVER",
                 currentDate, currentDate.AddDays(5), 0, new JArray(), 0));
+            DateTime projectEnd = currentDate.AddDays(5);
+
+            // BIM-4D-HANDOVER-01: the DD4 information hand-over is a milestone of its
+            // own, dated in _BIM_COORD/data_drops.json (Data Drop Tracker). When the
+            // project has dated it, it goes on the programme and may extend the end
+            // date. Undated (the shipped default) adds nothing - no invented date.
+            DateTime? dd4 = DataDropTracker.GetDD4HandoverDate(doc);
+            if (dd4.HasValue)
+            {
+                tasks.Add(CreateTask(taskId++, "DD4 - Information Handover (data drop)", "DATA_DROP",
+                    dd4.Value, dd4.Value, 0, new JArray(), 0));
+                if (dd4.Value > projectEnd) projectEnd = dd4.Value;
+            }
 
             schedule["tasks"] = tasks;
             schedule["total_tasks"] = tasks.Count;
-            schedule["project_end"] = currentDate.AddDays(5).ToString("yyyy-MM-dd");
+            schedule["project_end"] = projectEnd.ToString("yyyy-MM-dd");
 
-            int totalDays = (int)(currentDate.AddDays(5) - projectStart).TotalDays;
+            int totalDays = (int)(projectEnd - projectStart).TotalDays;
             schedule["total_duration_days"] = totalDays;
             schedule["total_duration_weeks"] = Math.Round(totalDays / 7.0, 1);
 

@@ -252,60 +252,6 @@ namespace StingTools.UI
             catch (Exception ex) { TaskDialog.Show("Material Manager", $"Generate Layer Tag failed: {ex.Message}"); }
         }
 
-        // ── Duplicates ──────────────────────────────────────────────────────
-
-        public static void FindDuplicates(UIApplication app)
-        {
-            var doc = Doc(app);
-            if (doc == null) return;
-            try
-            {
-                var mode = StingDockPanel.LastInstance?.GetDuplicateMode() ?? DuplicateMode.SameName;
-                var rows = MaterialDuplicateFinder.Find(doc, mode);
-                StingDockPanel.LastInstance?.SetDuplicateRows(rows);
-                if (rows.Count == 0)
-                    TaskDialog.Show("Find Duplicates",
-                        $"No duplicate clusters found for mode '{mode}'.\n\nTry a different mode (fuzzy / RGB / appearance) for a wider search.");
-                else
-                {
-                    int clusters = rows.GroupBy(r => r.ClusterKey).Count();
-                    TaskDialog.Show("Find Duplicates",
-                        $"Found {clusters} cluster(s) covering {rows.Count} material(s) in mode '{mode}'.\n\nReview the Duplicates grid — the most-used material is checked as the default keeper. Adjust the keepers if needed, then click 'Merge Selected'.");
-                }
-            }
-            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Find Duplicates failed: {ex.Message}"); }
-        }
-
-        public static void MergeDuplicates(UIApplication app)
-        {
-            var doc = Doc(app);
-            if (doc == null) return;
-            try
-            {
-                var rows = StingDockPanel.LastInstance?.GetDuplicateRows();
-                if (rows == null || rows.Count == 0)
-                { TaskDialog.Show("Merge Duplicates", "Run 'Find Duplicates' first."); return; }
-
-                var clusters = rows.GroupBy(r => r.ClusterKey).ToList();
-                int losers = rows.Count - clusters.Count;
-                var td = new TaskDialog("Merge Duplicates")
-                {
-                    MainInstruction = $"Merge {losers} material(s) across {clusters.Count} cluster(s)?",
-                    MainContent = "Every usage of the losing materials will repoint to the keeper, then the losers are deleted. This is a single transaction — Ctrl+Z reverts the whole batch.",
-                    CommonButtons = TaskDialogCommonButtons.Cancel,
-                };
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Commit merge", "");
-                if (td.Show() != TaskDialogResult.CommandLink1) return;
-
-                int merged = MaterialDuplicateFinder.Merge(doc, rows.ToList());
-                TaskDialog.Show("Merge Duplicates",
-                    $"Merged {merged} material(s). The Duplicates grid will be empty — re-run 'Find Duplicates' to verify.");
-                StingDockPanel.LastInstance?.SetDuplicateRows(new List<DuplicateRow>());
-                StingDockPanel.LastInstance?.ShowMaterialsTab();
-            }
-            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Merge failed: {ex.Message}"); }
-        }
-
         // ── Library overrides ───────────────────────────────────────────────
 
         public static void EditProjectOverrides(UIApplication app)
@@ -701,51 +647,6 @@ namespace StingTools.UI
         }
 
         // ── A6 — Material packs (Drawing-Type binding) ──────────────────────
-
-        public static void LoadMaterialPack(UIApplication app)
-        {
-            var doc = Doc(app);
-            if (doc == null) { TaskDialog.Show("Material Manager", "No document open."); return; }
-            try
-            {
-                var file = MaterialPackRegistry.GetOrLoad(doc);
-                if (file?.Packs == null || file.Packs.Count == 0)
-                {
-                    TaskDialog.Show("Material Packs",
-                        "No packs available. Add packs to Data/STING_MATERIAL_PACKS.json or _BIM_COORD/material_packs.json.");
-                    return;
-                }
-                var td = new TaskDialog("Load Material Pack")
-                {
-                    MainInstruction = "Pick a pack to load into this project.",
-                    MainContent = "Existing materials with the same name are left alone — pack-load is additive.",
-                    CommonButtons = TaskDialogCommonButtons.Cancel,
-                };
-                int linkIdx = 1;
-                var idByLink = new Dictionary<TaskDialogResult, string>();
-                foreach (var kv in file.Packs.Take(4))
-                {
-                    var linkId = (TaskDialogCommandLinkId)Enum.Parse(typeof(TaskDialogCommandLinkId), "CommandLink" + linkIdx);
-                    td.AddCommandLink(linkId, kv.Value.Name ?? kv.Key,
-                        $"{kv.Value.Description ?? ""}\n({kv.Value.Materials?.Count ?? 0} materials)");
-                    idByLink[(TaskDialogResult)linkId] = kv.Key;
-                    linkIdx++;
-                    if (linkIdx > 4) break;
-                }
-                var res = td.Show();
-                if (!idByLink.TryGetValue(res, out string packId)) return;
-
-                var pack = MaterialPackRegistry.Get(doc, packId);
-                if (pack == null) return;
-                int created = MaterialPackRegistry.LoadPack(doc, pack);
-                TaskDialog.Show("Material Pack",
-                    created > 0
-                    ? $"Loaded {created} new material(s) from '{pack.Name}'."
-                    : $"Every material in '{pack.Name}' was already present — nothing new minted.");
-                StingDockPanel.LastInstance?.ShowMaterialsTab();
-            }
-            catch (Exception ex) { TaskDialog.Show("Material Manager", $"Load Pack failed: {ex.Message}"); }
-        }
 
         // Per-session dedupe so batch-stamping (e.g. 60 sheets at once) only
         // prompts once per drawing type.

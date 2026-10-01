@@ -54,35 +54,6 @@ namespace StingTools.Tags
     internal static class FamilyParamEngine
     {
         /// <summary>
-        /// All 16 named position types: Ring 1 (cardinal 1x offset) + Ring 2 (far 1.5x offset).
-        /// </summary>
-        /// <summary>
-        /// STING shared-parameter prefixes. Used by PurgeFirst to identify which family
-        /// parameters belong to STING and should be removed before a fresh injection.
-        /// </summary>
-        private static readonly string[] StingParamPrefixes = {
-            "ASS_", "BLE_", "CST_", "ELC_", "ELE_", "FLS_", "HVC_", "ICT_",
-            "LTG_", "MAT_", "MEP_", "MNT_", "NCL_", "PER_", "PLM_", "RGL_",
-            "SEC_", "SHT_", "SLV_", "STING_", "STR_", "TAG_", "VIEW_", "WARN_"
-        };
-
-        /// <summary>
-        /// Returns true if the given parameter name starts with any STING prefix.
-        /// Case-insensitive. Kept for non-shared / name-only checks — for shared
-        /// parameters prefer <see cref="IsStingSharedParam"/> which matches on GUID.
-        /// </summary>
-        public static bool IsStingPrefix(string paramName)
-        {
-            if (string.IsNullOrEmpty(paramName)) return false;
-            foreach (string p in StingParamPrefixes)
-            {
-                if (paramName.StartsWith(p, StringComparison.OrdinalIgnoreCase))
-                    return true;
-            }
-            return false;
-        }
-
-        /// <summary>
         /// True iff the given family parameter is a shared parameter whose GUID is
         /// registered in <see cref="ParamRegistry.AllParamGuids"/>. This is the
         /// authoritative "is STING" check for purge scoping — a family parameter

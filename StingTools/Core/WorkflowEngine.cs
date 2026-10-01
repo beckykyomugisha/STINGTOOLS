@@ -2802,19 +2802,6 @@ namespace StingTools.Core
             return 0; // Pre-DD1
         }
 
-        /// <summary>Get data drop compliance thresholds (configurable per project).</summary>
-        public static (int shared, int published) GetDataDropGates(int dataDrop)
-        {
-            return dataDrop switch
-            {
-                1 => (30, 50),
-                2 => (60, 75),
-                3 => (80, 90),
-                4 => (95, 98),
-                _ => (70, 90),
-            };
-        }
-
         /// <summary>
         /// Get all available presets: built-in, plus deployed-data JSON, plus — when a
         /// document is given — this PROJECT's own workflows layered on top.

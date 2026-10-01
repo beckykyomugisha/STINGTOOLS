@@ -4413,6 +4413,19 @@ namespace StingTools.Core
                     {
                         var arr = JArray.Parse(File.ReadAllText(path));
                         var now = DateTime.Now;
+
+                        // Local-sync badge (WORKING / REF): resolved once per refresh from
+                        // the Companion's settings for the linked server project. Null - no
+                        // linked project, or not linked on this machine - leaves every
+                        // badge empty, the documented normal case without a Companion.
+                        string companionCode = null;
+                        try
+                        {
+                            companionCode = BIMManager.CompanionSyncBridge.LinkedProjectCode(
+                                BIMManager.PlanscapeServerClient.Instance?.CurrentProjectId ?? Guid.Empty);
+                        }
+                        catch (Exception cex) { StingLog.Warn($"BuildCoordData: companion project code: {cex.Message}"); }
+
                         foreach (var o in arr.OfType<JObject>())
                         {
                             string code = Core.DocumentIdentity.FirstNonBlank(o, Core.DocumentIdentity.DeliverableKeys);
@@ -4428,7 +4441,7 @@ namespace StingTools.Core
                             bool overdue = status != "Approved"
                                 && DateTime.TryParse(dueRaw, out var due) && due.Date < now.Date;
 
-                            coordData.Deliverables.Add(new UI.BIMCoordinationCenter.DeliverableRow
+                            var row = new UI.BIMCoordinationCenter.DeliverableRow
                             {
                                 Code = code,
                                 Name = Core.DocumentIdentity.FirstNonBlank(o, "Title", "Name", "Description", "title", "description") ?? code,
@@ -4441,12 +4454,18 @@ namespace StingTools.Core
                                 Owner = Core.DocumentIdentity.FirstNonBlank(o, "Owner", "Originator", "OrgCode", "originator") ?? "",
                                 DueDate = dueRaw ?? "",
                                 IsOverdue = overdue,
-                                // SyncBadge/SyncTooltip stay at their "" default — that is the
-                                // documented normal case on a machine with no Companion running.
-                                // Populating them from the Companion's local sync-folder state is
-                                // a separate follow-up, not part of getting the list itself to
-                                // stop being permanently empty.
-                            });
+                            };
+                            if (companionCode != null)
+                            {
+                                // Matched on file name (the register carries no server document
+                                // id); a bare document code falls back to a stem match inside
+                                // ResolveState. NotSynced renders as no chip.
+                                string fileName = Core.DocumentIdentity.FirstNonBlank(o, "FileName", "File", "file_name", "fileName") ?? code;
+                                var state = BIMManager.CompanionSyncBridge.ResolveState(companionCode, fileName);
+                                row.SyncBadge = BIMManager.CompanionSyncBridge.BadgeLabel(state);
+                                row.SyncTooltip = BIMManager.CompanionSyncBridge.BadgeTooltip(state);
+                            }
+                            coordData.Deliverables.Add(row);
                         }
 
                         coordData.DeliverablesPending = coordData.Deliverables.Count(d => d.Status == "Pending");

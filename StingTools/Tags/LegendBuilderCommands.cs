@@ -1673,107 +1673,6 @@ namespace StingTools.Tags
 
             return baseTypeId;
         }
-
-        /// <summary>
-        /// Try to copy an existing LegendComponent and reassign its type.
-        /// This is the D'Bim Tag Legend / GeniusLoci workaround:
-        ///   1. Find existing LegendComponent in a Legend view
-        ///   2. CopyElement to duplicate it
-        ///   3. Set BuiltInParameter.LEGEND_COMPONENT to the target FamilySymbol
-        /// Returns the new element, or null if no seed LegendComponent exists.
-        /// Must be called within a Transaction.
-        /// </summary>
-        public static Element TryCopyLegendComponent(Document doc, View legendView,
-            FamilySymbol targetType, XYZ position)
-        {
-            if (legendView == null || targetType == null) return null;
-            if (legendView.ViewType != ViewType.Legend) return null;
-
-            try
-            {
-                // Find any existing LegendComponent in any Legend view
-                var legendViews = new FilteredElementCollector(doc)
-                    .OfClass(typeof(View))
-                    .Cast<View>()
-                    .Where(v => v.ViewType == ViewType.Legend && !v.IsTemplate)
-                    .ToList();
-
-                Element seedComponent = null;
-                ElementId sourceViewId = ElementId.InvalidElementId;
-
-                foreach (var lv in legendViews)
-                {
-                    try
-                    {
-                        seedComponent = new FilteredElementCollector(doc, lv.Id)
-                            .OfCategory(BuiltInCategory.OST_LegendComponents)
-                            .WhereElementIsNotElementType()
-                            .FirstOrDefault();
-
-                        if (seedComponent != null)
-                        {
-                            sourceViewId = lv.Id;
-                            break;
-                        }
-                    }
-                    catch (Exception ex) { StingLog.Warn($"Search legend view for seed component: {ex.Message}"); }
-                }
-
-                if (seedComponent == null) return null;
-
-                // Copy the seed component to our legend view
-                ICollection<ElementId> copiedIds;
-                if (sourceViewId == legendView.Id)
-                {
-                    // Same view: use CopyElement with translation
-                    XYZ seedLoc = XYZ.Zero;
-                    if (seedComponent.Location is LocationPoint lp)
-                        seedLoc = lp.Point;
-                    XYZ translation = position - seedLoc;
-                    copiedIds = ElementTransformUtils.CopyElement(doc, seedComponent.Id, translation);
-                }
-                else
-                {
-                    // Different views: CopyElements between views
-                    // Filter out ExtentElem to avoid Revit creating duplicate legend views
-                    var elemIds = new List<ElementId> { seedComponent.Id };
-                    copiedIds = ElementTransformUtils.CopyElements(
-                        doc.GetElement(sourceViewId) as View,
-                        elemIds,
-                        legendView,
-                        Transform.Identity,
-                        new CopyPasteOptions());
-                }
-
-                if (copiedIds == null || copiedIds.Count == 0) return null;
-
-                // Set the target type on the copied component
-                Element copied = doc.GetElement(copiedIds.First());
-                if (copied != null)
-                {
-                    Parameter legendParam = copied.get_Parameter(BuiltInParameter.LEGEND_COMPONENT);
-                    if (legendParam != null && !legendParam.IsReadOnly)
-                    {
-                        legendParam.Set(targetType.Id);
-
-                        // Move to target position
-                        if (copied.Location is LocationPoint lp)
-                        {
-                            XYZ current = lp.Point;
-                            ElementTransformUtils.MoveElement(doc, copied.Id, position - current);
-                        }
-
-                        return copied;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"TryCopyLegendComponent: {ex.Message}");
-            }
-
-            return null;
-        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -3951,18 +3850,6 @@ namespace StingTools.Tags
                 { "DUPLICATE",  new Color(255, 255, 0) },      // Yellow
             };
 
-        // ── Fire Rating Severity Colors ──────────────────────────────────
-
-        /// <summary>Fire rating to severity color (minutes → color gradient).</summary>
-        public static Color GetFireRatingColor(int minutes)
-        {
-            if (minutes >= 120) return new Color(139, 0, 0);       // Dark red
-            if (minutes >= 90)  return new Color(204, 0, 0);       // Red
-            if (minutes >= 60)  return new Color(255, 69, 0);      // Orange-Red
-            if (minutes >= 30)  return new Color(255, 140, 0);     // Orange
-            return new Color(255, 200, 0);                          // Gold
-        }
-
         // ── Utility: Get discipline color from code ──────────────────────
 
         // ── Element Status / Phase Colors ─────────────────────────────
@@ -4049,21 +3936,6 @@ namespace StingTools.Tags
                 { "SEQ",  new Color(100, 100, 100) },    // Grey — Sequence
             };
 
-        // ── COBie / FM Status Colors ─────────────────────────────────
-
-        /// <summary>FM asset status to color for facilities management legends.</summary>
-        public static readonly Dictionary<string, Color> FMStatus =
-            new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
-            {
-                { "OPERATIONAL",     new Color(0, 180, 0) },       // Green
-                { "MAINTENANCE_DUE", new Color(255, 165, 0) },     // Orange
-                { "FAULTY",          new Color(255, 0, 0) },       // Red
-                { "DECOMMISSIONED",  new Color(128, 128, 128) },   // Grey
-                { "WARRANTY_ACTIVE", new Color(0, 100, 220) },     // Blue
-                { "WARRANTY_EXPIRED",new Color(200, 200, 0) },     // Yellow
-                { "UNDER_REVIEW",    new Color(160, 0, 200) },     // Purple
-            };
-
         // ── Utility Methods ──────────────────────────────────────────
 
         /// <summary>Get the color for a discipline code, with grey fallback.</summary>
@@ -4071,20 +3943,6 @@ namespace StingTools.Tags
         {
             if (string.IsNullOrEmpty(disc)) return new Color(160, 160, 160);
             return Disciplines.TryGetValue(disc, out Color c) ? c : new Color(160, 160, 160);
-        }
-
-        /// <summary>Get the color for a system code, with grey fallback.</summary>
-        public static Color GetSystemColor(string sys)
-        {
-            if (string.IsNullOrEmpty(sys)) return new Color(160, 160, 160);
-            return Systems.TryGetValue(sys, out var sc) ? sc.Color : new Color(160, 160, 160);
-        }
-
-        /// <summary>Get color for element status (NEW/EXISTING/DEMOLISHED/TEMPORARY).</summary>
-        public static Color GetStatusColor(string status)
-        {
-            if (string.IsNullOrEmpty(status)) return new Color(160, 160, 160);
-            return ElementStatus.TryGetValue(status, out Color c) ? c : new Color(160, 160, 160);
         }
 
         /// <summary>Get color for a workset by matching its name prefix.</summary>
@@ -4099,32 +3957,9 @@ namespace StingTools.Tags
             return new Color(160, 160, 160);
         }
 
-        /// <summary>Get color for a tag segment token name.</summary>
-        public static Color GetSegmentColor(string segmentName)
-        {
-            if (string.IsNullOrEmpty(segmentName)) return new Color(100, 100, 100);
-            return TagSegments.TryGetValue(segmentName, out Color c) ? c : new Color(100, 100, 100);
-        }
-
-        /// <summary>
-        /// Resolve a color from ANY domain — tries discipline, system, status, validation, FM in order.
-        /// Used by flexible legends that need to auto-determine color from any code.
-        /// </summary>
-        public static Color ResolveAny(string code)
-        {
-            if (string.IsNullOrEmpty(code)) return new Color(160, 160, 160);
-            if (Disciplines.TryGetValue(code, out Color dc)) return dc;
-            if (Systems.TryGetValue(code, out var sc)) return sc.Color;
-            if (ElementStatus.TryGetValue(code, out Color ec)) return ec;
-            if (ValidationStatus.TryGetValue(code, out Color vc)) return vc;
-            if (FMStatus.TryGetValue(code, out Color fc)) return fc;
-            if (TagSegments.TryGetValue(code, out Color tc)) return tc;
-            return new Color(160, 160, 160);
-        }
-
         /// <summary>
         /// Get all color definitions as entries for a comprehensive reference legend.
-        /// Groups: Disciplines, Systems, Status, Validation, FM, Tag Segments.
+        /// Groups: Disciplines, Systems, Status, Validation, Tag Segments.
         /// </summary>
         public static List<LegendBuilder.LegendEntry> GetAllAsLegendEntries()
         {

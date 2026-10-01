@@ -20,8 +20,8 @@ namespace StingTools.Core
     /// are default-present in every family and live outside the tier-variation
     /// plan (<see cref="PerFamilyTierMap"/> never stores T1..T3).
     /// </remarks>
-    // LEGACY(universal-tag): the TierPlan-building API (LoadFile/LoadFiles/Parse) has no
-    // direct caller since TagConfigPlanResolver was deleted (universal-tag teardown). RETAINED
+    // LEGACY(universal-tag): the TierPlan-building API (LoadFile/Parse) is read only by
+    // TagConfigPlanResolver.LoadAll (universal-tag teardown; LoadFiles was deleted, DSCH-46). RETAINED
     // because the v5.0 CSV data it parses is the canonical *synced* tag-config source (see
     // reference-tag-config-sources; LABEL_DEFINITIONS.json is canonical) and those CSVs are
     // still read across ParamRegistry / TagConfig / HandoverModeHelper / PresentationModeCommand
@@ -71,25 +71,6 @@ namespace StingTools.Core
 
             var lines = File.ReadAllLines(csvPath);
             return Parse(lines, csvPath);
-        }
-
-        /// <summary>
-        /// Load every CSV in <paramref name="csvPaths"/> and merge into one
-        /// dictionary. When the same family name appears in more than one file
-        /// the later entry wins — callers should pass discipline CSVs in the
-        /// order they expect to shadow each other (typically GEN → disc-specific).
-        /// </summary>
-        public static Dictionary<string, TierPlan> LoadFiles(IEnumerable<string> csvPaths)
-        {
-            if (csvPaths == null) throw new ArgumentNullException(nameof(csvPaths));
-            var merged = new Dictionary<string, TierPlan>(StringComparer.Ordinal);
-            foreach (var path in csvPaths)
-            {
-                var perFile = LoadFile(path);
-                foreach (var kv in perFile)
-                    merged[kv.Key] = kv.Value;
-            }
-            return merged;
         }
 
         /// <summary>
