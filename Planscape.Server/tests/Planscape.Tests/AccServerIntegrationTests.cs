@@ -478,6 +478,35 @@ public partial class AccServerIntegrationTests
         Assert.Contains(r.Failures!, f => f.Contains("status not sent"));
     }
 
+    // AUT-3: a status read-back that stopped at its page cap fell through, and every mapped id
+    // not yet read was recorded "not_found" - as if the ACC issue had been deleted.
+    [Fact]
+    public async Task A_read_back_that_hits_its_page_cap_is_an_error_not_not_found()
+    {
+        var fx = new Fx();
+        await fx.SeedAsync(openIssues: 1);
+        StubAcc(fx.Http, okPosts: 10);
+        var inner = fx.Http.Respond;
+        fx.Http.Respond = (req, x) =>
+        {
+            var url = Uri.UnescapeDataString(req.RequestUri!.ToString());
+            if (req.Method == HttpMethod.Get && url.Contains("filter[id]="))
+            {
+                var page = Enumerable.Range(0, 100).Select(i => new { id = "other-" + Guid.NewGuid().ToString("N"), status = "open" }).ToArray();
+                return Json(HttpStatusCode.OK, new { pagination = new { limit = 100, offset = 0, totalResults = 1_000_000 }, results = page });
+            }
+            return inner(req, x);
+        };
+        AccSyncService.AccSyncReport r;
+        using (var db = fx.Db()) r = await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+
+        Assert.Null(r.MappedStatusRead);                       // not "1 read, 1 not_found"
+        Assert.Contains("INCOMPLETE", r.Error);
+        Assert.Equal(AccSyncService.StatusPartial, r.Status);
+        var cfg = JObject.Parse((await fx.ReadConnAsync()).ConfigJson!);
+        Assert.DoesNotContain("not_found", cfg[AccSyncService.KeyIssueStatus]?.ToString() ?? "");
+    }
+
     [Fact]
     public async Task A_legacy_mapping_gets_a_baseline_not_a_mass_patch()
     {

@@ -86,6 +86,7 @@ public class AccSyncService
     private const int TitleMax = 100;
     private const int DescriptionMax = 1000;
     private const int ReadBackBatch = 50;
+    internal const int ReadBackMaxPages = 20;
 
     private readonly PlanscapeDbContext _db;
     private readonly IPlatformConnectorFactory _connectorFactory;
@@ -967,7 +968,8 @@ public class AccSyncService
             foreach (var batch in accIds.Chunk(ReadBackBatch))
             {
                 string ids = string.Join(",", batch.Select(Uri.EscapeDataString));
-                for (int offset = 0, page = 0; page < 20; offset += 100, page++)
+                bool complete = false;
+                for (int offset = 0, page = 0; page < ReadBackMaxPages; offset += 100, page++)
                 {
                     string url = $"{ApsEndpoints.IssuesProjectUrl(_config, conn.ExternalProjectId)}/issues?filter[id]={ids}&limit=100&offset={offset}";
                     using var resp = await ApsRetry.SendAsync(http, () => Get(url, conn.AccessToken!, region), true, _logger, ct);
@@ -981,8 +983,12 @@ public class AccSyncService
                         if (!string.IsNullOrEmpty(id)) result[id] = (string?)r["status"] ?? "";
                     }
                     int? total = (int?)j["pagination"]?["totalResults"];
-                    if (results.Count < 100 || (total.HasValue && offset + results.Count >= total.Value)) break;
+                    if (results.Count < 100 || (total.HasValue && offset + results.Count >= total.Value)) { complete = true; break; }
                 }
+                // AUT-3: stopping at the page cap used to fall through, and every id not yet
+                // read was then recorded as "not_found" - a deleted issue that was never deleted.
+                if (!complete)
+                    return (null, $"INCOMPLETE: stopped after {ReadBackMaxPages} pages for one batch of {batch.Length} ids");
             }
             // Mapped ids ACC no longer returns (deleted, or no longer visible to this grant).
             foreach (var id in accIds)
