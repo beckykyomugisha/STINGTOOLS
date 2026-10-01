@@ -391,6 +391,99 @@ namespace StingTools.Acc.Tests
             Assert.Single(AccIssuePush.FindCandidates(rows));
         }
 
+        // ── E9: comments are pushed on their own, notes are not lost, keys not counts ──
+
+        [Fact]
+        public void Push_ACommentOnlyChange_IsACandidate_AndIsPosted()
+        {
+            var (rows, row) = Imported();
+            Assert.Empty(AccIssuePush.FindCandidates(rows));
+            ((JArray)row["comments"]).Add("photo uploaded to CDE");
+
+            var c = Assert.Single(AccIssuePush.FindCandidates(rows));
+            Assert.Empty(c.Changes);
+            Assert.Equal(1, c.PendingComments);
+            var p = AccIssuePush.Plan(c, Current("a-1"));
+            Assert.False(p.HasWrite);
+            Assert.True(p.HasComment);
+            Assert.Contains("photo uploaded to CDE", p.CommentText);
+
+            AccIssuePush.MarkCommentsPushed(row, p.CommentKeys);
+            Assert.Empty(AccIssuePush.FindCandidates(rows));
+        }
+
+        [Fact]
+        public void Push_StatusAlreadyAgreedInAcc_StillPostsTheNote()
+        {
+            var (rows, row) = Imported();
+            IssueSchema.ApplyStatus(row, "CLOSED", "coord", T1, "closed after site walk");
+            var p = AccIssuePush.Plan(AccIssuePush.FindCandidates(rows).Single(), Current("a-1", status: "closed"));
+            Assert.Contains("status", p.AgreeFields);
+            Assert.False(p.HasWrite);
+            Assert.True(p.HasComment);
+            Assert.Contains("closed after site walk", p.CommentText);
+        }
+
+        [Fact]
+        public void Push_UnpushableStatus_PostsTheNoteOnce_NotEveryRun()
+        {
+            var (rows, row) = Imported();
+            IssueSchema.ApplyStatus(row, "VOID", "coord", T1, "duplicate of #12");
+            var p = AccIssuePush.Plan(AccIssuePush.FindCandidates(rows).Single(), Current("a-1"));
+            Assert.False(p.HasWrite);
+            Assert.Contains("duplicate of #12", p.CommentText);
+
+            AccIssuePush.MarkCommentsPushed(row, p.CommentKeys);
+            // The VOID change stays a candidate (it cannot be pushed), but the note is not resent.
+            var p2 = AccIssuePush.Plan(AccIssuePush.FindCandidates(rows).Single(), Current("a-1"));
+            Assert.Null(p2.CommentText);
+        }
+
+        [Fact]
+        public void Push_CommentsAreKeyedByContent_DeletingOneDoesNotHideANewOne()
+        {
+            var (rows, row) = Imported();
+            var comments = (JArray)row["comments"];
+            comments.Add("first");
+            comments.Add("second");
+            var p = AccIssuePush.Plan(AccIssuePush.FindCandidates(rows).Single(), Current("a-1"));
+            AccIssuePush.MarkCommentsPushed(row, p.CommentKeys);
+
+            // With a count (2), removing "first" and adding "third" left the count satisfied and
+            // "third" was never sent.
+            comments.RemoveAt(0);
+            comments.Add("third");
+            var p2 = AccIssuePush.Plan(AccIssuePush.FindCandidates(rows).Single(), Current("a-1"));
+            Assert.Contains("third", p2.CommentText);
+            Assert.DoesNotContain("second", p2.CommentText);
+        }
+
+        [Fact]
+        public void Push_ALegacyCommentCount_StillMarksThoseCommentsSent()
+        {
+            var (rows, row) = Imported();
+            var comments = (JArray)row["comments"];
+            comments.Add("old one");
+            comments.Add("new one");
+            row[AccIssueImport.CommentsPushedField] = 1;   // written before E9
+            var p = AccIssuePush.Plan(AccIssuePush.FindCandidates(rows).Single(), Current("a-1"));
+            Assert.Contains("new one", p.CommentText);
+            Assert.DoesNotContain("old one", p.CommentText);
+        }
+
+        [Fact]
+        public void Push_OnlyTheAcceptedKeysAreRecorded()
+        {
+            var (rows, row) = Imported();
+            ((JArray)row["comments"]).Add("a");
+            var p = AccIssuePush.Plan(AccIssuePush.FindCandidates(rows).Single(), Current("a-1"));
+            ((JArray)row["comments"]).Add("b");   // added after planning, so not in this post
+            AccIssuePush.MarkCommentsPushed(row, p.CommentKeys);
+            var p2 = AccIssuePush.Plan(AccIssuePush.FindCandidates(rows).Single(), Current("a-1"));
+            Assert.Contains("b", p2.CommentText);
+            Assert.DoesNotContain("\na", p2.CommentText);
+        }
+
         // ── 3. watermark ─────────────────────────────────────────────────────
 
         [Fact]

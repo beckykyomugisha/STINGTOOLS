@@ -58,6 +58,9 @@ namespace StingTools.V6
         public string IssueId { get; set; }
         public string AccIssueId { get; set; }
         public List<AccPushChange> Changes { get; } = new List<AccPushChange>();
+        /// <summary>E9: register comments not yet sent to ACC. A row with only these is still a
+        /// candidate - a comment-only change used never to be pushed.</summary>
+        public int PendingComments { get; set; }
     }
 
     /// <summary>What to send for one candidate, and why anything is not being sent.</summary>
@@ -75,8 +78,14 @@ namespace StingTools.V6
         public List<AccImportConflict> Conflicts { get; } = new List<AccImportConflict>();
         /// <summary>Human-readable reasons a change is not being sent.</summary>
         public List<string> NotPushed { get; } = new List<string>();
-        /// <summary>The comment posted after a successful PATCH, or null.</summary>
+        /// <summary>The comment to post (after the PATCH when there is one, on its own when
+        /// there is not), or null.</summary>
         public string CommentText { get; set; }
+        /// <summary>E9: the stable keys of the notes / comments <see cref="CommentText"/>
+        /// carries; recorded once ACC accepted the comment.</summary>
+        public List<string> CommentKeys { get; } = new List<string>();
+        /// <summary>E9: a comment is to be posted (possibly with no field write).</summary>
+        public bool HasComment => !string.IsNullOrWhiteSpace(CommentText);
         /// <summary>The resolved assignee the PATCH sends (null when the assignee is not being
         /// set, or is being cleared).</summary>
         public AccAssigneeResolution Assignee { get; set; }
@@ -125,7 +134,8 @@ namespace StingTools.V6
                     if (!string.Equals(local, b, StringComparison.Ordinal))
                         c.Changes.Add(new AccPushChange { Field = f, BaseValue = b, LocalValue = local });
                 }
-                if (c.Changes.Count > 0) list.Add(c);
+                c.PendingComments = PendingCommentParts(row, includeStatusNote: false).Count;
+                if (c.Changes.Count > 0 || c.PendingComments > 0) list.Add(c);
             }
             return list;
         }
@@ -234,37 +244,85 @@ namespace StingTools.V6
                 }
             }
 
-            if (item.HasWrite) item.CommentText = CommentText(c.Row, item.PushFields.Contains("status"));
+            // E9: the note and the unsent comments go whether or not a field is written. The
+            // status note travels with any LOCAL status change that is not a conflict - pushed,
+            // already agreed in ACC (AgreeFields), or not pushable (no ACC status / not
+            // permitted) - because in each of those cases it was otherwise lost. Each part is
+            // keyed, so a note on a change that stays unpushable is posted once, not every run.
+            bool statusNote = c.Changes.Any(ch => ch.Field == "status") && !item.Conflicts.Any(cf => cf.Field == "status");
+            var parts = PendingCommentParts(c.Row, statusNote);
+            if (parts.Count > 0)
+            {
+                item.CommentText = Compose(c.Row, parts.Select(p => p.Text));
+                item.CommentKeys.AddRange(parts.Select(p => p.Key));
+            }
             return item;
         }
 
+        /// <summary>Stored on the row: the keys of every note / comment already sent to ACC (E9).
+        /// Keys are hashes of the comment itself, so editing the register's comment list
+        /// (deleting or reordering one) can no longer make a sent comment look unsent or an
+        /// unsent one look sent - which a count could.</summary>
+        public const string CommentKeysField = "acc_comments_pushed_keys";
+
         /// <summary>The STING note/comment text worth carrying to ACC: the note on the latest
-        /// status change (when status is pushed and the note is not the importer's own), and
-        /// every register comment not yet sent. Null when there is nothing to say.</summary>
+        /// status change (when <paramref name="statusPushed"/> and the note is not the importer's
+        /// own), and every register comment not yet sent. Null when there is nothing to say.</summary>
         public static string CommentText(JObject row, bool statusPushed)
         {
-            if (row == null) return null;
-            var parts = new List<string>();
-            if (statusPushed && row["status_history"] is JArray hist && hist.Count > 0)
+            var parts = PendingCommentParts(row, statusPushed);
+            return parts.Count == 0 ? null : Compose(row, parts.Select(p => p.Text));
+        }
+
+        private static string Compose(JObject row, IEnumerable<string> parts)
+            => $"From STING ({IssueSchema.IdOf(row)}):\n" + string.Join("\n", parts);
+
+        /// <summary>E9: the parts not yet sent, each with its stable key. A legacy integer
+        /// <c>acc_comments_pushed</c> (a count) still marks that many leading comments sent.</summary>
+        public static List<(string Key, string Text)> PendingCommentParts(JObject row, bool includeStatusNote)
+        {
+            var parts = new List<(string Key, string Text)>();
+            if (row == null) return parts;
+            var sent = SentKeys(row);
+            if (includeStatusNote && row["status_history"] is JArray hist && hist.Count > 0)
             {
                 var last = hist.Last as JObject;
                 string note = ((string)last?["note"] ?? "").Trim();
                 string to = (string)last?["to"] ?? "";
                 if (note.Length > 0 && string.Equals(to, IssueSchema.StatusOf(row), StringComparison.Ordinal) &&
                     !note.StartsWith("ACC import", StringComparison.OrdinalIgnoreCase))
-                    parts.Add($"Status {to}: {note}");
+                {
+                    string key = "note:" + Hash(last.ToString(Newtonsoft.Json.Formatting.None));
+                    if (!sent.Contains(key)) parts.Add((key, $"Status {to}: {note}"));
+                }
             }
             if (row["comments"] is JArray comments)
             {
-                int sent = (int?)row[AccIssueImport.CommentsPushedField] ?? 0;
-                for (int i = Math.Max(0, sent); i < comments.Count; i++)
+                int legacy = row[AccIssueImport.CommentsPushedField]?.Type == JTokenType.Integer
+                    ? (int)row[AccIssueImport.CommentsPushedField] : 0;
+                for (int i = 0; i < comments.Count; i++)
                 {
+                    if (i < legacy) continue;   // sent before E9, recorded only as a count
                     string t = CommentBody(comments[i]);
-                    if (!string.IsNullOrWhiteSpace(t)) parts.Add(t.Trim());
+                    if (string.IsNullOrWhiteSpace(t)) continue;
+                    string key = "comment:" + Hash(comments[i].Type == JTokenType.String
+                        ? (string)comments[i] : comments[i].ToString(Newtonsoft.Json.Formatting.None));
+                    if (sent.Contains(key) || parts.Any(p => p.Key == key)) continue;
+                    parts.Add((key, t.Trim()));
                 }
             }
-            if (parts.Count == 0) return null;
-            return $"From STING ({IssueSchema.IdOf(row)}):\n" + string.Join("\n", parts);
+            return parts;
+        }
+
+        private static HashSet<string> SentKeys(JObject row)
+            => new HashSet<string>(((row?[CommentKeysField] as JArray) ?? new JArray())
+                .Where(t => t.Type == JTokenType.String).Select(t => (string)t), StringComparer.Ordinal);
+
+        private static string Hash(string s)
+        {
+            using var sha = System.Security.Cryptography.SHA256.Create();
+            var b = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(s ?? ""));
+            return BitConverter.ToString(b, 0, 12).Replace("-", "").ToLowerInvariant();
         }
 
         private static string CommentBody(JToken t)
@@ -316,9 +374,17 @@ namespace StingTools.V6
 
         /// <summary>Record that every current register comment has been sent to ACC.</summary>
         public static void MarkCommentsPushed(JObject row)
+            => MarkCommentsPushed(row, PendingCommentParts(row, includeStatusNote: true).Select(p => p.Key));
+
+        /// <summary>E9: record exactly the parts ACC accepted (the plan item's
+        /// <see cref="AccPushPlanItem.CommentKeys"/>).</summary>
+        public static void MarkCommentsPushed(JObject row, IEnumerable<string> keys)
         {
             if (row == null) return;
-            row[AccIssueImport.CommentsPushedField] = (row["comments"] as JArray)?.Count ?? 0;
+            if (!(row[CommentKeysField] is JArray arr)) { arr = new JArray(); row[CommentKeysField] = arr; }
+            var have = SentKeys(row);
+            foreach (var k in keys ?? Enumerable.Empty<string>())
+                if (!string.IsNullOrEmpty(k) && have.Add(k)) arr.Add(k);
         }
 
         private static string FirstNonEmpty(params string[] v)

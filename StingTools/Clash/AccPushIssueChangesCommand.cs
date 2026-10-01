@@ -11,7 +11,10 @@
 //   3. The status must round-trip and be in ACC's permittedStatuses for this user (when ACC
 //      says); the assignee must be an editable attribute. Otherwise reported, not sent.
 //   4. PATCH status / assignee, then POST a comment carrying the STING status note and any
-//      register comments not yet sent.
+//      register comments not yet sent. E9: a row whose only change is a new comment is a
+//      candidate too; a status note is posted even when the status needed no write (ACC
+//      already agreed) or cannot be pushed; sent notes / comments are keyed by a hash of
+//      the comment, not counted.
 //   5. The row's base advances ONLY for what ACC confirmed. A failed or ambiguous PATCH
 //      leaves the row as it was, so the next run offers the same change again.
 //
@@ -118,7 +121,8 @@ namespace StingTools.Core.Clash
                     plans.Add(AccIssuePush.Plan(c, cur.Value, members, membersFailure));
                 }
 
-                var ready = plans.Where(p => p.HasWrite).ToList();
+                // E9: a plan with only a note / comments to post is ready too.
+                var ready = plans.Where(p => p.HasWrite || p.HasComment).ToList();
                 var preview = Describe(plans, readFailures, deferred);
 
                 // Fields ACC already agrees with need no write; the base just catches up. Safe
@@ -168,41 +172,48 @@ namespace StingTools.Core.Clash
                 foreach (var p in ready)
                 {
                     var c = p.Candidate;
-                    AccWriteResult w;
-                    try { w = AccIssueSync.PatchIssueAsync(creds, c.AccIssueId, p.Patch).GetAwaiter().GetResult(); }
-                    catch (Exception ex) { w = new AccWriteResult { Detail = ex.Message }; }
-
-                    if (!w.Ok)
+                    if (p.HasWrite)
                     {
-                        failed++;
-                        if (w.Ambiguous) ambiguous++;
-                        log.Add(new[] { c.IssueId, c.AccIssueId, "FAILED", w.Detail });
-                        if (w.Status == AccFetchStatus.AuthFailed && w.HttpStatus != 403) break;   // sign-in gone
-                        continue;
+                        AccWriteResult w;
+                        try { w = AccIssueSync.PatchIssueAsync(creds, c.AccIssueId, p.Patch).GetAwaiter().GetResult(); }
+                        catch (Exception ex) { w = new AccWriteResult { Detail = ex.Message }; }
+
+                        if (!w.Ok)
+                        {
+                            failed++;
+                            if (w.Ambiguous) ambiguous++;
+                            log.Add(new[] { c.IssueId, c.AccIssueId, "FAILED", w.Detail });
+                            if (w.Status == AccFetchStatus.AuthFailed && w.HttpStatus != 403) break;   // sign-in gone
+                            continue;
+                        }
+
+                        AccIssuePush.ApplyPushed(p, DateTime.Now);
+                        batch.MarkModified();
+                        pushed++;
+                        log.Add(new[] { c.IssueId, c.AccIssueId, "pushed", p.Patch.ToString(Newtonsoft.Json.Formatting.None) });
+                        SafeAudit(doc, c, p);
                     }
 
-                    AccIssuePush.ApplyPushed(p, DateTime.Now);
-                    batch.MarkModified();
-                    pushed++;
-                    log.Add(new[] { c.IssueId, c.AccIssueId, "pushed", p.Patch.ToString(Newtonsoft.Json.Formatting.None) });
-                    SafeAudit(doc, c, p);
-
-                    if (!string.IsNullOrWhiteSpace(p.CommentText))
+                    if (p.HasComment)
                     {
                         AccWriteResult cw;
                         try { cw = AccIssueSync.AddCommentAsync(creds, c.AccIssueId, p.CommentText).GetAwaiter().GetResult(); }
                         catch (Exception ex) { cw = new AccWriteResult { Detail = ex.Message }; }
                         if (cw.Ok)
                         {
-                            AccIssuePush.MarkCommentsPushed(c.Row);
+                            // E9: exactly the parts ACC accepted, by key - not "all comments now".
+                            AccIssuePush.MarkCommentsPushed(c.Row, p.CommentKeys);
+                            batch.MarkModified();
                             commented++;
+                            if (!p.HasWrite) log.Add(new[] { c.IssueId, c.AccIssueId, "comment posted", "" });
                         }
                         else
                         {
-                            // The PATCH stands; the comments stay unsent and are offered again
-                            // with the next change to this issue.
+                            // The PATCH (if any) stands; the comments stay unsent and are
+                            // offered again next run.
                             commentFailed++;
                             log.Add(new[] { c.IssueId, c.AccIssueId, "comment FAILED", cw.Detail });
+                            if (cw.Status == AccFetchStatus.AuthFailed && cw.HttpStatus != 403) break;
                         }
                     }
                 }
@@ -245,14 +256,14 @@ namespace StingTools.Core.Clash
                 StingLog.Info($"ACC_PushIssueChanges: candidates={candidates.Count} ready={ready.Count} pushed={pushed} " +
                               $"failed={failed} ambiguous={ambiguous} comments={commented}/{commentFailed} " +
                               $"conflicts={plans.Sum(p => p.Conflicts.Count)} readFailures={readFailures.Count}");
-                return failed > 0 || readFailures.Count > 0 ? Result.Failed : Result.Succeeded;
+                return failed > 0 || commentFailed > 0 || readFailures.Count > 0 ? Result.Failed : Result.Succeeded;
             }
         }
 
         private static string Describe(List<AccPushPlanItem> plans, List<string> readFailures, int deferred)
         {
             var sb = new StringBuilder();
-            var ready = plans.Where(p => p.HasWrite).ToList();
+            var ready = plans.Where(p => p.HasWrite || p.HasComment).ToList();
             sb.AppendLine($"Ready to send:      {ready.Count}");
             foreach (var p in ready.Take(10))
             {
@@ -260,7 +271,7 @@ namespace StingTools.Core.Clash
                 if (p.AccStatus != null) parts.Add("status → " + p.AccStatus);
                 if (p.PushFields.Contains("assigned_to"))
                     parts.Add("assignee → " + ((string)p.Patch["assignedTo"] ?? "(none)"));
-                if (p.CommentText != null) parts.Add("+ comment");
+                if (p.HasComment) parts.Add(p.HasWrite ? "+ comment" : $"comment only ({p.CommentKeys.Count} note(s))");
                 sb.AppendLine($"  {p.Candidate.IssueId} (ACC {p.Candidate.AccIssueId}): {string.Join(", ", parts)}");
             }
             if (ready.Count > 10) sb.AppendLine($"  … and {ready.Count - 10} more");
