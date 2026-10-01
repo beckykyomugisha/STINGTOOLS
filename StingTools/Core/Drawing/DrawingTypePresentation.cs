@@ -45,6 +45,38 @@ namespace StingTools.Core.Drawing
             catch { return "__unknown__"; }
         }
 
+        /// <summary>
+        /// DT-R11: true when the view's template controls any of <paramref name="bips"/>,
+        /// so a direct write would be refused ("Detail Level cannot be modified.").
+        /// The decision itself is <see cref="TemplateOwnedSetting.OwnedByTemplate"/>.
+        /// </summary>
+        private static bool TemplateOwns(Document doc, View view, out string templateName, params BuiltInParameter[] bips)
+        {
+            templateName = null;
+            if (doc == null || view == null) return false;
+            try
+            {
+                var tid = view.ViewTemplateId;
+                if (!ManagedTemplateSyncer.IsUsable(tid)) return false;
+                var tpl = doc.GetElement(tid) as View;
+                if (tpl == null) return false;
+                templateName = tpl.Name;
+                var all = new HashSet<long>(tpl.GetTemplateParameterIds().Select(i => i.Value));
+                var free = new HashSet<long>(tpl.GetNonControlledTemplateParameterIds().Select(i => i.Value));
+                bool controls = bips.Any(b => all.Contains((long)b) && !free.Contains((long)b));
+                bool readOnly = bips.Any(b => view.get_Parameter(b)?.IsReadOnly == true);
+                return TemplateOwnedSetting.OwnedByTemplate(true, controls, readOnly);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DrawingTypePresentation: template control check on '{view.Name}': {ex.Message}");
+                return false;
+            }
+        }
+
+        private static readonly BuiltInParameter[] ScaleParams =
+            { BuiltInParameter.VIEW_SCALE_PULLDOWN_METRIC, BuiltInParameter.VIEW_SCALE_PULLDOWN_IMPERIAL, BuiltInParameter.VIEW_SCALE };
+
         private static ElementId ResolveViewTemplate(Document doc, string name)
         {
             if (doc == null || string.IsNullOrWhiteSpace(name)) return ElementId.InvalidElementId;
@@ -59,7 +91,7 @@ namespace StingTools.Core.Drawing
                 }
                 if (docMap.TryGetValue(name, out ElementId cached))
                 {
-                    if (cached != ElementId.InvalidElementId)
+                    if (ManagedTemplateSyncer.IsUsable(cached))
                     {
                         var elem = doc.GetElement(cached);
                         if (elem is View vTpl && vTpl.IsValidObject && vTpl.IsTemplate)
@@ -289,6 +321,9 @@ namespace StingTools.Core.Drawing
         {
             public bool ScaleApplied       { get; set; }
             public bool DetailLevelApplied { get; set; }
+            /// <summary>DT-R11: the view's template controls the setting, so it was left to the template.</summary>
+            public bool ScaleOwnedByTemplate       { get; set; }
+            public bool DetailLevelOwnedByTemplate { get; set; }
             public bool TemplateApplied    { get; set; }
             public bool PackApplied        { get; set; }
             public bool CropApplied        { get; set; }
@@ -414,7 +449,7 @@ namespace StingTools.Core.Drawing
                 try
                 {
                     var tplId = ResolveViewTemplate(doc, slot.ViewTemplate);
-                    if (tplId != ElementId.InvalidElementId)
+                    if (ManagedTemplateSyncer.IsUsable(tplId))
                     {
                         view.ViewTemplateId = tplId;
                         if (result != null) result.TemplateApplied = true;
@@ -431,9 +466,15 @@ namespace StingTools.Core.Drawing
             }
 
             // 2. Per-slot scale is applied AFTER template so it wins over template-controlled scale.
-            // If the template locks scale (IsTemplateParameterDisplayed = false for View.Scale),
-            // Revit will silently ignore this write — acceptable trade-off.
-            if (slot.Scale.HasValue && slot.Scale.Value > 0)
+            // DT-R11: a template that CONTROLS scale makes Revit refuse the write; the
+            // template owns it then, and that is logged rather than reported as a failure.
+            if (slot.Scale.HasValue && slot.Scale.Value > 0
+                && TemplateOwns(doc, view, out var slotScaleTpl, ScaleParams))
+            {
+                if (result != null) result.ScaleOwnedByTemplate = true;
+                StingLog.Info("DrawingTypePresentation: " + TemplateOwnedSetting.Note("Slot scale", "1:" + slot.Scale.Value, view.Name, slotScaleTpl));
+            }
+            else if (slot.Scale.HasValue && slot.Scale.Value > 0)
             {
                 try
                 {
@@ -447,7 +488,13 @@ namespace StingTools.Core.Drawing
             }
 
             // 3. Per-slot detail level — applied after template for the same reason as scale.
-            if (!string.IsNullOrWhiteSpace(slot.DetailLevel))
+            if (!string.IsNullOrWhiteSpace(slot.DetailLevel)
+                && TemplateOwns(doc, view, out var slotDetailTpl, BuiltInParameter.VIEW_DETAIL_LEVEL))
+            {
+                if (result != null) result.DetailLevelOwnedByTemplate = true;
+                StingLog.Info("DrawingTypePresentation: " + TemplateOwnedSetting.Note("Slot DetailLevel", slot.DetailLevel, view.Name, slotDetailTpl));
+            }
+            else if (!string.IsNullOrWhiteSpace(slot.DetailLevel))
             {
                 try
                 {
@@ -659,7 +706,14 @@ namespace StingTools.Core.Drawing
             }
 
             // Scale -------------------------------------------------------
-            if (effectiveScale > 0)
+            // DT-R11: when the view's template controls scale Revit refuses the write;
+            // the template owns it, which is logged, not reported as a failure.
+            if (effectiveScale > 0 && TemplateOwns(doc, view, out var scaleTpl, ScaleParams))
+            {
+                r.ScaleOwnedByTemplate = true;
+                StingLog.Info("DrawingTypePresentation: " + TemplateOwnedSetting.Note("Scale", "1:" + effectiveScale, view.Name, scaleTpl));
+            }
+            else if (effectiveScale > 0)
             {
                 try
                 {
@@ -683,7 +737,15 @@ namespace StingTools.Core.Drawing
             }
 
             // Detail level -----------------------------------------------
-            if (!string.IsNullOrWhiteSpace(effectiveDetailLevel))
+            // DT-R11: "Detail Level cannot be modified." was the view's template doing its
+            // job — it controls VIEW_DETAIL_LEVEL. Leave it to the template and say so.
+            if (!string.IsNullOrWhiteSpace(effectiveDetailLevel)
+                && TemplateOwns(doc, view, out var detailTpl, BuiltInParameter.VIEW_DETAIL_LEVEL))
+            {
+                r.DetailLevelOwnedByTemplate = true;
+                StingLog.Info("DrawingTypePresentation: " + TemplateOwnedSetting.Note("DetailLevel", effectiveDetailLevel, view.Name, detailTpl));
+            }
+            else if (!string.IsNullOrWhiteSpace(effectiveDetailLevel))
             {
                 try
                 {
@@ -809,7 +871,7 @@ namespace StingTools.Core.Drawing
                         var syncResult = new PackApplyResult();
                         var templateId = ManagedTemplateSyncer.EnsureTemplate(doc, resolvedPack, view.ViewType, syncResult);
                         r.Warnings.AddRange(syncResult.Warnings);
-                        if (templateId != ElementId.InvalidElementId)
+                        if (ManagedTemplateSyncer.IsUsable(templateId))
                         {
                             r.ManagedTemplateId = templateId;
                             r.ManagedTemplateCreated = !r.TemplateApplied;
@@ -887,7 +949,7 @@ namespace StingTools.Core.Drawing
             // inside the if, where resolvedPack is actually tested.
 
             // DTW-196: a re-run replacing the view's template says so.
-            if (options?.ReportTemplateReplacement == true && priorTemplateId != ElementId.InvalidElementId)
+            if (options?.ReportTemplateReplacement == true && ManagedTemplateSyncer.IsUsable(priorTemplateId))
             {
                 try
                 {

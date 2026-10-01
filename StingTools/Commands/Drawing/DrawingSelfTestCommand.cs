@@ -525,6 +525,8 @@ namespace StingTools.Commands.Drawing
             InTx(doc, "managed template", () =>
             {
                 var tid = ManagedTemplateSyncer.EnsureTemplate(doc, pack, ViewType.FloorPlan, result);
+                // DT-R11: no id is the "made no template" FAIL below, not a GetElement throw.
+                if (!ManagedTemplateSyncer.IsUsable(tid)) return;
                 template = doc.GetElement(tid) as View;
                 if (template == null) return;
                 var v = NewPlan(ctx);

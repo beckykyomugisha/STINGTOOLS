@@ -242,6 +242,8 @@
     <Compile Include="..\StingTools\Core\Drawing\SheetSequenceSeed.cs" Link="Core\Drawing\SheetSequenceSeed.cs" />
     <!-- DTW-194..213: the producer's edge-case decisions, Revit-free. -->
     <Compile Include="..\StingTools\Core\Drawing\ProductionEdgeDecisions.cs" Link="Core\Drawing\ProductionEdgeDecisions.cs" />
+    <!-- DT-R11: a view setting its view template owns (Detail Level / Scale), Revit-free. -->
+    <Compile Include="..\StingTools\Core\Drawing\TemplateOwnedSetting.cs" Link="Core\Drawing\TemplateOwnedSetting.cs" />
     <!-- The annotation rule-kind vocabulary + the sheet-number policy + the
          style-pack routing predicate. All three are Revit-free on purpose, so
          the gates that keep the shipped JSON and the runner in agreement can

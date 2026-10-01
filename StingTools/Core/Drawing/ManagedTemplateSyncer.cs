@@ -28,6 +28,17 @@ namespace StingTools.Core.Drawing
 {
     internal static partial class ManagedTemplateSyncer
     {
+        /// <summary>
+        /// DT-R11: an id that can be handed to Document.GetElement. A Dictionary
+        /// TryGetValue miss leaves an ElementId local null, and
+        /// <c>null != ElementId.InvalidElementId</c> is true — so a bare comparison let
+        /// the null through and GetElement threw ArgumentNullException ("id") on the
+        /// first EnsureTemplate of a session. Test ids with this, never with the bare
+        /// comparison (TemplateNullIdGuardTests holds the produce path to it).
+        /// </summary>
+        internal static bool IsUsable(ElementId id)
+            => id != null && id != ElementId.InvalidElementId;
+
         // C-6: keyed by document so a stale ElementId from a previously
         // open document is never returned to a different document.
         private static readonly object _cacheLock = new object();
@@ -155,7 +166,7 @@ namespace StingTools.Core.Drawing
             {
                 if (_seedViewCache.TryGetValue(docKey, out var docMap)
                     && docMap.TryGetValue(viewType, out cachedId)
-                    && cachedId != ElementId.InvalidElementId)
+                    && IsUsable(cachedId))
                 {
                     if (doc.GetElement(cachedId) is View cached
                         && cached.IsValidObject
@@ -366,9 +377,10 @@ namespace StingTools.Core.Drawing
             ElementId cachedId;
             lock (_cacheLock)
             {
+                // A miss leaves cachedId null — the first call of a session, every time.
                 bucket.TryGetValue(key, out cachedId);
             }
-            if (cachedId != ElementId.InvalidElementId)
+            if (IsUsable(cachedId))
             {
                 if (doc.GetElement(cachedId) is View v && v.IsValidObject && v.IsTemplate)
                 {
