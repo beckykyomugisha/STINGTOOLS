@@ -80,6 +80,12 @@ namespace StingTools.Core
             }
             _overrideSeparator = separator;
             _overrideNumPad = numPad;
+            // TAGACC-24: the SEQ is padded by TagConfig.EffectiveSeqPad, which prefers
+            // SeqPadWidth (default 4) over NumPad. Only the dock panel set it, so a project's
+            // num_pad (and the Tag Format command) changed NumPad but never the SEQ, and a pad
+            // chosen in the panel was lost on restart. Keep the two in step here — the one
+            // place every format source goes through.
+            TagConfig.SeqPadWidth = NumPad;
             if (segmentOrder != null)
             {
                 foreach (var seg in segmentOrder)
