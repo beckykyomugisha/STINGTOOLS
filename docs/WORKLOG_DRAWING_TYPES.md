@@ -209,6 +209,20 @@ ad42c8bda, which includes PR #1021. The earlier rounds' PR #1021 is merged and d
 | DTW-146 | ParameterHelpers level-map key | Med-Low | spatial_codes.json edits not seen: the registry kept its old cache | Reload the registry on a key miss | Done |
 | DTW-147 | ResolveAllIssuesCommand ~122 | Low-Med | Report showed another run's scope-box audit | Take the model's own audit after the context builds | Done |
 | DTW-148 | AnnotationRunner matchline frame | Low-Med | Stamped frame never followed a crop change | Redraw when incomplete or not matching the crop | Done |
+| DTW-149 | TitleBlockSpec.Resolve ~466-497 | High | Scalars fill-if-blank root-first: 12 working A0/A2/A3 families resolve the A1 template (.rft); COVER/A2 data errors too | Round 8 | Queued |
+| DTW-150 | SheetPlacementBridge ~274 | Med-High | Fit-to-slot overrides the type's scale in both directions; should only coarsen when it does not fit | Round 8 | Queued |
+| DTW-151 | DrawingProducer ~1911 / SheetPlacementBridge ~454 | Med-High | Schedules placed at the slot centre (their point is the top-left), so they run off the slot | Round 8 | Queued |
+| DTW-152 | TitleBlockResolver.ResolveMode ~94 | Med | Reads PRJ_SHEET_BIM_MODE_TXT from Project Information, but it is bound to Sheets only, so NONBIM is never chosen | Round 8 | Queued |
+| DTW-153 | TitleBlockSwap / Set Variant / Toggle BIM / MigrateLegacy | Med | Family swaps ignore the title-block lock | Round 8 | Queued |
+| DTW-154 | TitleBlockCommands Populate / Sheet Count / Transmittal | Med | Instance-only lock check, missing type and sheet locks | Round 8 | Queued |
+| DTW-155 | STING_TITLE_BLOCKS.json COVER_A2/A3, CLARIFICATION_A3 | Med | Inherit A1 drawable and slots on A2/A3 paper | Round 8 | Queued |
+| DTW-156 | TitleBlockFactory master path ~276/297/671 | Med (Revit) | Revision schedule placed before master propagation, with no ScheduleSheetInstance exclusion: possible duplicate revision table | Round 8 | Queued |
+| DTW-157 | SheetPlacementBridge fit ~256 | Med-Low | Fit ignores annotation extents; a failed scale set is swallowed; overflow never reported | Round 8 | Queued |
+| DTW-158 | TitleBlock_AutoPlaceViewports ~141 | Med-Low | Ignores the title-block origin | Round 8 | Queued |
+| DTW-159 | SheetManagerEngine Clone ~739 | Low | Copies the title block's revision schedule instance | Round 8 | Queued |
+| DTW-160 | Toggle BIM / Migrate ~301,168 | Low | Takes the first type rather than the same-named type | Round 8 | Queued |
+| DTW-161 | SheetPlacementBridge _drawableCache | Low | Session cache ignores edits to the title-block JSON | Round 8 | Queued |
+| DTW-162 | SheetSequenceStore.SeedFromExistingSheets ~323 | Low | Seeds ignore discipline and vol: numbering gap on first use | Round 8 | Queued |
 
 ## Decisions
 
