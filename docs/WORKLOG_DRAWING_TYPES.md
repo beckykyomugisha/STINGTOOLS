@@ -209,71 +209,72 @@ ad42c8bda, which includes PR #1021. The earlier rounds' PR #1021 is merged and d
 | DTW-146 | ParameterHelpers level-map key | Med-Low | spatial_codes.json edits not seen: the registry kept its old cache | Reload the registry on a key miss | Done |
 | DTW-147 | ResolveAllIssuesCommand ~122 | Low-Med | Report showed another run's scope-box audit | Take the model's own audit after the context builds | Done |
 | DTW-148 | AnnotationRunner matchline frame | Low-Med | Stamped frame never followed a crop change | Redraw when incomplete or not matching the crop | Done |
-| DTW-149 | TitleBlockSpec.Resolve ~466-497 | High | Scalars fill-if-blank root-first: 12 working A0/A2/A3 families resolve the A1 template (.rft); COVER/A2 data errors too | fix/dt-r8-tb | In progress |
-| DTW-150 | SheetPlacementBridge ~274 | Med-High | Fit-to-slot overrides the type's scale in both directions; should only coarsen when it does not fit | fix/dt-r8-tb | In progress |
-| DTW-151 | DrawingProducer ~1911 / SheetPlacementBridge ~454 | Med-High | Schedules placed at the slot centre (their point is the top-left), so they run off the slot | fix/dt-r8-tb | In progress |
-| DTW-152 | TitleBlockResolver.ResolveMode ~94 | Med | Reads PRJ_SHEET_BIM_MODE_TXT from Project Information, but it is bound to Sheets only, so NONBIM is never chosen | fix/dt-r8-tb | In progress |
-| DTW-153 | TitleBlockSwap / Set Variant / Toggle BIM / MigrateLegacy | Med | Family swaps ignore the title-block lock | fix/dt-r8-tb | In progress |
-| DTW-154 | TitleBlockCommands Populate / Sheet Count / Transmittal | Med | Instance-only lock check, missing type and sheet locks | fix/dt-r8-tb | In progress |
-| DTW-155 | STING_TITLE_BLOCKS.json COVER_A2/A3, CLARIFICATION_A3 | Med | Inherit A1 drawable and slots on A2/A3 paper | fix/dt-r8-tb | In progress |
-| DTW-156 | TitleBlockFactory master path ~276/297/671 | Med (Revit) | Revision schedule placed before master propagation, with no ScheduleSheetInstance exclusion: possible duplicate revision table | fix/dt-r8-tb | In progress |
-| DTW-157 | SheetPlacementBridge fit ~256 | Med-Low | Fit ignores annotation extents; a failed scale set is swallowed; overflow never reported | fix/dt-r8-tb | In progress |
-| DTW-158 | TitleBlock_AutoPlaceViewports ~141 | Med-Low | Ignores the title-block origin | fix/dt-r8-tb | In progress |
-| DTW-159 | SheetManagerEngine Clone ~739 | Low | Copies the title block's revision schedule instance | fix/dt-r8-tb | In progress |
-| DTW-160 | Toggle BIM / Migrate ~301,168 | Low | Takes the first type rather than the same-named type | fix/dt-r8-tb | In progress |
-| DTW-161 | SheetPlacementBridge _drawableCache | Low | Session cache ignores edits to the title-block JSON | fix/dt-r8-tb | In progress |
-| DTW-162 | SheetSequenceStore.SeedFromExistingSheets ~323 | Low | Seeds ignore discipline and vol: numbering gap on first use | fix/dt-r8-tb | In progress |
-| DTW-163 | ManagedTemplateSyncer ~625 | High | Managed packs release V/G: produced views get no pack overrides or filters | fix/dt-r8-vg | In progress |
-| DTW-164 | STING_AEC_FILTERS.json enum values | High | Structural material/usage and wall-function integers wrong (concrete and steel swapped, etc.) | fix/dt-r8-vg | In progress |
-| DTW-165 | ViewStylePackApplier / ResolveFillPattern / MEP system filters | High | 'Solid fill' never resolves; other pattern names uncreated; colour with no pattern draws nothing; misses silent | fix/dt-r8-vg | In progress |
-| DTW-166 | AecFilterFactory phase rules | Med-High | PHASE_DEMOLISHED notEquals 'None' makes a null rule; corp-base filter never created | fix/dt-r8-vg | In progress |
-| DTW-167 | AecFilterFactory.FindOrCreate | Med | Existing filters never updated, so data fixes never reach projects that already ran | fix/dt-r8-vg | In progress |
-| DTW-168 | TemplateManagerCommands.LoadViewFiltersFromCsv | Med | CSV rule prose unparsed: every row becomes a category-wide filter | fix/dt-r8-vg | In progress |
-| DTW-169 | ViewStylePackApplier.ApplyPresetOverrides | Med | Subcategory rows dropped; most VG fields ignored; raw weights throw | fix/dt-r8-vg | In progress |
-| DTW-170 | Managed packs 'scale' | Med (Revit) | Template may lock every view to the seed's scale | fix/dt-r8-vg | In progress |
-| DTW-171 | AecFilterFactory compound/values | Med-Low | AND drops a failed child (broader filter); unparseable value becomes 0 | fix/dt-r8-vg | In progress |
-| DTW-172 | DrawingCropApplier tight/room | Low-Med | View-scoped collector can only shrink the crop; includes datums | fix/dt-r8-vg | In progress |
-| DTW-173 | ViewStylePackApplier ~65 | Low | Overrides written to a view whose template masks them; misleading message | fix/dt-r8-vg | In progress |
-| DTW-174 | ViewStylePackRegistry ~296 | Low | Child's default line-weight scale overwrites the parent's | fix/dt-r8-vg | In progress |
-| DTW-175 | CreateVGOverridesCommand | Low | Unreachable branch; adds every STING filter | fix/dt-r8-vg | In progress |
-| DTW-176 | ManagedTemplateSyncer ~292 | Low | Schedules excluded from templates | fix/dt-r8-vg | In progress |
-| DTW-177 | ApplyMaterialClassOverrides | Low | Dead code; adds a filter with no override | fix/dt-r8-vg | In progress |
-| DTW-178 | DrawingTypeEditorDialog pack load/save | Critical | Editor loads corporate packs only; every Save erases previously saved project packs | fix/dt-r8-auth | In progress |
-| DTW-179 | DrawingTypeExcelCommands validation | High | Shipped catalogue cannot round-trip (NA scale, Schematic/Coordination slots, ByDiscipline) | fix/dt-r8-auth | In progress |
-| DTW-180 | Excel routing sheet | High | Predicate fields lost (rules become catch-alls); corporate rules written to the override | fix/dt-r8-auth | In progress |
-| DTW-181 | Excel change detection / POCOs | High | Unedited import freezes the whole catalogue in the override and drops fields | fix/dt-r8-auth | In progress |
-| DTW-182 | Excel decimals | Med | Comma-decimal cultures fail import | fix/dt-r8-auth | In progress |
-| DTW-183 | Excel ApplyImport packs | Med | Corporate pack routing written to the project file | fix/dt-r8-auth | In progress |
-| DTW-184 | DrawingTypeRegistry ES path | Med | After ES_Migrate, file edits are ignored | fix/dt-r8-auth | In progress |
-| DTW-185 | DrawingTypeRegistry routing de-dup | Med | OptionMatches not in the signature | fix/dt-r8-auth | In progress |
-| DTW-186 | Editor ids | Med | Renamed corporate types dropped; duplicate clone ids; no pre-save validation | fix/dt-r8-auth | In progress |
-| DTW-187 | Registry load failure + non-atomic writes | Med | Malformed override then Save means project data lost; non-atomic writers | fix/dt-r8-auth | In progress |
-| DTW-188 | ProductionPresetRegistry | Med-Low | Save reports success on failure; failed load erases presets on the next save | fix/dt-r8-auth | In progress |
-| DTW-189 | Excel import unsaved model | Low-Med | Writes to a folder the registry never reads | fix/dt-r8-auth | In progress |
-| DTW-190 | Reload on close / Reload JSON | Low-Med | Packs and match-line config never reloaded | fix/dt-r8-auth | In progress |
-| DTW-191 | Legacy routing without origin | Low | Frozen corporate rules load as project rules | fix/dt-r8-auth | In progress |
-| DTW-192 | TitleBlockMigrateCsvToRecipe | Low | Corporate CSV preferred; hand-built path; wrong instruction | fix/dt-r8-auth | In progress |
-| DTW-193 | Editor push template | Low | Keeps the corporate checksum on a promoted entry | fix/dt-r8-auth | In progress |
-| DTW-194 | SheetSequenceStore.WriteAll / ResolveSheetSequence | High | ProjectInformation owned by another user: counter falls back silently, numbers collide; out-of-date PI rolls back every item | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
+| DTW-149 | TitleBlockSpec.Resolve ~466-497 | High | Scalars fill-if-blank root-first: 12 working A0/A2/A3 families resolve the A1 template (.rft); COVER/A2 data errors too | Merged | Done |
+| DTW-150 | SheetPlacementBridge ~274 | Med-High | Fit-to-slot overrides the type's scale in both directions; should only coarsen when it does not fit | Merged | Done |
+| DTW-151 | DrawingProducer ~1911 / SheetPlacementBridge ~454 | Med-High | Schedules placed at the slot centre (their point is the top-left), so they run off the slot | Merged | Done |
+| DTW-152 | TitleBlockResolver.ResolveMode ~94 | Med | Reads PRJ_SHEET_BIM_MODE_TXT from Project Information, but it is bound to Sheets only, so NONBIM is never chosen | Merged | Done |
+| DTW-153 | TitleBlockSwap / Set Variant / Toggle BIM / MigrateLegacy | Med | Family swaps ignore the title-block lock | Merged | Done |
+| DTW-154 | TitleBlockCommands Populate / Sheet Count / Transmittal | Med | Instance-only lock check, missing type and sheet locks | Merged | Done |
+| DTW-155 | STING_TITLE_BLOCKS.json COVER_A2/A3, CLARIFICATION_A3 | Med | Inherit A1 drawable and slots on A2/A3 paper | Merged | Done |
+| DTW-156 | TitleBlockFactory master path ~276/297/671 | Med (Revit) | Revision schedule placed before master propagation, with no ScheduleSheetInstance exclusion: possible duplicate revision table | Merged | Done |
+| DTW-157 | SheetPlacementBridge fit ~256 | Med-Low | Fit ignores annotation extents; a failed scale set is swallowed; overflow never reported | Merged | Done |
+| DTW-158 | TitleBlock_AutoPlaceViewports ~141 | Med-Low | Ignores the title-block origin | Merged | Done |
+| DTW-159 | SheetManagerEngine Clone ~739 | Low | Copies the title block's revision schedule instance | Merged | Done |
+| DTW-160 | Toggle BIM / Migrate ~301,168 | Low | Takes the first type rather than the same-named type | Merged | Done |
+| DTW-161 | SheetPlacementBridge _drawableCache | Low | Session cache ignores edits to the title-block JSON | Merged | Done |
+| DTW-162 | SheetSequenceStore.SeedFromExistingSheets ~323 | Low | Seeds ignore discipline and vol: numbering gap on first use | Merged | Done |
+| DTW-163 | ManagedTemplateSyncer ~625 | High | Managed packs release V/G: produced views get no pack overrides or filters | Merged | Done |
+| DTW-164 | STING_AEC_FILTERS.json enum values | High | Structural material/usage and wall-function integers wrong (concrete and steel swapped, etc.) | Merged | Done |
+| DTW-165 | ViewStylePackApplier / ResolveFillPattern / MEP system filters | High | 'Solid fill' never resolves; other pattern names uncreated; colour with no pattern draws nothing; misses silent | Merged | Done |
+| DTW-166 | AecFilterFactory phase rules | Med-High | PHASE_DEMOLISHED notEquals 'None' makes a null rule; corp-base filter never created | Merged | Done |
+| DTW-167 | AecFilterFactory.FindOrCreate | Med | Existing filters never updated, so data fixes never reach projects that already ran | Merged | Done |
+| DTW-168 | TemplateManagerCommands.LoadViewFiltersFromCsv | Med | CSV rule prose unparsed: every row becomes a category-wide filter | Merged | Done |
+| DTW-169 | ViewStylePackApplier.ApplyPresetOverrides | Med | Subcategory rows dropped; most VG fields ignored; raw weights throw | Merged | Done |
+| DTW-170 | Managed packs 'scale' | Med (Revit) | Template may lock every view to the seed's scale | Merged | Done |
+| DTW-171 | AecFilterFactory compound/values | Med-Low | AND drops a failed child (broader filter); unparseable value becomes 0 | Merged | Done |
+| DTW-172 | DrawingCropApplier tight/room | Low-Med | View-scoped collector can only shrink the crop; includes datums | Merged | Done |
+| DTW-173 | ViewStylePackApplier ~65 | Low | Overrides written to a view whose template masks them; misleading message | Merged | Done |
+| DTW-174 | ViewStylePackRegistry ~296 | Low | Child's default line-weight scale overwrites the parent's | Merged | Done |
+| DTW-175 | CreateVGOverridesCommand | Low | Unreachable branch; adds every STING filter | Merged | Done |
+| DTW-176 | ManagedTemplateSyncer ~292 | Low | Schedules excluded from templates | Merged | Done |
+| DTW-177 | ApplyMaterialClassOverrides | Low | Dead code; adds a filter with no override | Merged | Done |
+| DTW-178 | DrawingTypeEditorDialog pack load/save | Critical | Editor loads corporate packs only; every Save erases previously saved project packs | Merged | Done |
+| DTW-179 | DrawingTypeExcelCommands validation | High | Shipped catalogue cannot round-trip (NA scale, Schematic/Coordination slots, ByDiscipline) | Merged | Done |
+| DTW-180 | Excel routing sheet | High | Predicate fields lost (rules become catch-alls); corporate rules written to the override | Merged | Done |
+| DTW-181 | Excel change detection / POCOs | High | Unedited import freezes the whole catalogue in the override and drops fields | Merged | Done |
+| DTW-182 | Excel decimals | Med | Comma-decimal cultures fail import | Merged | Done |
+| DTW-183 | Excel ApplyImport packs | Med | Corporate pack routing written to the project file | Merged | Done |
+| DTW-184 | DrawingTypeRegistry ES path | Med | After ES_Migrate, file edits are ignored | Merged | Done |
+| DTW-185 | DrawingTypeRegistry routing de-dup | Med | OptionMatches not in the signature | Merged | Done |
+| DTW-186 | Editor ids | Med | Renamed corporate types dropped; duplicate clone ids; no pre-save validation | Merged | Done |
+| DTW-187 | Registry load failure + non-atomic writes | Med | Malformed override then Save means project data lost; non-atomic writers | Merged | Done |
+| DTW-188 | ProductionPresetRegistry | Med-Low | Save reports success on failure; failed load erases presets on the next save | Merged | Done |
+| DTW-189 | Excel import unsaved model | Low-Med | Writes to a folder the registry never reads | Merged | Done |
+| DTW-190 | Reload on close / Reload JSON | Low-Med | Packs and match-line config never reloaded | Merged | Done |
+| DTW-191 | Legacy routing without origin | Low | Frozen corporate rules load as project rules | Merged | Done |
+| DTW-192 | TitleBlockMigrateCsvToRecipe | Low | Corporate CSV preferred; hand-built path; wrong instruction | Merged | Done |
+| DTW-193 | Editor push template | Low | Keeps the corporate checksum on a promoted entry | Merged | Done |
+| DTW-194 | SheetSequenceStore.WriteAll / ResolveSheetSequence | High | ProjectInformation owned by another user: counter falls back silently, numbers collide; out-of-date PI rolls back every item | fix/dt-r8-edgeB | In progress |
 | DTW-195 | BatchProduceCommands per-level transactions | High | One owned or out-of-date view rolls back the whole level; no failures preprocessor (modal dialogs block presets) | Merged | Done |
-| DTW-196 | RefreshExistingView / Apply / PlaceViewOnSheet | Med-High | Re-run resets an auto-fitted view's scale and reverts a hand-changed template silently | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
-| DTW-197 | ProduceAllViews sheet-first | Med | Empty sheet made and numbered when every rule fails | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
-| DTW-198 | SheetNumberEngine.SafeShort on names | Med | Sheet names truncate level names (GroundFl, 'Level Level1') | Helpers merged; DrawingProducer switch queued | Partly done |
-| DTW-199 | PlaceViewOnSheet moved viewport | Med | Re-scales the user's view, then throws | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
+| DTW-196 | RefreshExistingView / Apply / PlaceViewOnSheet | Med-High | Re-run resets an auto-fitted view's scale and reverts a hand-changed template silently | fix/dt-r8-edgeB | In progress |
+| DTW-197 | ProduceAllViews sheet-first | Med | Empty sheet made and numbered when every rule fails | fix/dt-r8-edgeB | In progress |
+| DTW-198 | SheetNumberEngine.SafeShort on names | Med | Sheet names truncate level names (GroundFl, 'Level Level1') | Helpers merged; call sites in fix/dt-r8-edgeB | Partly done |
+| DTW-199 | PlaceViewOnSheet moved viewport | Med | Re-scales the user's view, then throws | fix/dt-r8-edgeB | In progress |
 | DTW-200 | SheetNumberRestoreCommand | Med | After undo the history collides; no put-back; commit ignored | Merged | Done |
 | DTW-201 | DrawingSyncStylesCommand transaction | Med | One owned view rolls back everything, yet the report says re-synced | Merged | Done |
 | DTW-202 | DrawingHealTitleBlocksCommand transaction | Med | Same; audit log written for rolled-back heals | Merged | Done |
-| DTW-203 | Drawing type id change | Med | New id mints a parallel set; old sheets orphaned and unreported | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
+| DTW-203 | Drawing type id change | Med | New id mints a parallel set; old sheets orphaned and unreported | fix/dt-r8-edgeB | In progress |
 | DTW-204 | Production loops | Med | No progress or Escape inside a step; large runs look hung | Merged | Done |
 | DTW-205 | ShowResult warnings | Low-Med | Warnings beyond 20 lost (not logged) | Merged | Done |
-| DTW-206 | CropToContextBox | Med (Revit) | Box missing its level leaves an uncropped whole-floor view with only a warning | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
+| DTW-206 | CropToContextBox | Med (Revit) | Box missing its level leaves an uncropped whole-floor view with only a warning | fix/dt-r8-edgeB | In progress |
 | DTW-207 | Presence collectors | Low-Med | Count secondary design options and demolished-only elements | Merged | Done |
-| DTW-208 | Produced view phase | Low-Med | Views take the last phase and 'Show All'; demolished elements tagged | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
-| DTW-209 | Reused sheet name | Low-Med | Sheet name not refreshed after a level rename | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
+| DTW-208 | Produced view phase | Low-Med | Views take the last phase and 'Show All'; demolished elements tagged | fix/dt-r8-edgeB | In progress |
+| DTW-209 | Reused sheet name | Low-Med | Sheet name not refreshed after a level rename | fix/dt-r8-edgeB | In progress |
 | DTW-210 | BuildForExistingSheet policy | Low-Med | Heal uses the current policy, not the sheet's own number shape, after a policy switch | Merged | Done |
 | DTW-211 | Renumber after policy switch | Low-Med | Compacting converts issued profile sheets to ISO without saying so | Merged | Done |
-| DTW-212 | CreatePresentedView ScaleOverride | Low | Rule scaleOverride overwritten by the type scale | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
-| DTW-213 | DrawingProducer.Alive | Low (Revit) | Reused ElementIds after rollback mis-hold names and claims | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
+| DTW-212 | CreatePresentedView ScaleOverride | Low | Rule scaleOverride overwritten by the type scale | fix/dt-r8-edgeB | In progress |
+| DTW-213 | DrawingProducer.Alive | Low (Revit) | Reused ElementIds after rollback mis-hold names and claims | fix/dt-r8-edgeB | In progress |
+| DTW-214 | DrawingTypeEditorDialog new pack | Low | Still adds 'scale' to managedFields (ignored since DTW-170) | fix/dt-r8-edgeB | In progress |
 
 ## Decisions
 
@@ -340,6 +341,13 @@ ad42c8bda, which includes PR #1021. The earlier rounds' PR #1021 is merged and d
 - **Worksharing (DTW-195).** Production pre-flights and borrows the views and sheets an item would
   reuse, even on an idempotent re-run. Any commit error rolls back that item quietly with a
   report line, because a modal dialog stalls presets.
+- **Managed packs (DTW-163/170).** V/G overrides, filters, worksets, links and view range are
+  controlled by the template whenever the pack carries them. Scale is never controlled; it
+  belongs to the drawing type.
+- **Filter refresh (DTW-167).** Each filter stores a definition hash (ES) and is rebuilt in place
+  when it drifts, so data fixes reach projects that already ran.
+- **Override source (DTW-184).** The newer of the file and ES wins; nothing writes ES from the
+  editor.
 - **ISO number (DTW-44).** Suitability and revision leave the container id (ISO 19650 keeps them
   as metadata). Only new sheets use the new pattern; existing numbers are not rewritten.
 
