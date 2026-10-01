@@ -1290,18 +1290,11 @@ namespace StingTools.Core
                     }
                     catch (Exception tEx) { StingLog.Warn($"WorkflowScheduler.LoadFromConfig: {tEx.Message}"); }
 
+                    // DSCH-40: queued presets (these, AUTO_RUN_WORKFLOW_ON_OPEN above, and
+                    // compliance-fall / warning-threshold triggers mid-session) are drained on
+                    // Idling by WorkflowTriggerDrainJob. This block used to dequeue one preset
+                    // and set a parameter without raising the command, so it never ran.
                     WorkflowScheduler.CheckDocumentOpenTriggers(e.Document);
-                    while (WorkflowScheduler.HasPendingPresets)
-                    {
-                        string presetName = WorkflowScheduler.DequeuePendingPreset();
-                        if (!string.IsNullOrEmpty(presetName))
-                        {
-                            StingLog.Info($"WorkflowScheduler: executing queued preset '{presetName}'");
-                            UI.StingCommandHandler.SetExtraParam("WorkflowPresetName", presetName);
-                            // Actual execution happens via ExternalEvent in StingCommandHandler
-                            break; // Execute one at a time; remaining will execute on next idle
-                        }
-                    }
                 }
                 catch (Exception wsEx)
                 {

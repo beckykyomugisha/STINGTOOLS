@@ -105,7 +105,7 @@ namespace StingTools.Core
                 StingLog.Info($"WorkflowScheduler: document-open trigger firing '{trigger.PresetName}'");
                 trigger.LastTriggered = DateTime.Now;
                 // Queue for execution — actual execution happens via ExternalEvent
-                _pendingPresets.Enqueue(trigger.PresetName);
+                Queue(trigger.PresetName);
             }
         }
 
@@ -126,7 +126,7 @@ namespace StingTools.Core
                         continue;
                     StingLog.Info($"WorkflowScheduler: compliance fall trigger firing '{trigger.PresetName}' (compliance={currentCompliance:F1}% < threshold={trigger.Threshold:F1}%)");
                     trigger.LastTriggered = DateTime.Now;
-                    _pendingPresets.Enqueue(trigger.PresetName);
+                    Queue(trigger.PresetName);
                 }
             }
         }
@@ -146,7 +146,7 @@ namespace StingTools.Core
                         continue;
                     StingLog.Info($"WorkflowScheduler: SLA violation trigger firing '{trigger.PresetName}' ({slaViolationCount} violations)");
                     trigger.LastTriggered = DateTime.Now;
-                    _pendingPresets.Enqueue(trigger.PresetName);
+                    Queue(trigger.PresetName);
                 }
             }
         }
@@ -167,28 +167,46 @@ namespace StingTools.Core
                         continue;
                     StingLog.Info($"WorkflowScheduler: warning threshold trigger firing '{trigger.PresetName}' ({warningCount} warnings >= {trigger.Threshold})");
                     trigger.LastTriggered = DateTime.Now;
-                    _pendingPresets.Enqueue(trigger.PresetName);
+                    Queue(trigger.PresetName);
                 }
             }
         }
 
-        // Queue of preset names pending execution
-        private static readonly ConcurrentQueue<string> _pendingPresets = new();
+        // Queue of preset names pending execution. A preset already waiting is not
+        // queued twice (WorkflowTriggerQueue).
+        private static readonly WorkflowTriggerQueue _pendingPresets = new WorkflowTriggerQueue();
+
+        /// <summary>
+        /// DSCH-40: queue a preset and schedule the Idling drain
+        /// (<see cref="WorkflowTriggerDrainJob"/>), which hands it to the command handler
+        /// when Revit is idle, rate-limited and never re-entrant. The queue used to drain
+        /// only when a document opened, and that drain set a parameter without ever
+        /// raising the command, so a mid-session trigger never ran its preset.
+        /// </summary>
+        private static void Queue(string presetName)
+        {
+            if (!_pendingPresets.Enqueue(presetName))
+            {
+                StingLog.Info($"WorkflowScheduler: '{presetName}' is already queued");
+                return;
+            }
+            try { StingIdlingScheduler.Enqueue(WorkflowTriggerDrainJob.Instance); }
+            catch (Exception ex) { StingLog.Warn($"WorkflowScheduler: could not schedule the trigger drain: {ex.Message}"); }
+        }
 
         /// <summary>
         /// Queue a preset for execution through the same consume path the trigger
-        /// engine uses (drained in StingToolsApp.OnDocumentOpened via
-        /// StingCommandHandler's ExternalEvent). Used by AUTO_RUN_WORKFLOW_ON_OPEN.
+        /// engine uses (the Idling drain, WorkflowTriggerDrainJob). Used by
+        /// AUTO_RUN_WORKFLOW_ON_OPEN.
         /// </summary>
         public static void EnqueuePreset(string presetName)
         {
             if (string.IsNullOrWhiteSpace(presetName)) return;
-            _pendingPresets.Enqueue(presetName.Trim());
+            Queue(presetName.Trim());
         }
 
         /// <summary>Dequeue next pending preset name, or null if empty.</summary>
-        public static string DequeuePendingPreset() =>
-            _pendingPresets.TryDequeue(out var name) ? name : null;
+        public static string DequeuePendingPreset() => _pendingPresets.TryDequeue();
 
         /// <summary>Whether there are pending presets to execute.</summary>
         public static bool HasPendingPresets => !_pendingPresets.IsEmpty;
@@ -261,7 +279,64 @@ namespace StingTools.Core
         public static void Reset()
         {
             lock (_lock) { _triggers.Clear(); }
-            while (_pendingPresets.TryDequeue(out _)) { }
+            _pendingPresets.Clear();
+        }
+    }
+
+    /// <summary>
+    /// DSCH-40: the Idling drain of the WorkflowScheduler queue. Scheduled by
+    /// WorkflowScheduler.Queue; StingIdlingScheduler keeps it while it returns false and
+    /// drops it once the queue is empty. Each tick asks
+    /// <see cref="WorkflowTriggerDrainPolicy.Decide"/>: a preset still running, a drain
+    /// already in progress, or fewer than 30 s since the last dispatch means wait.
+    /// Otherwise the next preset goes to the command handler's ExternalEvent
+    /// ("Workflow_RunQueued"), the same path a button click takes. A Raise that Revit
+    /// refuses is logged and the preset is put back.
+    /// </summary>
+    internal sealed class WorkflowTriggerDrainJob : IIdlingJob
+    {
+        internal static readonly WorkflowTriggerDrainJob Instance = new WorkflowTriggerDrainJob();
+
+        private static int _draining;            // re-entrancy guard (Interlocked)
+        private static DateTime? _lastDispatchUtc;
+
+        public string Name => "WorkflowTriggerDrain";
+        public int Priority => 5;
+        public int BudgetMs => 5;
+
+        public bool Execute(UIApplication uiApp)
+        {
+            if (Interlocked.CompareExchange(ref _draining, 1, 0) != 0)
+                return false;                    // re-entered: the outer call finishes
+            try
+            {
+                var decision = WorkflowTriggerDrainPolicy.Decide(
+                    WorkflowScheduler.HasPendingPresets, WorkflowEngine.IsRunningPreset, false,
+                    _lastDispatchUtc, DateTime.UtcNow, WorkflowTriggerDrainPolicy.MinInterval);
+                if (decision == WorkflowTriggerDrainPolicy.Decision.Idle) return true;
+                if (decision == WorkflowTriggerDrainPolicy.Decision.Wait) return false;
+
+                string preset = WorkflowScheduler.DequeuePendingPreset();
+                if (string.IsNullOrEmpty(preset)) return !WorkflowScheduler.HasPendingPresets;
+
+                _lastDispatchUtc = DateTime.UtcNow;
+                StingLog.Info($"WorkflowScheduler: dispatching queued preset '{preset}' on idle");
+                if (!UI.StingDockPanel.DispatchCommand("Workflow_RunQueued", preset))
+                {
+                    StingLog.Warn($"WorkflowScheduler: Revit did not accept the dispatch of '{preset}'; re-queued");
+                    WorkflowScheduler.EnqueuePreset(preset);
+                }
+                return !WorkflowScheduler.HasPendingPresets;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"WorkflowTriggerDrainJob: {ex.Message}");
+                return !WorkflowScheduler.HasPendingPresets;
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _draining, 0);
+            }
         }
     }
 
