@@ -47,9 +47,20 @@ namespace StingTools.Tags.Tests
             {
                 var rel = Path.GetRelativePath(root, f).Replace('\\', '/');
                 if (rel.Contains("/obj/") || rel.Contains("/bin/")) continue;
+                if (DeliberateProbes.Contains(rel)) continue;
                 yield return (rel, File.ReadAllText(f));
             }
         }
+
+        /// <summary>
+        /// Files that hand Revit a refused name on purpose, to ask whether it refuses it.
+        /// The Drawing Self-Test's "k. Revit name probes" does exactly that inside its
+        /// always-rolled-back TransactionGroup.
+        /// </summary>
+        private static readonly HashSet<string> DeliberateProbes = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "StingTools/Commands/Drawing/DrawingSelfTestCommand.cs",
+        };
 
         private static string Source(string rel) => File.ReadAllText(Path.Combine(RepoRoot(), rel));
 
