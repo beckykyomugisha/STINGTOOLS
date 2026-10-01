@@ -45,8 +45,8 @@ namespace StingTools.Commands.Drawing
         internal static void Take(ProduceResult pr, List<string> warnings)
         {
             if (pr == null) return;
-            warnings?.AddRange(pr.Failure == null ? pr.Warnings : pr.Warnings.Where(w => w != pr.Failure));
-            if (pr.Failure != null) throw new InvalidOperationException(pr.Failure);
+            var failure = pr.TakeInto(warnings);
+            if (failure != null) throw new InvalidOperationException(failure);
         }
 
         internal static ProduceOptions BuildOptions(DrawingProductionPreset preset)

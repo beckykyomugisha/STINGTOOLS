@@ -32,6 +32,24 @@ namespace StingTools.Core.Drawing
             => $"'{drawingTypeId}': no sheet was made — its number could not be reserved "
              + $"({(string.IsNullOrWhiteSpace(reason) ? "reason unknown" : reason.Trim())}). Nothing of it was produced.";
 
+        // ── DTW-216: every caller rolls a refused item back ────────────
+
+        /// <summary>
+        /// An item's notes into <paramref name="into"/>, and its failure handed back (null
+        /// when the item can be kept). The failure line is left out of the notes: the
+        /// caller rolls the item back and reports it once, as the reason.
+        /// </summary>
+        internal static string TakeItem(IEnumerable<string> notes, string failure, List<string> into)
+        {
+            if (into != null && notes != null)
+                into.AddRange(failure == null ? notes : notes.Where(w => w != failure));
+            return failure;
+        }
+
+        /// <summary>The report line for an item rolled back because production refused it.</summary>
+        internal static string RolledBackLine(string label, string failure)
+            => $"{label}: {(string.IsNullOrWhiteSpace(failure) ? "production refused the item" : failure.Trim())} — rolled back; nothing of it was kept.";
+
         // ── DTW-197: the sheet is made after the first view ────────────
 
         /// <summary>
@@ -69,6 +87,33 @@ namespace StingTools.Core.Drawing
         /// </summary>
         internal static bool RefitOnRerun(bool scalePinned, bool fitRecorded, int fitBaseScale, int typeScale)
             => !scalePinned && (!fitRecorded || fitBaseScale != typeScale);
+
+        // ── DTW-215: Sync Styles honours the same fit ──────────────────
+
+        /// <summary>
+        /// The scale Sync Styles / Force Resync keeps for a view, or 0 to apply the drawing
+        /// type's — the same rule as a production refresh (<see cref="ScaleOnRefresh"/>).
+        /// <paramref name="dropFit"/> is true when a fit is recorded but the type's scale has
+        /// changed since: the type's scale is applied and the record, which no longer
+        /// describes the view, is dropped (the next production run fits it again).
+        /// </summary>
+        internal static int ScaleOnResync(int typeScale, int fittedScale, int fitBaseScale, out bool dropFit)
+        {
+            int keep = ScaleOnRefresh(typeScale, fittedScale, fitBaseScale);
+            dropFit = fittedScale > 0 && keep == 0;
+            return keep;
+        }
+
+        /// <summary>
+        /// The scale the drift check expects of a view: its fitted scale while that fit is
+        /// current, else the type's. Without it every fitted view read as SCALE drift, and
+        /// Sync Styles listed it on every run.
+        /// </summary>
+        internal static int ExpectedScale(int typeScale, int fittedScale, int fitBaseScale)
+        {
+            int keep = ScaleOnRefresh(typeScale, fittedScale, fitBaseScale);
+            return keep > 0 ? keep : typeScale;
+        }
 
         /// <summary>The report line for a view template a re-run replaced.</summary>
         internal static string TemplateReplacedLine(string viewName, string oldTemplate, string newTemplate, string drawingTypeId)

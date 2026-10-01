@@ -193,31 +193,47 @@ namespace StingTools.Commands.Electrical
                 foreach (var panel in panels)
                 {
                     string panelName = BoardName(panel);
+                    string viewName = $"STING - Panel - {panelName}";
+                    bool madeHere = false;
+                    // DTW-216: each board in its own sub-transaction, so a board production
+                    // refuses (its sheet number could not be reserved) is undone alone and the
+                    // boards before it are kept.
+                    using (var st = new SubTransaction(doc))
                     try
                     {
-                        string viewName = $"STING - Panel - {panelName}";
+                        st.Start();
                         if (!byName.TryGetValue(viewName, out var schedule))
                         {
                             schedule = ViewSchedule.CreateSchedule(doc, new ElementId(BuiltInCategory.OST_ElectricalCircuit));
                             try { schedule.Name = viewName; } catch (Exception ex) { StingLog.Warn($"Panel schedule name '{viewName}': {ex.Message}"); }
                             AddCircuitFields(schedule);
                             AddPanelFilter(schedule, panelName);
-                            byName[viewName] = schedule;
-                            made++;
+                            madeHere = true;
                         }
-                        else reusedSchedules++;
 
                         var pr = StingTools.Core.Drawing.DrawingProducer.PlaceExistingView(doc, dt,
                             new StingTools.Core.Drawing.DrawingContext { Tag = StingTools.Core.Drawing.BoardNaming.ScheduleSheetTag(panel.Id.Value), FormerDrawingTypeIds = stampIds }, schedule);
-                        warnings.AddRange(pr.Warnings.Select(w => $"{panelName}: {w}"));
+                        var notes = new List<string>();
+                        var failure = pr.TakeInto(notes);
+                        warnings.AddRange(notes.Select(w => $"{panelName}: {w}"));
+                        if (failure != null)
+                        {
+                            st.RollBack();
+                            failed++;
+                            warnings.Add(StingTools.Core.Drawing.ProductionEdgeDecisions.RolledBackLine(panelName, failure));
+                            continue;
+                        }
+                        st.Commit();
+                        if (madeHere) { byName[viewName] = schedule; made++; } else reusedSchedules++;
                         if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) newSheets++;
                         if (pr.ViewportIds.Count == 0) { failed++; continue; }
                         if (pr.ViewportsReused > 0) alreadyPlaced++; else placed++;
                     }
                     catch (Exception ex)
                     {
+                        if (st.HasStarted() && !st.HasEnded()) st.RollBack();
                         failed++;
-                        warnings.Add($"{panelName}: {ex.Message}");
+                        warnings.Add($"{panelName}: {ex.Message} — rolled back.");
                         StingLog.Warn($"PanelViewSchedule AutoSheets {panelName}: {ex.Message}");
                     }
                 }
