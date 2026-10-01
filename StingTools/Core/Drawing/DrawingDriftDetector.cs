@@ -144,8 +144,17 @@ namespace StingTools.Core.Drawing
 
                 var report = new DriftReport { ViewId = v.Id, ViewName = v.Name, DrawingTypeId = dtId };
 
-                if (dt.Scale > 0 && v.Scale != dt.Scale)
-                    report.Drifts.Add($"SCALE: view 1:{v.Scale} vs profile 1:{dt.Scale}");
+                if (dt.Scale > 0)
+                {
+                    // DTW-215: a view production fitted to its slot is expected at the fitted
+                    // scale while that fit is current — the scale Sync Styles keeps.
+                    var fit = ProducedViewState.Read(ProducedViewState.FitHolder(v));
+                    int expected = ProductionEdgeDecisions.ExpectedScale(dt.Scale, fit?.FittedScale ?? 0, fit?.FitBaseScale ?? 0);
+                    if (v.Scale != expected)
+                        report.Drifts.Add(expected == dt.Scale
+                            ? $"SCALE: view 1:{v.Scale} vs profile 1:{dt.Scale}"
+                            : $"SCALE: view 1:{v.Scale} vs fitted 1:{expected} (profile 1:{dt.Scale})");
+                }
 
                 if (!string.IsNullOrEmpty(dt.DetailLevel))
                 {

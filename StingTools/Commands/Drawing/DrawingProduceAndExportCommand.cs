@@ -477,20 +477,10 @@ namespace StingTools.Commands.Drawing
                             }
                             else
                             {
-                                var res = DrawingTypePresentation.Apply(doc, v, dt,
-                                    new DrawingTypePresentation.ApplyOptions
-                                    {
-                                        AnnotationOptions = new AnnotationRunOptions
-                                        {
-                                            SkipAutoTag   = true,
-                                            SkipAutoDim   = true,
-                                            SkipDecorative = true,
-                                            SkipSpots     = true,
-                                        },
-                                        SkipSymbolDriftCheck = true // styles re-sync pass
-                                    });
-                                if (res.ScaleApplied || res.DetailLevelApplied || res.TemplateApplied || res.PackApplied)
-                                    stats.StylesResynced++;
+                                // DTW-215: the Sync Styles re-apply, so a view production
+                                // fitted to its sheet slot keeps its fitted scale here too.
+                                var res = DrawingSyncStylesCommand.Resync(doc, v, dt, out bool changed);
+                                if (changed) stats.StylesResynced++;
                                 stats.Warnings.AddRange(res.Warnings.Select(w => $"[Styles/{v.Name}] {w}"));
                             }
                         }

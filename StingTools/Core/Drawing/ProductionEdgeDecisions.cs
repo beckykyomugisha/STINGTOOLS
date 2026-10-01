@@ -70,6 +70,33 @@ namespace StingTools.Core.Drawing
         internal static bool RefitOnRerun(bool scalePinned, bool fitRecorded, int fitBaseScale, int typeScale)
             => !scalePinned && (!fitRecorded || fitBaseScale != typeScale);
 
+        // ── DTW-215: Sync Styles honours the same fit ──────────────────
+
+        /// <summary>
+        /// The scale Sync Styles / Force Resync keeps for a view, or 0 to apply the drawing
+        /// type's — the same rule as a production refresh (<see cref="ScaleOnRefresh"/>).
+        /// <paramref name="dropFit"/> is true when a fit is recorded but the type's scale has
+        /// changed since: the type's scale is applied and the record, which no longer
+        /// describes the view, is dropped (the next production run fits it again).
+        /// </summary>
+        internal static int ScaleOnResync(int typeScale, int fittedScale, int fitBaseScale, out bool dropFit)
+        {
+            int keep = ScaleOnRefresh(typeScale, fittedScale, fitBaseScale);
+            dropFit = fittedScale > 0 && keep == 0;
+            return keep;
+        }
+
+        /// <summary>
+        /// The scale the drift check expects of a view: its fitted scale while that fit is
+        /// current, else the type's. Without it every fitted view read as SCALE drift, and
+        /// Sync Styles listed it on every run.
+        /// </summary>
+        internal static int ExpectedScale(int typeScale, int fittedScale, int fitBaseScale)
+        {
+            int keep = ScaleOnRefresh(typeScale, fittedScale, fitBaseScale);
+            return keep > 0 ? keep : typeScale;
+        }
+
         /// <summary>The report line for a view template a re-run replaced.</summary>
         internal static string TemplateReplacedLine(string viewName, string oldTemplate, string newTemplate, string drawingTypeId)
             => $"'{viewName}': view template '{(string.IsNullOrWhiteSpace(oldTemplate) ? "(unnamed)" : oldTemplate)}' was replaced by "

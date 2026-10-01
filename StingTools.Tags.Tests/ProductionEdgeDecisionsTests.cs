@@ -85,6 +85,36 @@ namespace StingTools.Tags.Tests
             bool pinned, bool recorded, int fitBase, int typeScale, bool expected)
             => Assert.Equal(expected, ProductionEdgeDecisions.RefitOnRerun(pinned, recorded, fitBase, typeScale));
 
+        // ── DTW-215: Sync Styles honours the fit production recorded ──
+
+        [Fact]
+        public void Sync_styles_keeps_a_fitted_scale_while_the_type_scale_is_unchanged()
+        {
+            Assert.Equal(200, ProductionEdgeDecisions.ScaleOnResync(typeScale: 100, fittedScale: 200, fitBaseScale: 100, out var drop));
+            Assert.False(drop);
+        }
+
+        [Fact]
+        public void Sync_styles_applies_a_changed_type_scale_and_drops_the_stale_fit()
+        {
+            Assert.Equal(0, ProductionEdgeDecisions.ScaleOnResync(typeScale: 50, fittedScale: 200, fitBaseScale: 100, out var drop));
+            Assert.True(drop);
+        }
+
+        [Fact]
+        public void Sync_styles_without_a_fit_applies_the_type_scale_and_drops_nothing()
+        {
+            Assert.Equal(0, ProductionEdgeDecisions.ScaleOnResync(100, 0, 0, out var drop));
+            Assert.False(drop);
+        }
+
+        [Theory]
+        [InlineData(100, 200, 100, 200)]   // fitted, type unchanged: the fitted scale is not drift
+        [InlineData(50, 200, 100, 50)]     // type changed: the type scale is expected
+        [InlineData(100, 0, 0, 100)]       // no record: the type scale
+        public void The_drift_check_expects_the_scale_sync_styles_would_keep(int typeScale, int fitted, int fitBase, int expected)
+            => Assert.Equal(expected, ProductionEdgeDecisions.ExpectedScale(typeScale, fitted, fitBase));
+
         [Fact]
         public void A_replaced_template_is_named_with_the_way_to_keep_it()
         {
