@@ -17,8 +17,13 @@
 // Part A v2 Table 4) replace them for a Scottish project, which the existing
 // project setting PRJ_ORG_HEALTH_HTM_REGION_TXT identifies (HtmRegionalVariants).
 // An unrecorded region keeps the England rows and says so in the check's notes.
-// SHTM also sets a paediatric-bath limit; no parameter marks a bath as paediatric,
-// so that limit is reported NOT CHECKED rather than assumed either way.
+// Wales: WHTM 04-01:2016 Part A Table 2 repeats the HTM 04-01 limits and points to the
+// same D 08 supplement, so Wales adopts the England rows (and the note says so).
+// Northern Ireland: no DoH NI document setting or adopting TMV limits was found, so the
+// England rows apply with a note saying the adoption is unconfirmed.
+// SHTM also sets a paediatric-bath limit (DSCH-45): it is applied when the TMV is
+// marked PLM_TMV_PAEDIATRIC_BOOL = Yes; when that is not recorded and the bath is
+// above it, the limit is reported NOT CHECKED rather than assumed either way.
 //
 // Dead-leg limits: HSG274 Part 2 gives NO numeric length — its test is time to
 // temperature (§2.82). The lengths are design proxies: HTM 04-01 Pt A §12.5
@@ -41,8 +46,8 @@ namespace StingTools.Core.Plumbing
         public string Outlet       { get; set; } = "";
         public string Scheme       { get; set; } = "";
         public bool   Assisted     { get; set; }
-        /// <summary>SHTM paediatric-bath row. Applied only when an outlet is known to be
-        /// paediatric, which no parameter records yet (reported NOT CHECKED).</summary>
+        /// <summary>SHTM paediatric-bath row. Applied when the TMV is marked paediatric
+        /// (PLM_TMV_PAEDIATRIC_BOOL); not recorded = reported NOT CHECKED when above it.</summary>
         public bool   Paediatric   { get; set; }
         /// <summary>"" = HTM 04-01 (England), the default rows; "SCOTLAND" = SHTM 04-01.</summary>
         public string Jurisdiction { get; set; } = "";
@@ -129,8 +134,10 @@ namespace StingTools.Core.Plumbing
         {
             if (region == null)
                 return "jurisdiction not recorded (PRJ_ORG_HEALTH_HTM_REGION_TXT) — HTM 04-01 (England) TMV limits applied";
-            if (region == HtmRegion.Wales || region == HtmRegion.NorthernIreland)
-                return $"no {(region == HtmRegion.Wales ? "WHTM" : "NHS-NI")} TMV rows — HTM 04-01 (England) TMV limits applied";
+            if (region == HtmRegion.Wales)
+                return "WHTM 04-01:2016 Part A Table 2 adopts HTM 04-01 — HTM 04-01 (England) TMV limits applied";
+            if (region == HtmRegion.NorthernIreland)
+                return "no NHS-NI TMV rows and no DoH NI adoption of HTM 04-01 confirmed — HTM 04-01 (England) TMV limits applied";
             return null;
         }
 
@@ -222,19 +229,20 @@ namespace StingTools.Core.Plumbing
         /// <summary>
         /// Checks one TMV. <paramref name="setC"/> is the design set point and
         /// <paramref name="measuredC"/> the commissioning reading (0 or less = none).
-        /// <paramref name="assisted"/> null = not recorded. <paramref name="region"/> is the
+        /// <paramref name="assisted"/> (PLM_TMV_ASSISTED_BOOL) and <paramref name="paediatric"/>
+        /// (PLM_TMV_PAEDIATRIC_BOOL): null = not recorded. <paramref name="region"/> is the
         /// project's HTM region (PRJ_ORG_HEALTH_HTM_REGION_TXT); null = not recorded.
         /// </summary>
         public static TmvCheck CheckTmv(WaterSafetyLimitsFile limits, string outlet, string scheme,
-            bool? assisted, bool isHealthcare, double setC, double measuredC, HtmRegion? region)
+            bool? assisted, bool? paediatric, bool isHealthcare, double setC, double measuredC, HtmRegion? region)
         {
-            var c = CheckTmvCore(limits, outlet, scheme, assisted, isHealthcare, setC, measuredC, region, out var notes);
+            var c = CheckTmvCore(limits, outlet, scheme, assisted, paediatric, isHealthcare, setC, measuredC, region, out var notes);
             c.Notes.AddRange(notes);
             return c;
         }
 
         private static TmvCheck CheckTmvCore(WaterSafetyLimitsFile limits, string outlet, string scheme,
-            bool? assisted, bool isHealthcare, double setC, double measuredC, HtmRegion? region, out List<string> notes)
+            bool? assisted, bool? paediatric, bool isHealthcare, double setC, double measuredC, HtmRegion? region, out List<string> notes)
         {
             notes = new List<string>();
             TmvCheck NotChecked(string why) => new TmvCheck { Status = WaterCheckStatus.NotChecked, Reason = "NOT CHECKED — " + why };
@@ -253,6 +261,8 @@ namespace StingTools.Core.Plumbing
                 };
 
             if (setC <= 0 && measuredC <= 0) return NotChecked("no set point (PLM_TMV_BLEND_TEMP_C) and no measured outlet temperature");
+            if (assisted == true && paediatric == true)
+                return NotChecked("the TMV is marked both assisted (PLM_TMV_ASSISTED_BOOL) and paediatric (PLM_TMV_PAEDIATRIC_BOOL)");
 
             // The region's own rows when it has any for this outlet and scheme, else HTM 04-01.
             string jur = JurisdictionFor(region);
@@ -263,22 +273,27 @@ namespace StingTools.Core.Plumbing
             }
             var unassisted  = Find(limits, outlet, scheme, false, false, jur);
             var assistedRow = Find(limits, outlet, scheme, true,  false, jur);
-            var paediatric  = Find(limits, outlet, scheme, false, true,  jur);
+            var paedRow     = Find(limits, outlet, scheme, false, true,  jur);
             if (unassisted == null) return NotChecked($"no limit for {outlet} under {scheme}");
-            if (paediatric != null && assisted != true)
+            if (paedRow != null && paediatric == null && assisted != true)
             {
-                Check(paediatric, setC, measuredC, out bool okPaed);
+                Check(paedRow, setC, measuredC, out bool okPaed);
                 if (!okPaed)
-                    notes.Add($"paediatric {outlet.ToLowerInvariant()} limit {paediatric.MaxSetC:0.#} °C NOT CHECKED — no parameter marks this " +
-                              $"{outlet.ToLowerInvariant()} as paediatric; it was checked as a general one [{paediatric.Source}]");
+                    notes.Add($"paediatric {outlet.ToLowerInvariant()} limit {paedRow.MaxSetC:0.#} °C NOT CHECKED — PLM_TMV_PAEDIATRIC_BOOL is not set, so " +
+                              $"this {outlet.ToLowerInvariant()} was checked as a general one [{paedRow.Source}]");
             }
+            if (paediatric == true && paedRow == null)
+                notes.Add($"no paediatric {outlet.ToLowerInvariant()} limit under {(jur == "" ? "HTM 04-01" : jur)} — general {outlet.ToLowerInvariant()} limit applied");
 
             // An assisted row exists only where the standard gives one (TMV3 bath);
             // elsewhere the unassisted limit applies whether or not bathing is assisted.
-            var row = (assisted == true && assistedRow != null) ? assistedRow : unassisted;
+            // Likewise the paediatric row (SHTM bath).
+            var row = (assisted == true && assistedRow != null) ? assistedRow
+                    : (paediatric == true && paedRow != null) ? paedRow
+                    : unassisted;
 
             string fail = Check(row, setC, measuredC, out bool ok);
-            if (!ok && assisted == null && assistedRow != null)
+            if (!ok && assisted == null && paediatric != true && assistedRow != null)
             {
                 Check(assistedRow, setC, measuredC, out bool okAssisted);
                 if (okAssisted)
@@ -306,7 +321,8 @@ namespace StingTools.Core.Plumbing
             return ok ? "" : "; " + string.Join("; ", parts);
         }
 
-        private static string Describe(TmvOutletLimit r) => $"{(r.Assisted ? "assisted " : "")}{r.Outlet.ToLowerInvariant()} ({r.Scheme})";
+        private static string Describe(TmvOutletLimit r) =>
+            $"{(r.Assisted ? "assisted " : "")}{(r.Paediatric ? "paediatric " : "")}{r.Outlet.ToLowerInvariant()} ({r.Scheme})";
 
         private static TmvOutletLimit Find(WaterSafetyLimitsFile f, string outlet, string scheme, bool assisted, bool paediatric, string jurisdiction) =>
             f.OutletLimits.FirstOrDefault(r => r.Outlet == outlet && r.Scheme == scheme && r.Assisted == assisted

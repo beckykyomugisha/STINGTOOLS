@@ -2103,6 +2103,7 @@ PLM_TMV_INLET_HOT_C,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulat
 PLM_TMV_KVS,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TMV_MEASURED_C,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TMV_NEXT_TEST_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_TMV_PAEDIATRIC_BOOL,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TMV_TEST_DATE_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TMV_TYPE_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TRAP_SEAL_DEPTH_MM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures

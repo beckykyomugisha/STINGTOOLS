@@ -1,6 +1,7 @@
 // PlumbingWaterSafetyCommands — Phase 179f WATER SAFETY tab.
 //
-// Plumb_TMVEngine         — full TMV scan via TMVEngine, writeback, CSV export.
+// Plumb_TMVEngine         — full TMV scan via TMVEngine, CSV export (TMV_Register.csv).
+// Plumb_TMVImportTests    — reads a filled TMV_Register.csv back into the model (DSCH-46).
 // Plumb_LegionellaReport  — ACOP L8 Legionella risk assessment (docx or txt).
 // Plumb_WaterSafetyPlan   — combined RAG dashboard: dead legs + TMV + backflow.
 //
@@ -71,10 +72,10 @@ namespace StingTools.Commands.Plumbing
                         $"{PlumbingCsv.Esc(row.RoomName)}," +
                         $"{row.Scheme}," +
                         $"{row.Outlet}," +
-                        $"{row.InletHotC:F1}," +
-                        $"{row.InletColdC:F1}," +
-                        $"{row.SetOutletC:F1}," +
-                        $"{row.ActualOutletC:F1}," +
+                        $"{TmvRegisterCsv.Temp(row.InletHotC)}," +
+                        $"{TmvRegisterCsv.Temp(row.InletColdC)}," +
+                        $"{TmvRegisterCsv.Temp(row.SetOutletC)}," +
+                        $"{TmvRegisterCsv.Temp(row.ActualOutletC)}," +
                         $"{PlumbingCsv.Esc(testDateStr)}," +
                         $"{PlumbingCsv.Esc(dueDateStr)}," +
                         $"{row.StatusText}," +
@@ -136,7 +137,8 @@ namespace StingTools.Commands.Plumbing
             }
 
             if (csvPath != null)
-                panel.AddSection("EXPORT").Text($"CSV saved: {csvPath}");
+                panel.AddSection("EXPORT").Text($"CSV saved: {csvPath}")
+                     .Text("To record TMV tests: fill Outlet_C, TestDate (yyyy-MM-dd) and the inlet temperatures, then run Import TMV Tests.");
 
             panel.Show();
             return Result.Succeeded;
@@ -539,6 +541,143 @@ namespace StingTools.Commands.Plumbing
             panel.Show();
             return Result.Succeeded;
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Plumb_TMVImportTests (DSCH-46)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>Reads TMV test results from a filled TMV_Register.csv (the file
+    /// Plumb_TMVEngine writes) and writes them to the TMVs through
+    /// TMVEngine.WriteTMVData, then re-runs the TMV check on what was imported.
+    /// Rows without an outlet reading are left alone; refused rows are listed.</summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class PlumbTMVImportTestsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { message = "No active document."; return Result.Failed; }
+            var doc = ctx.Doc;
+
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title  = "Pick the filled TMV register (TMV_Register.csv from TMV Engine)",
+                Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
+            };
+            try
+            {
+                string dir = Path.GetDirectoryName(OutputLocationHelper.GetRoutedPath(doc, "Schedule", "TMV_Register.csv", "P"));
+                if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir)) dlg.InitialDirectory = dir;
+            }
+            catch (Exception ex) { StingLog.Warn("PlumbTMVImportTests: register folder: " + ex.Message); }
+            if (dlg.ShowDialog() != true || string.IsNullOrEmpty(dlg.FileName)) return Result.Cancelled;
+
+            string text;
+            try { text = File.ReadAllText(dlg.FileName); }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlumbTMVImportTests read", ex);
+                TaskDialog.Show("STING Import TMV Tests", $"Could not read {Path.GetFileName(dlg.FileName)}:\n{ex.Message}\n\nIs it open in Excel?");
+                return Result.Failed;
+            }
+
+            var parsed = TmvTestImport.Parse(text, DateTime.Today);
+            var errors = new List<string>(parsed.Errors);
+            var valid  = new List<(TmvTestRow row, ElementId id)>();
+            foreach (var row in parsed.Rows)
+            {
+                var id = new ElementId(row.ElementId);
+                var el = doc.GetElement(id);
+                if (el == null) { errors.Add($"line {row.Line}: element {row.ElementId} is not in this model"); continue; }
+                string cls = ParameterHelpers.GetString(el, ParamRegistry.PLM_TMV_CLASS);
+                if (string.IsNullOrWhiteSpace(cls)) { errors.Add($"line {row.Line}: element {row.ElementId} is not a TMV (PLM_TMV_CLASS_TXT blank)"); continue; }
+                valid.Add((row, id));
+            }
+
+            if (valid.Count == 0)
+            {
+                var none = StingResultPanel.Create("Import TMV Tests");
+                none.AddSection("NOTHING IMPORTED")
+                    .Metric("Rows with no outlet reading", parsed.NotMeasured.ToString())
+                    .Metric("Refused", errors.Count.ToString());
+                foreach (var e in errors.Take(60)) none.Text("⚠ " + e);
+                none.Show();
+                return Result.Cancelled;
+            }
+
+            var confirm = new TaskDialog("STING Import TMV Tests")
+            {
+                MainInstruction = $"Write {valid.Count} TMV test result{(valid.Count == 1 ? "" : "s")}?",
+                MainContent = $"From {Path.GetFileName(dlg.FileName)}.\n" +
+                              $"{parsed.NotMeasured} row(s) have no outlet reading and are left as they are.\n" +
+                              (errors.Count > 0 ? $"{errors.Count} row(s) are refused and will be listed afterwards.\n" : "") +
+                              "\nEach TMV gets PLM_TMV_MEASURED_C, the test date, the next test due (+12 months) and, where given, the inlet temperatures.",
+                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                DefaultButton = TaskDialogResult.No,
+            };
+            if (confirm.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+
+            int written = 0;
+            var imported = new HashSet<long>();
+            using (var tx = new Transaction(doc, "STING Import TMV test results"))
+            {
+                tx.Start();
+                foreach (var (row, id) in valid)
+                {
+                    // One sub-transaction per TMV: a TMV whose parameters do not all take is
+                    // rolled back whole, never left with a reading and no date.
+                    using var sub = new SubTransaction(doc);
+                    sub.Start();
+                    if (TMVEngine.WriteTMVData(doc, id, row.OutletC, row.InletHotC, row.InletColdC, row.TestDate, out var failed))
+                    { sub.Commit(); written++; imported.Add(row.ElementId); }
+                    else
+                    {
+                        sub.RollBack();
+                        errors.Add($"line {row.Line}: element {row.ElementId} — could not write {string.Join(", ", failed)} " +
+                                   "(bind the TMV parameters with Load Shared Parameters); nothing written to it");
+                    }
+                }
+                if (written == 0) { tx.RollBack(); }
+                else tx.Commit();
+            }
+
+            // The check on what was imported, from the one TMV check.
+            var reg = TMVEngine.ScanAll(doc);
+            var mine = reg.Records.Where(r => r.Id != null && imported.Contains(r.Id.Value)).ToList();
+            var panel = StingResultPanel.Create("Import TMV Tests");
+            panel.AddSection("SUMMARY")
+                 .Metric("Written", written.ToString())
+                 .Metric("No outlet reading", parsed.NotMeasured.ToString())
+                 .Metric("Refused", errors.Count.ToString())
+                 .Metric("Pass", mine.Count(r => r.Status == WaterCheckStatus.Pass).ToString())
+                 .Metric("Fail", mine.Count(r => r.Status == WaterCheckStatus.Fail).ToString())
+                 .Metric("Not checked", mine.Count(r => r.Status == WaterCheckStatus.NotChecked).ToString());
+            var bad = mine.Where(r => r.Status != WaterCheckStatus.Pass).ToList();
+            if (bad.Count > 0)
+            {
+                panel.AddSection("IMPORTED, NOT PASSING");
+                foreach (var r in bad.Take(40))
+                    panel.Text($"{r.Id.Value}  {r.FamilyName}  [{r.Scheme} {r.Outlet}]  measured {r.ActualOutletC:0.#} °C  {r.StatusText} — {r.FailReason}");
+            }
+            if (errors.Count > 0)
+            {
+                panel.AddSection("REFUSED");
+                foreach (var e in errors.Take(60)) panel.Text("⚠ " + e);
+            }
+            panel.Show();
+            StingLog.Info($"PlumbTMVImportTests: {written} written, {parsed.NotMeasured} not measured, {errors.Count} refused");
+            return written > 0 ? Result.Succeeded : Result.Failed;
+        }
+    }
+
+    /// <summary>Register cell for a temperature: blank when not recorded (the register
+    /// used to print 0.0, which reads as a measurement), invariant decimal otherwise.</summary>
+    internal static class TmvRegisterCsv
+    {
+        internal static string Temp(double v) =>
+            v > 0 ? v.ToString("F1", System.Globalization.CultureInfo.InvariantCulture) : "";
     }
 
     // ── Shared date-parsing helpers ───────────────────────────────────────────

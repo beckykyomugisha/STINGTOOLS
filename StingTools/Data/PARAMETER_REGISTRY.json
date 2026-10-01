@@ -22039,6 +22039,18 @@
       "curated": true
     },
     {
+      "param_name": "PLM_TMV_PAEDIATRIC_BOOL",
+      "guid": "f8ccc74a-0895-52d8-9627-309b1414364d",
+      "description": "TMV serves a paediatric bath (SHTM 04-01 Part A v2 Table 4: 40 C paediatric bath in Scotland; set Yes for baths and sinks used to bathe children) [DSCH-45]",
+      "datatype": "YESNO",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
       "param_name": "PLM_TMV_MEASURED_C",
       "guid": "1e9925ed-2c23-52cc-9bac-4b0940eb7249",
       "description": "TMV outlet temperature measured at commissioning or the annual test, C (the design set-point is PLM_TMV_BLEND_TEMP_C), entered from the commissioning record; checked against the never-exceed limit in STING_TMV_STANDARDS.json. Blank = not measured [DSCH-36]",

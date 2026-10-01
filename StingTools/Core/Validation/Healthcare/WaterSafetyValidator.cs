@@ -97,10 +97,12 @@ namespace StingTools.Core.Validation.Healthcare
                 {
                     string assistedRaw = GetParam(el, ParamRegistry.PLM_TMV_ASSISTED_BOOL);
                     bool? assisted = string.IsNullOrEmpty(assistedRaw) ? (bool?)null : assistedRaw != "0";
+                    string paedRaw = GetParam(el, ParamRegistry.PLM_TMV_PAEDIATRIC_BOOL);
+                    bool? paediatric = string.IsNullOrEmpty(paedRaw) ? (bool?)null : paedRaw != "0";
                     var c = WaterSafetyLimits.CheckTmv(limits,
                         WaterSafetyLimits.NormaliseOutlet(GetParam(el, ParamRegistry.PLM_FIX_TYPE_TXT)),
                         WaterSafetyLimits.NormaliseScheme(tmvClass) ?? WaterSafetyLimits.NormaliseScheme(tmvType),
-                        assisted, isHealthcare: true,
+                        assisted, paediatric, isHealthcare: true,
                         GetParamDouble(el, ParamRegistry.PLM_TMV_BLEND) ?? 0,
                         GetParamDouble(el, ParamRegistry.PLM_TMV_MEASURED_C) ?? 0, region);
                     foreach (var n in c.Notes) tmvNotes[n] = tmvNotes.TryGetValue(n, out var k) ? k + 1 : 1;
