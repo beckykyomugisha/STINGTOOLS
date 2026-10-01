@@ -366,5 +366,47 @@ namespace StingTools.Tags.Tests
             Assert.Contains("kept on sheet E-105", line);
             Assert.Contains("not placed on E-101", line);
         }
+
+        // ── DTW-224: managed templates and pack filters are pre-checked ─
+
+        [Fact]
+        public void Rule_view_types_name_the_managed_templates_an_item_can_touch()
+        {
+            var vts = ProductionEdgeDecisions.ManagedTemplateViewTypes(new[] { "FloorPlan", "RCP", "Section" });
+            Assert.Contains("FloorPlan", vts);
+            Assert.Contains("EngineeringPlan", vts);   // a structural plan from a FloorPlan rule
+            Assert.Contains("CeilingPlan", vts);       // "RCP" is the STING alias
+            Assert.Contains("Section", vts);
+            Assert.DoesNotContain("ThreeD", vts);
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("Panorama")]
+        public void An_item_whose_view_types_are_not_known_checks_every_template_of_its_pack(string ruleType)
+        {
+            Assert.Null(ProductionEdgeDecisions.ManagedTemplateViewTypes(new[] { "FloorPlan", ruleType }));
+            Assert.Null(ProductionEdgeDecisions.ManagedTemplateViewTypes(new string[0]));
+            Assert.Null(ProductionEdgeDecisions.ManagedTemplateViewTypes(null));
+        }
+
+        [Fact]
+        public void A_style_element_owned_by_a_colleague_skips_the_item_with_who_holds_it()
+        {
+            var why = ProductionEdgeDecisions.StylePackBlockReason(
+                new[] { new KeyValuePair<string, string>("STING:corp-mep:FloorPlan", "Jane") }, null);
+            Assert.StartsWith("style pack template/filter owned by Jane", why);
+            Assert.Contains("'STING:corp-mep:FloorPlan'", why);
+        }
+
+        [Fact]
+        public void A_style_element_changed_in_central_says_reload_latest()
+            => Assert.Contains("reload latest",
+                ProductionEdgeDecisions.StylePackBlockReason(null, new[] { "M-Supply Air" }));
+
+        [Fact]
+        public void Free_style_elements_do_not_block()
+            => Assert.Null(ProductionEdgeDecisions.StylePackBlockReason(null, null));
     }
 }

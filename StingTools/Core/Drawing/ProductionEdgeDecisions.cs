@@ -306,5 +306,53 @@ namespace StingTools.Core.Drawing
         internal static string KeptOnOtherSheetLine(string viewName, string otherSheet, string thisSheet)
             => $"'{viewName}' is kept on sheet {otherSheet}, where it was moved; it was not placed on {thisSheet} "
              + "and its scale was left alone.";
+
+        // ── DTW-224: the style elements an item edits are pre-checked ──
+        //
+        // Besides its stamped views and sheets, an item edits its pack's managed templates
+        // (STING:{packId}:{ViewType}, ManagedTemplateSyncer) and the pack's filters (rebuilt
+        // in place on drift, DTW-167). One owned by a colleague failed every item using the
+        // pack at commit; it is now a skip with the reason.
+
+        /// <summary>
+        /// The Revit ViewType names whose managed template an item with these production
+        /// rule view types can touch, or null when they are not all known — then every
+        /// template of the pack is checked. A FloorPlan rule may make a structural
+        /// (EngineeringPlan) or area plan, so those are included.
+        /// </summary>
+        internal static HashSet<string> ManagedTemplateViewTypes(IEnumerable<string> ruleViewTypes)
+        {
+            var list = ruleViewTypes?.ToList();
+            if (list == null || list.Count == 0) return null;
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var raw in list)
+            {
+                switch ((raw ?? "").Trim())
+                {
+                    case "FloorPlan": set.Add("FloorPlan"); set.Add("EngineeringPlan"); set.Add("AreaPlan"); break;
+                    case "RCP":
+                    case "CeilingPlan": set.Add("CeilingPlan"); break;
+                    case "Section": set.Add("Section"); break;
+                    case "Detail": set.Add("Detail"); set.Add("Section"); break;
+                    case "Elevation": set.Add("Elevation"); break;
+                    case "ThreeD": set.Add("ThreeD"); break;
+                    case "DraftingView": set.Add("DraftingView"); break;
+                    case "Schedule": set.Add("Schedule"); break;
+                    default: return null;
+                }
+            }
+            return set;
+        }
+
+        /// <summary>
+        /// Why an item is skipped for its style elements — "style pack template/filter owned
+        /// by X ('…')", "… not up to date … reload latest" — or null when none blocks it.
+        /// </summary>
+        internal static string StylePackBlockReason(IEnumerable<KeyValuePair<string, string>> ownedByOthers,
+            IEnumerable<string> outOfDate)
+        {
+            var why = ProductionRunReport.BlockReason(ownedByOthers, outOfDate, null);
+            return why == null ? null : "style pack template/filter " + why;
+        }
     }
 }
