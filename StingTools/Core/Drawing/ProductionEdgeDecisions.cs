@@ -382,5 +382,27 @@ namespace StingTools.Core.Drawing
                 }
             return result;
         }
+
+        /// <summary>
+        /// DTW-228: the filters on a view that a pack with <c>filterEnabled: false</c> may
+        /// disable — those whose name is one of the pack's own filters
+        /// (<see cref="PackFilterNames"/>). Every other filter on the view (MEP system
+        /// colours, Visibility Centre filters, the user's own) is left as it is; the pack
+        /// used to disable all of them. Names compare as Revit compares filter names:
+        /// trimmed, case-insensitive.
+        /// </summary>
+        internal static List<T> PackFiltersOnView<T>(IEnumerable<KeyValuePair<T, string>> viewFilters,
+            IEnumerable<string> packFilterNames)
+        {
+            var result = new List<T>();
+            if (viewFilters == null || packFilterNames == null) return result;
+            var own = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var n in packFilterNames)
+                if (!string.IsNullOrWhiteSpace(n)) own.Add(n.Trim());
+            if (own.Count == 0) return result;
+            foreach (var kv in viewFilters)
+                if (!string.IsNullOrWhiteSpace(kv.Value) && own.Contains(kv.Value.Trim())) result.Add(kv.Key);
+            return result;
+        }
     }
 }
