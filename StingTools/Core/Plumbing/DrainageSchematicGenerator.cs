@@ -5,8 +5,9 @@
 // then draws DetailLine + TextNote annotations in a new ViewDrafting at 1:50.
 //
 // Draws only what is modelled: a stack is a Sanitary pipe run that is more than
-// 80 % vertical (one physical stack = its per-storey segments grouped by plan
-// position), a branch is a drain pipe leaving a fitting on that stack, a vent
+// 80 % vertical, about a storey tall and passing through a level (one physical
+// stack = its per-storey segments grouped by plan position; a WC tail or trap
+// drop is not a stack — PipeNetworkBuilder / SchematicLayoutMath.StackRuns), a branch is a drain pipe leaving a fitting on that stack, a vent
 // is a Vent-classified pipe connected to the stack, and floors are the
 // document's Levels. Anything the model does not supply is left out and named
 // in the warnings — never drawn from a default. No stack means no view: the
@@ -206,7 +207,7 @@ namespace StingTools.Core.Plumbing
                 if (stackSegments.Count == 0)
                 {
                     result.Warnings.Add($"No drainage stack is modelled (no non-vent pipe on a system classified {classText}{filterText} "
-                        + "is more than 80 % vertical). The schematic draws only modelled stacks — nothing was drawn.");
+                        + "runs vertically through a level for at least about a storey). The schematic draws only modelled stacks — nothing was drawn.");
                     return result;
                 }
 

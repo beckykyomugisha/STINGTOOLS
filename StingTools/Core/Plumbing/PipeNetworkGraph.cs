@@ -699,29 +699,48 @@ namespace StingTools.Core.Plumbing
             return null;
         }
 
+        /// <summary>
+        /// DTW-111: a stack is a run of mostly-vertical pipe at one plan position, about a
+        /// storey tall, passing through a level (SchematicLayoutMath.StackRuns). A WC tail,
+        /// a trap drop or a vertical offset is vertical but is not a stack, and stays a
+        /// Pipe — so the fixture behind it is reached when a branch's fixtures are counted.
+        /// </summary>
         private static void ClassifyStacks(PipeNetwork net, Document doc)
         {
+            var verticals = new List<(long Id, double X, double Y, double ZMin, double ZMax)>();
             foreach (var node in net.Nodes.Where(n => n.Type == PipeNodeType.Pipe))
             {
                 try
                 {
-                    var el = doc.GetElement(node.Id);
-                    if (el is Pipe p)
+                    if (doc.GetElement(node.Id) is Pipe p && p.Location is LocationCurve lc && lc.Curve != null)
                     {
-                        var lc = p.Location as LocationCurve;
-                        if (lc?.Curve != null)
-                        {
-                            var s = lc.Curve.GetEndPoint(0);
-                            var e = lc.Curve.GetEndPoint(1);
-                            double dz    = Math.Abs(e.Z - s.Z);
-                            double total = s.DistanceTo(e);
-                            if (total > 1e-6 && dz / total > 0.8)
-                                node.Type = PipeNodeType.Stack;
-                        }
+                        var s = lc.Curve.GetEndPoint(0);
+                        var e = lc.Curve.GetEndPoint(1);
+                        if (SchematicLayoutMath.IsMostlyVertical(e.X - s.X, e.Y - s.Y, e.Z - s.Z))
+                            verticals.Add((node.Id.Value, (s.X + e.X) / 2, (s.Y + e.Y) / 2,
+                                           Math.Min(s.Z, e.Z), Math.Max(s.Z, e.Z)));
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"PipeNetworkBuilder: geometry of pipe {node.Id}: {ex.Message}"); }
             }
+            if (verticals.Count == 0) return;
+
+            List<double> levels;
+            try
+            {
+                // ProjectElevation: the internal-origin datum the pipe coordinates use.
+                levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
+                    .Select(l => l.ProjectElevation).OrderBy(z => z).ToList();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PipeNetworkBuilder: levels for stack classification: {ex.Message}");
+                levels = new List<double>();
+            }
+
+            foreach (var run in SchematicLayoutMath.StackRuns(verticals, levels))
+                foreach (var id in run)
+                    if (net.ById.TryGetValue(id, out var n)) n.Type = PipeNodeType.Stack;
         }
 
         private static List<PipeEdge> DfsPath(PipeNode current, PipeNode target, HashSet<long> visited)

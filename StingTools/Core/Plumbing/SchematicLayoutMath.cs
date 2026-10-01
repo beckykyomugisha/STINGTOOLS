@@ -143,6 +143,74 @@ namespace StingTools.Core.Plumbing
         }
 
         /// <summary>
+        /// True when a pipe from (0,0,0) to (dx,dy,dz) is more than 80 % vertical — a
+        /// stack <em>candidate</em>, not yet a stack (see <see cref="StackRuns"/>).
+        /// </summary>
+        public static bool IsMostlyVertical(double dx, double dy, double dz)
+        {
+            double total = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+            return total > 1e-6 && Math.Abs(dz) / total > 0.8;
+        }
+
+        /// <summary>
+        /// The stacks among mostly-vertical pipes; each returned list is one stack's ids.
+        /// DTW-111: every vertical pipe used to be a stack — each WC tail, trap drop and
+        /// vertical offset was drawn as a DN100 STACK, and because stacks block the walk
+        /// that counts a branch's fixtures, a fixture behind a vertical tail was never
+        /// counted. Now segments at one plan position whose heights meet (within
+        /// <see cref="StackRule.JoinGapFt"/>, a fitting) form a run, and a run is a stack
+        /// only when it is at least <see cref="StackRule.MinRunFt"/> tall and — when the
+        /// document has levels — passes through at least one level.
+        /// </summary>
+        public static List<List<long>> StackRuns(
+            IReadOnlyList<(long Id, double X, double Y, double ZMin, double ZMax)> verticals,
+            IReadOnlyList<double> sortedLevelElevations,
+            StackRule rule = null)
+        {
+            rule = rule ?? new StackRule();
+            var runs = new List<List<long>>();
+            if (verticals == null || verticals.Count == 0) return runs;
+
+            var byId = new Dictionary<long, (double ZMin, double ZMax)>();
+            foreach (var v in verticals)
+                byId[v.Id] = (Math.Min(v.ZMin, v.ZMax), Math.Max(v.ZMin, v.ZMax));
+
+            var planGroups = ClusterByPlanPosition(
+                verticals.Select(v => (v.Id, v.X, v.Y)).ToList(), rule.PlanToleranceFt);
+
+            foreach (var g in planGroups)
+            {
+                // Split the plan group into vertically contiguous runs.
+                var ordered = g.OrderBy(id => byId[id].ZMin).ToList();
+                var current = new List<long>();
+                double runMin = 0, runMax = 0;
+                foreach (var id in ordered)
+                {
+                    var (a, b) = byId[id];
+                    if (current.Count > 0 && a > runMax + rule.JoinGapFt)
+                    {
+                        if (IsStackRun(runMin, runMax, sortedLevelElevations, rule)) runs.Add(current);
+                        current = new List<long>();
+                    }
+                    if (current.Count == 0) { runMin = a; runMax = b; }
+                    else { runMin = Math.Min(runMin, a); runMax = Math.Max(runMax, b); }
+                    current.Add(id);
+                }
+                if (current.Count > 0 && IsStackRun(runMin, runMax, sortedLevelElevations, rule)) runs.Add(current);
+            }
+            return runs;
+        }
+
+        private static bool IsStackRun(double zMin, double zMax, IReadOnlyList<double> levels, StackRule rule)
+        {
+            if (zMax - zMin < rule.MinRunFt) return false;
+            if (levels == null || levels.Count == 0) return true;
+            foreach (var e in levels)
+                if (e > zMin + rule.LevelToleranceFt && e < zMax - rule.LevelToleranceFt) return true;
+            return false;
+        }
+
+        /// <summary>
         /// Rank of a candidate supply source (lower is better); int.MaxValue = not a
         /// source. A water meter is the incoming main; a tank or a pump set feeds the
         /// network; other equipment is a weaker guess. Anything else means the
@@ -173,6 +241,19 @@ namespace StingTools.Core.Plumbing
         /// <summary>Slope label: the value when known, "slope ?" when not — never a default.</summary>
         public static string SlopeLabel(double? slopePct)
             => slopePct.HasValue && !double.IsNaN(slopePct.Value) ? "× " + slopePct.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%" : "slope ?";
+    }
+
+    /// <summary>What makes a run of vertical pipe a stack (all lengths in feet).</summary>
+    public sealed class StackRule
+    {
+        /// <summary>Segments within this plan distance are one vertical line.</summary>
+        public double PlanToleranceFt { get; set; } = 150 / SchematicLayoutMath.MmPerFoot;
+        /// <summary>A vertical gap up to this (a coupling, a tee, a cleanout) still joins two segments.</summary>
+        public double JoinGapFt { get; set; } = 500 / SchematicLayoutMath.MmPerFoot;
+        /// <summary>Shortest run that is a stack: about one storey.</summary>
+        public double MinRunFt { get; set; } = 2000 / SchematicLayoutMath.MmPerFoot;
+        /// <summary>A level within this distance of a run's end is not crossed by it.</summary>
+        public double LevelToleranceFt { get; set; } = 50 / SchematicLayoutMath.MmPerFoot;
     }
 
     /// <summary>Kind of a graph node, as far as the vent / branch rules care.</summary>
