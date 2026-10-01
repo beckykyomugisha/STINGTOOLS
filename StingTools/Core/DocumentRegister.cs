@@ -67,14 +67,14 @@ namespace StingTools.Core
             var rows = prebuilt ?? BuildUnified(doc);
             var sb = new StringBuilder();
             sb.AppendLine("Id,Title,Type,Discipline,Suitability,CDEStatus,Revision,Direction,Status," +
-                          "ReviewedBy,ApprovedBy,CreatedBy,DateCreated,FileFormat,Source,FilePath");
+                          "ReviewedBy,ApprovedBy,CreatedBy,DateCreated,FileFormat,Source,FilePath,IsoNote");
             foreach (var r in rows)
                 sb.AppendLine(string.Join(",", new[]
                 {
                     Csv(r.Id), Csv(r.Title), Csv(r.Type), Csv(r.Discipline), Csv(r.Suitability),
                     Csv(r.CdeStatus), Csv(r.Revision), Csv(r.Direction), Csv(r.Status),
                     Csv(r.ReviewedBy), Csv(r.ApprovedBy), Csv(r.CreatedBy), Csv(r.DateCreated),
-                    Csv(r.FileFormat), Csv(r.Source), Csv(r.FilePath)
+                    Csv(r.FileFormat), Csv(r.Source), Csv(r.FilePath), Csv(r.IsoNote)
                 }));
 
             string path = ProjectFolderEngine.GetExportPath(doc, "DocRegister", "STING_Unified_Register", ".csv");
@@ -101,7 +101,7 @@ namespace StingTools.Core
                 ["direction"] = r.Direction, ["status"] = r.Status, ["reviewed_by"] = r.ReviewedBy,
                 ["approved_by"] = r.ApprovedBy, ["created_by"] = r.CreatedBy,
                 ["date_created"] = r.DateCreated, ["file_format"] = r.FileFormat,
-                ["file_path"] = r.FilePath, ["source"] = r.Source
+                ["file_path"] = r.FilePath, ["source"] = r.Source, ["iso_note"] = r.IsoNote
             }));
             string path = ProjectFolderEngine.GetDataPath(doc, CanonicalFileName);
             OutputLocationHelper.WriteAllTextAtomic(path, arr.ToString(Newtonsoft.Json.Formatting.Indented));

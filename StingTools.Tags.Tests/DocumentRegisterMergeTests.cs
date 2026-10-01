@@ -201,6 +201,56 @@ namespace StingTools.Tags.Tests
             Assert.Null(DocumentIdentity.FirstNonBlankValue());
         }
 
+        // C7: the merge resurrected a cleared code and passed defaults off as recorded ones.
+        [Fact]
+        public void AConflictClearedSuitability_IsNotBackfilledFromTheRegister()
+        {
+            var d = DocumentRegisterMerge.MapDeliverableRow(new JObject
+            {
+                ["DocNumber"] = "PRJ-001", ["Revision"] = "P03", ["Suitability"] = "",
+                ["IsoConflict"] = "P03 cannot carry A1",
+            });
+            var r = DocumentRegisterMerge.MapRegisterRow(new JObject
+            {
+                ["doc_number"] = "PRJ-001", ["revision"] = "P03", ["suitability"] = "A1",
+            });
+            var merged = DocumentRegisterMerge.Merge(new[] { d }, new[] { r }).Single();
+            Assert.Equal("", merged.Suitability);
+            Assert.StartsWith("conflict", merged.IsoNote);
+        }
+
+        [Fact]
+        public void ADefaultedRegisterS0_DoesNotFillADeliverableGap_ButIsLabelled()
+        {
+            var d = DocumentRegisterMerge.MapDeliverableRow(new JObject { ["DocNumber"] = "PRJ-002", ["Suitability"] = "" });
+            var r = DocumentRegisterMerge.MapRegisterRow(new JObject
+            {
+                ["doc_number"] = "PRJ-002", ["suitability"] = "S0", ["suitability_defaulted"] = true,
+            });
+            Assert.True(r.SuitabilityDefaulted);
+            var merged = DocumentRegisterMerge.Merge(new[] { d }, new[] { r }).Single();
+            Assert.Equal("", merged.Suitability);
+            Assert.Equal("S0 default (no code recorded)", merged.IsoNote);
+        }
+
+        [Fact]
+        public void ARecordedRegisterCode_StillFillsTheGap()
+        {
+            var d = DocumentRegisterMerge.MapDeliverableRow(new JObject { ["DocNumber"] = "PRJ-003", ["Suitability"] = "" });
+            var r = DocumentRegisterMerge.MapRegisterRow(new JObject { ["doc_number"] = "PRJ-003", ["suitability"] = "S2" });
+            var merged = DocumentRegisterMerge.Merge(new[] { d }, new[] { r }).Single();
+            Assert.Equal("S2", merged.Suitability);
+            Assert.Equal("", merged.IsoNote);
+        }
+
+        [Fact]
+        public void UnsetIsoFields_AreNamedInTheNote()
+            => Assert.Equal("not set: suitability, revision",
+                DocumentRegisterMerge.MapRegisterRow(new JObject
+                {
+                    ["doc_number"] = "PRJ-004", ["suitability"] = "XX", ["iso_unset"] = new JArray("suitability", "revision"),
+                }).IsoNote);
+
         [Fact]
         public void AllThreeResolversShareTheSameRule()
         {

@@ -35,6 +35,13 @@ namespace StingTools.Core
         public string CreatedBy { get; set; } = "";
         /// <summary>Which store(s) this row came from: "register", "deliverable", or "both".</summary>
         public string Source { get; set; } = "";
+        /// <summary>C7: why <see cref="Suitability"/> is not a recorded code, or "" when it is —
+        /// "S0 default (no code recorded)", "not set: …" (iso_unset), or "conflict: …"
+        /// (iso_conflict / IsoConflict). Written to the CSV and the canonical register.</summary>
+        public string IsoNote { get; set; } = "";
+        /// <summary>The suitability is the register's S0 convention, not a recorded code.</summary>
+        public bool SuitabilityDefaulted { get; set; }
+        public bool HasIsoConflict => IsoNote.StartsWith("conflict", StringComparison.Ordinal);
     }
 
     /// <summary>Pure row-mapping + merge logic behind <see cref="DocumentRegister"/>.</summary>
@@ -69,8 +76,21 @@ namespace StingTools.Core
                 FilePath    = First(t, "file_reference", "file_path"),
                 FileFormat  = First(t, "file_format", "format"),
                 CreatedBy   = First(t, "created_by", "author"),
-                Source      = "register"
+                Source      = "register",
+                SuitabilityDefaulted = t["suitability_defaulted"]?.Type == JTokenType.Boolean && (bool)t["suitability_defaulted"],
+                IsoNote     = RegisterIsoNote(t),
             };
+        }
+
+        private static string RegisterIsoNote(JObject t)
+        {
+            string conflict = Str(t, "iso_conflict");
+            if (conflict.Length > 0) return "conflict: " + conflict;
+            if (t["iso_unset"] is JArray u && u.Count > 0)
+                return "not set: " + string.Join(", ", u.Select(x => x?.ToString()).Where(x => !string.IsNullOrWhiteSpace(x)));
+            if (t["suitability_defaulted"]?.Type == JTokenType.Boolean && (bool)t["suitability_defaulted"])
+                return "S0 default (no code recorded)";
+            return "";
         }
 
         /// <summary>Map one row of the lifecycle deliverables store (PascalCase schema).</summary>
@@ -94,7 +114,8 @@ namespace StingTools.Core
                 FilePath    = Str(t, "SignedFilePath"),
                 FileFormat  = First(t, "FileFormat", "Format"),
                 CreatedBy   = First(t, "CreatedBy", "Author", "Originator"),
-                Source      = "deliverable"
+                Source      = "deliverable",
+                IsoNote     = Str(t, "IsoConflict").Length > 0 ? "conflict: " + Str(t, "IsoConflict") : "",
             };
         }
 
@@ -143,7 +164,11 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(keep.Title))       keep.Title       = other.Title;
             if (string.IsNullOrEmpty(keep.Type))        keep.Type        = other.Type;
             if (string.IsNullOrEmpty(keep.Discipline))  keep.Discipline  = other.Discipline;
-            if (string.IsNullOrEmpty(keep.Suitability)) keep.Suitability = other.Suitability;
+            // C7: a suitability cleared because it contradicted the revision must not come back
+            // from the other store, and a register S0 DEFAULT is not a code to fill a gap with.
+            if (string.IsNullOrEmpty(keep.Suitability) && !keep.HasIsoConflict && !other.SuitabilityDefaulted && !other.HasIsoConflict)
+                keep.Suitability = other.Suitability;
+            if (string.IsNullOrEmpty(keep.IsoNote)) keep.IsoNote = other.IsoNote ?? "";
             if (string.IsNullOrEmpty(keep.CdeStatus))   keep.CdeStatus   = other.CdeStatus;
             if (string.IsNullOrEmpty(keep.Revision))    keep.Revision    = other.Revision;
             if (string.IsNullOrEmpty(keep.Direction))   keep.Direction   = other.Direction;
