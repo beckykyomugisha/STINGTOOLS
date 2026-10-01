@@ -199,7 +199,7 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-142 | BatchScopeDepth across documents | Low | Nested scope on another document wipes the outer batch's claims | Merged | Done |
 | DTW-143 | ScopeBoxStyle / RenamePattern / MatchLineEngine | Low | Box names parsed by hand, not through ScopeBoxNames | Merged | Done |
 | DTW-144 | LOC index (ParameterHelpers ~1735) | Low-Med | Stricter grammar drops user-typed LOC names silently (log only) | Merged | Done |
-| DTW-145 | TaggingModels scope-box report | Low | The report copies the latest box-name audit; it can be stale if tagging reuses a cached setup or ran on another model in between | Carry the audit on the tagging setup into the report | Open |
+| DTW-145 | TaggingModels scope-box report | Low | The report copies the latest box-name audit; it can be stale if tagging reuses a cached setup or ran on another model in between | Cache hit sets the report's audit from the context | Done |
 
 ## Decisions
 
