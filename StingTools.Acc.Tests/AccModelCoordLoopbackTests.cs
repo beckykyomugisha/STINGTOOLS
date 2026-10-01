@@ -193,6 +193,40 @@ namespace StingTools.Acc.Tests
             Assert.Equal("KUT Federated", result.Value[0].Name);
         }
 
+        // D3: the tests list is paged by continuation token; the newest test can be on page 2.
+        [Fact]
+        public async Task ClashTests_AreReadAcrossPages_AndTheNewestIsChosen()
+        {
+            var server = new LoopbackServer((_, req) =>
+            {
+                string q = req.Url.Query ?? "";
+                if (!q.Contains("continuationToken"))
+                    return new CannedResponse(200,
+                        "{\"tests\":[{\"id\":\"t-old\",\"status\":\"Success\",\"completedAt\":\"2026-08-01T00:00:00Z\"}]," +
+                        "\"page\":{\"continuationToken\":\"p2\"}}");
+                return new CannedResponse(200,
+                    "{\"tests\":[{\"id\":\"t-new\",\"status\":\"Success\",\"completedAt\":\"2026-09-30T00:00:00Z\"}]}");
+            });
+            AccModelCoordSync.OverrideHostForTests(server.BaseUrl);
+            using (server)
+            {
+                var r = await AccModelCoordSync.GetClashTestSummaryAsync(FreshCreds(), Container, ModelSet);
+                Assert.True(r.Succeeded, r.Detail);
+                Assert.Equal(2, r.Value.TestCount);
+                Assert.Equal("t-new", r.Value.LatestCompletedId);
+                Assert.Equal(2, server.RequestCount);
+            }
+        }
+
+        [Fact]
+        public async Task ClashTests_ARepeatedToken_IsIncomplete_NotAPartialSuccess()
+        {
+            using var server = Start(200, "{\"tests\":[{\"id\":\"t\",\"status\":\"Success\"}],\"page\":{\"continuationToken\":\"same\"}}");
+            var r = await AccModelCoordSync.GetClashTestSummaryAsync(FreshCreds(), Container, ModelSet);
+            Assert.False(r.Succeeded);
+            Assert.Contains("INCOMPLETE", r.Detail);
+        }
+
         [Fact]
         public async Task GetClashes_Http200_NoTestsRunYet_IsEmptyOk()
         {

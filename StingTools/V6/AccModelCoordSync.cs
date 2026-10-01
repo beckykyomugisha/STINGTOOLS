@@ -175,10 +175,13 @@ namespace StingTools.V6
             const int pageSize = 100;
             int offset = 0;
             string cid = AccIds.ForAcc(containerId);
+            string next = null;   // D3: v3 pages with a continuation token; offset is the fallback
             for (int page = 0; page < 50; page++)
             {
-                var got = await GetJsonAsync(creds,
-                    $"{ModelSetBase}/containers/{cid}/modelsets?limit={pageSize}&offset={offset}").ConfigureAwait(false);
+                string url = next != null
+                    ? $"{ModelSetBase}/containers/{cid}/modelsets?continuationToken={Uri.EscapeDataString(next)}"
+                    : $"{ModelSetBase}/containers/{cid}/modelsets?limit={pageSize}&offset={offset}";
+                var got = await GetJsonAsync(creds, url).ConfigureAwait(false);
                 if (!got.Succeeded)
                     return AccFetchResult<List<AccModelSet>>.Failure(got.Status, list, got.HttpStatus, got.Detail);
 
@@ -198,13 +201,64 @@ namespace StingTools.V6
                     list.Add(new AccModelSet { Id = id, Name = (string)(m["name"] ?? m["title"]) ?? "(unnamed model set)" });
                     added++;
                 }
-                if (arr.Count < pageSize || added == 0)  // last page, or endpoint ignored offset
+                string token = ContinuationToken(got.Value);
+                if (token != null)
+                {
+                    if (token == next || added == 0)
+                        return AccFetchResult<List<AccModelSet>>.Failure(AccFetchStatus.TransportFailed, list, got.HttpStatus,
+                            "the model-set list repeated a page — paging is broken, the list is INCOMPLETE");
+                    next = token;
+                    continue;
+                }
+                if (next != null || arr.Count < pageSize || added == 0)  // token paging ended, last page, or offset ignored
                     return AccFetchResult<List<AccModelSet>>.Success(list, list.Count == 0);
                 offset += pageSize;
             }
             // Fifty full pages and never a short one: there are more sets than were read.
             return AccFetchResult<List<AccModelSet>>.Failure(AccFetchStatus.TransportFailed, list, 200,
                 $"stopped after 50 pages ({list.Count} model sets) without reaching the last page - the list is INCOMPLETE");
+        }
+
+        /// <summary>The Model Coordination v3 continuation token of a page, or null on the last.</summary>
+        internal static string ContinuationToken(JToken page)
+        {
+            string t = (string)(page?["page"]?["continuationToken"] ?? page?["continuationToken"]
+                                ?? page?["pagination"]?["continuationToken"]);
+            return string.IsNullOrWhiteSpace(t) ? null : t;
+        }
+
+        /// <summary>
+        /// D3: EVERY clash test on a model set. The tests list is paged with a continuation token
+        /// (Model Coordination v3); reading only the first page could miss the newest completed
+        /// test once a fortnightly federation has produced a page of them, and an older test was
+        /// then triaged and escalated as current. Fails loudly at the cap, never returns a part.
+        /// </summary>
+        internal static async Task<AccFetchResult<JArray>> ReadAllTestsAsync(AccCredentials creds, string containerId, string modelSetId)
+        {
+            var all = new JArray();
+            string token = null;
+            var seenTokens = new HashSet<string>(StringComparer.Ordinal);
+            int http = 0;
+            for (int page = 0; page < 50; page++)
+            {
+                string url = $"{ClashBase}/containers/{containerId}/modelsets/{modelSetId}/tests" +
+                             (token == null ? "" : "?continuationToken=" + Uri.EscapeDataString(token));
+                var got = await GetJsonAsync(creds, url).ConfigureAwait(false);
+                if (!got.Succeeded) return AccFetchResult<JArray>.Failure(got.Status, all, got.HttpStatus, got.Detail);
+                http = got.HttpStatus;
+                var arr = AccFetchOutcome.FindArray(got.Value, new[] { "tests", "results" });
+                if (arr == null)
+                    return AccFetchResult<JArray>.Failure(AccFetchStatus.TransportFailed, all, got.HttpStatus,
+                        "the clash-test response carried no 'tests' array — the bim360/clash/v3 tests sub-path or payload shape has changed");
+                foreach (var t in arr) all.Add(t);
+                token = ContinuationToken(got.Value);
+                if (token == null) return AccFetchResult<JArray>.Success(all, all.Count == 0);
+                if (!seenTokens.Add(token))
+                    return AccFetchResult<JArray>.Failure(AccFetchStatus.TransportFailed, all, got.HttpStatus,
+                        "the clash-test list repeated a continuation token — paging is broken, the list is INCOMPLETE");
+            }
+            return AccFetchResult<JArray>.Failure(AccFetchStatus.TransportFailed, all, http,
+                $"stopped after 50 pages ({all.Count} clash tests) with more to read - the list is INCOMPLETE");
         }
 
         // ── Clashes (tests -> resources -> scope files -> join) ──
@@ -221,14 +275,9 @@ namespace StingTools.V6
             containerId = AccIds.ForAcc(containerId);
 
             // 1. latest completed clash test
-            var testsGot = await GetJsonAsync(creds,
-                $"{ClashBase}/containers/{containerId}/modelsets/{modelSetId}/tests").ConfigureAwait(false);
+            var testsGot = await ReadAllTestsAsync(creds, containerId, modelSetId).ConfigureAwait(false);
             if (!testsGot.Succeeded) return Fail(testsGot.Status, testsGot.HttpStatus, testsGot.Detail);
-
-            var tests = AccFetchOutcome.FindArray(testsGot.Value, new[] { "tests", "results" });
-            if (tests == null)
-                return Fail(AccFetchStatus.TransportFailed, testsGot.HttpStatus,
-                    "the clash-test response carried no 'tests' array — the bim360/clash/v3 tests sub-path or payload shape has changed");
+            var tests = testsGot.Value;
             if (tests.Count == 0)
             {
                 // Genuinely nothing: the endpoint answered and said there are no tests.
@@ -372,15 +421,10 @@ namespace StingTools.V6
                 return AccFetchResult<AccClashTestSummary>.Failure(AccFetchStatus.NotFound, summary, 0,
                     "no ACC container id or model-set id was supplied");
 
-            var got = await GetJsonAsync(creds,
-                $"{ClashBase}/containers/{AccIds.ForAcc(containerId)}/modelsets/{modelSetId}/tests").ConfigureAwait(false);
+            var got = await ReadAllTestsAsync(creds, AccIds.ForAcc(containerId), modelSetId).ConfigureAwait(false);
             if (!got.Succeeded)
                 return AccFetchResult<AccClashTestSummary>.Failure(got.Status, summary, got.HttpStatus, got.Detail);
-
-            var tests = AccFetchOutcome.FindArray(got.Value, new[] { "tests", "results" });
-            if (tests == null)
-                return AccFetchResult<AccClashTestSummary>.Failure(AccFetchStatus.TransportFailed, summary, got.HttpStatus,
-                    "the clash-test response carried no 'tests' array — the bim360/clash/v3 tests sub-path or payload shape has changed");
+            var tests = got.Value;
 
             summary.TestCount = tests.Count;
             summary.States = tests.Select(t => (string)t["status"] ?? "?").Distinct().ToList();
