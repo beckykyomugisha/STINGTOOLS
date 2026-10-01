@@ -82,6 +82,47 @@ namespace StingTools.Acc.Tests
             Assert.Equal(AccUploadGateDecision.Upload, revised.Decision);
         }
 
+        // C5: a suitability change under an unchanged revision is a status change, not a re-issue.
+        [Fact]
+        public void ASuitabilityChange_UnderTheSameRevision_Uploads_AsAStatusChange()
+        {
+            var ledger = new AccUploadLedger();
+            string path = File("D-0101.pdf", "v1");
+            var first = AccUploadGate.Check(ledger, path, "D-0101", "P02", "S2", false);
+            AccUploadGate.Record(ledger, first, path, "D-0101", "P02", "S2", "i", "v1", DateTime.UtcNow);
+
+            // Identical bytes, new code: before C5 this was skipped and ACC stayed at S2.
+            var promoted = AccUploadGate.Check(ledger, path, "D-0101", "P02", "S3", false);
+            Assert.Equal(AccUploadGateDecision.Upload, promoted.Decision);
+            Assert.True(promoted.StatusChange);
+            Assert.Contains("S2", promoted.Reason);
+
+            // Different bytes (the title block prints the code), new code: still a status change, not refused.
+            System.IO.File.WriteAllText(path, "v1 with S4 printed");
+            var reprinted = AccUploadGate.Check(ledger, path, "D-0101", "P02", "S4", false);
+            Assert.True(reprinted.StatusChange);
+            Assert.False(reprinted.HeldAsReissue);
+
+            // Back at the code already sent with the same bytes: identical skip, as before.
+            System.IO.File.WriteAllText(path, "v1");
+            Assert.Equal(AccUploadGateDecision.SkipIdentical,
+                AccUploadGate.Check(ledger, path, "D-0101", "P02", "S2", false).Decision);
+        }
+
+        [Fact]
+        public void ALegacyEntry_WithNoRecordedSuitability_KeepsTheOldRule()
+        {
+            var ledger = new AccUploadLedger();
+            string path = File("D-0102.pdf", "v1");
+            ledger.Record(new AccLedgerEntry
+            {
+                DocumentNumber = "D-0102", Revision = "P01", Format = "PDF", Suitability = "",
+                Sha256 = AccUploadLedger.Sha256OfFile(path), UploadedUtc = DateTime.UtcNow, VersionUrn = "v",
+            });
+            Assert.Equal(AccUploadGateDecision.SkipIdentical,
+                AccUploadGate.Check(ledger, path, "D-0102", "P01", "S3", false).Decision);
+        }
+
         [Fact]
         public void NoRevision_IdenticalResendSkipped_ChangedContentStillUploads()
         {

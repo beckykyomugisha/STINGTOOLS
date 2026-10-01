@@ -1153,6 +1153,7 @@ namespace StingTools.Docs
                         problems.Add($"{name}: uploaded, but the ledger could not be saved ({saveErr}) — a re-run may send it again");
                     r.AccUpload = "uploaded" +
                                   (gate.ReissueAllowed ? " (re-issue allowed by the profile)" : "") +
+                                  (gate.StatusChange ? " (" + gate.Reason + ")" : "") +
                                   (up.MetadataComplete ? "" : " — " + up.MetadataNote);
                     // A11: the file is in ACC without the attributes asked for; that belongs in
                     // the run's problem list, not only in one row's note.

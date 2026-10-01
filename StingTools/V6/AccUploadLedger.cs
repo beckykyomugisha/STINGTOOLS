@@ -65,6 +65,10 @@ namespace StingTools.V6
         UploadReissueAllowed,
         /// <summary>No document number or revision to key on: cannot be ledgered, so not sent.</summary>
         RefuseNoIdentity,
+        /// <summary>Sent before under this revision at a DIFFERENT suitability (S2 → S3, or a
+        /// WIP → SHARED promotion): a status change, uploaded so the CDE folder and the ACC
+        /// attribute follow it (C5).</summary>
+        UploadStatusChange,
     }
 
     public sealed class AccLedgerVerdict
@@ -73,7 +77,8 @@ namespace StingTools.V6
         /// <summary>The earlier upload this verdict is about, when there is one.</summary>
         public AccLedgerEntry Previous { get; set; }
         public string Reason { get; set; } = string.Empty;
-        public bool ShouldUpload => Decision == AccLedgerDecision.Upload || Decision == AccLedgerDecision.UploadReissueAllowed;
+        public bool ShouldUpload => Decision == AccLedgerDecision.Upload || Decision == AccLedgerDecision.UploadReissueAllowed
+                                    || Decision == AccLedgerDecision.UploadStatusChange;
     }
 
     public sealed class AccUploadLedger
@@ -91,6 +96,14 @@ namespace StingTools.V6
 
         /// <summary>Decide what to do with one file. Pure: reads the ledger, changes nothing.</summary>
         public AccLedgerVerdict Check(string documentNumber, string revision, string format, string sha256, bool allowReissue)
+            => Check(documentNumber, revision, format, sha256, allowReissue, null);
+
+        /// <summary>As Check, aware of <paramref name="suitability"/> (C5): uploads of this document +
+        /// revision + format recorded at another suitability are a status change, which goes; only
+        /// uploads at the SAME suitability (or legacy entries that recorded none) decide skip /
+        /// refuse. Null or blank suitability = the old behaviour.</summary>
+        public AccLedgerVerdict Check(string documentNumber, string revision, string format, string sha256,
+            bool allowReissue, string suitability)
         {
             string doc = (documentNumber ?? string.Empty).Trim();
             string rev = (revision ?? string.Empty).Trim();
@@ -111,6 +124,25 @@ namespace StingTools.V6
                 .ToList();
             if (same.Count == 0)
                 return new AccLedgerVerdict { Decision = AccLedgerDecision.Upload, Reason = "not sent before" };
+
+            string suit = (suitability ?? string.Empty).Trim();
+            if (suit.Length > 0)
+            {
+                var atThisSuit = same.Where(e => string.IsNullOrWhiteSpace(e.Suitability) ||
+                                                 string.Equals(e.Suitability.Trim(), suit, StringComparison.OrdinalIgnoreCase)).ToList();
+                if (atThisSuit.Count == 0)
+                {
+                    var prev = same[0];
+                    return new AccLedgerVerdict
+                    {
+                        Decision = AccLedgerDecision.UploadStatusChange,
+                        Previous = prev,
+                        Reason = $"status change under revision {rev}: sent at {prev.Suitability} on " +
+                                 $"{prev.UploadedUtc:yyyy-MM-dd HH:mm}Z, now {suit} — uploaded so its CDE folder and attribute follow",
+                    };
+                }
+                same = atThisSuit;
+            }
 
             var identical = same.FirstOrDefault(e => string.Equals(e.Sha256, sha, StringComparison.OrdinalIgnoreCase));
             if (identical != null)

@@ -58,6 +58,8 @@ namespace StingTools.V6
         /// other bytes. A whole-set re-export of unchanged sheets lands here when the renderer is
         /// not byte-stable (C6), so callers report it apart from a real refusal.</summary>
         public bool HeldAsReissue => Ledger?.Decision == AccLedgerDecision.RefuseReissueWithoutRevisionChange;
+        /// <summary>Sent because its suitability changed under an unchanged revision (C5).</summary>
+        public bool StatusChange => Ledger?.Decision == AccLedgerDecision.UploadStatusChange;
     }
 
     public static class AccUploadGate
@@ -110,7 +112,7 @@ namespace StingTools.V6
                 };
             }
 
-            var verdict = ledger.Check(doc, rev, fmt, sha, allowReissue);
+            var verdict = ledger.Check(doc, rev, fmt, sha, allowReissue, suit);
             var result = new AccUploadGateResult { Ledger = verdict, Sha256 = sha, Format = fmt, Reason = verdict.Reason };
             result.Decision = verdict.ShouldUpload ? AccUploadGateDecision.Upload
                 : verdict.Decision == AccLedgerDecision.SkipIdentical ? AccUploadGateDecision.SkipIdentical
