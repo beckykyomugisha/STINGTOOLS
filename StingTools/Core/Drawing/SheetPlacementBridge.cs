@@ -359,43 +359,63 @@ namespace StingTools.Core.Drawing
         }
 
         // P12.B — memoised per-family drawable rect from STING_TITLE_BLOCKS.json
-        // (extends-resolved). Corporate baseline is read-only at runtime so a
-        // one-time cache is safe.
+        // (extends-resolved). DTW-161: keyed on the file's path and last-write
+        // time, like ViewportPlacementRules.Load, so an edit to the JSON is
+        // picked up without restarting Revit. It used to be cached for the session.
         private static Dictionary<string, StingTools.Core.Drawing.DrawableRect> _drawableCache;
+        private static string _drawableCachePath;
+        private static DateTime _drawableCacheWriteUtc;
         private static readonly object _drawableLock = new object();
 
         private static StingTools.Core.Drawing.DrawableRect ResolveDrawableForFamily(string familyName)
         {
             if (string.IsNullOrEmpty(familyName)) return null;
-            var cache = _drawableCache;
-            if (cache == null)
+
+            string path = null;
+            DateTime written = DateTime.MinValue;
+            try
             {
-                lock (_drawableLock)
+                path = StingToolsApp.FindDataFile("STING_TITLE_BLOCKS.json");
+                if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
+                    written = System.IO.File.GetLastWriteTimeUtc(path);
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"SheetPlacementBridge.ResolveDrawableForFamily stamp: {ex.Message}"); }
+
+            Dictionary<string, StingTools.Core.Drawing.DrawableRect> cache;
+            lock (_drawableLock)
+            {
+                cache = _drawableCache;
+                bool current = cache != null && written == _drawableCacheWriteUtc
+                    && string.Equals(path, _drawableCachePath, StringComparison.OrdinalIgnoreCase);
+                if (!current)
                 {
-                    cache = _drawableCache;
-                    if (cache == null)
+                    cache = new Dictionary<string, StingTools.Core.Drawing.DrawableRect>(StringComparer.OrdinalIgnoreCase);
+                    StingTools.Core.Drawing.TitleBlockLibrary lib = null;
+                    try
                     {
-                        cache = new Dictionary<string, StingTools.Core.Drawing.DrawableRect>(StringComparer.OrdinalIgnoreCase);
-                        try
-                        {
-                            var lib = StingTools.Core.Drawing.TitleBlockSpecRegistry.Load();
-                            if (lib?.Families != null)
-                                foreach (var f in lib.Families)
-                                {
-                                    if (f.Abstract || string.IsNullOrEmpty(f.Id)) continue;
-                                    var resolved = StingTools.Core.Drawing.TitleBlockSpecRegistry.Resolve(lib, f);
-                                    if (resolved?.Drawable != null) cache[f.Id] = resolved.Drawable;
-                                }
-                        }
-                        catch (Exception ex)
-                        {
-                            // DTW-104: a failed load is not a read. Answer this call from what was
-                            // read so far, but do not cache it, so the next call tries again.
-                            StingTools.Core.StingLog.Warn($"SheetPlacementBridge.ResolveDrawableForFamily: {ex.Message} — not cached; will retry.");
-                            return cache.TryGetValue(familyName, out var partial) ? partial : null;
-                        }
-                        _drawableCache = cache;
+                        lib = StingTools.Core.Drawing.TitleBlockSpecRegistry.Load();
+                        if (lib?.Families != null)
+                            foreach (var f in lib.Families)
+                            {
+                                if (f.Abstract || string.IsNullOrEmpty(f.Id)) continue;
+                                var resolved = StingTools.Core.Drawing.TitleBlockSpecRegistry.Resolve(lib, f);
+                                if (resolved?.Drawable != null) cache[f.Id] = resolved.Drawable;
+                            }
                     }
+                    catch (Exception ex)
+                    {
+                        // DTW-104: a failed load is not a read. Answer this call from what was
+                        // read so far, but do not cache it, so the next call tries again.
+                        StingTools.Core.StingLog.Warn($"SheetPlacementBridge.ResolveDrawableForFamily: {ex.Message} — not cached; will retry.");
+                        return cache.TryGetValue(familyName, out var partial) ? partial : null;
+                    }
+                    // Load() reports its own failure and returns null; that is not a
+                    // read either, so it is not cached.
+                    if (lib == null)
+                        return null;
+                    _drawableCache = cache;
+                    _drawableCachePath = path;
+                    _drawableCacheWriteUtc = written;
                 }
             }
             return cache.TryGetValue(familyName, out var d) ? d : null;
