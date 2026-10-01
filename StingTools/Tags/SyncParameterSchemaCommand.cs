@@ -109,13 +109,23 @@ namespace StingTools.Tags
             var commentLines = existingLines.Where(l => l.StartsWith("#")).ToList();
             var dataLines = existingLines.Where(l => !l.StartsWith("#") && l != header && !string.IsNullOrWhiteSpace(l)).ToList();
 
+            // DSCH-2: columns by header name, not position.
+            var hdr = CsvTable.Parse(header != null ? new[] { header } : new string[0], StingToolsApp.ParseCsvLine);
+            int iParam = hdr.Col("Parameter_Name"), iCat = hdr.Col("Revit_Category");
+            if (iParam < 0 || iCat < 0)
+            {
+                StingLog.Warn($"CATEGORY_BINDINGS.csv: header lacks {string.Join(", ", hdr.Missing("Parameter_Name", "Revit_Category"))} — sync skipped");
+                report.AppendLine("  Header lacks Parameter_Name / Revit_Category - skipped");
+                return 0;
+            }
+
             // Build existing binding set: "ParamName|Category"
             var existing = new HashSet<string>(StringComparer.Ordinal);
             foreach (string line in dataLines)
             {
                 string[] cols = StingToolsApp.ParseCsvLine(line);
-                if (cols.Length >= 2)
-                    existing.Add($"{cols[0].Trim()}|{cols[1].Trim()}");
+                if (cols.Length > iParam && cols.Length > iCat)
+                    existing.Add($"{cols[iParam].Trim()}|{cols[iCat].Trim()}");
             }
 
             // Build expected bindings from registry
@@ -207,13 +217,23 @@ namespace StingTools.Tags
             var header = lines.FirstOrDefault(l => !l.StartsWith("#") && l.Contains("Parameter_Name"));
             var dataLines = lines.Where(l => !l.StartsWith("#") && l != header && !string.IsNullOrWhiteSpace(l)).ToList();
 
+            // DSCH-2: columns by header name, not position.
+            var hdr = CsvTable.Parse(header != null ? new[] { header } : new string[0], StingToolsApp.ParseCsvLine);
+            int iName = hdr.Col("Parameter_Name"), iGuid = hdr.Col("Parameter_GUID");
+            if (iName < 0 || iGuid < 0)
+            {
+                StingLog.Warn($"MR_PARAMETERS.csv: header lacks {string.Join(", ", hdr.Missing("Parameter_Name", "Parameter_GUID"))} — validation skipped");
+                report.AppendLine("  Header lacks Parameter_Name / Parameter_GUID - skipped");
+                return 0;
+            }
+
             // Build index of existing params: name → line
             var existingParams = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (string line in dataLines)
             {
                 string[] cols = StingToolsApp.ParseCsvLine(line);
-                if (cols.Length >= 2)
-                    existingParams[cols[1].Trim()] = line;
+                if (cols.Length > iName)
+                    existingParams[cols[iName].Trim()] = line;
             }
 
             // Check all registry params
@@ -231,9 +251,9 @@ namespace StingTools.Tags
                 {
                     // Param exists — verify GUID matches
                     string[] cols = StingToolsApp.ParseCsvLine(existingLine);
-                    if (cols.Length >= 3)
+                    if (cols.Length > iGuid)
                     {
-                        string csvGuid = cols[2].Trim();
+                        string csvGuid = cols[iGuid].Trim();
                         if (!string.Equals(csvGuid, expectedGuid, StringComparison.OrdinalIgnoreCase))
                         {
                             guidMismatch++;
@@ -259,7 +279,7 @@ namespace StingTools.Tags
                 var sortKeyed = dataLines.Select(line =>
                 {
                     string[] cols = StingToolsApp.ParseCsvLine(line);
-                    string key = cols.Length >= 2 ? cols[1] : "";
+                    string key = cols.Length > iName ? cols[iName] : "";
                     return (Key: key, Line: line);
                 }).OrderBy(x => x.Key, StringComparer.Ordinal).ToList();
                 dataLines = sortKeyed.Select(x => x.Line).ToList();
@@ -373,16 +393,21 @@ namespace StingTools.Tags
 
             // Build CSV GUID→name index
             var csvGuidToName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var lines = File.ReadAllLines(csvPath)
-                .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
-                .Skip(1); // skip header
-            foreach (string line in lines)
+            // DSCH-2: columns by header name, not position.
+            var mrTable = CsvTable.Parse(File.ReadAllLines(csvPath), StingToolsApp.ParseCsvLine);
+            int iName = mrTable.Col("Parameter_Name"), iGuid = mrTable.Col("Parameter_GUID");
+            if (iName < 0 || iGuid < 0)
             {
-                string[] cols = StingToolsApp.ParseCsvLine(line);
-                if (cols.Length >= 3)
+                StingLog.Warn($"MR_PARAMETERS.csv: header lacks {string.Join(", ", mrTable.Missing("Parameter_Name", "Parameter_GUID"))} — rename detection skipped");
+                report.AppendLine("  Header lacks Parameter_Name / Parameter_GUID - skipped");
+                return;
+            }
+            foreach (var row in mrTable.Rows)
+            {
+                if (row.Count > iName && row.Count > iGuid)
                 {
-                    string name = cols[1].Trim();
-                    string guid = cols[2].Trim();
+                    string name = row["Parameter_Name"];
+                    string guid = row["Parameter_GUID"];
                     if (!string.IsNullOrEmpty(guid) && !csvGuidToName.ContainsKey(guid))
                         csvGuidToName[guid] = name;
                 }
@@ -418,11 +443,16 @@ namespace StingTools.Tags
             {
                 int added = 0;
                 var existingRemaps = new HashSet<string>(StringComparer.Ordinal);
-                foreach (string rl in File.ReadAllLines(remapPath)
-                    .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#")))
+                var remapTable = CsvTable.Parse(File.ReadAllLines(remapPath), StingToolsApp.ParseCsvLine);
+                int iOld = remapTable.Col("Old_Schedule_Field"), iNew = remapTable.Col("Consolidated_Parameter");
+                if (iOld < 0 || iNew < 0)
                 {
-                    string[] cols = StingToolsApp.ParseCsvLine(rl);
-                    if (cols.Length >= 2) existingRemaps.Add(cols[0].Trim());
+                    StingLog.Warn($"SCHEDULE_FIELD_REMAP.csv: header lacks {string.Join(", ", remapTable.Missing("Old_Schedule_Field", "Consolidated_Parameter"))} — remap entries not added");
+                    return;
+                }
+                foreach (var row in remapTable.Rows)
+                {
+                    if (row.Count > iOld && row.Count > iNew) existingRemaps.Add(row["Old_Schedule_Field"]);
                 }
 
                 var newEntries = new List<string>();

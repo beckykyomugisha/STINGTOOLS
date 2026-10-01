@@ -404,9 +404,9 @@ namespace StingTools.Docs
     // ── TITLE_BLOCK.csv loader (spec §7.1) ─────────────────────────────────
     // CSV schema (discipline-split, UTF-8 BOM, CRLF per existing STING data
     // file conventions):
-    //   Column 1: ParameterName (exact PRJ_TB_* param name)
-    //   Column 2: DefaultValue  (used for sheets with no discipline match)
-    //   Columns 3-11: Per-discipline overrides — ARCH STR MEP ELE PLM FP LV COORD GEN
+    //   ParameterName (exact PRJ_TB_* param name) — columns read by header name (DSCH-2)
+    //   DefaultValue  (used for sheets with no discipline match)
+    //   Every other column: per-discipline overrides — ARCH STR MEP ELE PLM FP LV COORD GEN
     // Empty cells fall back to DefaultValue. Sheet discipline is resolved via
     // TitleBlockEngine.ResolveDiscipline.
     internal class TitleBlockCsv
@@ -443,31 +443,39 @@ namespace StingTools.Docs
             }
             try
             {
-                string[] lines = File.ReadAllLines(path);
-                if (lines.Length < 2) return csv;
-                string[] header = ParseCsvLine(lines[0]);
-                // Column 0 = ParameterName, Column 1 = DefaultValue, remainder = disciplines
+                // DSCH-2: ParameterName / DefaultValue by header name; every other
+                // column is a discipline override.
+                var table = CsvTable.Parse(File.ReadAllLines(path), ParseCsvLine);
+                if (table.Rows.Count == 0) return csv;
+                int nameCol = table.Col("ParameterName"), dfltCol = table.Col("DefaultValue");
+                if (nameCol < 0 || dfltCol < 0)
+                {
+                    StingLog.Warn($"TB: TITLE_BLOCK.csv header lacks {string.Join(", ", table.Missing("ParameterName", "DefaultValue"))} — no rows loaded ({path})");
+                    return csv;
+                }
                 var discCols = new List<string>();
-                for (int i = 2; i < header.Length; i++)
-                    discCols.Add(header[i].Trim().ToUpperInvariant());
+                var discIdx = new List<int>();
+                for (int i = 0; i < table.Header.Count; i++)
+                {
+                    if (i == nameCol || i == dfltCol) continue;
+                    discCols.Add(table.Header[i].ToUpperInvariant());
+                    discIdx.Add(i);
+                }
                 csv.Disciplines = discCols.ToArray();
                 foreach (string d in discCols)
                     csv.PerDiscipline[d] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-                for (int r = 1; r < lines.Length; r++)
+                foreach (var row in table.Rows)
                 {
-                    string line = lines[r];
-                    if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith("#")) continue;
-                    string[] cols = ParseCsvLine(line);
-                    if (cols.Length < 1) continue;
-                    string pname = cols[0].Trim();
+                    string[] cols = row.Fields;
+                    string pname = row["ParameterName"];
                     if (string.IsNullOrEmpty(pname)) continue;
-                    string dflt = cols.Length > 1 ? cols[1] : "";
+                    string dflt = dfltCol < cols.Length ? cols[dfltCol] : "";
                     if (!csv.DefaultValues.ContainsKey(pname)) csv.ParamNames.Add(pname);
                     csv.DefaultValues[pname] = dflt;
                     for (int i = 0; i < discCols.Count; i++)
                     {
-                        int colIdx = i + 2;
+                        int colIdx = discIdx[i];
                         string v = colIdx < cols.Length ? cols[colIdx] : "";
                         if (!string.IsNullOrEmpty(v))
                             csv.PerDiscipline[discCols[i]][pname] = v;
