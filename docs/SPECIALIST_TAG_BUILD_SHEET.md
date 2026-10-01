@@ -127,9 +127,13 @@ the rows with them.
 
 All four labels are built and committed in `Data/TagFamilies` at **2.5 mm** — label
 type `2.5mm` (Arial 2.5 mm, transparent background), left / middle aligned, every row,
-prefix, suffix, space and break as in the tables below. Still to do by hand: the
-**3.5 mm label copy** tied to `TXT_3_5` (and the 2.5 mm label tied to `TXT_2_5`), and
-the **door box**. Until then the label shows at 2.5 mm whichever type is chosen.
+prefix, suffix, space and break as in the tables below. Fire Compartment also has its
+**3.5 mm copy**, each label tied to its `TXT_*` switch. For the other three the 3.5 mm copy
+and the **door box** are automated: open the families in Revit, pyRevit › Reload, then
+*STING Families › Tag Labels › Size Copies*
+(`tools/pyrevit/STINGFamilyTools.extension` — copy it into `%APPDATA%\pyRevit\Extensions`).
+It is idempotent and saves each family. Until it has run, those three show at 2.5 mm
+whichever type is chosen.
 
 ---
 
