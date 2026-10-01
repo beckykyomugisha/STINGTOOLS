@@ -138,5 +138,44 @@ namespace StingTools.Tags.Tests
             Assert.Empty(IsoLevelCode.BuildMap(null));
             Assert.Empty(IsoLevelCode.BuildMap(new List<StoreyDatum>()));
         }
+    
+        // DTW-105: a level code the project declares (spatial_codes.json) wins in the ISO
+        // map too, sanitised to the ISO level field; undeclared levels keep the stack code.
+
+        private static Dictionary<string, string> Declared(params (string Name, string Code)[] rows)
+            => rows.ToDictionary(r => r.Name, r => r.Code);
+
+        [Fact]
+        public void A_declared_level_code_wins_over_the_stack()
+        {
+            var map = IsoLevelCode.BuildMap(Storeys(("Level 1", 0), ("Level 2", 3000)), Declared(("Level 2", "05")));
+            Assert.Equal("05", map["Level 2"]);
+            Assert.Equal("00", map["Level 1"]);
+        }
+
+        [Fact]
+        public void A_declared_sting_code_is_written_in_its_iso_form()
+        {
+            var map = IsoLevelCode.BuildMap(Storeys(("Podium", 0), ("Deck", 3000)), Declared(("Podium", "GF"), ("Deck", "l-03")));
+            Assert.Equal("00", map["Podium"]);
+            Assert.Equal("03", map["Deck"]);
+        }
+
+        [Fact]
+        public void A_blank_or_unsanitisable_declaration_leaves_the_stack_code()
+        {
+            var map = IsoLevelCode.BuildMap(Storeys(("Level 1", 0), ("Level 2", 3000)), Declared(("Level 1", "  "), ("Level 2", "--")));
+            Assert.Equal("00", map["Level 1"]);
+            Assert.Equal("01", map["Level 2"]);
+        }
+
+        [Fact]
+        public void Sheet_and_spool_tokens_take_the_declared_code_through_the_same_map()
+        {
+            var map = IsoLevelCode.BuildMap(Storeys(("Level 1", 0), ("Level 2", 3000)), Declared(("Level 2", "M1")));
+            Assert.Equal("M1", SheetNumberPolicy.LevelToken(SheetNumberPolicy.IsoPattern, "Level 2", map));
+            Assert.Equal("M1", SheetNumberPolicy.SpoolLevelToken(SheetNumberPolicy.IsoPattern, "L02", "Level 2", map));
+            Assert.Equal("M1", SheetNumberPolicy.ExistingSheetLevelToken(SheetNumberPolicy.IsoPattern, "Level 2", true, map));
+        }
     }
 }

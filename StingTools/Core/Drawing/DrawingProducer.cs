@@ -2386,9 +2386,9 @@ namespace StingTools.Core.Drawing
         [ThreadStatic] private static Dictionary<string, string> _isoLevelMap;
         [ThreadStatic] private static string _isoLevelMapDocKey;
 
-        /// <summary>ISO 19650 level codes for every level, by name — built as
-        /// ParameterHelpers.DeriveSheetLevel builds them, so a sheet's number and its level
-        /// stamp agree. Cached per document for the batch.</summary>
+        /// <summary>ISO 19650 level codes for every level, by name — the elevation stack
+        /// ParameterHelpers.DeriveSheetLevel also uses, with the project's declared level
+        /// codes laid over it (DTW-105). Cached per document for the batch.</summary>
         private static Dictionary<string, string> IsoLevelMap(Document doc)
         {
             if (doc == null) return null;
@@ -2408,14 +2408,27 @@ namespace StingTools.Core.Drawing
             try
             {
                 var storeys = new List<StoreyDatum>();
+                var declared = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var l in new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>())
-                    if (!string.IsNullOrWhiteSpace(l?.Name))
-                        storeys.Add(new StoreyDatum
-                        {
-                            Name = l.Name,
-                            ElevationMm = UnitUtils.ConvertFromInternalUnits(l.Elevation, UnitTypeId.Millimeters),
-                        });
-                return IsoLevelCode.BuildMap(storeys);
+                {
+                    if (string.IsNullOrWhiteSpace(l?.Name)) continue;
+                    storeys.Add(new StoreyDatum
+                    {
+                        Name = l.Name,
+                        ElevationMm = UnitUtils.ConvertFromInternalUnits(l.Elevation, UnitTypeId.Millimeters),
+                    });
+                    // DTW-105: the level code the project declares (spatial_codes.json, the
+                    // one ParameterHelpers.GetLevelCodeForLevel gives tags and box names) wins
+                    // here too, so ISO sheet numbers, spool sheets and title-block heal agree
+                    // with it. Undeclared levels keep the elevation-derived code.
+                    try
+                    {
+                        var dc = SpatialCodeRegistry.MatchProjectLevel(doc, l.Name);
+                        if (!string.IsNullOrWhiteSpace(dc?.Code)) declared[l.Name] = dc.Code;
+                    }
+                    catch (Exception ex) { StingLog.WarnRateLimited("IsoLevelMapDeclared", $"Project level codes: {ex.Message}"); }
+                }
+                return IsoLevelCode.BuildMap(storeys, declared);
             }
             catch (Exception ex) { StingLog.Warn($"DrawingProducer.IsoLevelMap: {ex.Message}"); return null; }
         }

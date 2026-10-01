@@ -93,6 +93,30 @@ namespace StingTools.Core.Drawing
             return map;
         }
 
+        /// <summary>
+        /// DTW-105: the same map with the project's declared level codes laid over it.
+        /// <paramref name="declaredByName"/> is the code the project states for a level
+        /// (spatial_codes.json — the one tags, box names and project-pattern sheets use),
+        /// keyed by level name. A declaration wins, written in the ISO level field form
+        /// (<see cref="Iso19650DocumentCode.NormaliseLevel"/>: "GF" -> 00, "L03" -> 03);
+        /// a blank one, or one with nothing left after sanitising, is ignored. Levels the
+        /// project does not declare keep the code the stack gives them.
+        /// </summary>
+        public static Dictionary<string, string> BuildMap(IEnumerable<StoreyDatum> storeys,
+            IDictionary<string, string> declaredByName)
+        {
+            var map = BuildMap(storeys);
+            if (declaredByName == null) return map;
+            foreach (var kv in declaredByName)
+            {
+                if (string.IsNullOrWhiteSpace(kv.Key) || string.IsNullOrWhiteSpace(kv.Value)) continue;
+                // Nothing an ISO field may hold ("--") is not a declaration.
+                if (!kv.Value.Any(c => (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))) continue;
+                map[kv.Key] = Iso19650DocumentCode.NormaliseLevel(kv.Value);
+            }
+            return map;
+        }
+
         /// <summary>The code a level NAME states outright, or null when it only
         /// implies a position in the stack.
         ///
