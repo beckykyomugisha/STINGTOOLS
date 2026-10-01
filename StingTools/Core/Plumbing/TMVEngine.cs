@@ -38,6 +38,8 @@ namespace StingTools.Core.Plumbing
         public string    Outlet          { get; set; } = "";
         /// <summary>PLM_TMV_ASSISTED_BOOL; null when not recorded.</summary>
         public bool?     Assisted        { get; set; }
+        /// <summary>PLM_TMV_PAEDIATRIC_BOOL; null when not recorded (DSCH-45).</summary>
+        public bool?     Paediatric      { get; set; }
         public WaterCheckStatus Status   { get; set; } = WaterCheckStatus.NotChecked;
         public string    StatusText      => Status == WaterCheckStatus.Pass ? "PASS"
                                           : Status == WaterCheckStatus.Fail ? "FAIL" : "NOT CHECKED";
@@ -144,7 +146,7 @@ namespace StingTools.Core.Plumbing
             var c = WaterSafetyLimits.CheckTmv(limits,
                 string.IsNullOrEmpty(rec.Outlet) ? null : rec.Outlet,
                 string.IsNullOrEmpty(rec.Scheme) ? null : rec.Scheme,
-                rec.Assisted, rec.IsHealthcare, rec.SetOutletC, rec.ActualOutletC, region);
+                rec.Assisted, rec.Paediatric, rec.IsHealthcare, rec.SetOutletC, rec.ActualOutletC, region);
             rec.Status      = c.Status;
             rec.FailReason  = c.Reason;
             rec.StandardRef = c.StandardRef;
@@ -176,13 +178,13 @@ namespace StingTools.Core.Plumbing
         {
             if (r == null) return "";
             var sb = new StringBuilder();
-            sb.AppendLine("ElementId,FamilyName,Location,RoomName,Scheme,Outlet,Assisted,InletHotC,InletColdC," +
+            sb.AppendLine("ElementId,FamilyName,Location,RoomName,Scheme,Outlet,Assisted,Paediatric,InletHotC,InletColdC," +
                           "SetOutletC,ActualOutletC,Status,TestOverdue," +
                           "LastTestDate,AnnualDueDate,FailReason,StandardRef,KvsCoeff");
             foreach (var rec in r.Records)
             {
                 sb.AppendLine($"{rec.Id?.Value},{EscCsv(rec.FamilyName)},{EscCsv(rec.Location)}," +
-                              $"{EscCsv(rec.RoomName)},{rec.Scheme},{rec.Outlet},{(rec.Assisted.HasValue ? (rec.Assisted.Value ? "Yes" : "No") : "")},{rec.InletHotC:F1}," +
+                              $"{EscCsv(rec.RoomName)},{rec.Scheme},{rec.Outlet},{YesNoText(rec.Assisted)},{YesNoText(rec.Paediatric)},{rec.InletHotC:F1}," +
                               $"{rec.InletColdC:F1},{rec.SetOutletC:F1},{rec.ActualOutletC:F1}," +
                               $"{rec.StatusText},{rec.TestOverdue}," +
                               $"{EscCsv(rec.LastTestDate)},{EscCsv(rec.AnnualTestDueDate)}," +
@@ -275,6 +277,7 @@ namespace StingTools.Core.Plumbing
             // A valve modelled as a pipe accessory carries none, so it is NOT CHECKED.
             rec.Outlet = WaterSafetyLimits.NormaliseOutlet(ReadString(el, ParamRegistry.PLM_FIX_TYPE_TXT)) ?? "";
             rec.Assisted = ReadYesNo(el, ParamRegistry.PLM_TMV_ASSISTED_BOOL);
+            rec.Paediatric = ReadYesNo(el, ParamRegistry.PLM_TMV_PAEDIATRIC_BOOL);
 
             // Temperatures: SetOutletC is the design set-point (PLM_TMV_BLEND),
             // ActualOutletC is the commissioning reading (PLM_TMV_MEASURED_C).
@@ -425,6 +428,8 @@ namespace StingTools.Core.Plumbing
             catch { }
             return false;
         }
+
+        private static string YesNoText(bool? b) => b.HasValue ? (b.Value ? "Yes" : "No") : "";
 
         private static string EscCsv(string s)
         {

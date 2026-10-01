@@ -17,7 +17,7 @@ namespace StingTools.Mep.Tests
         }
 
         private static TmvCheck Tmv(string outlet, string scheme, bool? assisted, double setC, double measuredC = 0, bool healthcare = true)
-            => WaterSafetyLimits.CheckTmv(Shipped(), outlet, scheme, assisted, healthcare, setC, measuredC, StingTools.Standards.HTM.HtmRegion.England);
+            => WaterSafetyLimits.CheckTmv(Shipped(), outlet, scheme, assisted, null, healthcare, setC, measuredC, StingTools.Standards.HTM.HtmRegion.England);
 
         [Fact]
         public void ShippedFileParsesAndCoversEveryOutletUnderBothSchemes()
@@ -103,7 +103,7 @@ namespace StingTools.Mep.Tests
             Assert.Equal(WaterCheckStatus.NotChecked, Tmv(null, "TMV3", null, 40).Status);
             Assert.Equal(WaterCheckStatus.NotChecked, Tmv("BATH", null, null, 40).Status);
             Assert.Equal(WaterCheckStatus.NotChecked,
-                WaterSafetyLimits.CheckTmv(null, "BATH", "TMV3", false, true, 40, 0, null).Status);
+                WaterSafetyLimits.CheckTmv(null, "BATH", "TMV3", false, null, true, 40, 0, null).Status);
             Assert.Equal(WaterCheckStatus.NotChecked, Tmv("BATH", "TMV3", false, 0, 0).Status);
         }
 

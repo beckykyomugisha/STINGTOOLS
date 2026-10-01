@@ -17,8 +17,9 @@ namespace StingTools.Mep.Tests
             return f;
         }
 
-        private static TmvCheck Tmv(HtmRegion? region, string outlet, double setC, bool? assisted = false, string scheme = "TMV3")
-            => WaterSafetyLimits.CheckTmv(Shipped(), outlet, scheme, assisted, true, setC, 0, region);
+        private static TmvCheck Tmv(HtmRegion? region, string outlet, double setC, bool? assisted = false, string scheme = "TMV3",
+                                    bool? paediatric = null, double measuredC = 0)
+            => WaterSafetyLimits.CheckTmv(Shipped(), outlet, scheme, assisted, paediatric, true, setC, measuredC, region);
 
         [Fact]
         public void ScottishRowsAreShippedWithTheirSource()
@@ -59,7 +60,7 @@ namespace StingTools.Mep.Tests
         {
             var c = Tmv(HtmRegion.Scotland, "BATH", 42);
             Assert.Equal(WaterCheckStatus.Pass, c.Status);   // checked as a general bath (43)
-            Assert.Contains(c.Notes, n => n.Contains("paediatric") && n.Contains("NOT CHECKED"));
+            Assert.Contains(c.Notes, n => n.Contains("paediatric") && n.Contains("NOT CHECKED") && n.Contains("PLM_TMV_PAEDIATRIC_BOOL"));
             // at or under 40 °C the paediatric limit is met either way: nothing to report
             Assert.DoesNotContain(Tmv(HtmRegion.Scotland, "BATH", 40).Notes, n => n.Contains("paediatric"));
             // England has no paediatric row
@@ -76,10 +77,74 @@ namespace StingTools.Mep.Tests
             Assert.Contains(Tmv(HtmRegion.Wales, "BATH", 44).Notes, n => n.Contains("WHTM"));
         }
 
+        // ── DSCH-45: paediatric baths (PLM_TMV_PAEDIATRIC_BOOL) ──────────────────
+
+        [Fact]
+        public void ScottishPaediatricBathIsCheckedAgainst40WhenMarked()
+        {
+            var fail = Tmv(HtmRegion.Scotland, "BATH", 42, paediatric: true);
+            Assert.Equal(WaterCheckStatus.Fail, fail.Status);
+            Assert.Contains("paediatric bath", fail.Reason);
+            Assert.Contains("paediatric", fail.StandardRef);
+            Assert.DoesNotContain(fail.Notes, n => n.Contains("NOT CHECKED"));
+            var pass = Tmv(HtmRegion.Scotland, "BATH", 40, paediatric: true);
+            Assert.Equal(WaterCheckStatus.Pass, pass.Status);
+            Assert.Equal(40, pass.Limit.MaxSetC);
+            // never-exceed 42 on the commissioning reading
+            Assert.Equal(WaterCheckStatus.Fail, Tmv(HtmRegion.Scotland, "BATH", 40, paediatric: true, measuredC: 42.5).Status);
+            Assert.Equal(WaterCheckStatus.Pass, Tmv(HtmRegion.Scotland, "BATH", 40, paediatric: true, measuredC: 42).Status);
+        }
+
+        [Fact]
+        public void BathMarkedNotPaediatricIsAGeneralBathWithNoNote()
+        {
+            var c = Tmv(HtmRegion.Scotland, "BATH", 42, paediatric: false);
+            Assert.Equal(WaterCheckStatus.Pass, c.Status);
+            Assert.DoesNotContain(c.Notes, n => n.Contains("paediatric"));
+        }
+
+        [Fact]
+        public void PaediatricWithAssistedUnknownIsNotTheAssistedCase()
+        {
+            // 45 °C: within the assisted limit, above the general one. Marked paediatric, it fails
+            // on the 40 °C row instead of being NOT CHECKED for want of the assisted flag.
+            Assert.Equal(WaterCheckStatus.Fail, Tmv(HtmRegion.Scotland, "BATH", 45, assisted: null, paediatric: true).Status);
+            Assert.Equal(WaterCheckStatus.NotChecked, Tmv(HtmRegion.Scotland, "BATH", 45, assisted: null).Status);
+        }
+
+        [Fact]
+        public void AssistedAndPaediatricTogetherIsNotChecked()
+        {
+            var c = Tmv(HtmRegion.Scotland, "BATH", 40, assisted: true, paediatric: true);
+            Assert.Equal(WaterCheckStatus.NotChecked, c.Status);
+            Assert.Contains("PLM_TMV_PAEDIATRIC_BOOL", c.Reason);
+        }
+
+        [Fact]
+        public void PaediatricWhereNoRowExistsUsesTheGeneralLimitAndSaysSo()
+        {
+            var c = Tmv(HtmRegion.England, "BATH", 44, paediatric: true);
+            Assert.Equal(WaterCheckStatus.Pass, c.Status);
+            Assert.Contains(c.Notes, n => n.Contains("no paediatric bath limit under HTM 04-01"));
+        }
+
+        [Fact]
+        public void WalesAdoptsHtm0401AndNorthernIrelandIsUnconfirmed()
+        {
+            var w = Tmv(HtmRegion.Wales, "BATH", 44);
+            Assert.Equal(WaterCheckStatus.Pass, w.Status);
+            Assert.Contains(w.Notes, n => n.Contains("adopts HTM 04-01"));
+            Assert.DoesNotContain(w.Notes, n => n.Contains("no WHTM"));
+            Assert.Equal(WaterCheckStatus.Fail, Tmv(HtmRegion.Wales, "BATH", 45).Status);
+            var ni = Tmv(HtmRegion.NorthernIreland, "BATH", 44);
+            Assert.Contains(ni.Notes, n => n.Contains("no DoH NI adoption of HTM 04-01 confirmed"));
+            Assert.Equal(new[] { "", "SCOTLAND" }, WaterSafetyLimits.Jurisdictions);
+        }
+
         [Fact]
         public void ScotlandWithoutARowForTheSchemeUsesEnglandAndSaysSo()
         {
-            var f = WaterSafetyLimits.CheckTmv(Shipped(), "BATH", "TMV2", false, false, 44, 0, HtmRegion.Scotland);
+            var f = WaterSafetyLimits.CheckTmv(Shipped(), "BATH", "TMV2", false, null, false, 44, 0, HtmRegion.Scotland);
             Assert.Equal(WaterCheckStatus.Pass, f.Status);
             Assert.Contains(f.Notes, n => n.Contains("no SCOTLAND row"));
         }

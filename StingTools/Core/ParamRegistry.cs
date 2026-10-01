@@ -4047,6 +4047,8 @@ namespace StingTools.Core
         public const string CST_PS_TYPE_TXT_GUID             = "963d74eb-a24f-5d19-8a69-11f29cc15676";
         public const string PLM_TMV_ASSISTED_BOOL            = "PLM_TMV_ASSISTED_BOOL";
         public const string PLM_TMV_ASSISTED_BOOL_GUID       = "ac32041d-b1f2-5bfc-86bd-80622407b94b";
+        public const string PLM_TMV_PAEDIATRIC_BOOL          = "PLM_TMV_PAEDIATRIC_BOOL";
+        public const string PLM_TMV_PAEDIATRIC_BOOL_GUID     = "f8ccc74a-0895-52d8-9627-309b1414364d";
         // DSCH-36. Read by TMVEngine (and the measured temperature by WaterSafetyValidator)
         // through ParamRegistry.Ext, but no shared-parameter file defined them, so none was
         // ever bound and every TMV read blank: no measured temperature reached the check.
