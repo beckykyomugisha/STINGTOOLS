@@ -2009,6 +2009,8 @@ namespace StingTools.Core
                 // Phase 184h — P6 multi-standard take-off
                 case "Cost_SetMeasurementStandard": return new Commands.Cost.CostSetMeasurementStandardCommand();
                 case "Cost_StandardInspect":        return new Commands.Cost.CostStandardInspectCommand();
+                // DSCH-29 - the BCC 5D rate-file view picks the project rate file through this.
+                case "Cost_FileBrowser":            return new BIMManager.CostFileBrowserCommand();
 
                 // Phase 184j — P8 IFC Qto + ICMS3
                 case "Cost_StampIfcQuantities":     return new Commands.Cost.CostStampIfcQuantitiesCommand();
