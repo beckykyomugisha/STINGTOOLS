@@ -47,6 +47,9 @@ namespace StingTools.Core.Delivery
         public int NoDate { get; set; }
         /// <summary>Rows with only a relative month and no mobilisation date to anchor it.</summary>
         public int RelativeOnly { get; set; }
+        /// <summary>F7: rows kept, but whose actual date could not be read, so they are NOT
+        /// shown as delivered from the plan. Listed in <see cref="DateProblems"/>.</summary>
+        public int BadActualDate { get; set; }
         /// <summary>The first few refused dates, each with the row and the reason.</summary>
         public List<string> DateProblems { get; } = new List<string>();
 
@@ -65,6 +68,7 @@ namespace StingTools.Core.Delivery
             if (NoDate > 0) parts.Add($"{NoDate} skipped - no planned date or relative month");
             if (BadDate > 0) parts.Add($"{BadDate} skipped - date not readable: " + string.Join("; ", DateProblems));
             if (RelativeOnly > 0) parts.Add($"{RelativeOnly} left out - relative month only, no mobilisation date");
+            if (BadActualDate > 0) parts.Add($"{BadActualDate} read without their actual date - not readable (see above), so not counted as delivered");
             return string.Join("; ", parts) + ".";
         }
     }
@@ -153,13 +157,39 @@ namespace StingTools.Core.Delivery
                     Milestone = Get(c, iMile),
                     PlannedDate = pd,
                     RequiredSuitability = Get(c, iSuit).Trim(),
-                    PlanActualDate = TryParseDate(Get(c, iActual), order, out var ad, out _) ? ad : (DateTime?)null,
+                    PlanActualDate = ReadActual(result, code, Get(c, iActual), order),
                     PlannedRelMonth = rel,
                     TidpRef = Get(c, iTidp).Trim(),
                     Rag = Get(c, iRag).Trim(),
                 });
             }
             return result;
+        }
+
+        /// <summary>F7: an actual date that is present but unreadable is counted and listed,
+        /// never silently read as "not delivered".</summary>
+        private static DateTime? ReadActual(MidpParseResult result, string code, string raw, MidpDateOrder order)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            if (TryParseDate(raw, order, out var ad, out string why)) return ad;
+            result.BadActualDate++;
+            if (result.DateProblems.Count < MaxDateProblemsListed)
+                result.DateProblems.Add($"{code} actual '{raw}': {why}");
+            return null;
+        }
+
+        /// <summary>F6: a date already held as a value (a JSON date token's DateTime) is used as
+        /// it is; only text is parsed. Formatting a DateTime back to text gave an invariant
+        /// month-first string the day-first parser refused.</summary>
+        public static bool TryDateValue(object value, out DateTime dt)
+        {
+            switch (value)
+            {
+                case DateTime d: dt = d; return true;
+                case DateTimeOffset o: dt = o.UtcDateTime; return true;
+                case string s: return TryParseDate(s, out dt);
+                default: dt = default; return false;
+            }
         }
 
         /// <summary>Day-first, as before E5 for callers that only need yes/no.</summary>

@@ -154,6 +154,39 @@ namespace StingTools.Cost.Tests
             Assert.Equal(1, skipped);
         }
 
+        // F7: an actual date that cannot be read used to become "not delivered" silently.
+        [Fact]
+        public void AnUnreadableActualDate_IsCountedAndNamed_NotSilentlyDropped()
+        {
+            var r = MidpCsv.ParseDetailed(new[] { "Ref,Planned Date,Actual Date", "A-1,2027-01-01,30/13/2027", "A-2,2027-01-01,05/02/2027", "A-3,2027-01-01," }, null);
+            Assert.Equal(3, r.Rows.Count);                                   // the rows are still read
+            Assert.Null(r.Rows[0].PlanActualDate);
+            Assert.Equal(new DateTime(2027, 2, 5), r.Rows[1].PlanActualDate); // day-first
+            Assert.Null(r.Rows[2].PlanActualDate);                           // blank is simply not delivered
+            Assert.Equal(1, r.BadActualDate);
+            Assert.Contains(r.DateProblems, d => d.StartsWith("A-1 actual '30/13/2027'"));
+            Assert.Contains("1 read without their actual date", r.Describe());
+            Assert.Equal(0, r.Skipped);
+        }
+
+        // F6: a deliverables-store timestamp arrives as a DateTime (Newtonsoft date token);
+        // its text form is invariant month-first, which the day-first parser refused.
+        [Fact]
+        public void ADateValue_IsUsedAsIs_AndOnlyTextIsParsed()
+        {
+            var when = new DateTime(2026, 9, 30, 14, 5, 0, DateTimeKind.Utc);
+            Assert.True(MidpCsv.TryDateValue(when, out var a));
+            Assert.Equal(when, a);
+            Assert.True(MidpCsv.TryDateValue(new DateTimeOffset(when), out var b));
+            Assert.Equal(when, b);
+            Assert.True(MidpCsv.TryDateValue("2026-09-30", out var c));
+            Assert.Equal(new DateTime(2026, 9, 30), c.Date);
+            Assert.False(MidpCsv.TryDateValue(null, out _));
+            Assert.False(MidpCsv.TryDateValue(42, out _));
+            // The old path: the value formatted invariantly, then parsed day-first - refused.
+            Assert.False(MidpCsv.TryParseDate(when.ToString(System.Globalization.CultureInfo.InvariantCulture), out _));
+        }
+
         [Theory]
         [InlineData("Information Container ID")]
         [InlineData("information_container_id")]

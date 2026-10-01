@@ -473,11 +473,12 @@ namespace StingTools.Commands.Delivery
                 {
                     if (!byCode.TryGetValue(d.Code, out var o)) continue;
                     string suit = (string)(o["Suitability"] ?? o["suitability"] ?? o["status"]) ?? "";
-                    string issuedDate = (string)(o["IssuedDate"] ?? o["issued_date"]
-                                              ?? o["issuedDate"] ?? o["last_issued"]) ?? "";
+                    // F6: the store is parsed with Newtonsoft's default date handling, so these
+                    // are usually Date tokens - read their value, never their culture-formatted text.
+                    var issuedTok = o["IssuedDate"] ?? o["issued_date"] ?? o["issuedDate"] ?? o["last_issued"];
                     d.ActualSuitability = suit;
-                    if (TryParseDate(issuedDate, out var idt)) { d.Issued = true; d.ActualDate = idt; }
-                    else if (TryParseDate(LatestRevisionTimestamp(o), out var rdt)) { d.Issued = true; d.ActualDate = rdt; }
+                    if (MidpCsv.TryDateValue((issuedTok as JValue)?.Value, out var idt)) { d.Issued = true; d.ActualDate = idt; }
+                    else if (LatestRevisionTimestamp(o) is DateTime rdt) { d.Issued = true; d.ActualDate = rdt; }
                     // A suitability with no issue record is NOT an issue: this used to mark
                     // the row issued TODAY, so a freshly imported plan read as delivered.
                     else if (d.PlanActualDate.HasValue) { d.Issued = true; d.ActualDate = d.PlanActualDate; }
@@ -491,25 +492,23 @@ namespace StingTools.Commands.Delivery
         /// date when the row carries no explicit one (DeliverableLifecycle records the
         /// issue moment in RevisionHistory, not in a dedicated field).
         /// </summary>
-        private static string LatestRevisionTimestamp(JObject row)
+        private static DateTime? LatestRevisionTimestamp(JObject row)
         {
             try
             {
                 var hist = row["RevisionHistory"] as JArray ?? row["revision_history"] as JArray;
                 if (hist == null) return null;
-                string best = null;
-                DateTime bestDt = DateTime.MinValue;
+                DateTime? best = null;
                 foreach (var h in hist.OfType<JObject>())
                 {
-                    string ts = (string)(h["Timestamp"] ?? h["timestamp"]);
-                    if (TryParseDate(ts, out var dt) && dt > bestDt) { bestDt = dt; best = ts; }
+                    var ts = (h["Timestamp"] ?? h["timestamp"]) as JValue;
+                    if (MidpCsv.TryDateValue(ts?.Value, out var dt) && (best == null || dt > best.Value)) best = dt;
                 }
                 return best;
             }
             catch (Exception ex) { StingLog.Warn($"MIDP revision timestamp: {ex.Message}"); return null; }
         }
 
-        private static bool TryParseDate(string s, out DateTime dt) => MidpCsv.TryParseDate(s, out dt);
         private static List<string> SplitCsv(string line) => MidpCsv.SplitCsv(line);
 
         private static string Get(List<string> c, int i) => (i >= 0 && i < c.Count) ? c[i].Trim() : "";
