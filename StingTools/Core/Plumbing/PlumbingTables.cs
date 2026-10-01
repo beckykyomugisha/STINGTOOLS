@@ -194,36 +194,41 @@ namespace StingTools.Core.Plumbing
         }
 
         // Shared CSV reader used by the corporate baseline and the per-project
-        // overlay. Header row: "FittingType,DN15,DN20,..." — column 0 is the
-        // fitting type key, every subsequent column is a DN with an optional
-        // "DN" prefix. Empty / "#" lines are skipped.
+        // overlay. Header row: "FittingType,DN15,DN20,..." — the FittingType
+        // column (found by name, DSCH-2) is the key, every other column is a DN
+        // with an optional "DN" prefix. Empty / "#" lines are skipped.
         private static List<FittingEquivLength> ReadFittingsCsv(string path)
         {
             var rows = new List<FittingEquivLength>();
-            var lines = File.ReadAllLines(path);
-            if (lines.Length < 2) return rows;
-
-            var headers = lines[0].Split(',');
-            var dnSeries = new int[headers.Length - 1];
-            for (int i = 1; i < headers.Length; i++)
+            var t = CsvTable.Parse(File.ReadAllLines(path), l => l.Split(','));
+            int iType = t.Col("FittingType");
+            if (iType < 0)
             {
-                var h = headers[i].Trim();
+                if (t.HeaderLine > 0)
+                    StingLog.Warn($"PlumbingTables: {path} header has no FittingType column; file skipped");
+                return rows;
+            }
+
+            // Per column: the DN it carries, 0 for the key column and any non-DN column.
+            var dnSeries = new int[t.Header.Count];
+            for (int i = 0; i < t.Header.Count; i++)
+            {
+                if (i == iType) continue;
+                var h = t.Header[i];
                 if (h.StartsWith("DN", StringComparison.OrdinalIgnoreCase)) h = h.Substring(2);
                 int.TryParse(h, out int dn);
-                dnSeries[i - 1] = dn;
+                dnSeries[i] = dn;
             }
             if (_fittingsDnSeries == null) _fittingsDnSeries = dnSeries;
 
-            for (int r = 1; r < lines.Length; r++)
+            foreach (var r in t.Rows)
             {
-                var line = lines[r];
-                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-                var cells = line.Split(',');
+                var cells = r.Fields;
                 if (cells.Length < 2) continue;
-                var row = new FittingEquivLength { FittingType = cells[0].Trim() };
-                for (int c = 1; c < cells.Length && c - 1 < dnSeries.Length; c++)
+                var row = new FittingEquivLength { FittingType = r["FittingType"] };
+                for (int c = 0; c < cells.Length && c < dnSeries.Length; c++)
                 {
-                    int dn = dnSeries[c - 1];
+                    int dn = dnSeries[c];
                     if (dn <= 0) continue;
                     if (double.TryParse(cells[c],
                         System.Globalization.NumberStyles.Any,
