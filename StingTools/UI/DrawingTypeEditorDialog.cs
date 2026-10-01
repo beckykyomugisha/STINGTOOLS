@@ -586,9 +586,12 @@ namespace StingTools.UI
                 };
                 tmBody.Children.Add(info);
                 if (_currentPack.ManagedFields == null || _currentPack.ManagedFields.Count == 0)
-                    _currentPack.ManagedFields = new List<string> { "scale", "detailLevel", "discipline", "visualStyle", "phaseFilter" };
+                    _currentPack.ManagedFields = new List<string> { "detailLevel", "discipline", "visualStyle", "phaseFilter" };
+                // DTW-214: scale is never controlled by a managed template (DTW-170 — it
+                // belongs to the drawing type), so it is neither offered nor kept.
+                _currentPack.ManagedFields.RemoveAll(m => string.Equals(m, "scale", StringComparison.OrdinalIgnoreCase));
                 var grid = new WrapPanel { Margin = new Thickness(0,2,0,2) };
-                foreach (var f in new[] { "scale","detailLevel","discipline","visualStyle","phaseFilter","phase","annotationCrop","farClip","viewRange","underlay","vgOverrides","filters","worksetVisibility" })
+                foreach (var f in new[] { "detailLevel","discipline","visualStyle","phaseFilter","phase","annotationCrop","farClip","viewRange","underlay","vgOverrides","filters","worksetVisibility" })
                 {
                     var cb = new CheckBox { Content = f, Margin = new Thickness(0,0,8,0), IsChecked = _currentPack.ManagedFields.Contains(f) };
                     cb.Checked   += (s,e) => { if (!_currentPack.ManagedFields.Contains(f)) _currentPack.ManagedFields.Add(f); };
