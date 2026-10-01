@@ -68,15 +68,20 @@ namespace StingTools.Commands.Delivery
                 // Same parser the drift report uses — one header-matching
                 // implementation, so the two commands cannot disagree about which
                 // column is the planned date.
-                var plan = MidpDriftReportCommand.ParseMidpInteractive(dlg.FileName, out int skipped, out int relativeLeftOut);
+                var plan = MidpDriftReportCommand.ParseMidpInteractive(dlg.FileName, out int skipped, out int relativeLeftOut, out var parse);
                 if (relativeLeftOut > 0) StingLog.Warn($"MIDP import: {relativeLeftOut} row(s) left out — relative month only");
+                StingLog.Info("MIDP import parse: " + parse.Describe());
+                if (parse.Refused)
+                {
+                    // E7: a file with no code column used to drop every row without a word.
+                    StingResultPanel.Create("MIDP import").AddSection("FILE REFUSED").Text(parse.Describe()).Show();
+                    return Result.Failed;
+                }
                 if (plan.Count == 0)
                 {
                     StingResultPanel.Create("MIDP import")
                         .AddSection("NO ROWS")
-                        .Text("No deliverable rows parsed. Expected header columns: "
-                            + "Code,Title,Discipline,Milestone,PlannedDate,RequiredSuitability.")
-                        .Text(skipped > 0 ? $"{skipped} row(s) had an unparseable date." : "")
+                        .Text("No deliverable rows parsed: " + parse.Describe())
                         .Show();
                     return Result.Cancelled;
                 }
@@ -112,14 +117,14 @@ namespace StingTools.Commands.Delivery
                     .AddSection("RESULT")
                     .Metric("Imported", imported.ToString())
                     .Metric("Already present", alreadyPresent.ToString())
-                    .Metric("Skipped (bad date)", skipped.ToString())
+                    .Metric("Skipped", skipped.ToString())
                     .Metric("Failed", failed.ToString());
 
                 if (alreadyPresent > 0)
                     panel.Text($"{alreadyPresent} row(s) already in the register were left untouched — "
                              + "import never overwrites lifecycle state (status, CDE, revision history).");
                 if (skipped > 0)
-                    panel.Text($"{skipped} row(s) skipped: no parseable date in the planned-date column.");
+                    panel.Text("Rows not read: " + parse.Describe());
                 if (relativeLeftOut > 0)
                     panel.Text($"{relativeLeftOut} row(s) left out: only a relative month (M0, M1 …), no Planned Date.");
                 if (failures.Count > 0)
