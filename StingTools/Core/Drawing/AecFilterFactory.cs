@@ -173,6 +173,33 @@ namespace StingTools.Core.Drawing
             // Phase / level rules compare ElementId.
             if (kind == "phase" || kind == "level")
             {
+                // DTW-166: Phase Created / Demolished are not filterable for every
+                // category set. Say so by name rather than leave it to
+                // ParameterFilterElement.Create's generic failure: phase graphics
+                // belong to Phase Graphic Overrides / phase filters, not to V/G filters.
+                if (kind == "phase" && !IsFilterableForCategories(doc, catIds, paramId))
+                {
+                    warnings?.Add($"'{node.Param}' cannot be a view-filter rule for these categories in this "
+                        + "Revit — filter skipped. Phase graphics belong to Phase Graphic Overrides (Manage > Phases).");
+                    return null;
+                }
+
+                // DTW-166: "None" means no phase / level — InvalidElementId —
+                // not an element named "None". PHASE_DEMOLISHED notEquals None
+                // ("has been demolished") used to look up a Phase called "None",
+                // find nothing and drop the rule, so phase-demolished was never
+                // created and corp-base referenced a filter that did not exist.
+                if (AecFilterRuleLogic.IsNoneValue(value))
+                {
+                    var lop = op.ToLowerInvariant();
+                    if (lop != "equals" && lop != "notequals")
+                    {
+                        warnings?.Add($"{kind} rule '{op}' against None is meaningless — only equals / notEquals.");
+                        return null;
+                    }
+                    return BuildElementIdRule(paramId, op, ElementId.InvalidElementId, warnings);
+                }
+
                 var resolvedValueId = ResolveValueElementId(doc, kind, value);
                 if (resolvedValueId == null || resolvedValueId == ElementId.InvalidElementId)
                 {
@@ -415,6 +442,26 @@ namespace StingTools.Core.Drawing
 
             warnings?.Add($"BuiltInParameter '{paramName}' not recognised.");
             return ElementId.InvalidElementId;
+        }
+
+        /// <summary>
+        /// Is <paramref name="paramId"/> filterable across all of <paramref name="catIds"/>?
+        /// A failed check is reported as filterable so Create gets the final word.
+        /// </summary>
+        private static bool IsFilterableForCategories(Document doc, ICollection<ElementId> catIds, ElementId paramId)
+        {
+            if (doc == null || catIds == null || catIds.Count == 0 || paramId == null) return true;
+            try
+            {
+                var common = ParameterFilterUtilities.GetFilterableParametersInCommon(doc, catIds);
+                return common == null || common.Contains(paramId);
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("AecFilterFactory.Filterable",
+                    $"AecFilterFactory: filterable-parameter check failed ({ex.Message}) — leaving it to Create.");
+                return true;
+            }
         }
 
         private static ElementId ResolveValueElementId(Document doc, string kind, string value)
