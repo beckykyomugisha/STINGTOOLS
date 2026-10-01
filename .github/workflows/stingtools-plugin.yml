@@ -67,9 +67,13 @@ jobs:
       # DSCH round 2: eleven check scripts under tools/ ran in NO workflow, so each
       # could regress unseen — the state validate_data_schemas.py was in. Each is a
       # ratchet or a zero-tolerance check that passes on main today. Not gated, with
-      # the reason, in docs/WORKLOG_DATA_SCHEMAS.md: validate_dual_owner and
-      # check_qs_nrm2_review (both fail on main — ROADMAP DSCH-6/7) and
-      # validate_declared_but_uncalled (runs over 5 minutes).
+      # the reason, in docs/WORKLOG_DATA_SCHEMAS.md (DSCH-6/7/12 later fixed and
+      # gated below).
+      # DSCH-6: a parameter both a formula and C# write is two owners racing; the
+      # formula back-filled what the engine had deliberately cleared. Ratchet.
+      - name: No new parameter with two owners
+        run: python3 tools/validate_dual_owner.py
+
       - name: Binding scope has not grown
         run: python3 tools/check_binding_scope.py --check
 
