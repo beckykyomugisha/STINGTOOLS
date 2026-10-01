@@ -2,6 +2,40 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGACC-25 discipline profiles: CollisionMode applied, five settings retired, 2026-10-01)
+
+- Decision (architect, TAGACC-25): implement `CollisionMode`; retire `SeqScheme`, `SeqPadWidth`,
+  `SeqIncludeZone`, `DefaultZone`, `DefaultLoc`. SEQ format stays project-wide — the counter rebuild,
+  `MergeSeqSidecar`, `NormaliseHeldSeq` and the validator (`EffectiveSeqPad`) assume one format — and LOC/ZONE
+  fallbacks live only in `STING_TAG_TOKEN_POLICY.json`.
+- `Core/TaggingModels.cs`: the five properties, the interim `IgnoredSettings()` and the unused snake_case
+  `FromDict` parser are gone. New Revit-free `DisciplineProfileKeys`: `Retired` (PascalCase + snake_case,
+  each with its replacement — `SEQ_SCHEME`, `SEQ_INCLUDE_ZONE`, `TAG_FORMAT.num_pad`, the token policy),
+  `Classify` / `Inspect` (Known / Retired / Unknown, with a "did you mean" for e.g. `collision_mode`), and
+  the generic `ResolvePrecedence`.
+- `Core/TagConfig.cs`: before deserialising `DISCIPLINE_PROFILES`, the raw keys of each profile are scanned;
+  every retired or unknown key gets one `StingLog.Warn` naming it (and its replacement) and is kept in
+  `TagConfig.DisciplineProfileKeyFindings`; the remaining fields still load. Newtonsoft used to drop such keys
+  without a word. New `TagConfig.ResolveCollisionMode(explicitChoice, disc)`: explicit dialog choice >
+  `DISCIPLINE_PROFILES[DISC].CollisionMode` > `DEFAULT_COLLISION_MODE` > AutoIncrement.
+- `Tags/TagAndCombineCommand.cs` — the only caller that used `DefaultCollisionMode` as the effective mode —
+  resolves per element from the stored DISC token, else the category's DISC. Paths where the user picks a mode
+  in a dialog are unchanged; SEQ allocation is untouched. (`StingAutoTagger` hard-codes AutoIncrement and never
+  read `DefaultCollisionMode`, though the property's doc comment said it did; the comment is corrected, the
+  behaviour is not changed.)
+- Discipline Profiles report: shows `CollisionMode` when set; "Set but NOT applied" is replaced by
+  "Retired (TAGACC-25): … — use …" and "Unknown key" lines from the raw config, including a profile whose
+  JSON failed to load.
+- Tests (`StingTools.Tags.Tests`): `DisciplineProfileIgnoredSettingsTests` replaced by
+  `DisciplineProfileSettingsReadTests` (every public `DisciplineProfile` property is read outside
+  `TaggingModels.cs`) — **RED** against the old model: 6 unread (`CollisionMode, SeqScheme, DefaultZone,
+  DefaultLoc, SeqIncludeZone, SeqPadWidth`); **GREEN** after. New `DisciplineProfileKeysTests` (22 cases:
+  both spellings of every retired key, known/unknown keys, all four precedence levels, enum binding from
+  JSON). Full Tags suite **5,180 passed, 0 failed**.
+- `dotnet build StingTools/StingTools.csproj -c Debug`: 0 errors, 0 warnings. `check_roadmap_ids`,
+  `check_docs_index`, `check_param_name_targets`, `check_token_policy_wired`: OK.
+- **Not run in Revit.**
+
 #### Completed (TAGFAM-6 measured: the shared-parameter cost is Revit's, 2026-10-01)
 
 - Timed headlessly in Revit 2025 against the `origin/main` build (`pyrevit run

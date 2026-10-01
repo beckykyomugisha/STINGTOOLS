@@ -1630,7 +1630,11 @@ namespace StingTools.UI
                     case "DisciplineProfiles":
                     {
                         var profiles = Core.TagConfig.DisciplineProfiles;
-                        if (profiles == null || profiles.Count == 0)
+                        // TAGACC-25: keys in the raw config that are not applied — retired
+                        // settings and unknown keys — captured by the loader.
+                        var keyFindings = Core.TagConfig.DisciplineProfileKeyFindings
+                            ?? new List<Core.DisciplineProfileKeyFinding>();
+                        if ((profiles == null || profiles.Count == 0) && keyFindings.Count == 0)
                         {
                             var td = new TaskDialog("STING Discipline Profiles");
                             td.MainInstruction = "No discipline profiles configured";
@@ -1641,10 +1645,15 @@ namespace StingTools.UI
                         else
                         {
                             var sb = new System.Text.StringBuilder();
+                            profiles = profiles ?? new Dictionary<string, Core.DisciplineProfile>();
+                            var shown = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                             foreach (var kvp in profiles)
                             {
+                                shown.Add(kvp.Key);
                                 sb.AppendLine($"DISC = {kvp.Key}:");
                                 var p = kvp.Value;
+                                if (p.CollisionMode.HasValue)
+                                    sb.AppendLine($"  Collision mode: {p.CollisionMode.Value} (overrides DEFAULT_COLLISION_MODE = {Core.TagConfig.DefaultCollisionMode} when no dialog asks)");
                                 if (p.AllowedSysCodes?.Count > 0)
                                     sb.AppendLine($"  Allowed SYS: {string.Join(", ", p.AllowedSysCodes)}");
                                 if (p.AllowedFuncCodes?.Count > 0)
@@ -1657,13 +1666,33 @@ namespace StingTools.UI
                                     sb.AppendLine($"  Strict validation: ON");
                                 if (p.RequiredTokens?.Count > 0)
                                     sb.AppendLine($"  Required tokens: {string.Join(", ", p.RequiredTokens)}");
-                                var ignoredSettings = p.IgnoredSettings();
-                                if (ignoredSettings.Count > 0)
-                                    sb.AppendLine($"  ⚠ Set but NOT applied (TAGACC-25): {string.Join(", ", ignoredSettings)}");
+                                AppendKeyFindings(sb, keyFindings, kvp.Key);
                                 sb.AppendLine();
                             }
+                            // A profile whose JSON failed to deserialise still has its raw keys named.
+                            foreach (string disc in keyFindings.Select(f => f.Discipline)
+                                         .Where(d => !shown.Contains(d)).Distinct(StringComparer.OrdinalIgnoreCase))
+                            {
+                                sb.AppendLine($"DISC = {disc} (not loaded):");
+                                AppendKeyFindings(sb, keyFindings, disc);
+                                sb.AppendLine();
+                            }
+
+                            static void AppendKeyFindings(System.Text.StringBuilder b,
+                                List<Core.DisciplineProfileKeyFinding> all, string disc)
+                            {
+                                foreach (var f in all.Where(x => string.Equals(x.Discipline, disc, StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    if (f.Kind == Core.DisciplineProfileKeyKind.Retired)
+                                        b.AppendLine($"  ⚠ Retired (TAGACC-25): {f.Key} has no effect — use {f.Replacement}");
+                                    else
+                                        b.AppendLine($"  ⚠ Unknown key, no effect: {f.Key}"
+                                            + (f.DidYouMean != null ? $" (did you mean {f.DidYouMean}?)" : ""));
+                                }
+                            }
                             var td = new TaskDialog("STING Discipline Profiles");
-                            td.MainInstruction = $"{profiles.Count} discipline profile(s) loaded";
+                            td.MainInstruction = $"{profiles.Count} discipline profile(s) loaded"
+                                + (keyFindings.Count > 0 ? $" — {keyFindings.Count} setting(s) with no effect" : "");
                             td.MainContent = sb.ToString();
                             td.Show();
                         }

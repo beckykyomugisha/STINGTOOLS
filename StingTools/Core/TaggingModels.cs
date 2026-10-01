@@ -9,33 +9,24 @@ using System.Text;
 namespace StingTools.Core
 {
     /// <summary>
-    /// GAP-FIX: Per-discipline tagging profile. Allows each discipline to have different
-    /// collision handling, SEQ scheme, and default token values.
+    /// GAP-FIX: Per-discipline tagging profile — collision handling, token defaults and
+    /// validation constraints for one discipline.
     /// Loaded from DISCIPLINE_PROFILES in project_config.json.
+    ///
+    /// TAGACC-25: SeqScheme, SeqPadWidth, SeqIncludeZone, DefaultZone and DefaultLoc were
+    /// removed. SEQ format is deliberately global (counter rebuild, MergeSeqSidecar,
+    /// NormaliseHeldSeq and the validator via EffectiveSeqPad all assume one format), and
+    /// LOC/ZONE fallbacks belong only in STING_TAG_TOKEN_POLICY.json. A project that still
+    /// carries one of those keys is warned by the loader — see <see cref="DisciplineProfileKeys"/>.
     /// </summary>
     public class DisciplineProfile
     {
-        // ── v1 properties (collision/SEQ/token defaults) ──
-
-        /// <summary>Collision mode override for this discipline (Skip/Overwrite/AutoIncrement). Null = use global.</summary>
+        /// <summary>
+        /// Collision mode for this discipline (Skip/Overwrite/AutoIncrement). Null = use the
+        /// global DEFAULT_COLLISION_MODE. An explicit choice the user made in a dialog always
+        /// wins — see TagConfig.ResolveCollisionMode.
+        /// </summary>
         public TagCollisionMode? CollisionMode { get; set; }
-
-        /// <summary>SEQ scheme override (Numeric/Alpha/ZonePrefix/DiscPrefix). Null = use global.</summary>
-        public SeqScheme? SeqScheme { get; set; }
-
-        /// <summary>Default ZONE code for this discipline. Null = use auto-detect.</summary>
-        public string DefaultZone { get; set; }
-
-        /// <summary>Default LOC code for this discipline. Null = use auto-detect.</summary>
-        public string DefaultLoc { get; set; }
-
-        /// <summary>Whether to include zone in SEQ key for this discipline. Null = use global.</summary>
-        public bool? SeqIncludeZone { get; set; }
-
-        /// <summary>Custom SEQ pad width for this discipline (e.g., 3 for 001, 5 for 00001). Null = use global.</summary>
-        public int? SeqPadWidth { get; set; }
-
-        // ── v2 properties (validation constraints) ──
 
         /// <summary>Default DISC code for this profile (e.g., "M").</summary>
         public string DefaultDisc { get; set; }
@@ -66,73 +57,146 @@ namespace StingTools.Core
         /// WriteTag7All when no per-element override is set.
         /// </summary>
         public int? DefaultParagraphDepth { get; set; }
+    }
+
+    /// <summary>TAGACC-25: what a key found inside one DISCIPLINE_PROFILES entry is.</summary>
+    public enum DisciplineProfileKeyKind
+    {
+        /// <summary>Binds to a <see cref="DisciplineProfile"/> property (Newtonsoft matches case-insensitively).</summary>
+        Known,
+        /// <summary>A setting that was deliberately removed; it has a project-wide replacement.</summary>
+        Retired,
+        /// <summary>Binds to nothing — Newtonsoft drops it without a word.</summary>
+        Unknown,
+    }
+
+    /// <summary>TAGACC-25: a per-discipline setting that was retired, and where its job lives now.</summary>
+    public sealed class RetiredDisciplineProfileKey
+    {
+        public RetiredDisciplineProfileKey(string name, string snakeCase, string replacement)
+        {
+            Name = name; SnakeCase = snakeCase; Replacement = replacement;
+        }
+
+        /// <summary>The PascalCase spelling the DisciplineProfile property had.</summary>
+        public string Name { get; }
+        /// <summary>The snake_case spelling the removed FromDict parser accepted.</summary>
+        public string SnakeCase { get; }
+        /// <summary>The project-wide setting to use instead.</summary>
+        public string Replacement { get; }
+    }
+
+    /// <summary>TAGACC-25: one key in a project's DISCIPLINE_PROFILES that is not applied.</summary>
+    public sealed class DisciplineProfileKeyFinding
+    {
+        public string Discipline { get; set; }
+        /// <summary>The key exactly as the project wrote it.</summary>
+        public string Key { get; set; }
+        public DisciplineProfileKeyKind Kind { get; set; }
+        /// <summary>Retired: the replacement. Unknown: null.</summary>
+        public string Replacement { get; set; }
+        /// <summary>Unknown only: the property the key looks like a misspelling of (e.g. collision_mode → CollisionMode).</summary>
+        public string DidYouMean { get; set; }
+
+        public string Message
+        {
+            get
+            {
+                string where = $"DISCIPLINE_PROFILES.{Discipline}.{Key}";
+                if (Kind == DisciplineProfileKeyKind.Retired)
+                    return $"{where} is retired (TAGACC-25) and has no effect — use {Replacement}.";
+                return DidYouMean != null
+                    ? $"{where} is not a discipline-profile setting and has no effect — did you mean \"{DidYouMean}\"?"
+                    : $"{where} is not a discipline-profile setting and has no effect.";
+            }
+        }
+    }
+
+    /// <summary>
+    /// TAGACC-25: classifies the keys of a raw DISCIPLINE_PROFILES entry so a setting that is
+    /// retired or misspelt is warned about instead of being dropped by the deserialiser in
+    /// silence. Revit-free; unit-tested in StingTools.Tags.Tests.
+    /// </summary>
+    public static class DisciplineProfileKeys
+    {
+        /// <summary>
+        /// The retired per-discipline settings. SEQ format must stay project-wide — the counter
+        /// rebuild, MergeSeqSidecar, NormaliseHeldSeq and the validator (EffectiveSeqPad) all
+        /// assume one format — and LOC/ZONE fallbacks belong only in the token policy.
+        /// </summary>
+        public static readonly IReadOnlyList<RetiredDisciplineProfileKey> Retired = new[]
+        {
+            new RetiredDisciplineProfileKey("SeqScheme", "seq_scheme",
+                "the project-wide SEQ_SCHEME key in project_config.json"),
+            new RetiredDisciplineProfileKey("SeqPadWidth", "seq_pad_width",
+                "the project-wide TAG_FORMAT.num_pad in project_config.json"),
+            new RetiredDisciplineProfileKey("SeqIncludeZone", "seq_include_zone",
+                "the project-wide SEQ_INCLUDE_ZONE key in project_config.json"),
+            new RetiredDisciplineProfileKey("DefaultZone", "default_zone",
+                "the ZONE fallback in STING_TAG_TOKEN_POLICY.json (project override: _BIM_COORD/tag_token_policy.json)"),
+            new RetiredDisciplineProfileKey("DefaultLoc", "default_loc",
+                "the LOC fallback in STING_TAG_TOKEN_POLICY.json (project override: _BIM_COORD/tag_token_policy.json)"),
+        };
+
+        /// <summary>The settings a DISCIPLINE_PROFILES entry can carry — DisciplineProfile's public properties.</summary>
+        public static IReadOnlyCollection<string> KnownSettings { get; } =
+            typeof(DisciplineProfile).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+                .Select(p => p.Name).ToList();
+
+        /// <summary>The retired entry a key names, in either spelling and any case; null when it is not retired.</summary>
+        public static RetiredDisciplineProfileKey FindRetired(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key)) return null;
+            string k = key.Trim();
+            return Retired.FirstOrDefault(r =>
+                string.Equals(r.Name, k, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(r.SnakeCase, k, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>Known if it binds to a property, Retired if it names a retired setting, else Unknown.</summary>
+        public static DisciplineProfileKeyKind Classify(string key)
+        {
+            if (FindRetired(key) != null) return DisciplineProfileKeyKind.Retired;
+            if (!string.IsNullOrWhiteSpace(key)
+                && KnownSettings.Any(n => string.Equals(n, key.Trim(), StringComparison.OrdinalIgnoreCase)))
+                return DisciplineProfileKeyKind.Known;
+            return DisciplineProfileKeyKind.Unknown;
+        }
 
         /// <summary>
-        /// TAGACC-25: the settings on this profile that the tagging pipeline does not apply.
-        /// They load, but nothing reads them — a project that sets one gets no effect. Until
-        /// they are implemented (a decision: they change how tokens and SEQ keys are built),
-        /// the loader and the Discipline Profiles report name them instead of staying silent.
+        /// Every key in one profile that is not applied — retired or unknown — in the order
+        /// the project wrote them. Known keys produce nothing.
         /// </summary>
-        public List<string> IgnoredSettings()
+        public static List<DisciplineProfileKeyFinding> Inspect(string discipline, IEnumerable<string> keys)
         {
-            var names = new List<string>();
-            if (CollisionMode.HasValue) names.Add(nameof(CollisionMode));
-            if (SeqScheme.HasValue) names.Add(nameof(SeqScheme));
-            if (!string.IsNullOrEmpty(DefaultZone)) names.Add(nameof(DefaultZone));
-            if (!string.IsNullOrEmpty(DefaultLoc)) names.Add(nameof(DefaultLoc));
-            if (SeqIncludeZone.HasValue) names.Add(nameof(SeqIncludeZone));
-            if (SeqPadWidth.HasValue) names.Add(nameof(SeqPadWidth));
-            return names;
+            var findings = new List<DisciplineProfileKeyFinding>();
+            if (keys == null) return findings;
+            foreach (string key in keys)
+            {
+                var kind = Classify(key);
+                if (kind == DisciplineProfileKeyKind.Known) continue;
+                var f = new DisciplineProfileKeyFinding { Discipline = discipline, Key = key, Kind = kind };
+                if (kind == DisciplineProfileKeyKind.Retired)
+                    f.Replacement = FindRetired(key).Replacement;
+                else
+                {
+                    string squashed = (key ?? "").Replace("_", "").Replace("-", "").Trim();
+                    f.DidYouMean = KnownSettings.FirstOrDefault(n =>
+                        string.Equals(n, squashed, StringComparison.OrdinalIgnoreCase));
+                }
+                findings.Add(f);
+            }
+            return findings;
         }
 
-        /// <summary>Parse a DisciplineProfile from a JSON dictionary.</summary>
-        public static DisciplineProfile FromDict(Dictionary<string, object> dict)
-        {
-            var p = new DisciplineProfile();
-            if (dict == null) return p;
-
-            if (dict.TryGetValue("collision_mode", out object cm) && cm is string cms)
-            {
-                if (Enum.TryParse<TagCollisionMode>(cms, true, out var parsed)) p.CollisionMode = parsed;
-            }
-            if (dict.TryGetValue("seq_scheme", out object ss) && ss is string sss)
-            {
-                if (Enum.TryParse<SeqScheme>(sss, true, out var parsed)) p.SeqScheme = parsed;
-            }
-            if (dict.TryGetValue("default_zone", out object dz) && dz is string dzs && !string.IsNullOrWhiteSpace(dzs))
-                p.DefaultZone = dzs;
-            if (dict.TryGetValue("default_loc", out object dl) && dl is string dls && !string.IsNullOrWhiteSpace(dls))
-                p.DefaultLoc = dls;
-            if (dict.TryGetValue("default_status", out object ds) && ds is string dss && !string.IsNullOrWhiteSpace(dss))
-                p.DefaultStatus = dss;
-            if (dict.TryGetValue("seq_include_zone", out object siz))
-            {
-                if (siz is bool b) p.SeqIncludeZone = b;
-                else if (siz is string sizs) p.SeqIncludeZone = sizs.Equals("true", StringComparison.OrdinalIgnoreCase);
-            }
-            if (dict.TryGetValue("seq_pad_width", out object spw))
-            {
-                if (spw is long l) p.SeqPadWidth = (int)l;
-                else if (int.TryParse(spw?.ToString(), out int iv)) p.SeqPadWidth = iv;
-            }
-            // v2 properties from dict
-            if (dict.TryGetValue("default_disc", out object dd) && dd is string dds && !string.IsNullOrWhiteSpace(dds))
-                p.DefaultDisc = dds;
-            if (dict.TryGetValue("default_prod", out object dprod) && dprod is string dprods && !string.IsNullOrWhiteSpace(dprods))
-                p.DefaultProd = dprods;
-            if (dict.TryGetValue("validation_strictness", out object vs))
-            {
-                if (vs is bool vsb) p.ValidationStrictness = vsb;
-                else if (vs is string vss) p.ValidationStrictness = vss.Equals("true", StringComparison.OrdinalIgnoreCase);
-            }
-            if (dict.TryGetValue("default_paragraph_depth", out object dpd))
-            {
-                if (dpd is long dpdl && dpdl >= 1 && dpdl <= 10) p.DefaultParagraphDepth = (int)dpdl;
-                else if (int.TryParse(dpd?.ToString(), out int dpdi) && dpdi >= 1 && dpdi <= 10)
-                    p.DefaultParagraphDepth = dpdi;
-            }
-            return p;
-        }
+        /// <summary>
+        /// TAGACC-25 precedence for a per-discipline setting: an explicit choice (the user picked
+        /// it in a dialog) &gt; the discipline profile &gt; the project-wide setting &gt; the
+        /// built-in fallback. Generic so it carries no dependency on the setting's type.
+        /// </summary>
+        public static T ResolvePrecedence<T>(T? explicitChoice, T? profileValue, T? projectValue, T fallback)
+            where T : struct
+            => explicitChoice ?? profileValue ?? projectValue ?? fallback;
     }
 
     /// <summary>
