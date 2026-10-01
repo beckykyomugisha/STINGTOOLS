@@ -180,5 +180,128 @@ namespace StingTools.Tags.Tests
                 Assert.Equal("DEMOLISH", d);
             }
         }
+            // ── DSCH-38: every row names a property that exists ──────────────────
+        //
+        // Pset_ / Qto_ are reserved for sets the IFC specification declares (IFC 4.3
+        // IfcPropertySet). A row naming a Pset_* / Qto_* property buildingSMART does not
+        // define writes into a reserved namespace and is read by nothing; a row naming a
+        // Pset_Sting* property the STING contract does not define is the same failure in
+        // our own namespace. Both are now build failures, not 'verify' notes.
+
+        private static string RepoFile(params string[] parts)
+        {
+            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            while (dir != null && !File.Exists(Path.Combine(new[] { dir.FullName }.Concat(parts).ToArray())))
+                dir = dir.Parent;
+            Assert.True(dir != null, "Could not locate " + string.Join("/", parts));
+            return Path.Combine(new[] { dir.FullName }.Concat(parts).ToArray());
+        }
+
+        /// <summary>schema -> set name -> property names, from the generated index
+        /// (tools/enums/bsi_pset_index.py, buildingSMART PSD via ifcopenshell).</summary>
+        private static System.Collections.Generic.Dictionary<string, System.Collections.Generic.Dictionary<string, System.Collections.Generic.HashSet<string>>> BsiIndex()
+        {
+            var doc = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(
+                RepoFile("shared", "ifc", "mappings", "BUILDINGSMART_PSET_INDEX.json")));
+            var idx = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.Dictionary<string, System.Collections.Generic.HashSet<string>>>();
+            foreach (var s in (Newtonsoft.Json.Linq.JArray)doc["sets"])
+            {
+                var schema = (string)s["schema"];
+                if (!idx.TryGetValue(schema, out var sets)) idx[schema] = sets = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.HashSet<string>>();
+                sets[(string)s["name"]] = new System.Collections.Generic.HashSet<string>(s["properties"].Select(p => (string)p));
+            }
+            return idx;
+        }
+
+        private static bool IsReservedTarget(string pset) =>
+            (pset.StartsWith("Pset_", StringComparison.Ordinal) || pset.StartsWith("Qto_", StringComparison.Ordinal))
+            && !pset.StartsWith("Pset_Sting", StringComparison.Ordinal);
+
+        /// <summary>Rows whose Pset_* / Qto_* target is not a buildingSMART property in
+        /// both IFC4 and IFC4X3 (the map does not say which schema it writes).</summary>
+        private static System.Collections.Generic.List<string> NonBsiTargets(System.Collections.Generic.IEnumerable<IfcPsetEntry> rows)
+        {
+            var idx = BsiIndex();
+            var bad = new System.Collections.Generic.List<string>();
+            foreach (var r in rows.Where(r => IsReservedTarget(r.IfcPsetName)))
+                foreach (var schema in new[] { "IFC4", "IFC4X3" })
+                    if (!idx[schema].TryGetValue(r.IfcPsetName, out var props) || !props.Contains(r.IfcPropertyName))
+                        bad.Add($"{r.StingParam} -> {r.IfcPsetName}.{r.IfcPropertyName} is not a buildingSMART {schema} property");
+            return bad;
+        }
+
+        [Fact]
+        public void BsiIndex_IsPopulated_ForBothSchemas()
+        {
+            // Guards the check below against passing over an empty index.
+            var idx = BsiIndex();
+            Assert.True(idx["IFC4"].Count > 400, $"IFC4 sets: {idx["IFC4"].Count}");
+            Assert.True(idx["IFC4X3"].Count > 600, $"IFC4X3 sets: {idx["IFC4X3"].Count}");
+            Assert.Contains("Status", idx["IFC4"]["Pset_WallCommon"]);
+            Assert.Contains("NetWeight", idx["IFC4X3"]["Qto_BeamBaseQuantities"]);
+        }
+
+        [Fact]
+        public void NonBsiTargets_FlagsAnUnknownSetAndAnUnknownProperty()
+        {
+            var rows = IfcPsetMapping.Parse(@"[
+              {""sting_param"":""A"",""pset_name"":""Pset_ConstructionOperation"",""property_name"":""Revision""},
+              {""sting_param"":""B"",""pset_name"":""Pset_WindowCommon"",""property_name"":""FrameMaterial""},
+              {""sting_param"":""C"",""pset_name"":""Qto_BeamBaseQuantities"",""property_name"":""Weight""},
+              {""sting_param"":""D"",""pset_name"":""Pset_WallCommon"",""property_name"":""Status""},
+              {""sting_param"":""E"",""pset_name"":""AC_Pset_ElementID"",""property_name"":""ID""},
+              {""sting_param"":""F"",""pset_name"":""Pset_StingTags"",""property_name"":""Discipline""}
+            ]");
+            var bad = NonBsiTargets(rows);
+            Assert.Equal(6, bad.Count);   // A, B, C, each in IFC4 and IFC4X3
+            Assert.All(new[] { "A ->", "B ->", "C ->" }, p => Assert.Contains(bad, b => b.StartsWith(p)));
+            Assert.DoesNotContain(bad, b => b.StartsWith("D ->") || b.StartsWith("E ->") || b.StartsWith("F ->"));
+        }
+
+        [Fact]
+        public void SharedMap_NoRowTargetsAPsetOrQtoPropertyThatBuildingSmartDoesNotDefine()
+        {
+            var bad = NonBsiTargets(IfcPsetMapping.Parse(File.ReadAllText(SharedMapPath())));
+            Assert.True(bad.Count == 0, string.Join("\n", bad));
+        }
+
+        /// <summary>Pset_Sting* name -> property name -> DataType, from shared/ifc/psets.</summary>
+        private static System.Collections.Generic.Dictionary<string, System.Collections.Generic.Dictionary<string, string>> StingContract()
+        {
+            System.Xml.Linq.XNamespace ns = "https://stingtools.io/schema/ifc/psets/v1";
+            var dir = Path.GetDirectoryName(RepoFile("shared", "ifc", "psets", "_manifest.json"));
+            var map = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.Dictionary<string, string>>();
+            foreach (var f in Directory.GetFiles(dir, "Pset_Sting*.xml"))
+            {
+                var root = System.Xml.Linq.XDocument.Load(f).Root;
+                var name = (string)root.Element(ns + "Identity").Element(ns + "Name");
+                map[name] = root.Element(ns + "Properties").Elements(ns + "Property")
+                    .ToDictionary(p => (string)p.Attribute("name"), p => ((string)p.Element(ns + "DataType") ?? "IfcLabel").Trim());
+            }
+            return map;
+        }
+
+        [Fact]
+        public void SharedMap_EveryPset_StingRowNamesAPropertyOfTheStingContract_WithItsDataType()
+        {
+            var contract = StingContract();
+            Assert.True(contract.Count >= 8, $"Pset_Sting* templates found: {contract.Count}");
+            var raw = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(SharedMapPath()));
+            var bad = new System.Collections.Generic.List<string>();
+            int checkedRows = 0;
+            foreach (var r in raw)
+            {
+                var pset = (string)r["pset_name"] ?? "";
+                if (!pset.StartsWith("Pset_Sting", StringComparison.Ordinal)) continue;
+                checkedRows++;
+                var prop = (string)r["property_name"];
+                if (!contract.TryGetValue(pset, out var props)) { bad.Add($"{r["sting_param"]}: {pset} has no shared/ifc/psets/{pset}.xml"); continue; }
+                if (!props.TryGetValue(prop, out var dt)) { bad.Add($"{r["sting_param"]}: {pset}.{prop} is not in {pset}.xml"); continue; }
+                var rowType = (string)r["ifc_data_type"];
+                if (rowType != null && rowType != dt) bad.Add($"{r["sting_param"]}: {pset}.{prop} is {rowType} in the map but {dt} in {pset}.xml");
+            }
+            Assert.True(checkedRows >= 10, $"Pset_Sting* rows checked: {checkedRows}");
+            Assert.True(bad.Count == 0, string.Join("\n", bad));
+        }
     }
 }

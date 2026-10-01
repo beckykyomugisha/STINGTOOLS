@@ -160,4 +160,71 @@ public class IfcPsetMappingTableTests
             Assert.False(r.TryFromIfc("NOTKNOWN", out _, out _));
         }
     }
+
+    // ── DSCH-38: no row reads or writes a property buildingSMART does not define ──
+    //
+    // Pset_ / Qto_ are reserved for sets the IFC specification declares (IFC 4.3
+    // IfcPropertySet). Ingest looks a row up by "Pset.Property"; a row naming a
+    // Pset_* / Qto_* property that buildingSMART never defined can only match a file
+    // that broke the same rule, so it reads nothing from a conforming model.
+
+    private static Dictionary<string, Dictionary<string, HashSet<string>>> BsiIndex()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        string? path = null;
+        while (dir != null && !File.Exists(path = Path.Combine(dir.FullName, "shared", "ifc", "mappings", "BUILDINGSMART_PSET_INDEX.json")))
+            dir = dir.Parent;
+        Assert.True(dir != null, "Could not locate shared/ifc/mappings/BUILDINGSMART_PSET_INDEX.json");
+
+        using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path!));
+        var idx = new Dictionary<string, Dictionary<string, HashSet<string>>>();
+        foreach (var s in doc.RootElement.GetProperty("sets").EnumerateArray())
+        {
+            var schema = s.GetProperty("schema").GetString()!;
+            if (!idx.TryGetValue(schema, out var sets)) idx[schema] = sets = new Dictionary<string, HashSet<string>>();
+            sets[s.GetProperty("name").GetString()!] =
+                s.GetProperty("properties").EnumerateArray().Select(p => p.GetString()!).ToHashSet();
+        }
+        return idx;
+    }
+
+    private static List<string> NonBsiTargets(IEnumerable<IfcPsetMappingTable.Entry> rows)
+    {
+        var idx = BsiIndex();
+        var bad = new List<string>();
+        foreach (var r in rows.Where(r =>
+                     (r.PsetName.StartsWith("Pset_", StringComparison.Ordinal) || r.PsetName.StartsWith("Qto_", StringComparison.Ordinal))
+                     && !r.PsetName.StartsWith("Pset_Sting", StringComparison.Ordinal)))
+            foreach (var schema in new[] { "IFC4", "IFC4X3" })
+                if (!idx[schema].TryGetValue(r.PsetName, out var props) || !props.Contains(r.PropertyName))
+                    bad.Add($"{r.StingParam} -> {r.PsetName}.{r.PropertyName} is not a buildingSMART {schema} property");
+        return bad;
+    }
+
+    [Fact]
+    public void NonBsiTargets_FlagsInventedSetsAndProperties_AndPassesRealOnes()
+    {
+        var idx = BsiIndex();
+        Assert.True(idx["IFC4"].Count > 400 && idx["IFC4X3"].Count > 600, "buildingSMART index is not populated");
+
+        const string json = """
+        [
+          {"sting_param":"A","pset_name":"Pset_LightningProtector","property_name":"MeshSize","direction":"both"},
+          {"sting_param":"B","pset_name":"Pset_SpaceCommon","property_name":"FinishFloor","direction":"both"},
+          {"sting_param":"C","pset_name":"Pset_SpaceCoveringRequirements","property_name":"FloorCovering","direction":"both"},
+          {"sting_param":"D","pset_name":"Pset_StingLightningProtection","property_name":"MeshSize","direction":"both"},
+          {"sting_param":"E","pset_name":"AC_Pset_RenovationInfo","property_name":"RenovationStatus","direction":"import"}
+        ]
+        """;
+        var bad = NonBsiTargets(IfcPsetMappingTable.Parse(json));
+        Assert.Equal(4, bad.Count);   // A and B, each in IFC4 and IFC4X3
+        Assert.All(bad, b => Assert.True(b.StartsWith("A ->") || b.StartsWith("B ->"), b));
+    }
+
+    [Fact]
+    public void ShippedMap_NoRowTargetsAPsetOrQtoPropertyThatBuildingSmartDoesNotDefine()
+    {
+        var bad = NonBsiTargets(Shipped());
+        Assert.True(bad.Count == 0, string.Join("\n", bad));
+    }
 }
