@@ -2,7 +2,7 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-#### Completed (DRAW-9 two in-Revit smoke failures: curved walls named, provenance stamps that cannot be written reported, 2026-10-01)
+#### Completed (DRAW-9 in-Revit smoke failures: curved walls named, failed provenance stamps reported, deleted pipe's notes removed, 2026-10-01)
 
 Verified by unit tests only. The in-Revit smoke rerun (`tools/run_revit_smoke.ps1`) has not been done;
 DRAW-9 stays open in the ROADMAP until it is.
@@ -30,9 +30,24 @@ DRAW-9 stays open in the ROADMAP until it is.
     "N of M annotation(s) were placed but could not be provenance-stamped (reason)…", naming the required
     VendorId when Revit's refusal is the vendor lock. The orphan warning no longer claims the notes
     predate stamping; it says they carry no stamp, for either reason.
-- **Tests.** `StingTools.Tags.Tests/AnnotationSmokeFixTests.cs` (11 cases, then 12): RED against helpers
-  that encoded the pre-fix behaviour (no warning) — 9 failed, 2 passed; GREEN after — 12 passed. One case
-  holds the VendorId in the warning to `StingTools.addin` and `StingSchemaBuilder.VendorId`.
+- **Smoke rerun on 3bf1a78b6 (Revit 2025):** the wall-length test and the moved-pipe step now pass, so the
+  harness does write stamps. The drainage test then failed one step later: "deleted pipe: its IL/gradient
+  notes were left behind. warnings: []".
+- **Deleted pipe's notes left behind.** Root cause: `DrainageInvertDimensioner.Run` returned as soon as the
+  view had no drainage pipe (`if (pipes.Count == 0) return;`). The fixture has one drain, so once it was
+  deleted the note pass never ran. The pass holds the cleanup (a stamped note whose pipe no longer exists
+  is removed), so that cleanup was unreachable, and nothing was warned. `Run` now reads the stamped notes first
+  and runs the pass when the view has drainage pipes OR stamped notes (`InvertNoteRules.NeedsPass`). The
+  removal rule moved, unchanged, to `InvertNoteRules.KeysToRemove` (Revit-free). A stale note that cannot
+  be deleted is now a warning, not only a log line.
+- **Tests.** `StingTools.Tags.Tests/AnnotationSmokeFixTests.cs`:
+  - First round: RED 9 failed / 2 passed of 11, measured against helpers that encoded the pre-fix
+    behaviour (no warning). GREEN 12 passed. One case checks that the VendorId in the warning matches
+    `StingTools.addin` and `StingSchemaBuilder.VendorId`.
+  - Deleted pipe: RED 1 failed / 17 passed of 18, with the gate encoding the old "no pipes, no pass"
+    behaviour. GREEN 18/18. The four `KeysToRemove` cases passed from the start: they pin the existing
+    removal rule, which was correct but never reached.
+  - Full `StingTools.Tags.Tests`: 5,176 passing.
 - Not changed: the other stamp sites (`AnnotationRunner` grid/level chains and match-line frames,
   `MatchLineEngine` captions, `MEPDimensioner`) still only log a failed stamp — listed under DRAW-9.
 

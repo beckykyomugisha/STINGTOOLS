@@ -114,6 +114,74 @@ namespace StingTools.Tags.Tests
             Assert.Contains($"VendorId = \"{AnnotationProvenance.SchemaVendorId}\"", builder);
         }
 
+        // ── Drainage notes of a deleted pipe are removed ──────────────────
+
+        [Fact]
+        public void Pass_runs_when_the_last_drain_is_gone_but_its_notes_remain()
+        {
+            // The smoke fixture's only drain was deleted: no drainage pipe left in
+            // the view, three stamped notes still in it. The pass used to return.
+            Assert.True(InvertNoteRules.NeedsPass(drainagePipesInView: 0, stampedNotesInView: 3));
+        }
+
+        [Fact]
+        public void Pass_runs_when_there_are_pipes_and_skips_an_empty_view()
+        {
+            Assert.True(InvertNoteRules.NeedsPass(1, 0));
+            Assert.False(InvertNoteRules.NeedsPass(0, 0));
+        }
+
+        [Fact]
+        public void Notes_of_a_deleted_pipe_are_removed_even_when_no_pipe_was_processed()
+        {
+            var keys = new[]
+            {
+                AnnotationProvenance.Key("drain-1", "US"),
+                AnnotationProvenance.Key("drain-1", "DS"),
+                AnnotationProvenance.Key("drain-1", "GRAD"),
+            };
+            var remove = InvertNoteRules.KeysToRemove(keys,
+                new System.Collections.Generic.HashSet<string>(),
+                new System.Collections.Generic.HashSet<string>(),
+                host => false);
+            Assert.Equal(keys.OrderBy(k => k), remove.OrderBy(k => k));
+        }
+
+        [Fact]
+        public void Notes_of_an_existing_pipe_not_in_this_run_are_left_alone()
+        {
+            var keys = new[] { AnnotationProvenance.Key("drain-2", "US") };
+            var remove = InvertNoteRules.KeysToRemove(keys,
+                new System.Collections.Generic.HashSet<string>(),
+                new System.Collections.Generic.HashSet<string>(),
+                host => true);
+            Assert.Empty(remove);
+        }
+
+        [Fact]
+        public void A_pipe_made_level_loses_its_downstream_il_and_gradient_only()
+        {
+            var us = AnnotationProvenance.Key("drain-3", "US");
+            var ds = AnnotationProvenance.Key("drain-3", "DS");
+            var grad = AnnotationProvenance.Key("drain-3", "GRAD");
+            var remove = InvertNoteRules.KeysToRemove(new[] { us, ds, grad },
+                new System.Collections.Generic.HashSet<string> { us },
+                new System.Collections.Generic.HashSet<string> { "drain-3" },
+                host => true);
+            Assert.Equal(new[] { ds, grad }.OrderBy(k => k), remove.OrderBy(k => k));
+        }
+
+        [Fact]
+        public void A_note_written_this_run_is_never_removed()
+        {
+            var us = AnnotationProvenance.Key("drain-4", "US");
+            var remove = InvertNoteRules.KeysToRemove(new[] { us },
+                new System.Collections.Generic.HashSet<string> { us },
+                new System.Collections.Generic.HashSet<string> { "drain-4" },
+                host => false);
+            Assert.Empty(remove);
+        }
+
         [Fact]
         public void A_failure_without_a_reason_still_warns()
         {

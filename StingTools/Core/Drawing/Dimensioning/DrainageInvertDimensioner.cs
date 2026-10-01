@@ -46,9 +46,15 @@ namespace StingTools.Core.Drawing.Dimensioning
             }
 
             var pipes = CollectDrainagePipes(doc, view, rule);
-            if (pipes.Count == 0) return;
+            // Our stamped notes, wherever they are. Read BEFORE deciding whether to
+            // run: a view whose last drain was deleted has no pipe to annotate but
+            // still holds that drain's notes, and only this pass removes them. It
+            // used to return on "no pipes" and leave them behind (DRAW-9).
+            var stamped = StingAnnotationProvenanceSchema.Index(doc, view, typeof(TextNote), AnnotationProvenance.DrainageIl);
+            int stampedNotes = stamped.Values.Sum(l => l.Count);
+            if (!InvertNoteRules.NeedsPass(pipes.Count, stampedNotes)) return;
 
-            PlaceInvertNotes(doc, view, pipes, result);
+            PlaceInvertNotes(doc, view, pipes, stamped, result);
         }
 
         private static List<Pipe> CollectDrainagePipes(Document doc, View view, AutoAnnotationRule rule)
@@ -119,11 +125,12 @@ namespace StingTools.Core.Drawing.Dimensioning
         // are matched by text and position, adopted when they match, and only
         // reported when they do not — they cannot be proven ours.
 
-        private static void PlaceInvertNotes(Document doc, View view, List<Pipe> pipes, AnnotationResult result)
+        private static void PlaceInvertNotes(Document doc, View view, List<Pipe> pipes,
+            Dictionary<string, List<Element>> stamped, AnnotationResult result)
         {
             var opts = IlReportingOptions.Default;
             var noteType = doc.GetDefaultElementTypeId(ElementTypeGroup.TextNoteType);
-            if (noteType == ElementId.InvalidElementId)
+            if (noteType == ElementId.InvalidElementId && pipes.Count > 0)
             {
                 result.Warnings.Add("AutoSpotInvert: project has no default text note type — no invert levels placed.");
                 return;
@@ -140,7 +147,6 @@ namespace StingTools.Core.Drawing.Dimensioning
             // wherever they are. UNSTAMPED ones (placed before stamping existed)
             // can only be matched by text shape and proximity, and are adopted —
             // stamped — the first time they match.
-            var stamped = StingAnnotationProvenanceSchema.Index(doc, view, typeof(TextNote), AnnotationProvenance.DrainageIl);
             var stampedIds = new HashSet<ElementId>(stamped.Values.SelectMany(l => l).Select(e => e.Id));
             var legacy = new List<TextNote>();
             try
@@ -223,20 +229,19 @@ namespace StingTools.Core.Drawing.Dimensioning
             // be cleaned up exactly: the pipe is gone, or it no longer has that end
             // (a pipe now level has no downstream IL and no gradient). A pipe that
             // simply was not in this run (filtered out, no invert) is left alone.
-            int removed = 0;
-            foreach (var kv in stamped)
-            {
-                if (writtenKeys.Contains(kv.Key)) continue;
-                var pipeUid = AnnotationProvenance.HostOf(kv.Key);
-                bool pipeGone = doc.GetElement(pipeUid) == null;
-                if (!pipeGone && !processedPipes.Contains(pipeUid)) continue;
-                foreach (var el in kv.Value) { if (DeleteQuietly(doc, el.Id)) removed++; }
-            }
+            int removed = 0, notRemoved = 0;
+            var stale = InvertNoteRules.KeysToRemove(stamped.Keys, writtenKeys, processedPipes,
+                uid => doc.GetElement(uid) != null);
+            foreach (var key in stale)
+                foreach (var el in stamped[key]) { if (DeleteQuietly(doc, el.Id)) removed++; else notRemoved++; }
 
             if (updated > 0 || moved > 0)
                 result.Warnings.Add($"AutoSpotInvert: {updated} invert/gradient note(s) updated and {moved} moved to follow the model.");
             if (removed > 0)
                 result.Warnings.Add($"AutoSpotInvert: {removed} note(s) removed whose pipe, or pipe end, no longer exists.");
+            if (notRemoved > 0)
+                result.Warnings.Add($"AutoSpotInvert: {notRemoved} stamped note(s) whose pipe, or pipe end, no longer exists could not be removed " +
+                                    $"from '{view.Name}' (see log) — delete them by hand.");
             var stampWarning = stamps.Warning("AutoSpotInvert");
             if (stampWarning != null) { result.Warnings.Add(stampWarning); StingLog.Warn(stampWarning); }
             int orphans = legacy.Count(tn => !claimed.Contains(tn.Id));
