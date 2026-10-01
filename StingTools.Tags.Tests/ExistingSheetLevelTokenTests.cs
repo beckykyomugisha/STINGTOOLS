@@ -100,7 +100,10 @@ namespace StingTools.Tags.Tests
         public void Heal_builds_lvl_through_the_policy_rule()
         {
             var src = System.IO.File.ReadAllText(System.IO.Path.Combine(RepoRoot(), "StingTools", "Core", "Drawing", "DrawingTokenContext.cs"));
-            Assert.Contains("SheetNumberPolicy.ExistingSheetLevelToken", src);
+            // DTW-210: through the sheet's own number shape, which applies the policy rule.
+            Assert.Contains("SheetNumberEngine.ExistingSheetLevel(", src);
+            var engine = System.IO.File.ReadAllText(System.IO.Path.Combine(RepoRoot(), "StingTools", "Core", "Drawing", "SheetNumberEngine.cs"));
+            Assert.Contains("SheetNumberPolicy.ExistingSheetLevelToken", engine);
         }
 
         private static string RepoRoot()
