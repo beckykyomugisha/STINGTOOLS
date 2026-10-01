@@ -211,6 +211,29 @@ namespace StingTools.Tags.Tests
         public void A_level_on_the_box_edge_counts_as_reached()
             => Assert.Null(ProductionEdgeDecisions.BoxMissesLevel("b", "L", 0.0, 10.0, 10.0));
 
+        // ── DTW-208 ───────────────────────────────────────────────────
+
+        private static readonly string[] RevitFilters = { "Show All", "Show Complete", "Show New", "Show Previous + Demo" };
+
+        [Fact]
+        public void A_new_view_on_show_all_moves_to_show_complete()
+            => Assert.Equal("Show Complete", ProductionEdgeDecisions.ProductionPhaseFilter(null, "Show All", false, RevitFilters));
+
+        [Fact]
+        public void The_packs_phase_filter_wins_when_the_project_has_it()
+            => Assert.Equal("Show New", ProductionEdgeDecisions.ProductionPhaseFilter("show new", "Show All", false, RevitFilters));
+
+        [Fact]
+        public void A_missing_pack_filter_falls_back_to_the_default_rule()
+            => Assert.Equal("Show Complete", ProductionEdgeDecisions.ProductionPhaseFilter("Show Demo + New", "Show All", false, RevitFilters));
+
+        [Theory]
+        [InlineData(null, "Show All", true)]          // the template controls it
+        [InlineData(null, "Show New", false)]         // a deliberate filter is left alone
+        [InlineData("Show Complete", "Show Complete", false)]  // already there
+        public void Otherwise_the_filter_is_left(string pack, string current, bool templateControls)
+            => Assert.Null(ProductionEdgeDecisions.ProductionPhaseFilter(pack, current, templateControls, RevitFilters));
+
         // ── DTW-199 ───────────────────────────────────────────────────
 
         [Fact]

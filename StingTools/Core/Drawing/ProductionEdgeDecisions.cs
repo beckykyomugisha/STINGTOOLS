@@ -184,6 +184,32 @@ namespace StingTools.Core.Drawing
             => $"'{viewName}' could not be cropped to scope box '{boxName}' (the box was not accepted as its crop); "
              + "an uncropped whole-floor view is not kept for an area sheet.";
 
+        // ── DTW-208: a produced view's phase filter ────────────────────
+
+        /// <summary>Revit's own phase-filter names (English). A localised project that
+        /// names them differently gets no default, only the pack's explicit filter.</summary>
+        internal const string ShowAll = "Show All", ShowComplete = "Show Complete";
+
+        /// <summary>
+        /// The phase filter a NEW produced view should take, or null to leave it. The view
+        /// style pack's <c>phaseFilter</c> wins when the project has it; otherwise a view on
+        /// Revit's "Show All" (demolished elements shown, and tagged by the annotation pass)
+        /// moves to "Show Complete". Never when the view's template controls the filter
+        /// (<paramref name="templateControls"/>) — the template is the project's choice.
+        /// </summary>
+        internal static string ProductionPhaseFilter(string packPhaseFilter, string currentFilter, bool templateControls,
+            IEnumerable<string> available)
+        {
+            if (templateControls) return null;
+            var names = new HashSet<string>(available ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+            string pick = null;
+            if (!string.IsNullOrWhiteSpace(packPhaseFilter) && names.Contains(packPhaseFilter.Trim()))
+                pick = names.First(n => string.Equals(n, packPhaseFilter.Trim(), StringComparison.OrdinalIgnoreCase));
+            else if (string.Equals(currentFilter, ShowAll, StringComparison.OrdinalIgnoreCase) && names.Contains(ShowComplete))
+                pick = names.First(n => string.Equals(n, ShowComplete, StringComparison.OrdinalIgnoreCase));
+            return pick != null && !string.Equals(pick, currentFilter, StringComparison.OrdinalIgnoreCase) ? pick : null;
+        }
+
         // ── DTW-199: a view moved to another sheet stays there ─────────
 
         /// <summary>The report line for a view kept on the sheet someone moved it to.</summary>

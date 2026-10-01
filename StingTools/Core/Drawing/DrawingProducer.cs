@@ -899,6 +899,11 @@ namespace StingTools.Core.Drawing
 
                 try { view.Name = MakeUniqueViewName(doc, viewName, view.Id, result); }
                 catch (Exception ex) { result.Warnings.Add($"Naming view '{viewName}': {ex.Message} — it keeps Revit's default name."); }
+                // DTW-208: new views only, and before the presentation, so the annotation
+                // pass already sees the production phase filter (a template that controls
+                // it still wins).
+                ApplyProductionPhase(doc, view, dt, result);
+
                 var applyOpts = new DrawingTypePresentation.ApplyOptions
                 {
                     // DTW-28: the dialog's per-part annotation boxes (tags / dims /
@@ -937,6 +942,53 @@ namespace StingTools.Core.Drawing
         /// A dependent's scale belongs to its parent and is left alone; a view whose
         /// template controls scale or detail level refuses the write, and that is reported.
         /// </summary>
+        /// <summary>
+        /// DTW-208: a new view took Revit's defaults — the newest phase and "Show All", so
+        /// demolished elements showed and were tagged. The view style pack's
+        /// <c>phaseFilter</c> / <c>phase</c> apply when the project has them (a managed
+        /// pack already sets them on its template); otherwise "Show All" becomes "Show
+        /// Complete". The phase itself stays Revit's (the newest) unless the pack names
+        /// one. A view whose template controls either is left alone. Re-runs never touch
+        /// an existing view's phase.
+        /// </summary>
+        private static void ApplyProductionPhase(Document doc, View view, DrawingType dt, ProduceResult result)
+        {
+            if (view == null || view is ViewSchedule) return;
+            try
+            {
+                ViewStylePack pack = null;
+                try { pack = ViewStylePackRegistry.ResolveForDrawingType(doc, dt, out _); }
+                catch (Exception ex) { StingLog.Warn($"ApplyProductionPhase pack '{dt?.Id}': {ex.Message}"); }
+
+                var pf = view.get_Parameter(BuiltInParameter.VIEW_PHASE_FILTER);
+                if (pf != null)
+                {
+                    var filters = new FilteredElementCollector(doc).OfClass(typeof(PhaseFilter)).Cast<PhaseFilter>().ToList();
+                    var current = doc.GetElement(pf.AsElementId())?.Name;
+                    var target = ProductionEdgeDecisions.ProductionPhaseFilter(pack?.PhaseFilter, current, pf.IsReadOnly,
+                        filters.Select(f => f.Name));
+                    var hit = target == null ? null
+                        : filters.FirstOrDefault(f => string.Equals(f.Name, target, StringComparison.OrdinalIgnoreCase));
+                    if (hit != null && pf.Set(hit.Id))
+                        StingLog.Info($"DrawingProducer: '{view.Name}' phase filter '{current}' -> '{hit.Name}'.");
+                    else if (!string.IsNullOrWhiteSpace(pack?.PhaseFilter) && !pf.IsReadOnly
+                             && !filters.Any(f => string.Equals(f.Name, pack.PhaseFilter.Trim(), StringComparison.OrdinalIgnoreCase)))
+                        result.Warnings.Add($"'{view.Name}': phase filter '{pack.PhaseFilter}' (pack '{pack.Id}') is not in this project; left '{current}'.");
+                }
+
+                if (!string.IsNullOrWhiteSpace(pack?.Phase))
+                {
+                    var ph = view.get_Parameter(BuiltInParameter.VIEW_PHASE);
+                    var phase = new FilteredElementCollector(doc).OfClass(typeof(Phase)).Cast<Phase>()
+                        .FirstOrDefault(p => string.Equals(p.Name, pack.Phase.Trim(), StringComparison.OrdinalIgnoreCase));
+                    if (ph != null && !ph.IsReadOnly && phase != null && ph.AsElementId() != phase.Id) ph.Set(phase.Id);
+                    else if (phase == null)
+                        StingLog.Info($"DrawingProducer: pack '{pack.Id}' phase '{pack.Phase}' is not a phase of this project; '{view.Name}' keeps Revit's.");
+                }
+            }
+            catch (Exception ex) { result.Warnings.Add($"'{view.Name}': phase / phase filter not set — {ex.Message}"); }
+        }
+
         /// <summary>
         /// DTW-212: a production rule's scaleOverride, applied after the drawing type's
         /// presentation (which sets the type's scale). A dependent's scale is its parent's.
