@@ -47,6 +47,8 @@ namespace StingTools.Core.Validation.Healthcare
             var els = new FilteredElementCollector(doc).WherePasses(f).WhereElementIsNotElementType().ToElements();
 
             var limits = PlumbingTables.WaterSafety;
+            var region = TMVEngine.ProjectHtmRegion(doc);
+            var tmvNotes = new Dictionary<string, int>(StringComparer.Ordinal);
             double? deadLegMax = DeadLegMaxM;
             var spur = limits?.DeadLegLimits?.HealthcareSpur;
             if (limits == null)
@@ -100,7 +102,8 @@ namespace StingTools.Core.Validation.Healthcare
                         WaterSafetyLimits.NormaliseScheme(tmvClass) ?? WaterSafetyLimits.NormaliseScheme(tmvType),
                         assisted, isHealthcare: true,
                         GetParamDouble(el, ParamRegistry.PLM_TMV_BLEND) ?? 0,
-                        GetParamDouble(el, ParamRegistry.PLM_TMV_MEASURED_C) ?? 0);
+                        GetParamDouble(el, ParamRegistry.PLM_TMV_MEASURED_C) ?? 0, region);
+                    foreach (var n in c.Notes) tmvNotes[n] = tmvNotes.TryGetValue(n, out var k) ? k + 1 : 1;
                     if (c.Status == WaterCheckStatus.Fail)
                         res.Add(new ValidationResult(el.Id, ValidationSeverity.Warning,
                             "PLM.TMV.OUTLET_TEMP", $"{el.Name} TMV: {c.Reason} [{c.StandardRef}]", Tag));
@@ -120,6 +123,9 @@ namespace StingTools.Core.Validation.Healthcare
                         Tag));
                 }
             }
+            foreach (var kv in tmvNotes)
+                res.Add(new ValidationResult(ElementId.InvalidElementId, ValidationSeverity.Info,
+                    "PLM.TMV.NOTE", $"TMV: {kv.Key} ({kv.Value} TMV{(kv.Value == 1 ? "" : "s")})", Tag));
             return res;
         }
     }

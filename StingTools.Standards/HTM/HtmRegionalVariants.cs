@@ -23,8 +23,8 @@
 // showers 41, general baths 43, paediatric baths 40, assisted baths 46, bidets 38,
 // in-patient hand-wash basins 41. The 41 / 43 here were those shower / Scottish bath
 // figures under one key and a commissioning clause. The one owner of TMV outlet limits is
-// StingTools/Data/Plumbing/STING_TMV_STANDARDS.json (WaterSafetyLimits); it has no
-// Scottish rows yet (ROADMAP DSCH-36). Nothing read the key.
+// StingTools/Data/Plumbing/STING_TMV_STANDARDS.json (WaterSafetyLimits), which carries the
+// SHTM Table 4 rows and selects them through TryParseRegion. Nothing read the key.
 using System.Collections.Generic;
 
 namespace StingTools.Standards.HTM
@@ -35,17 +35,30 @@ namespace StingTools.Standards.HTM
 
     public static class HtmRegionalVariants
     {
+        /// <summary>Reads PRJ_ORG_HEALTH_HTM_REGION_TXT text. Blank or unrecognised = England.
+        /// A caller that must not assume England uses <see cref="TryParseRegion"/>.</summary>
         public static HtmRegion ParseRegion(string code)
+            => TryParseRegion(code, out var r) ? r : HtmRegion.England;
+
+        /// <summary>False when the text is blank or names no region (the jurisdiction is
+        /// then unknown, not England).</summary>
+        public static bool TryParseRegion(string code, out HtmRegion region)
         {
-            if (string.IsNullOrWhiteSpace(code)) return HtmRegion.England;
-            var c = code.Trim().ToUpperInvariant();
-            return c switch
+            region = HtmRegion.England;
+            if (string.IsNullOrWhiteSpace(code)) return false;
+            switch (code.Trim().ToUpperInvariant())
             {
-                "WHTM" or "WALES" or "WLS" => HtmRegion.Wales,
-                "SHTM" or "SCOTLAND" or "SCO" => HtmRegion.Scotland,
-                "NHS-NI" or "NHSNI" or "NI" or "NORTHERN IRELAND" => HtmRegion.NorthernIreland,
-                _ => HtmRegion.England,
-            };
+                case "HTM": case "NHS-ENGLAND": case "NHS ENGLAND": case "NHSENGLAND": case "ENGLAND": case "ENG":
+                    region = HtmRegion.England; return true;
+                case "WHTM": case "WALES": case "WLS":
+                    region = HtmRegion.Wales; return true;
+                case "SHTM": case "SCOTLAND": case "SCO":
+                    region = HtmRegion.Scotland; return true;
+                case "NHS-NI": case "NHSNI": case "NI": case "NORTHERN IRELAND":
+                    region = HtmRegion.NorthernIreland; return true;
+                default:
+                    return false;
+            }
         }
 
         public static IReadOnlyDictionary<string, HtmRegionalValue> GetForRegion(HtmRegion region)

@@ -271,6 +271,8 @@ namespace StingTools.Commands.Plumbing
                  .Metric("Pass",    tmvResult.PassCount.ToString())
                  .Metric("Fail",    tmvResult.FailCount.ToString())
                  .Metric("Overdue", tmvResult.OverdueCount.ToString());
+            // What the TMV check assumed (jurisdiction, paediatric limit) — DSCH-36.
+            foreach (var w in tmvResult.Warnings.Take(5)) panel.Text("⚠ " + w);
 
             if (tmvShortfall)
                 panel.Text("⚠ TMV count appears low relative to fixture count. Review DHW outlets.");
@@ -465,6 +467,7 @@ namespace StingTools.Commands.Plumbing
                 redItems.Add($"TMV FAIL: {row.Id?.Value} {row.FamilyName} — {row.FailReason}");
             foreach (var row in records.Where(r => r.Status == WaterCheckStatus.NotChecked))
                 amberItems.Add($"TMV {row.Id?.Value} {row.FamilyName} — {row.FailReason}");
+            foreach (var w in tmv.Warnings.Take(5)) amberItems.Add("TMV: " + w);
 
             var overdueRecords = records.Where(r => WaterSafetyDateHelper.ParseDate(r.AnnualTestDueDate) < DateTime.Today).ToList();
             foreach (var row in overdueRecords)
