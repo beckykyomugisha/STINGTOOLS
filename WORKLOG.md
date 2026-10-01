@@ -3,9 +3,9 @@
 Standing task (2026-10-01): unattended loop — resume → research → record → fix → verify → commit → merge → update ROADMAP/WORKLOG → repeat. Priority: (1) ACC integration, (2) everything ACC touches, (3) rest of the codebase.
 
 ## Resume here
-1. Deploy the INTEGRATION branch to `C:\Dev\STING_KUT_LIVE` once `tasklist | grep Revit` is empty (a background watcher is armed). Verify per "Deploy".
-2. Fresh ACC audit pass, round 4: issue import/export field mapping and CSV headers, assignee and account data, custom attributes, escalation, approvals read-back, local-change reports and incremental reads. These are the parts of the standing brief rounds 1–3 covered least.
-3. Area 2/3: the Document Manager IsoNote display (DOCX-REG-1); ACC-SRV-11 (create-and-close between sweeps); then the rest of the codebase (tagging, drawing production, MEP).
+1. Merge the round-4 agent's branch `claude/acc-round4-plugin` (E1, E3–E11) once it reports. Then build, run Acc/Tags/Cost/Mep and the gates, and mark the E rows.
+2. Deploy the INTEGRATION branch (now includes origin/main #1021, merge `1cca9c45b`) to `C:\Dev\STING_KUT_LIVE` once Revit is closed (watcher armed). Verify per "Deploy". Then tell the user to re-run **Load Shared Parameters** on existing projects, because #1021's drawing stamps now bind to Views.
+3. Area 2/3: DOCX-REG-1 (Document Manager IsoNote display), ACC-SRV-11 (create-and-close between sweeps), then tagging, drawing production and MEP.
 
 ## Branches
 - **Integration branch:** `claude/acc-work-review-gaps-7e2ac7` (worktree `.claude/worktrees/acc-work-review-gaps-7e2ac7`). Not pushed.
@@ -22,7 +22,7 @@ dotnet test Planscape.Server/tests/Planscape.Tests --filter "FullyQualifiedName~
 powershell -File tools/check_path_discipline.ps1 ; tools/check_workflow_wiring.ps1 ; tools/check_export_routing.ps1
 python tools/check_kut_workflow_tags.py ; python tools/check_unattended_cycle.py
 ```
-Last full green (2026-10-01, `23354ba63`): build 0/0; Acc 526, Tags 4215, Cost 147, Mep 87; all gates OK.
+Last full green (2026-10-01, `1cca9c45b`, after merging origin/main #1021): build 0/0; Acc 637, Tags 5211, Cost 147, Mep 87; `run_ci_gates.py --quick` 36/0; drawing-type checksums OK.
 
 ## Deploy (KUT live)
 `git -C C:/Dev/STING_KUT_LIVE checkout --detach <commit>` then `cmd.exe //c 'C:\Dev\STING_KUT_LIVE\deploy.bat'` with Revit closed. Verify: manifests point at STING_KUT_LIVE; deployed DLL == `StingTools/bin/Release/StingTools.dll`; 210 tag families in `CompiledPlugin/data/TagFamilies`; **no `Seeds/` folder** (the 137 seed families are superseded — never restore them). Last deploy: `4ad350c46` at 23:13 on 2026-09-30.
@@ -80,7 +80,7 @@ ACC seam audit A1–A16: all fixed (see "Findings (done)"). Open work is the rev
 | Id | Area | Where | Sev | Defect | Plan |
 |---|---|---|---|---|---|
 | E1 | Escalation | Clash/AccSyncIssueStatusCommand.cs:119-138; AccPullClashesCommand.cs:226 | P1 | An escalation closed/voided in ACC Issues is untracked while the clash stays active → re-escalated every cycle; a deleted issue stays tracked forever | Untrack only on clash absence; remember closed-in-ACC per signature; pure decision fn + tests |
-| E2 | Server update (my C10) | AccSyncService.cs MapStatus/AccIssueUpdatePlan | P1 | MapStatus case-sensitive, IN_PROGRESS→open; Plan always sends status/title/description → reverts an assignee's ACC in_progress/completed, overwrites ACC wording | Normalise status; send only fields changed since last push (per-issue pushed baseline); withhold status unless ACC still shows the baseline |
+| E2 | Server update (my C10) | AccSyncService.cs MapStatus/AccIssueUpdatePlan | P1 | MapStatus case-sensitive, IN_PROGRESS→open; Plan always sends status/title/description → reverts an assignee's ACC in_progress/completed, overwrites ACC wording | **Done** 42b57d9e3: per-issue pushed snapshot (status + text hashes); only changed fields sent; status only when ACC still shows the last pushed value; IN_PROGRESS mapped; server suite 1122/0 |
 | E3 | Reviews | V6/AccReviewProposals.cs:348-362 FindTransmittal | P1 | version-or-item match, first hit → approval recorded on the v1 transmittal | Exact version first; item only when unique; refuse ambiguity |
 | E4 | Reviews → register | AccReviewProposals.cs:394-397; BIMManagerCommands UpdateDocumentSuitability | P1 | Register rows matched on doc_id only (never matches export rows); write failure silent but reported applied; no revision check on accept | Match doc_number/file_name/doc_id; return result; pairing check; refuse revision mismatch |
 | E5 | MIDP dates | Core/Delivery/MidpCsv.cs:120-127 | P1 | dd/MM dates with day <= 12 parsed as MM/dd (invariant TryParse first) | ISO first, declared order, ambiguous refused/flagged |
