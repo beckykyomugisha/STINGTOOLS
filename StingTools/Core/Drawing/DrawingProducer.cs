@@ -296,7 +296,8 @@ namespace StingTools.Core.Drawing
                 return result;
 
             if (opts.CreateSheet)
-                result.SheetId = CreateOrFindSheet(doc, dt, ctx, opts, result);
+                result.SheetId = CreateOrFindSheet(doc, dt, ctx, opts, result,
+                    opts.Idempotent ? rules.Where(r => r != null).Select(r => r.Idx).ToList() : null);
 
             // P1 — resolve the title-block family's slot grid once for this
             // sheet (null for norm-only profiles / no sheet) and reuse it across
@@ -1264,7 +1265,8 @@ namespace StingTools.Core.Drawing
             return XYZ.Zero;
         }
 
-        private static ElementId CreateOrFindSheet(Document doc, DrawingType dt, DrawingContext ctx, ProduceOptions opts, ProduceResult result)
+        private static ElementId CreateOrFindSheet(Document doc, DrawingType dt, DrawingContext ctx, ProduceOptions opts, ProduceResult result,
+            IReadOnlyCollection<int> reusableRuleIdxs = null)
         {
             string effectivePackage = ctx.PackageId ?? dt.PackageId ?? "";
             string sheetCtx = BuildContextTag(ctx);
@@ -1296,7 +1298,63 @@ namespace StingTools.Core.Drawing
                 return existing;
             }
 
+            existing = SheetOfReusedView(doc, dt, ctx, reusableRuleIdxs, sheetCtx, legacyCtx, ctxLevelId, effectivePackage, result);
+            if (existing != null) return existing;
+
             return CreateSheet(doc, dt, ctx, opts, result, effectivePackage, sheetCtx);
+        }
+
+        /// <summary>
+        /// DTW-106: a view's identity is (type, context, rule) -- the package is not part of
+        /// it -- while a sheet's is (type, package, context). So the same grid section
+        /// produced by the Setup Wizard (no package) and by DOCS / Produce Sections (the
+        /// preset's package) reused one view but looked for two sheets: the second run
+        /// minted an empty sheet and then could not place the view, which already sat on
+        /// the first. When no sheet matches this package, a view this run will reuse that
+        /// is already on a sheet of the same drawing type and context is followed to that
+        /// sheet, which is reused as it is (its package stamp is left alone, so every
+        /// existing lookup keeps finding it). Null when there is no such sheet.
+        /// </summary>
+        private static ElementId SheetOfReusedView(Document doc, DrawingType dt, DrawingContext ctx,
+            IReadOnlyCollection<int> ruleIdxs, string sheetCtx, string legacyCtx, long? ctxLevelId,
+            string effectivePackage, ProduceResult result)
+        {
+            if (ruleIdxs == null || ruleIdxs.Count == 0) return null;
+            try
+            {
+                var viewIds = new HashSet<long>();
+                foreach (var idx in ruleIdxs.Distinct())
+                {
+                    var v = FindExistingView(doc, dt.Id, ctx, idx);
+                    if (v != null) viewIds.Add(v.Id.Value);
+                }
+                if (viewIds.Count == 0) return null;
+
+                foreach (var vp in new FilteredElementCollector(doc).OfClass(typeof(Viewport)).Cast<Viewport>())
+                {
+                    if (!viewIds.Contains(vp.ViewId.Value)) continue;
+                    if (!(doc.GetElement(vp.SheetId) is ViewSheet sheet) || !sheet.IsValidObject) continue;
+                    if (!string.Equals(StingTools.Core.ParameterHelpers.GetString(sheet, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID),
+                            dt.Id, StringComparison.OrdinalIgnoreCase)) continue;
+                    var stamp = DrawingTypeStamper.ReadSheetContext(sheet);
+                    bool sameContext = ProductionContextKey.Matches(stamp, sheetCtx, null)
+                        || (legacyCtx != null && string.Equals(stamp, legacyCtx, StringComparison.Ordinal)
+                            && SheetOnContextLevel(doc, sheet, ctxLevelId));
+                    if (!sameContext) continue;
+
+                    var pkg = StingTools.Core.ParameterHelpers.GetString(sheet, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "";
+                    result.SheetReused = true;
+                    result.Warnings.Add(
+                        $"Sheet {sheet.SheetNumber} already holds this {dt.Id} view under package " +
+                        $"'{(pkg.Length == 0 ? "(none)" : pkg)}'; it was reused rather than minting a second sheet for " +
+                        $"package '{(effectivePackage.Length == 0 ? "(none)" : effectivePackage)}'.");
+                    if (_existingSheetCache != null && CacheMatchesDoc(doc))
+                        _existingSheetCache[SheetKey(dt.Id, effectivePackage, ProductionContextKey.Identity(sheetCtx))] = sheet.Id;
+                    return sheet.Id;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SheetOfReusedView {dt?.Id}: {ex.Message}"); }
+            return null;
         }
 
         /// <summary>
