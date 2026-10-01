@@ -2,6 +2,19 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGACC-20 SYS connector rules are testable, 2026-10-01)
+
+- An audit of which TAGACC fixes have a test or protocol step found TAGACC-7 / 8 with none: the rules
+  lived inside `TagConfig.GetSysFromConnector` / `RefineHydronic`, wrapped around Revit connector
+  reads. They are now `Core/SysConnectorChoice` — `Choose` (primary, else the category's domain, else
+  first non-auxiliary, else first; connector order kept), `PreferredDomain`, `RefineHydronic` (HWS read
+  from HYDRONIC with a known fluid temperature ≤ 288.15 K is CHW). `TagConfig` reads the connectors and
+  the temperature and calls them; behaviour unchanged.
+- **Tests** `SysConnectorChoiceTests` (19): an AHU takes air whatever the connector order, a boiler is not
+  its gas connection, a sink takes its first piping service, primary wins, auxiliary-only falls back, the
+  15 °C boundary both sides, unknown temperature unchanged. Reverting `Choose` to "first connector" fails 2;
+  making the boundary strict fails 1. Build 0 / 0; `StingTools.Tags.Tests` 5,100 passing.
+
 #### Completed (TAGFAM-6 shared-parameter lookup indexed once per family, 2026-10-01)
 
 - `TagFamilyCreatorCommand.AddSharedParameters` found each of ~199 parameters by walking every group and
