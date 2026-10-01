@@ -52,12 +52,16 @@ namespace StingTools.Core.Drawing
         /// the code for a storey depends on where it sits in the STACK — you cannot
         /// tell whether a level is 01 or 02 by looking at it alone, which is why the
         /// name-only rule could never have been right.</summary>
+        /// <remarks>DTW-133 — levels share a storey within the band
+        /// <see cref="LevelSnapBand"/> defines (300 mm or half the local storey, the
+        /// smaller): the rule LinkLevelMapper uses, so an SSL level 50-150 mm under its FFL
+        /// is that storey here too. A fixed 50 mm made each SSL a storey of its own and
+        /// shifted every code below it.</remarks>
         public static Dictionary<string, string> BuildMap(IEnumerable<StoreyDatum> storeys)
-            => BuildMap(storeys, DefaultCoincidentToleranceMm);
+            => BuildMap(storeys, (double?)null);
 
-        /// <summary>DTW-116 — levels closer than this share a storey: per-building level
-        /// sets at the same height, and datum levels such as "Level 1 SSL" a screed below
-        /// FFL. 50 mm.</summary>
+        /// <summary>DTW-116 — the fixed tolerance the explicit overload used to be called
+        /// with. The default map no longer uses it (DTW-133: <see cref="LevelSnapBand"/>).</summary>
         public const double DefaultCoincidentToleranceMm = 50.0;
 
         /// <summary>
@@ -70,10 +74,13 @@ namespace StingTools.Core.Drawing
         /// shifted every storey above them (DTW-116).
         /// </summary>
         public static Dictionary<string, string> BuildMap(IEnumerable<StoreyDatum> storeys, double coincidentToleranceMm)
+            => BuildMap(storeys, (double?)Math.Max(0, coincidentToleranceMm));
+
+        /// <summary>A fixed tolerance, or (null) the <see cref="LevelSnapBand"/> rule.</summary>
+        private static Dictionary<string, string> BuildMap(IEnumerable<StoreyDatum> storeys, double? fixedToleranceMm)
         {
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             if (storeys == null) return map;
-            double tol = Math.Max(0, coincidentToleranceMm);
 
             var ordered = storeys
                 .Where(s => s != null && !string.IsNullOrWhiteSpace(s.Name))
@@ -90,12 +97,32 @@ namespace StingTools.Core.Drawing
             var stack = ordered.Where(s => s.IsBuildingStorey != false).ToList();
             if (stack.Count == 0) stack = ordered;
 
-            // Group coincident storeys: a new storey starts more than tol above the first
-            // level of the current one.
+            // Two levels are one storey when within the fixed tolerance or, by default, the
+            // LevelSnapBand band at the anchor. The local storey at an anchor is the gap to
+            // the nearest stack level beyond the band cap above it (else below it): levels
+            // inside the cap are the candidates themselves, not the storey height.
+            var stackElevs = stack.Select(s => s.ElevationMm).ToList();
+            bool Coincide(double anchorMm, double otherMm)
+            {
+                if (fixedToleranceMm.HasValue) return Math.Abs(otherMm - anchorMm) <= fixedToleranceMm.Value;
+                double cap = LevelSnapBand.MaxMm;
+                double storey = double.PositiveInfinity;
+                var above = stackElevs.Where(e => e > anchorMm + cap).ToList();
+                if (above.Count > 0) storey = above.Min() - anchorMm;
+                else
+                {
+                    var below = stackElevs.Where(e => e < anchorMm - cap).ToList();
+                    if (below.Count > 0) storey = anchorMm - below.Max();
+                }
+                return LevelSnapBand.Within(otherMm - anchorMm, storey, cap);
+            }
+
+            // Group coincident storeys: a new storey starts when a level no longer coincides
+            // with the first level of the current one.
             var groups = new List<List<StoreyDatum>>();
             foreach (var s in stack)
             {
-                if (groups.Count == 0 || s.ElevationMm - groups[groups.Count - 1][0].ElevationMm > tol)
+                if (groups.Count == 0 || !Coincide(groups[groups.Count - 1][0].ElevationMm, s.ElevationMm))
                     groups.Add(new List<StoreyDatum>());
                 groups[groups.Count - 1].Add(s);
             }
@@ -138,10 +165,10 @@ namespace StingTools.Core.Drawing
                 if (stated != null) { map[s.Name] = stated; continue; }
                 int pick = -1;
                 for (int i = 0; i < groups.Count && pick < 0; i++)
-                    if (groups[i].Any(g => Math.Abs(g.ElevationMm - s.ElevationMm) <= tol)) pick = i;
+                    if (groups[i].Any(g => Coincide(g.ElevationMm, s.ElevationMm))) pick = i;
                 if (pick < 0)
                     for (int i = 0; i < groups.Count; i++)
-                        if (groups[i][0].ElevationMm <= s.ElevationMm + tol) pick = i;
+                        if (groups[i][0].ElevationMm <= s.ElevationMm + 1e-6 || Coincide(groups[i][0].ElevationMm, s.ElevationMm)) pick = i;
                 map[s.Name] = groupCodes[pick < 0 ? 0 : pick];
             }
 

@@ -63,7 +63,9 @@ namespace StingTools.Tags.Tests
         [Fact]
         public void ATieAtTheDatumPrefersTheLowerStorey()
         {
-            var map = IsoLevelCode.BuildMap(Storeys(("Slab", -150), ("FFL", 150), ("Upper", 3000)));
+            // DTW-133: 400 mm apart, outside the 300 mm same-storey band, so these are two
+            // storeys equally far from datum (at -150 / +150 they are now one storey).
+            var map = IsoLevelCode.BuildMap(Storeys(("Slab", -200), ("FFL", 200), ("Upper", 3000)));
             Assert.Equal("00", map["Slab"]);
             Assert.Equal("01", map["FFL"]);
             Assert.Equal("02", map["Upper"]);
@@ -206,6 +208,44 @@ namespace StingTools.Tags.Tests
             Assert.Equal("00", map["Level 1"]);
             Assert.Equal("01", map["Level 2"]);
             Assert.Equal("01", map["Level 2 SSL"]);
+        }
+
+        [Fact]
+        public void AnSslLevel150MillimetresBelowFflIsTheSameStorey()
+        {
+            // DTW-133 — SSL levels 50-150 mm under FFL were 50 mm outside the old band, so
+            // each became a storey of its own and shifted the codes (basements most of all).
+            var map = IsoLevelCode.BuildMap(Storeys(
+                ("B1 SSL", -3650), ("B1", -3500),
+                ("Level 1 SSL", -150), ("Level 1", 0),
+                ("Level 2 SSL", 3450), ("Level 2", 3600)));
+            Assert.Equal("B1", map["B1 SSL"]);
+            Assert.Equal("B1", map["B1"]);
+            Assert.Equal("00", map["Level 1 SSL"]);
+            Assert.Equal("00", map["Level 1"]);
+            Assert.Equal("01", map["Level 2 SSL"]);
+            Assert.Equal("01", map["Level 2"]);
+        }
+
+        [Fact]
+        public void TheBandIsCappedAtHalfTheLocalStorey()
+        {
+            // A 400 mm plant deck is a storey of its own, not part of the floor under it.
+            var map = IsoLevelCode.BuildMap(Storeys(("Level 1", 0), ("Plant Deck", 400), ("Level 2", 800)));
+            Assert.Equal("00", map["Level 1"]);
+            Assert.Equal("01", map["Plant Deck"]);
+            Assert.Equal("02", map["Level 2"]);
+        }
+
+        [Fact]
+        public void AnExplicitToleranceKeepsItsOldMeaning()
+        {
+            // A caller that passes a tolerance gets exactly that tolerance: at 50 mm the SSL
+            // is a storey of its own (the pre-DTW-133 answer).
+            var map = IsoLevelCode.BuildMap(Storeys(("Level 1 SSL", -150), ("Level 1", 0), ("Level 2", 3600)), 50.0);
+            Assert.Equal("B1", map["Level 1 SSL"]);
+            Assert.Equal("00", map["Level 1"]);
+            Assert.Equal("01", map["Level 2"]);
         }
 
         [Fact]
