@@ -2131,7 +2131,16 @@ namespace StingTools.Commands.Interop
 
                 bool wrote = false;
                 if (!string.IsNullOrEmpty(m.StingParam))
-                    wrote = Write(revitEl.LookupParameter(m.StingParam), val);
+                {
+                    var target = revitEl.LookupParameter(m.StingParam);
+                    // A mapping whose target is not bound to this element writes
+                    // nothing; say so once rather than counting it as "no value".
+                    if (target == null)
+                        StingLog.WarnRateLimited("ArchiCadMap.NoParam." + m.StingParam,
+                            $"ArchiCAD mapping {m.ArchiCadPset}.{m.ArchiCadProp} -> {m.StingParam}: " +
+                            "parameter not found on the element (not bound, or not in MR_PARAMETERS).");
+                    wrote = Write(target, val);
+                }
                 if (!wrote && !string.IsNullOrEmpty(m.RevitBuiltIn) &&
                     Enum.TryParse<BuiltInParameter>(m.RevitBuiltIn, out var bip))
                     wrote = Write(revitEl.get_Parameter(bip), val);
@@ -2260,6 +2269,13 @@ namespace StingTools.Commands.Interop
             catch (Exception ex) { StingLog.Warn("ApplyMaterialLayer: " + ex.Message); }
         }
 
+        private static bool TryIfcBool(string val, out int result)
+        {
+            string v = (val ?? "").Trim().Trim('.').ToUpperInvariant();
+            result = v == "T" || v == "TRUE" || v == "YES" ? 1 : 0;
+            return v == "T" || v == "TRUE" || v == "YES" || v == "F" || v == "FALSE" || v == "NO";
+        }
+
         private static bool Write(Parameter? p, string val)
         {
             if (p == null || p.IsReadOnly) return false;
@@ -2275,6 +2291,10 @@ namespace StingTools.Commands.Interop
                         p.Set(d); return true;
                     case StorageType.Integer when int.TryParse(val, out int i):
                         p.Set(i); return true;
+                    // IFC booleans arrive as TRUE / FALSE / .T. / .F. ; a YES/NO
+                    // target is Integer storage and int.TryParse dropped them all.
+                    case StorageType.Integer when TryIfcBool(val, out int b):
+                        p.Set(b); return true;
                 }
             }
             catch { }

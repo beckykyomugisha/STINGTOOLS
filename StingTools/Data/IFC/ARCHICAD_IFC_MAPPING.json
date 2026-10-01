@@ -414,42 +414,42 @@
     {
       "pset_name": "Pset_WallCommon",
       "property_name": "ThermalTransmittance",
-      "sting_param": "PER_U_VALUE_W_M",
+      "sting_param": "PER_U_VALUE_W_M2K",
       "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
       "notes": "Wall U-value W/m²K"
     },
     {
       "pset_name": "Pset_SlabCommon",
       "property_name": "ThermalTransmittance",
-      "sting_param": "PER_U_VALUE_W_M",
+      "sting_param": "PER_U_VALUE_W_M2K",
       "element_types": ["IFCSLAB"],
       "notes": "Slab U-value"
     },
     {
       "pset_name": "Pset_WindowCommon",
       "property_name": "ThermalTransmittance",
-      "sting_param": "PER_U_VALUE_W_M",
+      "sting_param": "PER_U_VALUE_W_M2K",
       "element_types": ["IFCWINDOW"],
       "notes": "Window U-value"
     },
     {
       "pset_name": "Pset_DoorCommon",
       "property_name": "ThermalTransmittance",
-      "sting_param": "PER_U_VALUE_W_M",
+      "sting_param": "PER_U_VALUE_W_M2K",
       "element_types": ["IFCDOOR"],
       "notes": "Door U-value"
     },
     {
       "pset_name": "Pset_RoofCommon",
       "property_name": "ThermalTransmittance",
-      "sting_param": "PER_U_VALUE_W_M",
+      "sting_param": "PER_U_VALUE_W_M2K",
       "element_types": ["IFCROOF"],
       "notes": "Roof U-value"
     },
     {
       "pset_name": "Pset_BeamCommon",
       "property_name": "ThermalTransmittance",
-      "sting_param": "PER_U_VALUE_W_M",
+      "sting_param": "PER_U_VALUE_W_M2K",
       "element_types": ["IFCBEAM"],
       "notes": "Beam U-value (insulated beams)"
     },
