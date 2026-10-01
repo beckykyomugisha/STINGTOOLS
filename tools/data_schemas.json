@@ -83,9 +83,6 @@
             "SpatialLocCode"
           ]
         }
-      },
-      "docKeys": {
-        "projectTypePresets": "Designed in docs/F9_SPATIAL_CODE_RECONCILIATION.md but NO reader exists: SpatialCodeLibrary has no member for it, so the Kibale overlay's presets are discarded at load. Ships empty here. ROADMAP DSCH-11 - delete this entry when a reader lands."
       }
     },
     "GUIDES/kibale-project-config/takeoff_rules.json": {
@@ -4744,9 +4741,6 @@
             "SpatialLocCode"
           ]
         }
-      },
-      "docKeys": {
-        "projectTypePresets": "Designed in docs/F9_SPATIAL_CODE_RECONCILIATION.md but NO reader exists: SpatialCodeLibrary has no member for it, so the Kibale overlay's presets are discarded at load. Ships empty here. ROADMAP DSCH-11 - delete this entry when a reader lands."
       }
     },
     "StingTools/Data/STING_SUPPLIER_UNITS.json": {
@@ -10222,39 +10216,39 @@
     },
     "StingTools/Data/Healthcare/Specialist/STING_HC_BEHAVIOURAL.json": {
       "format": "json",
-      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
+      "reason": "Read through Core/HcSpecialistData.Get as the default for the matching HcOptions value where it agrees with code (others logged once); the remaining fields are reference. DSCH-15 closed."
     },
     "StingTools/Data/Healthcare/Specialist/STING_HC_DIALYSIS.json": {
       "format": "json",
-      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
+      "reason": "Read through Core/HcSpecialistData.Get as the default for the matching HcOptions value where it agrees with code (others logged once); the remaining fields are reference. DSCH-15 closed."
     },
     "StingTools/Data/Healthcare/Specialist/STING_HC_HBO.json": {
       "format": "json",
-      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
+      "reason": "Read through Core/HcSpecialistData.Get as the default for the matching HcOptions value where it agrees with code (others logged once); the remaining fields are reference. DSCH-15 closed."
     },
     "StingTools/Data/Healthcare/Specialist/STING_HC_HSDU.json": {
       "format": "json",
-      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
+      "reason": "Read through Core/HcSpecialistData.Get as the default for the matching HcOptions value where it agrees with code (others logged once); the remaining fields are reference. DSCH-15 closed."
     },
     "StingTools/Data/Healthcare/Specialist/STING_HC_HYBRID_OR.json": {
       "format": "json",
-      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
+      "reason": "Read through Core/HcSpecialistData.Get as the default for the matching HcOptions value where it agrees with code (others logged once); the remaining fields are reference. DSCH-15 closed."
     },
     "StingTools/Data/Healthcare/Specialist/STING_HC_LIGATURE_RULES.json": {
       "format": "json",
-      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
+      "reason": "Read through Core/HcSpecialistData.Get as the default for the matching HcOptions value where it agrees with code (others logged once); the remaining fields are reference. DSCH-15 closed."
     },
     "StingTools/Data/Healthcare/Specialist/STING_HC_MATERNITY.json": {
       "format": "json",
-      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
+      "reason": "Read through Core/HcSpecialistData.Get as the default for the matching HcOptions value where it agrees with code (others logged once); the remaining fields are reference. DSCH-15 closed."
     },
     "StingTools/Data/Healthcare/Specialist/STING_HC_MORTUARY.json": {
       "format": "json",
-      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
+      "reason": "Read through Core/HcSpecialistData.Get as the default for the matching HcOptions value where it agrees with code (others logged once); the remaining fields are reference. DSCH-15 closed."
     },
     "StingTools/Data/Healthcare/Specialist/STING_HC_PHARMACY_USP.json": {
       "format": "json",
-      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
+      "reason": "Read through Core/HcSpecialistData.Get as the default for the matching HcOptions value where it agrees with code (others logged once); the remaining fields are reference. DSCH-15 closed."
     },
     "StingTools/Data/LABEL_DEFINITIONS.json": {
       "format": "json",
@@ -10378,7 +10372,7 @@
     },
     "StingTools/Data/Plumbing/STING_TMV_STANDARDS.json": {
       "format": "json",
-      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
+      "reason": "Read by TMVEngine (limits and class tolerances, constants as fallback; the bath limit disagrees 44 vs 46 and the code value is kept, logged once). DSCH-15 closed."
     },
     "StingTools/Data/Routing/MEP_INSULATION_PARAMS.json": {
       "format": "json",
@@ -10402,7 +10396,7 @@
     },
     "StingTools/Data/STING_ARC_FLASH_PPE.json": {
       "format": "json",
-      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
+      "reason": "Read by ArcFlashEngine (PPE category thresholds) and ArcFlashBoundaryViewCommand (boundary colours; code colours kept where the data disagrees, logged once). DSCH-15 closed."
     },
     "StingTools/Data/STING_BS7671_DISCONNECTION.json": {
       "format": "json",
