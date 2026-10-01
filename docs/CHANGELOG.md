@@ -26514,12 +26514,13 @@ the per-item table: `docs/WORKLOG_DATA_SCHEMAS.md` → *Implementing the open DS
   plan) from parallel and vertical runs — `Core/Routing/SeparationGeometry`, Revit-free, tested
   over every shipped pair (DSCH-22).
 - **Reading data.** `Core/NumberText` parses machine text invariant-first at ~96 sites;
-  `Core/CsvTable` reads single-table CSVs by column name, and the positional readers of
-  pinned CSVs were converted (DSCH-2).
+  `Core/CsvTable` reads single-table CSVs by column name; the readers of ~40 pinned CSVs were
+  converted, fixing four latent mis-reads (the material duplicate check flagged 801 / 439 false
+  duplicates by reading `SOURCE_SHEET`). The schema gate now fails a data row pinned as a header (DSCH-2).
 - **Gates.** Dual-owner (5 formula rows C# also computes, deleted), QS NRM2 review harness and
   declared-but-uncalled (8 min → 2 s, named baseline) now run in CI. The hand-written JSON
   Schemas, two dead data files and three orphans (moved to `docs/reference/`) are gone; KUT's
   `project_config.json` ships where readers look, and the old location is forbidden.
 
 Not run in Revit: seven checks under *NEEDS REVIT CHECK (open-items batch)*. Open:
-ROADMAP DSCH-24..27.
+ROADMAP DSCH-24..29.

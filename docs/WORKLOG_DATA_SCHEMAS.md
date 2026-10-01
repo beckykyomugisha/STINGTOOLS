@@ -373,8 +373,20 @@ COMcheck space map, Uniclass map, ISO symbol index, FUNC/SYS matrix, room classi
 targets, plumbing fitting lengths, PROD codes, the three STING_MATERIAL_* rule files,
 CATEGORY_BINDINGS / PARAMETER_CATEGORIES (SharedParamGuids, SyncParameterSchema), MR_PARAMETERS.csv,
 SCHEDULE_FIELD_REMAP, TITLE_BLOCK.csv (three readers), COBie type map (FamilyParamCreator), labour rates.
-Every replaced index matched the shipped header: no latent mis-reads were found, which is the
-expected result — the point is that the next column move cannot cause one.
+The Temp/ and schedule batch also converted the eight COBie data loaders, FormulaEngine (all 12
+FORMULAS columns; 4-field family rows still skipped), MR_SCHEDULES (Batch Create, enhancements,
+template manager, scheduler) and the 95 TPL_SCHEDULE_METADATA mappings, each checked against the header.
+
+**Four latent mis-reads found and fixed** (every other index matched the shipped header):
+1. Material duplicate check read `SOURCE_SHEET` as the material code — 801 false duplicates in
+   BLE_MATERIALS, 439 in MEP_MATERIALS; by `MAT_CODE` there are 0.
+2. Binding-coverage empty-row check included `Parameter_Name`, so no row could ever count as empty.
+3. CATEGORY_BINDINGS cross-check `Skip(1)` skipped one of ~30 leading `#` lines; comments and the
+   header were counted as parameter names.
+4. FAMILY_PARAMETER_BINDINGS validator: same `Skip(1)`; a comment's "1,3,5" read as a name and GUID.
+
+Noted, not changed: `TemplateManager.LoadCategoryBindings` has no callers and treats only "True" as
+shared while 444 shipped rows say "Yes" — dead code, under DSCH-27.
 
 Decisions:
 - A missing required column logs one Warn naming file and column, and keeps the old safe outcome.
