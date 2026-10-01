@@ -152,10 +152,18 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-96 | DocAutomationExtCommands.cs:478 | Low | BatchCreateSheets / DocumentationPackage bypass SheetNumbering and the policy; unstamped | Merged (fix/dt-batchsheets) | Done |
 | DTW-97 | DrawingProducer apply options | Low | Type far clip never applied (opt-in had no caller) | Wired on new views without CustomBounds | Done |
 | DTW-98 | DrawingProducer placement | Low | STING_AUTO_PLACED_BOOL writes to viewports never land | Extensible Storage via MarkAutoPlaced | Done |
-| DTW-99 | WORKFLOW_MEPDrawingProduction / per-level producer | Med | no_production_boxes suppresses all per-level MEP plans when any STING:: box exists; should skip only covered (type, level) pairs | fix/dt-followups2 | In progress |
-| DTW-100 | ShopDrawingComposer | Low-Med | ISO spool {lvl} from ASS_LVL_COD_TXT, not the producer's ISO level code | fix/dt-followups2 | In progress |
+| DTW-99 | WORKFLOW_MEPDrawingProduction / per-level producer | Med | no_production_boxes suppresses all per-level MEP plans when any STING:: box exists; should skip only covered (type, level) pairs | fix/dt-followups2 (+ review: count only parsed MEP-bound boxes; Failed not Cancelled / composer null guard) | In progress |
+| DTW-100 | ShopDrawingComposer | Low-Med | ISO spool {lvl} from ASS_LVL_COD_TXT, not the producer's ISO level code | fix/dt-followups2 (+ review: count only parsed MEP-bound boxes; Failed not Cancelled / composer null guard) | In progress |
 | DTW-101 | ElementDimensioner.RunColumnToGrid | Low-Med | Column-to-grid uses host grids only | fix/dt-followups2 | In progress |
 | DTW-102 | AnnotationRunner MEP dimension passes | Low | Linked MEP runs are reported, not dimensioned | Accepted limit: dimensioning through a link needs link references on pipe geometry, unverified off-Revit | Open |
+| DTW-103 | DrawingProducer.FindExistingSheet ~1314/1340 | Med | Legacy name-only sheet stamp accepted with no level check (the view lookup has one), so after a level rename and reuse the new plan lands on the old level's sheet | Queued after fix/dt-followups2 | Queued |
+| DTW-104 | SheetPlacementBridge.ResolveDrawableForFamily ~357 | Med | A failed title-block spec load is cached for the session | Queued | Queued |
+| DTW-105 | DrawingProducer.BuildIsoLevelMap ~2377 | Low-Med | ISO sheet level ignores project-declared level codes (spatial_codes.json), unlike tags, boxes and project-pattern sheets | Queued | Queued |
+| DTW-106 | ProjectSetupCommand ~1850 vs BatchProduceCommands ~849 | Low | Wizard grid sections carry no package id, so a second, empty sheet is minted when DOCS uses a package | Queued | Queued |
+| DTW-107 | BatchProduceCommands ~666 | Low | Unguarded RollBack in a catch can abort the whole TransactionGroup | Queued after fix/dt-followups2 | Queued |
+| DTW-108 | DrawingProducer PrimeBatchScope ~156/231 | Low | A nested scope resets the outer batch's caches, including the sheet-claim table | Queued | Queued |
+| DTW-109 | PanelDoorDiagramCommand ~225 | Low | Drafting view named by board name; a rename orphans the old view | Queued | Queued |
+| DTW-110 | BatchProduceCommands ~991-1004 | Low | Exterior job loop uses placed/legacy snapshots taken once | Queued after fix/dt-followups2 | Queued |
 
 ## Decisions
 
