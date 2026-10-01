@@ -101,7 +101,9 @@ namespace StingTools.Core.Symbols
         {
             if (string.Equals(ViewTypes, "All", StringComparison.OrdinalIgnoreCase)) return true;
             string vtStr = vt.ToString();
-            foreach (var part in ViewTypes.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            // '|' is what the catalogue and the ISO default ("Fabrication|Section") use;
+            // splitting on ',' alone left "Plan|Section" as one token that matched nothing.
+            foreach (var part in ViewTypes.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
             {
                 string p = part.Trim();
                 if (string.Equals(p, "Plan",        StringComparison.OrdinalIgnoreCase)
@@ -563,28 +565,50 @@ namespace StingTools.Core.Symbols
             if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
             try
             {
-                bool first = true;
+                // DSCH round 3: columns by HEADER NAME. This read description from
+                // column 4 and standard / view_types / color_scheme / paper_size_mm
+                // from 5-8, which is the ISO index's layout. The MEP index puts
+                // description LAST, so every MEP entry took its view types from the
+                // colour-scheme column (and never matched a view), its colour scheme
+                // from the paper size, and its paper size from the description -
+                // which never parses, so every symbol fell back to 6 mm.
+                Dictionary<string, int> col = null;
                 foreach (var line in File.ReadAllLines(path))
                 {
                     if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-                    if (first) { first = false; continue; }
                     var cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols == null || cols.Length < 4) continue;
+                    if (col == null)
+                    {
+                        col = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                        for (int i = 0; i < cols.Length; i++) col[cols[i].Trim().TrimStart('﻿')] = i;
+                        if (!col.ContainsKey("symbol_code") || !col.ContainsKey("family_filename"))
+                        {
+                            StingLog.Warn($"MepSymbolEngine: '{path}' has no symbol_code / family_filename header - not loaded.");
+                            return;
+                        }
+                        continue;
+                    }
+                    string Cell(string name) =>
+                        col.TryGetValue(name, out int i) && i < cols.Length ? cols[i].Trim() : "";
 
+                    string viewTypes = Cell("view_types");
                     var e = new MepSymbolEntry
                     {
-                        SymbolCode  = cols[0],
-                        FamilyFile  = cols[1],
-                        Category    = cols[2],
-                        Description = cols[3],
+                        SymbolCode  = Cell("symbol_code"),
+                        FamilyFile  = Cell("family_filename"),
+                        Category    = Cell("category"),
+                        Description = Cell("description"),
                         // Extended columns (MEP catalogue only).
-                        Standard    = cols.Length > 4 ? cols[4] : "",
-                        ViewTypes   = cols.Length > 5 && !string.IsNullOrWhiteSpace(cols[5])
-                                        ? cols[5] : defaultViewTypes,
-                        ColorScheme = cols.Length > 6 ? cols[6] : "",
-                        PaperSizeMm = cols.Length > 7 && double.TryParse(cols[7], out double ps)
-                                        ? ps : 6.0,
+                        Standard    = Cell("standard"),
+                        ViewTypes   = string.IsNullOrWhiteSpace(viewTypes) ? defaultViewTypes : viewTypes,
+                        ColorScheme = Cell("color_scheme"),
+                        // Invariant: the file is authored with '.' decimals.
+                        PaperSizeMm = double.TryParse(Cell("paper_size_mm"),
+                                          System.Globalization.NumberStyles.Float,
+                                          System.Globalization.CultureInfo.InvariantCulture, out double ps)
+                                      ? ps : 6.0,
                     };
+                    if (string.IsNullOrEmpty(e.SymbolCode)) continue;
                     e.Tokens = (e.SymbolCode ?? "")
                         .ToUpperInvariant()
                         .Split(new[] { '_' }, StringSplitOptions.RemoveEmptyEntries);

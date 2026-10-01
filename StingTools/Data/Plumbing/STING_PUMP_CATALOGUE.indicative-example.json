@@ -1,4 +1,5 @@
 {
+  "_status": "NOT LOADED. This file was Plumbing/STING_PUMP_CATALOGUE.json, which shared its name with Data/STING_PUMP_CATALOGUE.json; FindDataFile resolves by name and returns the root file first, so this one was never read (DSCH round 3). Its duty points are indicative, and MEPG-2 decided manufacturer data is project data - none ships. To use these rows, copy them into <project>/_BIM_COORD/pump_catalogue.json after checking them against the manufacturer curves.",
   "version": "1.0",
   "description": "STING plumbing pump catalogue — representative duty points for pump selection. Real projects require manufacturer confirmation.",
   "disclaimer": "Duty points are indicative only. Always verify with manufacturer pump curves before specification.",
