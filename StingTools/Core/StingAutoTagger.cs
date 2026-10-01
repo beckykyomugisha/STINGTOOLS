@@ -442,7 +442,13 @@ namespace StingTools.Core
                 string filterStr = TagConfig.GetConfigValue("AUTO_TAGGER_DISC_FILTER");
                 if (!string.IsNullOrEmpty(filterStr))
                 {
-                    var discs = filterStr.Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+                    // DSCH round 6: a hand-written config may give a JSON array
+                    // (["A","S"]); GetConfigValue returns its JSON text, and splitting
+                    // that on ',' produced '[\r\n "A"' and '"S"\r\n]' - a filter that
+                    // matched no discipline, so the auto-tagger skipped everything.
+                    var discs = filterStr.Split(',')
+                        .Select(s => s.Trim().Trim('[', ']', '"', '\r', '\n', ' ', '\t'))
+                        .Where(s => s.Length > 0).ToList();
                     _allowedDiscs = new HashSet<string>(discs, StringComparer.OrdinalIgnoreCase);
                     if (discs.Count > 0)
                         StingLog.Info($"AutoTagger: discipline filter restored ({string.Join(",", discs)})");
