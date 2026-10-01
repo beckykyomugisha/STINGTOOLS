@@ -1198,7 +1198,13 @@ namespace StingTools.Core
         {
             public string ParamName { get; set; }
             public string Guid { get; set; }
+            /// <summary>The parameter's tooltip, generated from MR_PARAMETERS.txt.
+            /// Nothing here reads it (DSCH-47).</summary>
             public string Description { get; set; }
+            /// <summary>The text printed in the warning (<c>"message"</c>).</summary>
+            public string Message { get; set; }
+            /// <summary>Which side of the threshold warns (<c>"direction"</c>: min / max).</summary>
+            public WarningDirection Direction { get; set; }
             public string Threshold { get; set; }
             public string Unit { get; set; }
             public string Severity { get; set; } // CRITICAL, HIGH, MEDIUM, LOW
@@ -1277,29 +1283,18 @@ namespace StingTools.Core
                     {
                         ParamName = def.ParamName,
                         Guid = def.Guid,
-                        Description = def.Description + $" ({sector})",
+                        Description = def.Description,
+                        Message = def.Message + $" ({sector})",
+                        Direction = def.Direction,
                         Threshold = bySector.ToString(System.Globalization.CultureInfo.InvariantCulture),
                         Unit = def.Unit,
                         Severity = def.Severity,
                         ThresholdTable = def.ThresholdTable
                     };
             }
-            // Try numeric comparison
-            if (NumberText.TryParse(currentValue, out double val) && NumberText.TryParse(def.Threshold, out double thresh))
-            {
-                // For most thresholds: value exceeding limit is a warning
-                // For minimums (coverage, width, depth): value below threshold is a warning
-                bool isMinimum = def.Description.Contains("minimum") || def.Description.Contains("min ");
-                bool isLimit = def.Description.Contains("limit") || def.Description.Contains("maximum") || def.Description.Contains("max ");
-
-                if (isMinimum && val < thresh)
-                    return $"[!{def.Severity}: {def.Description} — {currentValue} {def.Unit} < {def.Threshold} {def.Unit}]";
-                else if (isLimit && val > thresh)
-                    return $"[!{def.Severity}: {def.Description} — {currentValue} {def.Unit} > {def.Threshold} {def.Unit}]";
-                else if (!isMinimum && !isLimit && val > thresh)
-                    return $"[!{def.Severity}: {def.Description} — {currentValue} {def.Unit} exceeds {def.Threshold} {def.Unit}]";
-            }
-            return null;
+            // DSCH-47: the comparison is the entry's "direction" field, never its wording.
+            return WarningThresholdRule.Evaluate(def.Direction, def.Severity, def.Message,
+                                                 currentValue, def.Threshold, def.Unit);
         }
 
         /// <summary>
@@ -2467,7 +2462,7 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Parameter names whose registry description begins "DEPRECATED".
+        /// Parameter names whose registry entry carries <c>"deprecated": true</c>.
         ///
         /// They are NOT removed from the registry and their GUIDs are NOT
         /// unbound: a deprecated parameter may already be bound in a live model
@@ -2478,11 +2473,14 @@ namespace StingTools.Core
         /// invites someone to write the wrong one, and nothing downstream reads
         /// it.
         ///
-        /// Membership is by DESCRIPTION, never by name. ASS_INSTALL_DATE_TXT is
-        /// both a deprecated registry entry AND the name of a C# constant that
-        /// was redirected to the canonical parameter -- the constant resolves to
-        /// "ASS_INSTALLATION_DATE_TXT" and must keep working. Filtering on a name
-        /// pattern would have caught the wrong thing.
+        /// Membership is by the entry's <c>deprecated</c> field, never by name.
+        /// ASS_INSTALL_DATE_TXT is both a deprecated registry entry AND the name
+        /// of a C# constant that was redirected to the canonical parameter -- the
+        /// constant resolves to "ASS_INSTALLATION_DATE_TXT" and must keep working.
+        /// Filtering on a name pattern would have caught the wrong thing. Until
+        /// DSCH-47 membership was a description beginning "DEPRECATED"; the
+        /// description is now generated from MR_PARAMETERS.txt and carries no
+        /// behaviour.
         /// </summary>
         public static HashSet<string> DeprecatedParams { get; private set; } =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -2519,11 +2517,27 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Scan every param section for a description beginning "DEPRECATED".
+        /// The parameter that supersedes a deprecated one (<c>"replaced_by"</c>), or
+        /// null. Every shipped deprecated entry names one (checked by
+        /// tools/sync_registry_from_txt.py).
+        /// </summary>
+        public static string ReplacementFor(string paramName)
+        {
+            if (string.IsNullOrWhiteSpace(paramName)) return null;
+            EnsureLoaded();
+            return DeprecatedReplacements.TryGetValue(paramName.Trim(), out var r) ? r : null;
+        }
+
+        private static Dictionary<string, string> DeprecatedReplacements =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Scan every param section for <c>"deprecated": true</c>.
         /// </summary>
         private static void LoadDeprecatedFlags(JObject root)
         {
             var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var replacements = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
             void Scan(JToken section)
             {
@@ -2532,10 +2546,12 @@ namespace StingTools.Core
                     foreach (var it in arr.OfType<JObject>())
                     {
                         string name = it["param_name"]?.ToString();
-                        string desc = it["description"]?.ToString();
-                        if (!string.IsNullOrEmpty(name) && desc != null &&
-                            desc.TrimStart().StartsWith("DEPRECATED", StringComparison.OrdinalIgnoreCase))
-                            found.Add(name);
+                        if (string.IsNullOrEmpty(name) || it["deprecated"]?.Type != JTokenType.Boolean
+                            || !it["deprecated"].Value<bool>())
+                            continue;
+                        found.Add(name);
+                        string by = it["replaced_by"]?.ToString();
+                        if (!string.IsNullOrWhiteSpace(by)) replacements[name] = by.Trim();
                     }
                 }
                 else if (section is JObject obj)
@@ -2557,6 +2573,7 @@ namespace StingTools.Core
             }
 
             DeprecatedParams = found;
+            DeprecatedReplacements = replacements;
             if (found.Count > 0)
                 StingLog.Info($"ParamRegistry: {found.Count} deprecated parameter(s) will be listed last in pickers: {string.Join(", ", found.OrderBy(x => x))}");
         }
@@ -2640,13 +2657,29 @@ namespace StingTools.Core
             var warnArr = root["warning_thresholds"] as JArray;
             if (warnArr == null) return;
 
+            var invalid = new List<string>();
             foreach (JObject w in warnArr)
             {
+                string name = w["param_name"]?.ToString() ?? "";
+                // DSCH-47. The comparison and the printed text are fields of their own.
+                // An entry without them is refused - logged and not evaluated - rather
+                // than given a direction guessed from its wording, which is how a
+                // re-worded description could silently invert a check.
+                string dirText = w["direction"]?.ToString();
+                string message = w["message"]?.ToString();
+                if (!WarningThresholdRule.TryParseDirection(dirText, out WarningDirection direction)
+                    || string.IsNullOrWhiteSpace(message))
+                {
+                    invalid.Add(name);
+                    continue;
+                }
                 var def = new WarningThresholdDef
                 {
-                    ParamName   = w["param_name"]?.ToString() ?? "",
+                    ParamName   = name,
                     Guid        = w["guid"]?.ToString() ?? "",
                     Description = w["description"]?.ToString() ?? "",
+                    Message     = message,
+                    Direction   = direction,
                     Threshold   = w["threshold"]?.ToString() ?? "",
                     Unit        = w["unit"]?.ToString() ?? "",
                     Severity    = w["severity"]?.ToString() ?? "MEDIUM",
@@ -2657,7 +2690,20 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(def.ParamName))
                     WarningThresholds[def.ParamName] = def;
             }
+
+            InvalidWarningThresholds = invalid;
+            if (invalid.Count > 0)
+                StingLog.Error($"ParamRegistry: {invalid.Count} warning_thresholds entr" +
+                               $"{(invalid.Count == 1 ? "y has" : "ies have")} no valid \"direction\" (min / max) " +
+                               $"or \"message\" and will NOT be evaluated: {string.Join(", ", invalid)}");
         }
+
+        /// <summary>
+        /// warning_thresholds entries refused at load because they carry no valid
+        /// <c>direction</c> or <c>message</c> (DSCH-47). Empty on shipped data -
+        /// tools/sync_registry_from_txt.py fails CI on any such entry.
+        /// </summary>
+        public static List<string> InvalidWarningThresholds { get; private set; } = new List<string>();
 
         private static void BuildGuidMaps(JObject root)
         {
