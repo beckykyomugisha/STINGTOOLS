@@ -73,7 +73,9 @@ namespace StingTools.Commands.Electrical.CableSizer
                     }
                     PresetDialog.Show("STING Cable Sizing",
                         $"{result.CsaLabel} · Ib {result.DesignCurrentA:0.#} A · {result.ProposedBreakerA} A {result.ProtectiveDevice} · " +
-                        $"VD {result.ActualVoltDropPct:0.##} % ({(result.VDCompliant ? "within" : "OVER")} limit)\n" +
+                        (result.VoltDropCalculated
+                            ? $"VD {result.ActualVoltDropPct:0.##} % ({(result.VDCompliant ? "within" : "OVER")} limit)\n"
+                            : "VD NOT calculated\n") +
                         $"Inputs: {inputs}" +
                         (string.IsNullOrEmpty(result.Warning) ? "" : $"\nWarning: {result.Warning}") +
                         (string.IsNullOrEmpty(result.Basis) ? "" : $"\nBasis: {result.Basis}"), ref message);

@@ -61,6 +61,8 @@ namespace StingTools.Commands.Electrical.FaultCurrent
         public double GetMohmPerMetre(double csaMm2, string material)
         {
             if (csaMm2 <= 0 || _copper.Count == 0) return 0;
+            // No copper-clad aluminium resistance is shipped: 0 (no data), never copper's.
+            if (StingTools.Standards.NEC2023.ConductorMaterialText.IsCopperClad(material)) return 0;
             double r;
             if (csaMm2 <= _copper[0].csaMm2) r = _copper[0].mohmPerM;
             else if (csaMm2 >= _copper[^1].csaMm2) r = _copper[^1].mohmPerM;

@@ -105,6 +105,12 @@ namespace StingTools.Core.Calc
 
             bool aluminium = !string.IsNullOrEmpty(q.Material)
                           && q.Material.Trim().ToUpperInvariant().StartsWith("AL");
+            if (StingTools.Standards.NEC2023.ConductorMaterialText.IsCopperClad(q.Material))
+            {
+                r.Refusal = "BS 7671 voltage drop: " + StingTools.Standards.NEC2023.ConductorMaterialText.NoBsDataRefusal + ".";
+                r.Basis = r.Refusal;
+                return r;
+            }
             if (aluminium)
             {
                 r.Refusal = "No BS 7671 Appendix 4 aluminium voltage-drop table is shipped — not approximated.";

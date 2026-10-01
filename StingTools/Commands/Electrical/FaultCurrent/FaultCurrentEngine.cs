@@ -137,7 +137,7 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                     notes.Add("feeder CSA unknown — cable impedance ignored, fault level taken as upstream " +
                               "(conservative for breaking capacity only)");
                 else if (rPerM <= 0)
-                    notes.Add($"no resistance data for {csa:0.#} mm² — cable impedance ignored");
+                    notes.Add($"no resistance data for {csa:0.#} mm² {material} — cable impedance ignored");
                 if (lengthM <= 0)
                     notes.Add("feeder length unknown — cable impedance ignored, fault level taken as upstream " +
                               "(conservative for breaking capacity only)");

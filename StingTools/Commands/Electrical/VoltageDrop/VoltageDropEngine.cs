@@ -176,6 +176,8 @@ namespace StingTools.Commands.Electrical.VoltageDrop
         /// </summary>
         public static double BaseResistanceMohmPerM(double csaMm2, string material)
         {
+            // No copper-clad aluminium resistance is shipped: 0 (invalid), never copper's.
+            if (StingTools.Standards.NEC2023.ConductorMaterialText.IsCopperClad(material)) return 0;
             double nearestKey = CopperResistanceMohmPerM.Keys
                 .OrderBy(k => Math.Abs(k - csaMm2))
                 .FirstOrDefault();

@@ -144,6 +144,11 @@ namespace StingTools.Core.Electrical
             if (missing.Count > 0) return None("missing " + string.Join(", ", missing));
             int ph = i.Phases >= 3 ? 3 : 1;
 
+            // CCA: no Appendix 4 table and no shipped resistance, under either standard — the
+            // resistance method would otherwise price it as copper.
+            if (StingTools.Standards.NEC2023.ConductorMaterialText.IsCopperClad(i.Material))
+                return None("no copper-clad aluminium (CCA) voltage-drop or resistance data is shipped");
+
             string std = StingTools.Standards.ElectricalStandardId.Normalise(i.Standard);
             // A standard with no shipped tables gets no figure, never BS 7671's under its name.
             if (!StingTools.Standards.ElectricalStandardId.SupportsConductorSizing(std, out _, out string refusal))

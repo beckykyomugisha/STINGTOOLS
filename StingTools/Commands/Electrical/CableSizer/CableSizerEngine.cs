@@ -22,7 +22,8 @@ namespace StingTools.Commands.Electrical.CableSizer
         /// <summary>Install method per BS 7671 Appendix 4 (A1/A2/B1/B2/C/E/F)
         /// or "Conduit" / "DirectBuried" for NEC.</summary>
         public string InstallMethod { get; set; } = "C";
-        /// <summary>Conductor material — "Cu" or "Al".</summary>
+        /// <summary>Conductor material — "Cu", "Al" or "CCA" (copper-clad aluminium, NEC
+        /// only: every BS 7671 path refuses it). Read by ConductorMaterialText.</summary>
         public string Material { get; set; } = "Cu";
         /// <summary>"PVC70" | "XLPE90" | "LSOH90" | "THWN90". On the BS 7671 path a combination
         /// with no Appendix 4 table in STING_WIRE_TABLES.json is refused, not approximated.</summary>
@@ -60,6 +61,10 @@ namespace StingTools.Commands.Electrical.CableSizer
         public double RecommendedCsaMm2 { get; set; }
         public string CsaLabel { get; set; } = "—";
         public double ActualVoltDropPct { get; set; }
+        /// <summary>False when no voltage drop was calculated (e.g. copper-clad aluminium,
+        /// for which no resistance data is shipped). <see cref="ActualVoltDropPct"/> is then
+        /// 0 and means nothing — show "not calculated", never 0 %.</summary>
+        public bool VoltDropCalculated { get; set; } = true;
         public bool VDCompliant { get; set; }
         public int ProposedBreakerA { get; set; }
         /// <summary>What ProposedBreakerA rates — "BS EN 60898 MCB", "BS 3036 semi-enclosed fuse", ….</summary>
@@ -382,9 +387,14 @@ namespace StingTools.Commands.Electrical.CableSizer
                 // 210.19(A)(1) / 215.2(A)(1) - a continuous load is carried at 125%.
                 double sizingCurrent = input.ContinuousLoad ? iB * 1.25 : iB;
 
-                var material = string.Equals(input.Material, "Al", StringComparison.OrdinalIgnoreCase)
-                    ? StingTools.Standards.NEC2023.ConductorMaterial.Aluminum
-                    : StingTools.Standards.NEC2023.ConductorMaterial.Copper;
+                // One reading of the material text. It used to be "Al, else copper", so
+                // anything unrecognised was sized as copper.
+                if (!StingTools.Standards.NEC2023.ConductorMaterialText.TryParse(input.Material, out var material))
+                {
+                    result.Sized = false;
+                    result.Warning = $"Conductor material \"{input.Material}\" is not recognised (Cu, Al or CCA); nothing was sized.";
+                    return result;
+                }
 
                 // 3 current-carrying conductors on a single-phase circuit (L+N counts 2,
                 // but the adjustment threshold is >3, so both 1ph and 3ph sit at or below
@@ -421,17 +431,29 @@ namespace StingTools.Commands.Electrical.CableSizer
 
                 double csaMm2 = NecCircularMilsToMm2(awg);
                 result.RecommendedCsaMm2 = csaMm2;
-                result.CsaLabel = $"{NecSizeLabel(awg)} {input.Material}/{input.Insulation}";
+                result.CsaLabel = $"{NecSizeLabel(awg)} {StingTools.Standards.NEC2023.ConductorMaterialText.Label(material)}/{input.Insulation}";
                 result.Sized = true;
                 result.ProposedBreakerA = breaker;
 
                 // Informational only - see the summary above.
                 double maxVD = input.VDLimitPct > 0 ? input.VDLimitPct : 3.0;
                 double opTemp = OperatingTemperature(input.Insulation);
+                if (material == StingTools.Standards.NEC2023.ConductorMaterial.CopperCladAluminum)
+                {
+                    // No CCA resistance is shipped; copper's would understate the drop.
+                    result.VoltDropCalculated = false;
+                    result.ActualVoltDropPct = 0;
+                    result.VDCompliant = false;
+                    result.Warning = "Voltage drop NOT calculated: no copper-clad aluminium resistance data is " +
+                                     "shipped. Check it from the manufacturer's conductor resistance.";
+                }
+                else
+                {
                 result.ActualVoltDropPct = VoltageDropEngine.CalculateVoltDropPercent(
                     iB, input.LengthM, csaMm2, input.Material, input.VoltageV, input.Phases, opTemp);
                 result.VDCompliant = result.ActualVoltDropPct <= maxVD;
-                if (!result.VDCompliant)
+                }
+                if (result.VoltDropCalculated && !result.VDCompliant)
                     result.Warning =
                         $"Voltage drop {result.ActualVoltDropPct:0.00}% exceeds the {maxVD:0.0}% target. " +
                         "NEC 210.19(A) Informational Note 4 RECOMMENDS 3% (5% overall) but does not " +
