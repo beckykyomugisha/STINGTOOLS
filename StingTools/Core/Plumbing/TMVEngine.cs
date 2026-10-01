@@ -194,40 +194,43 @@ namespace StingTools.Core.Plumbing
         }
 
         /// <summary>
-        /// Write calibration data to a TMV element's parameters.
+        /// Writes one TMV test result (HTM 04-01 Supplement D 08 §11: commissioning or
+        /// in-service test) to the TMV's parameters: the outlet reading to
+        /// PLM_TMV_MEASURED_C, the inlet temperatures when recorded (null = left as they
+        /// are), the test date, and the next test due at test date + 12 months.
+        /// Called by Plumb_TMVImportTests (DSCH-46) for each row of a filled TMV register.
         /// MUST be called within a started Transaction — does not create its own.
-        /// Returns true if all writes succeeded.
+        /// Returns false, with the parameters that could not be written in
+        /// <paramref name="failed"/>, when any write did not take (typically a parameter
+        /// not bound to the element's category).
         /// </summary>
-        public static bool WriteTMVData(Document doc, ElementId id,
-            double inletHotC, double inletColdC, double outletC, string testDate)
+        public static bool WriteTMVData(Document doc, ElementId id, double outletC,
+            double? inletHotC, double? inletColdC, string testDate, out List<string> failed)
         {
-            if (doc == null || id == null) return false;
-            bool ok = true;
+            failed = new List<string>();
+            if (doc == null || id == null) { failed.Add("no element"); return false; }
             try
             {
                 var el = doc.GetElement(id);
-                if (el == null) return false;
-                ok &= TryWriteDouble(el, ParamRegistry.PLM_TMV_INLET_HOT_C,  inletHotC);
-                ok &= TryWriteDouble(el, ParamRegistry.PLM_TMV_INLET_COLD_C, inletColdC);
-                // Write the commissioning reading to PLM_TMV_MEASURED_C; the
-                // design set-point in PLM_TMV_BLEND is set during design and
-                // left untouched here.
-                ok &= TryWriteDouble(el, ParamRegistry.PLM_TMV_MEASURED_C,    outletC);
-                ok &= TryWriteString(el, ParamRegistry.PLM_TMV_TEST_DATE_TXT,    testDate);
-
-                // Compute annual test due: test date + 12 months
-                if (DateTime.TryParse(testDate, out var testDt))
-                {
-                    string dueTxt = testDt.AddMonths(12).ToString("yyyy-MM-dd");
-                    TryWriteString(el, ParamRegistry.PLM_TMV_NEXT_TEST_TXT, dueTxt);
-                }
+                if (el == null) { failed.Add("element not found"); return false; }
+                // The design set point (PLM_TMV_BLEND_TEMP_C) is set during design and left untouched.
+                if (!ParameterHelpers.SetDoubleInNamedUnit(el, ParamRegistry.PLM_TMV_MEASURED_C, outletC)) failed.Add(ParamRegistry.PLM_TMV_MEASURED_C);
+                if (inletHotC.HasValue && !ParameterHelpers.SetDoubleInNamedUnit(el, ParamRegistry.PLM_TMV_INLET_HOT_C, inletHotC.Value))
+                    failed.Add(ParamRegistry.PLM_TMV_INLET_HOT_C);
+                if (inletColdC.HasValue && !ParameterHelpers.SetDoubleInNamedUnit(el, ParamRegistry.PLM_TMV_INLET_COLD_C, inletColdC.Value))
+                    failed.Add(ParamRegistry.PLM_TMV_INLET_COLD_C);
+                if (!TryWriteString(el, ParamRegistry.PLM_TMV_TEST_DATE_TXT, testDate)) failed.Add(ParamRegistry.PLM_TMV_TEST_DATE_TXT);
+                if (DateTime.TryParseExact(testDate, TmvTestImport.DateFormat, System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out var testDt)
+                    && !TryWriteString(el, ParamRegistry.PLM_TMV_NEXT_TEST_TXT, testDt.AddMonths(12).ToString(TmvTestImport.DateFormat)))
+                    failed.Add(ParamRegistry.PLM_TMV_NEXT_TEST_TXT);
             }
             catch (Exception ex)
             {
                 StingLog.Error($"WriteTMVData {id.Value}", ex);
-                return false;
+                failed.Add(ex.Message);
             }
-            return ok;
+            return failed.Count == 0;
         }
 
         // ──────────────────────────────────────────────────────────────────
@@ -402,19 +405,6 @@ namespace StingTools.Core.Plumbing
             }
             catch { }
             return 0;
-        }
-
-        private static bool TryWriteDouble(Element el, string paramName, double value)
-        {
-            try
-            {
-                var p = el.LookupParameter(paramName);
-                if (p == null || p.IsReadOnly) return false;
-                if (p.StorageType == StorageType.Double) { p.Set(value); return true; }
-                if (p.StorageType == StorageType.String) { p.Set(value.ToString("F2")); return true; }
-            }
-            catch { }
-            return false;
         }
 
         private static bool TryWriteString(Element el, string paramName, string value)

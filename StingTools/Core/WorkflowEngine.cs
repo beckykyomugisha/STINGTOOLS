@@ -1906,6 +1906,7 @@ namespace StingTools.Core
                 case "Plumb_NetworkPressure": return new Commands.Plumbing.PlumbNetworkPressureCommand();
                 case "Plumb_PumpSelect": return new Commands.Plumbing.PlumbPumpSelectCommand();
                 case "Plumb_TMVEngine": return new Commands.Plumbing.PlumbTMVEngineCommand();
+                case "Plumb_TMVImportTests": return new Commands.Plumbing.PlumbTMVImportTestsCommand();
                 case "Plumb_LegionellaReport": return new Commands.Plumbing.PlumbLegionellaReportCommand();
                 case "Plumb_DrainageSchematic": return new Commands.Plumbing.PlumbDrainageSchematicCommand();
                 case "Plumb_SupplySchematic": return new Commands.Plumbing.PlumbSupplySchematicCommand();

@@ -922,6 +922,7 @@
                             <Button Content="Drainage Schematic" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_DrainageSchematic" Click="Cmd_Click" ToolTip="Generate the drainage riser schematic drafting view."/>
                             <Button Content="Supply Schematic" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_SupplySchematic" Click="Cmd_Click" ToolTip="Generate the domestic cold water supply schematic drafting view."/>
                             <Button Content="TMV Engine" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_TMVEngine" Click="Cmd_Click" ToolTip="Scan TMVs and export the CSV register."/>
+                            <Button Content="Import TMV Tests" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_TMVImportTests" Click="Cmd_Click" ToolTip="Read a filled TMV_Register.csv (outlet reading, test date, inlet temperatures) back into the TMVs and re-check them."/>
                             <Button Content="Legionella Report" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_LegionellaReport" Click="Cmd_Click" ToolTip="ACOP L8 Legionella risk report (docx/text)."/>
                             <Button Content="Water Safety Plan" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_WaterSafetyPlan" Click="Cmd_Click" ToolTip="RAG dashboard: dead legs / TMV / backflow."/>
                         </WrapPanel>
