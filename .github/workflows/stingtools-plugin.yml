@@ -197,6 +197,17 @@ jobs:
       - name: Shared-parameter files agree
         run: python3 tools/check_shared_param_files.py
 
+      # ParamRegistry.Ext("KEY") returns "" for a key it does not know, and a mapped
+      # name no shared-parameter file defines is never bound: either way reads find
+      # nothing and writes do nothing, silently. 50 lookups were in that state
+      # (DSCH-36, DSCH-42) - the batch tagger's token-lock check among them. Keys are
+      # enumerated from the source, so a new Ext("...") is checked as it is written.
+      - name: Ext() lookup check catches what it claims to
+        run: python3 tools/check_ext_keys.py --self-test
+
+      - name: Every Ext() lookup names a defined shared parameter
+        run: python3 tools/check_ext_keys.py
+
       # STING_TAG_TOKEN_POLICY.json shipped on 2026-08-10 documenting all ten ISO 19650
       # tag tokens, was named in two TagConfig comments, and was read by NOTHING until
       # 2026-09-15 — the fallbacks were hardcoded literals, so editing it changed no
