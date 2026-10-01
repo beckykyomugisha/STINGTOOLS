@@ -239,7 +239,10 @@ namespace StingTools.Core.Placement
             var categories = captured.Select(c => c.Category).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             try
             {
-                var seedRes = SeedEnsurer.EnsureSeedsForCategories(doc, categories);
+                // DTW-113 — seed-required: the bridge places the SEED family itself, so a
+                // category with some other family loaded is not "served" for it.
+                var seedRes = SeedEnsurer.EnsureSeedsForCategories(doc, categories, requireSeedFamily: true);
+                foreach (var m in seedRes.Messages) res.Messages.Add(m);
                 res.Messages.Add($"Seeds ensured: {seedRes.SeedsBuiltOrLoaded} built/loaded for {categories.Count} categor(ies).");
             }
             catch (Exception ex)
