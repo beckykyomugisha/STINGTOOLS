@@ -161,6 +161,37 @@ namespace StingTools.Tags.Tests
             Assert.True(ledger.Contains("A-100", (name, id) => false));
         }
 
+        // ── DTW-203 ───────────────────────────────────────────────────
+
+        [Fact]
+        public void A_type_adopts_its_replaces_and_the_callers_former_ids_once_each()
+        {
+            var dt = new DrawingType { Id = "kut-power", Replaces = new List<string> { "elec-power-A1-1to100", " ", "KUT-POWER" } };
+            var ids = ProductionEdgeDecisions.FormerIds(dt, new[] { "ELEC-POWER-A1-1to100", "legacy-power" });
+            Assert.Equal(new[] { "elec-power-A1-1to100", "legacy-power" }, ids);
+        }
+
+        [Fact]
+        public void The_doctor_names_the_replacing_type_or_reports_an_orphan()
+        {
+            var catalogue = new[]
+            {
+                new DrawingType { Id = "kut-power", Replaces = new List<string> { "elec-power-A1-1to100" } },
+                new DrawingType { Id = "arch-plan-A1-1to100" },
+            };
+            Assert.Null(ProductionEdgeDecisions.ReplacementFor("arch-plan-A1-1to100", catalogue));
+            Assert.Equal("kut-power", ProductionEdgeDecisions.ReplacementFor("elec-power-A1-1to100", catalogue));
+            Assert.Equal("", ProductionEdgeDecisions.ReplacementFor("gone-type", catalogue));
+            Assert.Null(ProductionEdgeDecisions.ReplacementFor(null, catalogue));
+        }
+
+        [Fact]
+        public void An_absent_replaces_list_is_not_serialised_so_checksums_hold()
+        {
+            var json = Newtonsoft.Json.JsonConvert.SerializeObject(new DrawingType { Id = "x" });
+            Assert.DoesNotContain("\"replaces\"", json);
+        }
+
         // ── DTW-199 ───────────────────────────────────────────────────
 
         [Fact]

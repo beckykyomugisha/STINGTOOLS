@@ -132,6 +132,37 @@ namespace StingTools.Core.Drawing
                 ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
         }
 
+        // ── DTW-203: a renamed drawing type adopts what its old id made ──
+
+        /// <summary>
+        /// The ids whose views and sheets this request adopts: the type's own
+        /// <c>replaces</c> list plus the caller's former ids, without blanks, duplicates or
+        /// the type's current id.
+        /// </summary>
+        internal static IReadOnlyList<string> FormerIds(DrawingType dt, IEnumerable<string> callerFormer)
+            => (dt?.Replaces ?? Enumerable.Empty<string>())
+                .Concat(callerFormer ?? Enumerable.Empty<string>())
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id.Trim())
+                .Where(id => !string.Equals(id, dt?.Id, StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+        /// <summary>
+        /// For a drawing-type id stamped on a view or sheet: null when the catalogue knows
+        /// it; otherwise the id of the type whose <c>replaces</c> names it, or "" when none
+        /// does (an orphan — its type was renamed or removed with nothing taking it over).
+        /// </summary>
+        internal static string ReplacementFor(string stampedId, IEnumerable<DrawingType> catalogue)
+        {
+            if (string.IsNullOrWhiteSpace(stampedId)) return null;
+            var list = (catalogue ?? Enumerable.Empty<DrawingType>()).Where(t => t != null).ToList();
+            if (list.Any(t => string.Equals(t.Id, stampedId, StringComparison.OrdinalIgnoreCase))) return null;
+            var by = list.FirstOrDefault(t => t.Replaces != null
+                && t.Replaces.Any(r => string.Equals(r?.Trim(), stampedId.Trim(), StringComparison.OrdinalIgnoreCase)));
+            return by?.Id ?? "";
+        }
+
         // ── DTW-199: a view moved to another sheet stays there ─────────
 
         /// <summary>The report line for a view kept on the sheet someone moved it to.</summary>

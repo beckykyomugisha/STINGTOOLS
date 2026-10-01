@@ -64,7 +64,7 @@ namespace StingTools.Core.Drawing
                 {
                     if (dt == null || string.IsNullOrEmpty(dt.Id)) continue;
                     var keys = new List<string> { dt.Id };
-                    if (ctx.FormerDrawingTypeIds != null) keys.AddRange(ctx.FormerDrawingTypeIds);
+                    keys.AddRange(ProductionEdgeDecisions.FormerIds(dt, ctx.FormerDrawingTypeIds));   // DTW-203
                     foreach (var key in keys)
                     {
                         if (!_byType.TryGetValue(key, out var list)) continue;

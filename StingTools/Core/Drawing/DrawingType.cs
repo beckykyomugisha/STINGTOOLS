@@ -414,6 +414,16 @@ namespace StingTools.Core.Drawing
         [JsonProperty("packageId", NullValueHandling = NullValueHandling.Ignore)]
         public string PackageId { get; set; }
 
+        /// <summary>
+        /// DTW-203: ids this type replaces — the id it had before a project override or a
+        /// routing change renamed it. Views and sheets stamped with one of them are adopted
+        /// and re-stamped by production instead of a parallel set being minted beside them,
+        /// and the Drawing Doctor names this type as the replacement for such stamps.
+        /// Absent (null) is not serialised, so existing checksums are unchanged.
+        /// </summary>
+        [JsonProperty("replaces", NullValueHandling = NullValueHandling.Ignore)]
+        public List<string> Replaces { get; set; }
+
         /// <summary>Optional rules that override TitleBlockFamily/TitleBlockSymbolType
         /// when specific context conditions are met. Evaluated in order; first match wins.
         /// Serialized as "titleBlockVariantRules" in the JSON profile.</summary>

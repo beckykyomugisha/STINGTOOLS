@@ -577,7 +577,7 @@ namespace StingTools.Core.Drawing
                 {
                     ViewId = x.v.Id.Value,
                     DrawingTypeId = StingTools.Core.ParameterHelpers.GetString(x.v, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID),
-                }), view.Id.Value, dt.Id, ctx.FormerDrawingTypeIds);
+                }), view.Id.Value, dt.Id, ProductionEdgeDecisions.FormerIds(dt, ctx.FormerDrawingTypeIds));
                 foreach (var x in onSheet.Where(x => decision.RemoveViewIds.Contains(x.v.Id.Value)))
                 {
                     result.Warnings.Add($"'{x.v.Name}' (an earlier {dt.Id} view) was taken off the sheet for '{view.Name}'.");
@@ -642,7 +642,8 @@ namespace StingTools.Core.Drawing
 
                 if (opts.Idempotent)
                 {
-                    var existing = FindExistingView(doc, dt.Id, ctx, rule.Idx);
+                    var existing = FindExistingView(doc, dt.Id, ctx, rule.Idx)
+                                ?? AdoptFormerTypeView(doc, dt, ctx, rule, result);   // DTW-203
                     if (existing != null)
                     {
                         result.WasIdempotent = true;
@@ -688,6 +689,35 @@ namespace StingTools.Core.Drawing
                 result.Warnings.Add($"ProduceSingleView({rule?.ViewType}): {ex.Message}");
                 return ElementId.InvalidElementId;
             }
+        }
+
+        /// <summary>
+        /// DTW-203: a view an earlier run produced under one of this type's former ids
+        /// (<c>replaces</c>, or the caller's former ids) for this context and rule. It is
+        /// re-stamped with the current id and reused, rather than a parallel view being
+        /// made beside it. Null when there is none.
+        /// </summary>
+        private static View AdoptFormerTypeView(Document doc, DrawingType dt, DrawingContext ctx, ProductionRule rule,
+            ProduceResult result)
+        {
+            foreach (var former in ProductionEdgeDecisions.FormerIds(dt, ctx?.FormerDrawingTypeIds))
+            {
+                var v = FindExistingView(doc, former, ctx, rule.Idx);
+                if (v == null) continue;
+                if (DrawingTypeStamper.Stamp(v, dt.Id))
+                {
+                    try
+                    {
+                        if (_existingViewCache != null && CacheMatchesDoc(doc))
+                            _existingViewCache[ViewKey(dt.Id, ProductionContextKey.Identity(BuildContextTag(ctx)), rule.Idx)] = v.Id;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"AdoptFormerTypeView cache: {ex.Message}"); }
+                    result.Warnings.Add($"'{v.Name}' was produced as '{former}'; '{dt.Id}' replaces it, so it was re-stamped and reused.");
+                    return v;
+                }
+                result.Warnings.Add($"'{v.Name}' (stamped '{former}', replaced by '{dt.Id}') could not be re-stamped; a new view is made.");
+            }
+            return null;
         }
 
         // ── "Duplicate as Dependent" ─────────────────────────────────────────
@@ -1557,7 +1587,7 @@ namespace StingTools.Core.Drawing
             // A sheet stamped with an id this request used to route to (the shipped id,
             // before a project re-routed the key) is the same sheet: adopt and re-stamp it
             // rather than mint a duplicate beside it.
-            foreach (var former in (ctx.FormerDrawingTypeIds ?? Array.Empty<string>())
+            foreach (var former in ProductionEdgeDecisions.FormerIds(dt, ctx.FormerDrawingTypeIds)   // DTW-203: + dt.replaces
                          .Where(f => !string.IsNullOrWhiteSpace(f) && !string.Equals(f, dt.Id, StringComparison.OrdinalIgnoreCase)))
             {
                 existing = FindExistingSheet(doc, former, effectivePackage, sheetCtx, legacyCtx, ctxLevelId, result);
