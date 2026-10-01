@@ -32,6 +32,9 @@
     "G":  { "size": "2.5", "style": "NOM",    "colour": "BLACK",  "arrowhead": "None",            "depth_tier": 1 }
   },
 
+  "family_style_switches": [],
+  "family_style_switches_notes": "TAGFAM-9 (2026-10-01). Style codes (e.g. \"2.5BOLD_BLUE\", or \"*\" for all) whose TAG_{size}{style}_{colour}_BOOL switch parameters are still added to NEW tag families. Empty by default: a family's style is its type plus TAG_STYLE_CODE_TXT. A headless audit of all 211 shipped tag families found every one carrying the 128 switches and none with a switch associated with any family element, and each switch cost ~0.78 s to add (~100 s of a ~124 s door-tag build). List a code here only once a family's label rows are actually driven by that switch. Existing families are never stripped of switches. Entries that are not a size x style x colour code are logged and ignored.",
+
   "standard_variants_strategy": "on_demand_plus_discipline_defaults",
   "standard_variants_notes": "MigrateTagFamilies pre-creates the 8 disciplinary defaults + a compact NOM/BLACK baseline at the ISO sizes (2.5, 3.5) with depth tiers 1/2 and None arrowhead. Depth tier 3 was dropped on 2026-09-17: the universal label has no T3 rows and the master carries no TAG_PARA_STATE_3_BOOL, so a _T3 variant rendered identically to _T2 while reporting depth 3 - two types that looked like a choice and were not. Re-add T3 variants only once the label has T3 rows. Additional variants are created on-demand by FindTypeVariant when placement requests a combination that does not yet exist.",
 

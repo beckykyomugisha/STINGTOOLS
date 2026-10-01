@@ -358,10 +358,10 @@ namespace StingTools.Tags
         /// </summary>
         public static readonly (BuiltInCategory bic, string template, string display, string suffix)[] TieInPointFamilies =
         {
-            (BuiltInCategory.OST_PipeCurves,     "Pipe Tag.rft",                "Tie-In Point (Pipe)",            "Tie-In Point Tag (Pipe — Plumbing & Hydraulic)"),
-            (BuiltInCategory.OST_DuctCurves,     "Duct Tag.rft",                "Tie-In Point (Duct)",            "Tie-In Point Tag (Duct — HVAC)"),
+            (BuiltInCategory.OST_PipeCurves,     "Pipe Tag.rft",                "Tie-In Point (Pipe)",            "Tie-In Pipe"),
+            (BuiltInCategory.OST_DuctCurves,     "Duct Tag.rft",                "Tie-In Point (Duct)",            "Tie-In Duct"),
             (BuiltInCategory.OST_Conduit,        "Conduit Tag.rft",             "Tie-In Point (Conduit)",         "Tie-In Conduit"),
-            (BuiltInCategory.OST_CableTray,      "Cable Tray Tag.rft",          "Tie-In Point (Cable Tray)",      "Tie-In Point Tag (Cable Tray — Electrical)"),
+            (BuiltInCategory.OST_CableTray,      "Cable Tray Tag.rft",          "Tie-In Point (Cable Tray)",      "Tie-In Cable Tray"),
             (BuiltInCategory.OST_Sprinklers,     "Sprinkler Tag.rft",           "Tie-In Point (Fire Protection)", "Tie-In Fire Protection"),
             (BuiltInCategory.OST_GenericModel,    "Generic Tag.rft",             "Tie-In Point (Gas)",             "Tie-In Gas"),
             // Pipe system-specific tie-in variants (from MEP CSV #49, #50)
@@ -534,6 +534,10 @@ namespace StingTools.Tags
             { "Tie-In Gas",             "STING - Tie-In Point Tag (Gas — Medical / Industrial / Natural Gas)" },
             // STR CSV: "Brace / Truss" (with slashes + spaces) vs creator's flat "Brace Truss"
             { "Brace Truss",            "STING - Brace / Truss Tag" },
+            // TAGFAM-10: GEN / MEP CSVs declare these without a trailing " Tag" (the name
+            // already says "Tag"); the generic form built "… Tag Asset Tag".
+            { "Specialty Equipment Tag Asset",   "STING - Specialty Equipment Tag Asset" },
+            { "Specialty Equipment Tag General", "STING - Specialty Equipment Tag General" },
             // NOTE: Anti-Ligature is intentionally NOT mapped here. The HEALTH CSV
             // declares it once but binds 3 BICs (Doors / Lighting Fixtures /
             // Plumbing Fixtures); each .rfa must carry its own category binding so
@@ -541,6 +545,13 @@ namespace StingTools.Tags
             // "STING - Anti-Ligature (Door) Tag". Plan lookup via
             // CsvFamilyNameCandidates strips the parenthetical at resolve time.
         };
+
+        /// <summary>
+        /// TAGFAM-7: family names STING used to ship, mapped to their canonical names. The
+        /// one alias table; it lives in the Revit-free <see cref="TagFamilyNameAliases"/> so
+        /// PerFamilyTierMap and the gate tests read the same entries.
+        /// </summary>
+        public static IReadOnlyDictionary<string, string> LegacyFamilyNames => TagFamilyNameAliases.LegacyFamilyNames;
 
         /// <summary>
         /// Per-BuiltInCategory override for the family-name segment used by
@@ -702,7 +713,10 @@ namespace StingTools.Tags
             var creatorNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
             foreach (var kv in CategoryTemplateMap)
                 creatorNames.Add(GetFamilyName(kv.Key).Replace($"{FamilyPrefix} - ", "").Replace(" Tag", ""));
-            foreach (var v in TieInPointFamilies)          creatorNames.Add(v.suffix);
+            // TAGFAM-7: tie-in suffixes are short keys now; the label key is the declared name.
+            foreach (var v in TieInPointFamilies)
+                creatorNames.Add(VariantSuffixToCsvName.TryGetValue(v.suffix, out string tieInCsv)
+                    ? tieInCsv.Replace($"{FamilyPrefix} - ", "") : v.suffix);
             foreach (var v in DisciplineSheetFamilies)     creatorNames.Add(v.suffix);
             foreach (var v in StructuralVariantFamilies)   creatorNames.Add(v.suffix);
             foreach (var v in MepVariantFamilies)          creatorNames.Add(v.suffix);
@@ -823,30 +837,51 @@ namespace StingTools.Tags
         }
 
         /// <summary>
-        /// Style/appearance parameters — all 128 TAG_{size}{style}_{colour}_BOOL variants plus
-        /// box colour/visibility/style, leader colour, scale-tier-auto, and depth-tier cache.
-        /// Added to every tag family by Create/Migrate so the Tag Style Engine can switch
-        /// visible label rows and box/leader overrides per type.
+        /// Style/appearance parameters added to every NEW tag family by Create / declared
+        /// families / Migrate / Propagate / FamilyParamCreator: TAG_STYLE_CODE_TXT, the
+        /// style switches the catalogue opts in (<c>family_style_switches</c>, none by
+        /// default), then box colour/visibility/style, leader colour, scale-tier-auto and
+        /// the depth-tier cache.
+        /// TAGFAM-9: the 128 TAG_{size}{style}_{colour}_BOOL switches are no longer added
+        /// by default — no shipped family associated any of them with an element, and they
+        /// cost ~100 s a build. A family's style is its type plus TAG_STYLE_CODE_TXT.
         /// </summary>
         public static string[] StyleParams
         {
             get
             {
-                var list = new List<string>();
-                list.AddRange(ParamRegistry.AllTagStyleParams); // 128 variants
-                list.Add(ParamRegistry.TAG_BOX_COLOR_R);
-                list.Add(ParamRegistry.TAG_BOX_COLOR_G);
-                list.Add(ParamRegistry.TAG_BOX_COLOR_B);
-                list.Add(ParamRegistry.TAG_BOX_VISIBLE);
-                list.Add(ParamRegistry.TAG_BOX_STYLE);
-                list.Add(ParamRegistry.TAG_LEADER_COLOR_R);
-                list.Add(ParamRegistry.TAG_LEADER_COLOR_G);
-                list.Add(ParamRegistry.TAG_LEADER_COLOR_B);
-                list.Add(ParamRegistry.TAG_SCALE_TIER_AUTO);
-                list.Add(ParamRegistry.TAG_DEPTH_TIER);
-                return list.ToArray();
+                return TagStyleFamilyParams.Compose(
+                    TagStyleCatalogue.FamilyStyleSwitchParams,
+                    new[]
+                    {
+                        ParamRegistry.TAG_BOX_COLOR_R,
+                        ParamRegistry.TAG_BOX_COLOR_G,
+                        ParamRegistry.TAG_BOX_COLOR_B,
+                        ParamRegistry.TAG_BOX_VISIBLE,
+                        ParamRegistry.TAG_BOX_STYLE,
+                        ParamRegistry.TAG_LEADER_COLOR_R,
+                        ParamRegistry.TAG_LEADER_COLOR_G,
+                        ParamRegistry.TAG_LEADER_COLOR_B,
+                        ParamRegistry.TAG_SCALE_TIER_AUTO,
+                        ParamRegistry.TAG_DEPTH_TIER,
+                    }).ToArray();
             }
         }
+
+        /// <summary>
+        /// The explicit names a tag family must carry as TYPE parameters: the depth gates,
+        /// <see cref="StyleParams"/>, TAG_POS and the depth-tier cache. Build once per run and
+        /// pass to <see cref="IsTypeScopedParam"/>; the rule itself is
+        /// <see cref="TagFamilyParamScope.IsType"/>. Every path that adds parameters to a tag
+        /// family (Create / declared / tie-in, Migrate, Family Parameter Creator) uses it.
+        /// </summary>
+        public static HashSet<string> TypeScopedParamNames()
+            => TagFamilyParamScope.NameSet(VisibilityParams, StyleParams,
+                new[] { ParamRegistry.TAG_POS, ParamRegistry.TAG_DEPTH_TIER });
+
+        /// <summary>True when <paramref name="paramName"/> is added to a tag family as TYPE.</summary>
+        public static bool IsTypeScopedParam(string paramName, HashSet<string> typeScoped = null)
+            => TagFamilyParamScope.IsType(paramName, typeScoped ?? TypeScopedParamNames());
 
         /// <summary>
         /// Get all parameters that should be added to a tag family for a specific
@@ -1902,12 +1937,23 @@ namespace StingTools.Tags
             // ── Step 5b: Create tie-in point tag families ──
             report.AppendLine();
             report.AppendLine("── Tie-In Point Families ──");
+            // TAGFAM-7 / TAGFAM-10: rename a tie-in or healthcare-variant family this project
+            // holds under its old doubled-"Tag" name, so it is kept (with its placed tags)
+            // rather than loaded a second time. Runs before both steps.
+            var tieInRename = TagFamilyLegacyRename.Apply(doc, TagFamilyConfig.TieInPointFamilies
+                .Concat(TagFamilyConfig.HealthcareVariantFamilies)
+                .Select(t => Path.GetFileNameWithoutExtension(TagFamilyConfig.GetTieInFamilyFileName(t.suffix))));
+            foreach (var line in tieInRename.Lines()) report.AppendLine(line);
+            if (tieInRename.Renamed.Count > 0)
+                foreach (Family fam in new FilteredElementCollector(doc).OfClass(typeof(Family)).Cast<Family>())
+                    loadedFamilies.Add(fam.Name);
             foreach (var tiein in TagFamilyConfig.TieInPointFamilies)
             {
                 string famName = TagFamilyConfig.GetTieInFamilyName(tiein.suffix);
                 string fileName = TagFamilyConfig.GetTieInFamilyFileName(tiein.suffix);
 
-                if (loadedFamilies.Contains(famName))
+                if (loadedFamilies.Contains(famName)
+                    || loadedFamilies.Contains(Path.GetFileNameWithoutExtension(fileName)))
                 {
                     report.AppendLine($"  [SKIP] {tiein.display} — already loaded");
                     continue;
@@ -2871,6 +2917,12 @@ namespace StingTools.Tags
                     // once, then pre-skip any GUID/name/type conflict so a stale
                     // TEXT vs YESNO gate never reaches the unrecoverable Error modal.
                     var idx = TagParamInjector.BuildIndex(famDoc);
+                    // TAGFAM-9: the type-level machinery (variant writer, Set Depth, Tag
+                    // Style Engine) writes to TYPES, so style / depth / box / leader params
+                    // are added as TYPE — the same rule Migrate and Family Parameter Creator
+                    // use. Everything else stays INSTANCE. This used to pass true for every
+                    // parameter, leaving TAG_STYLE_CODE_TXT no per-type value to hold.
+                    var typeScoped = TagFamilyConfig.TypeScopedParamNames();
                     foreach (string paramName in paramsToAdd)
                     {
                         ExternalDefinition extDef = SharedParamDefinitionIndex.Find(defsByName, paramName);
@@ -2879,7 +2931,8 @@ namespace StingTools.Tags
                             StingLog.Warn($"Shared parameter '{paramName}' not found in file");
                             continue;
                         }
-                        switch (TagParamInjector.EnsureFamilyParam(famMan, extDef, idx, GroupTypeId.General, true))
+                        bool isInstance = !TagFamilyConfig.IsTypeScopedParam(paramName, typeScoped);
+                        switch (TagParamInjector.EnsureFamilyParam(famMan, extDef, idx, GroupTypeId.General, isInstance))
                         {
                             case TagParamInjector.InjectResult.Added: added++; break;
                             case TagParamInjector.InjectResult.SkippedExists: skippedExists++; break;
@@ -3289,6 +3342,11 @@ namespace StingTools.Tags
 
             StingLog.Info($"LoadTagFamilies: {rfaFiles.Length} family/families across {roots.Count} root(s).");
 
+            // TAGFAM-7: a family this project loaded under a name STING no longer ships is
+            // renamed in place to the library's name first, so its placed tags are kept and
+            // the load below updates it instead of adding a second family beside it.
+            var legacyRename = TagFamilyLegacyRename.Apply(doc, byName.Keys);
+
             // Check which are already loaded
             var loadedFamilies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (Family fam in new FilteredElementCollector(doc)
@@ -3302,6 +3360,12 @@ namespace StingTools.Tags
             int failed = 0;
             int repaired = 0;
             var report = new StringBuilder();
+            if (legacyRename.Any)
+            {
+                report.AppendLine("Families renamed from a name STING no longer ships:");
+                foreach (var line in legacyRename.Lines()) report.AppendLine(line);
+                report.AppendLine();
+            }
 
             var toLoad = new List<string>();
             var inProject = new List<string>();
@@ -3480,6 +3544,9 @@ namespace StingTools.Tags
                     "or were changed outside Promote Library; they were used anyway. Show details, then run " +
                     "Promote Library to bring the share in line.\n" : "") +
                 $"Not loaded: {failed}" +
+                (legacyRename.Renamed.Count > 0 ? $"\nRenamed to the current library name: {legacyRename.Renamed.Count} (placed tags kept)" : "") +
+                (legacyRename.BothPresent.Count > 0 ? $"\nOld and current name both in the project: {legacyRename.BothPresent.Count} (left unchanged, see details)" : "") +
+                (legacyRename.Failed.Count > 0 ? $"\nCould not rename: {legacyRename.Failed.Count} (see details)" : "") +
                 (repaired > 0 ? "\n\nRepaired families had parameters stored as Text that this project holds " +
                     "as numbers, lengths or yes/no, so Revit refused them. Where a family parameter held it, the label now reads " +
                     "the Text display mirror; where only a label read it, that field was removed from " +
@@ -3493,7 +3560,8 @@ namespace StingTools.Tags
             else td.Show();
 
             StingLog.Info($"LoadTagFamilies: loaded={loaded}, updated={updated}/{toUpdate.Count}, repaired={repaired}, " +
-                          $"skipped={skipped}, failed={failed}");
+                          $"skipped={skipped}, failed={failed}, legacyRenamed={legacyRename.Renamed.Count}, " +
+                          $"legacyBothPresent={legacyRename.BothPresent.Count}, legacyRenameFailed={legacyRename.Failed.Count}");
             return Result.Succeeded;
         }
     }
