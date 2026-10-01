@@ -123,28 +123,16 @@ namespace StingTools.Tags
 
         public static void SaveRules(string configPath, TagRuleSet ruleSet)
         {
-            Dictionary<string, object> root;
-            if (File.Exists(configPath))
-            {
-                try
-                {
-                    string existing = File.ReadAllText(configPath);
-                    root = JsonConvert.DeserializeObject<Dictionary<string, object>>(existing)
-                        ?? new Dictionary<string, object>();
-                }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"Config parse fallback: {ex.Message}");
-                    root = new Dictionary<string, object>();
-                }
-            }
-            else
-            {
-                root = new Dictionary<string, object>();
-            }
-
-            root["TAG_RULES"] = ruleSet;
-            File.WriteAllText(configPath, JsonConvert.SerializeObject(root, Formatting.Indented));
+            // TAGACC-22: project_config.json is shared (SEQ_*, folder layout, COST_* ...).
+            // Write this one key over the file as it is; a file that is not valid JSON is
+            // refused (thrown, and the caller shows it) instead of being replaced by a
+            // file holding only TAG_RULES.
+            string existing = File.Exists(configPath) ? File.ReadAllText(configPath) : null;
+            string json = ConfigFileMerge.Merge(existing,
+                new Dictionary<string, object> { ["TAG_RULES"] = ruleSet }, out _);
+            string tmp = configPath + ".tmp";
+            File.WriteAllText(tmp, json);
+            File.Move(tmp, configPath, true);
         }
 
         /// <summary>
@@ -287,28 +275,16 @@ namespace StingTools.Tags
 
         public static void SaveFormatConfig(string configPath, TagFormatConfig fmt)
         {
-            Dictionary<string, object> root;
-            if (File.Exists(configPath))
-            {
-                try
-                {
-                    string existing = File.ReadAllText(configPath);
-                    root = JsonConvert.DeserializeObject<Dictionary<string, object>>(existing)
-                        ?? new Dictionary<string, object>();
-                }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"Config parse fallback: {ex.Message}");
-                    root = new Dictionary<string, object>();
-                }
-            }
-            else
-            {
-                root = new Dictionary<string, object>();
-            }
-
-            root["TAG_FORMAT"] = fmt;
-            File.WriteAllText(configPath, JsonConvert.SerializeObject(root, Formatting.Indented));
+            // TAGACC-22: project_config.json is shared (SEQ_*, folder layout, COST_* ...).
+            // Write this one key over the file as it is; a file that is not valid JSON is
+            // refused (thrown, and the caller shows it) instead of being replaced by a
+            // file holding only TAG_FORMAT.
+            string existing = File.Exists(configPath) ? File.ReadAllText(configPath) : null;
+            string json = ConfigFileMerge.Merge(existing,
+                new Dictionary<string, object> { ["TAG_FORMAT"] = fmt }, out _);
+            string tmp = configPath + ".tmp";
+            File.WriteAllText(tmp, json);
+            File.Move(tmp, configPath, true);
         }
 
         /// <summary>Build a sample tag string from the format config.</summary>
