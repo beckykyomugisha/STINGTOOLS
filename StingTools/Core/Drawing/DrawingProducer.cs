@@ -96,6 +96,15 @@ namespace StingTools.Core.Drawing
         /// <summary>DTW-209: the reused sheet's context stamp before this run re-stamped it.</summary>
         internal string PriorSheetStamp { get; set; }
 
+        /// <summary>
+        /// DTW-216: this result's notes into <paramref name="warnings"/> and its
+        /// <see cref="Failure"/> back (null = keep it). A caller that gets a failure rolls
+        /// the item's transaction back and reports
+        /// <see cref="ProductionEdgeDecisions.RolledBackLine"/>; earlier items stay.
+        /// </summary>
+        internal string TakeInto(List<string> warnings)
+            => ProductionEdgeDecisions.TakeItem(Warnings, Failure, warnings);
+
         internal void Fail(string reason)
         {
             if (string.IsNullOrWhiteSpace(reason)) return;

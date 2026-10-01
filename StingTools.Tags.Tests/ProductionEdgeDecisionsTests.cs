@@ -115,6 +115,33 @@ namespace StingTools.Tags.Tests
         public void The_drift_check_expects_the_scale_sync_styles_would_keep(int typeScale, int fitted, int fitBase, int expected)
             => Assert.Equal(expected, ProductionEdgeDecisions.ExpectedScale(typeScale, fitted, fitBase));
 
+        // ── DTW-216: every caller of the producer rolls a refused item back ──
+
+        [Fact]
+        public void A_refused_item_hands_back_its_reason_and_reports_it_once()
+        {
+            var into = new List<string> { "earlier" };
+            var failure = ProductionEdgeDecisions.TakeItem(
+                new[] { "note A", "no sheet was made", "note B" }, "no sheet was made", into);
+            Assert.Equal("no sheet was made", failure);
+            Assert.Equal(new[] { "earlier", "note A", "note B" }, into);   // the reason is the rollback line's, not a note
+        }
+
+        [Fact]
+        public void A_kept_item_passes_every_note_through_and_no_reason()
+        {
+            var into = new List<string>();
+            Assert.Null(ProductionEdgeDecisions.TakeItem(new[] { "note A" }, null, into));
+            Assert.Equal(new[] { "note A" }, into);
+        }
+
+        [Fact]
+        public void A_refused_item_line_names_the_item_and_says_nothing_was_kept()
+        {
+            var line = ProductionEdgeDecisions.RolledBackLine("Board DB-1", "no sheet was made");
+            Assert.Equal("Board DB-1: no sheet was made — rolled back; nothing of it was kept.", line);
+        }
+
         [Fact]
         public void A_replaced_template_is_named_with_the_way_to_keep_it()
         {

@@ -32,6 +32,24 @@ namespace StingTools.Core.Drawing
             => $"'{drawingTypeId}': no sheet was made — its number could not be reserved "
              + $"({(string.IsNullOrWhiteSpace(reason) ? "reason unknown" : reason.Trim())}). Nothing of it was produced.";
 
+        // ── DTW-216: every caller rolls a refused item back ────────────
+
+        /// <summary>
+        /// An item's notes into <paramref name="into"/>, and its failure handed back (null
+        /// when the item can be kept). The failure line is left out of the notes: the
+        /// caller rolls the item back and reports it once, as the reason.
+        /// </summary>
+        internal static string TakeItem(IEnumerable<string> notes, string failure, List<string> into)
+        {
+            if (into != null && notes != null)
+                into.AddRange(failure == null ? notes : notes.Where(w => w != failure));
+            return failure;
+        }
+
+        /// <summary>The report line for an item rolled back because production refused it.</summary>
+        internal static string RolledBackLine(string label, string failure)
+            => $"{label}: {(string.IsNullOrWhiteSpace(failure) ? "production refused the item" : failure.Trim())} — rolled back; nothing of it was kept.";
+
         // ── DTW-197: the sheet is made after the first view ────────────
 
         /// <summary>

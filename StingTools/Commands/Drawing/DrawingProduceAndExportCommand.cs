@@ -419,7 +419,13 @@ namespace StingTools.Commands.Drawing
                             // idempotency. The level is already in the key via ctx.Level.
                             var ctx = new DrawingContext { Level = level, PackageId = packageId };
                             var res = DrawingProducer.ProduceAllViews(doc, dt, ctx, opts);
-                            stats.Warnings.AddRange(res.Warnings);
+                            var failure = res.TakeInto(stats.Warnings);   // DTW-216: a refused item is not kept
+                            if (failure != null)
+                            {
+                                t.RollBack();
+                                stats.Warnings.Add(ProductionEdgeDecisions.RolledBackLine($"Produce [{dt.Id}@{level.Name}]", failure));
+                                continue;
+                            }
                             // Counted only once Revit has committed: a commit a failure
                             // handler rolls back kept nothing.
                             var status = t.Commit();
