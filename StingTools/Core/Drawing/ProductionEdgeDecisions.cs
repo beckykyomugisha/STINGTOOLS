@@ -113,6 +113,25 @@ namespace StingTools.Core.Drawing
             return name;
         }
 
+        // ── DTW-213: a name is held by the element that took it, not by its id ──
+
+        /// <summary>
+        /// Does the element at the recorded owner id still hold <paramref name="key"/>?
+        /// Only when it exists, is the kind that took the name (a sheet for a sheet number,
+        /// a view for a view name) and still carries that name. After a rollback Revit can
+        /// reuse an ElementId for a different element; judged by id alone, it kept the
+        /// rolled-back sheet's number taken (a needless "-A") or its context claim.
+        /// <paramref name="ownerUnknown"/> (no owner recorded) always holds.
+        /// </summary>
+        internal static bool StillHolds(bool ownerUnknown, bool exists, bool expectedKind, string currentName,
+            string key, bool ignoreCase)
+        {
+            if (ownerUnknown) return true;
+            if (!exists || !expectedKind) return false;
+            return string.Equals(currentName ?? "", key ?? "",
+                ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+        }
+
         // ── DTW-199: a view moved to another sheet stays there ─────────
 
         /// <summary>The report line for a view kept on the sheet someone moved it to.</summary>

@@ -134,6 +134,33 @@ namespace StingTools.Tags.Tests
                 ProductionEdgeDecisions.SheetName("Power - {mark}", "E", "Level 1", "", "North", "Plan", 1, null, "North"));
         }
 
+        // ── DTW-213 ───────────────────────────────────────────────────
+
+        [Fact]
+        public void A_reused_id_now_a_different_element_does_not_hold_the_name()
+        {
+            // The rolled-back sheet "E-101" took id 42; Revit gave 42 to a view.
+            Assert.False(ProductionEdgeDecisions.StillHolds(false, exists: true, expectedKind: false, "Level 1", "E-101", true));
+            // ... or to another sheet numbered differently.
+            Assert.False(ProductionEdgeDecisions.StillHolds(false, true, true, "E-205", "E-101", true));
+            Assert.True(ProductionEdgeDecisions.StillHolds(false, true, true, "e-101", "E-101", ignoreCase: true));
+            Assert.True(ProductionEdgeDecisions.StillHolds(ownerUnknown: true, false, false, null, "E-101", true));
+            Assert.False(ProductionEdgeDecisions.StillHolds(false, exists: false, true, null, "E-101", true));
+        }
+
+        [Fact]
+        public void The_ledger_releases_a_name_whose_reused_owner_no_longer_carries_it()
+        {
+            var ledger = new BatchNameLedger(new[] { "A-100" }, System.StringComparer.OrdinalIgnoreCase);
+            ledger.Record("A-101", 42);
+            // Id 42 still exists — the id-only check kept "A-101" taken.
+            Assert.True(ledger.Contains("A-101", id => true));
+            // By identity: element 42 is now numbered A-300, so A-101 is free.
+            Assert.False(ledger.Contains("A-101", (name, id) => ProductionEdgeDecisions.StillHolds(false, true, true, "A-300", name, true)));
+            // Pre-existing names have no owner and stay taken.
+            Assert.True(ledger.Contains("A-100", (name, id) => false));
+        }
+
         // ── DTW-199 ───────────────────────────────────────────────────
 
         [Fact]

@@ -249,21 +249,31 @@ namespace StingTools.Core.Drawing
 
         // ── STACK-1 helpers — per-batch sheet↔context claims ────────────────
 
-        /// <summary>True when this batch already used <paramref name="sheetId"/>
+        /// <summary>True when this batch already used <paramref name="sheet"/>
         /// for a context other than <paramref name="ctx"/>. Claims only exist for
-        /// the current run, so this never blocks legitimate reuse across runs.</summary>
-        private static bool ClaimedByOtherContext(ElementId sheetId, string ctx)
+        /// the current run, so this never blocks legitimate reuse across runs.
+        /// DTW-213: a claim is keyed by id but remembers the sheet's UniqueId; a claim whose
+        /// id Revit has reused for another sheet after a rollback is ignored and dropped.</summary>
+        private static bool ClaimedByOtherContext(ViewSheet sheet, string ctx)
         {
-            if (sheetId == null || _sheetCtxClaims == null) return false;
-            return _sheetCtxClaims.TryGetValue(sheetId.Value, out var owner)
-                && !string.Equals(owner, ctx ?? "", StringComparison.Ordinal);
+            if (sheet == null || _sheetCtxClaims == null) return false;
+            if (!_sheetCtxClaims.TryGetValue(sheet.Id.Value, out var claim)) return false;
+            int cut = claim.IndexOf('\n');
+            string uid = cut < 0 ? null : claim.Substring(0, cut);
+            string owner = cut < 0 ? claim : claim.Substring(cut + 1);
+            if (!ProductionEdgeDecisions.StillHolds(uid == null, true, true, sheet.UniqueId, uid, ignoreCase: false))
+            {
+                _sheetCtxClaims.Remove(sheet.Id.Value);
+                return false;
+            }
+            return !string.Equals(owner, ctx ?? "", StringComparison.Ordinal);
         }
 
-        private static void ClaimSheetForContext(ElementId sheetId, string ctx)
+        private static void ClaimSheetForContext(ViewSheet sheet, string ctx)
         {
-            if (sheetId == null) return;
+            if (sheet == null) return;
             if (_sheetCtxClaims == null) _sheetCtxClaims = new Dictionary<long, string>();
-            _sheetCtxClaims[sheetId.Value] = ctx ?? "";
+            _sheetCtxClaims[sheet.Id.Value] = (sheet.UniqueId ?? "") + "\n" + (ctx ?? "");
         }
 
         /// <summary>
@@ -1701,14 +1711,14 @@ namespace StingTools.Core.Drawing
                 // records the claim below.
                 var unstampable = candidates.FirstOrDefault(s =>
                     DrawingTypeStamper.ReadSheetContext(s) == null
-                    && !ClaimedByOtherContext(s.Id, sheetCtx));
+                    && !ClaimedByOtherContext(s, sheetCtx));
                 if (unstampable != null)
                 {
                     result.Warnings.Add(
                         $"{DrawingTypeStamper.PARAM_SHEET_CONTEXT} is not bound in this project, so sheets cannot be " +
                         $"matched per level / scope box. Reusing sheet {unstampable.Id} for context '{sheetCtx}'. " +
                         "Run LoadSharedParams to bind it, then re-run production.");
-                    ClaimSheetForContext(unstampable.Id, sheetCtx);
+                    ClaimSheetForContext(unstampable, sheetCtx);
                     result.SheetReused = true;
                     return unstampable.Id;
                 }
@@ -1956,7 +1966,7 @@ namespace StingTools.Core.Drawing
                 // Newly-created sheet should be discoverable next time.
                 if (_existingSheetCache != null)
                     _existingSheetCache[SheetKey(dt.Id, effectivePackage, ProductionContextKey.Identity(sheetCtx))] = sheet.Id;
-                ClaimSheetForContext(sheet.Id, sheetCtx);   // STACK-1
+                ClaimSheetForContext(sheet, sheetCtx);   // STACK-1
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
@@ -2455,20 +2465,39 @@ namespace StingTools.Core.Drawing
             return name;
         }
 
-        /// <summary>DTW-45: does element <paramref name="id"/> still exist? False once a
-        /// rolled-back transaction has taken it away.</summary>
-        private static Func<long, bool> Alive(Document doc) => id =>
+        /// <summary>DTW-45 / DTW-213: does the sheet that took number <c>name</c> (owner
+        /// <c>id</c>) still hold it? False once a rollback took the sheet away — and also when
+        /// Revit has reused the id for another element, or the sheet has been renumbered.</summary>
+        private static Func<string, long, bool> SheetNumberHeld(Document doc) => (name, id) =>
         {
-            if (id <= 0) return true;   // no owner recorded: treat as a real, standing name
-            try { var e = doc.GetElement(new ElementId(id)); return e != null && e.IsValidObject; }
-            catch (Exception ex) { StingLog.Warn($"DrawingProducer.Alive({id}): {ex.Message}"); return true; }
+            try
+            {
+                var e = id <= 0 ? null : doc.GetElement(new ElementId(id));
+                var s = e as ViewSheet;
+                return ProductionEdgeDecisions.StillHolds(id <= 0, e != null && e.IsValidObject, s != null,
+                    s?.SheetNumber, name, ignoreCase: true);
+            }
+            catch (Exception ex) { StingLog.Warn($"DrawingProducer.SheetNumberHeld({id}): {ex.Message}"); return true; }
+        };
+
+        /// <summary>DTW-45 / DTW-213: the same for a view name.</summary>
+        private static Func<string, long, bool> ViewNameHeld(Document doc) => (name, id) =>
+        {
+            try
+            {
+                var e = id <= 0 ? null : doc.GetElement(new ElementId(id));
+                var v = e as View;
+                return ProductionEdgeDecisions.StillHolds(id <= 0, e != null && e.IsValidObject,
+                    v != null && !(v is ViewSheet), v?.Name, name, ignoreCase: false);
+            }
+            catch (Exception ex) { StingLog.Warn($"DrawingProducer.ViewNameHeld({id}): {ex.Message}"); return true; }
         };
 
         private static bool NameExists(Document doc, string name)
         {
             // P-12: O(1) against the batch name set when primed for this doc.
             if (_existingViewNames != null && CacheMatchesDoc(doc))
-                return _existingViewNames.Contains(name, Alive(doc));
+                return _existingViewNames.Contains(name, ViewNameHeld(doc));
             try
             {
                 return new FilteredElementCollector(doc)
@@ -2624,7 +2653,7 @@ namespace StingTools.Core.Drawing
             {
                 // DTW-45: a number an earlier item in this batch took for a sheet its
                 // rollback removed is free again — otherwise this sheet got "-A".
-                int freed = _sheetNumberCache.Heal(baseNumber, Alive(doc));
+                int freed = _sheetNumberCache.Heal(baseNumber, SheetNumberHeld(doc));
                 if (freed > 0)
                     StingLog.Info($"EnsureUniqueSheetNumber: {freed} number(s) under '{baseNumber}' freed — their sheets were rolled back.");
                 existing = _sheetNumberCache.Names;
