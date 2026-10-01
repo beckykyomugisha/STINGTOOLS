@@ -59,6 +59,15 @@ StingTools/Tags/TokenWriterCommands.cs::CompletenessDashboardCommand|TaskDialogR
 # unattended run of the workflow named in its header would wait on that window. They are
 # recorded, not excused - reading a green run as "the KUT workflows are unattended" is wrong
 # while any UNGATED line remains.
+#
+# 2026-10-01 (kut-unattended-dialogs): no UNGATED line remains. Every non-ACC construct is
+# either gone (messages routed through PresetDialog.Show) or sits behind PresetDialog.Quiet,
+# with choices and input files taken from the step's "params" and a missing param failing the
+# step by name. Two prompts this checker CANNOT see were gated in the same pass because they
+# live in helpers: the LOD milestone picker (LodScope.PickMilestone, params.milestone) and
+# ExportSheetRegister's save-path prompt (OutputLocationHelper.PromptForExportPath, replaced
+# in a preset by the routed SheetRegister folder). "Gated" means "will not wait"; it does NOT
+# mean every step succeeds unattended - a step whose param the workflow does not set fails.
 
 # CDEStatusCommand — step CDEStatus in Mobilisation
 StingTools/BIMManager/BIMManagerCommands.cs::CDEStatusCommand|AddCommandLink|4	GATED - the WIP/SHARED/PUBLISHED/ARCHIVE picker is built only when !PresetDialog.Quiet; inside a preset the step's "params": {"status": ...} decides and a step without it fails (never defaulted). The KUT Mobilisation step sets "WIP".
@@ -145,7 +154,6 @@ StingTools/Commands/Validation/ProgramAuditCommand.cs::ProgramAuditCommand|OpenF
 StingTools/Commands/Validation/ProgramAuditCommand.cs::ProgramAuditCommand|ShowDialog|1	GATED - that picker's ShowDialog; same branch.
 
 # WorkflowTrendCommand — step WorkflowTrend in MonthlyReport
-StingTools/Core/WorkflowEngine.cs::WorkflowTrendCommand|TaskDialog.Show|2	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
 
 # ExportCenterRunSchedulesCommand — step ExportCenterRunSchedules in FortnightlyIssue
 
