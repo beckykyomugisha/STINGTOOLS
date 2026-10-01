@@ -2770,7 +2770,7 @@
     "StingTools/Data/Placement/STING_PLACEMENT_RULES.accessibility.json": {
       "format": "json",
       "schemaVersion": 1,
-      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2); this registry replaced the hand-written JSON Schema (DSCH-8).",
       "readers": [
         "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
       ],
@@ -2795,7 +2795,7 @@
     "StingTools/Data/Placement/STING_PLACEMENT_RULES.architecture.json": {
       "format": "json",
       "schemaVersion": 1,
-      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2); this registry replaced the hand-written JSON Schema (DSCH-8).",
       "readers": [
         "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
       ],
@@ -2820,7 +2820,7 @@
     "StingTools/Data/Placement/STING_PLACEMENT_RULES.baseline-extensions.json": {
       "format": "json",
       "schemaVersion": 1,
-      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2); this registry replaced the hand-written JSON Schema (DSCH-8).",
       "readers": [
         "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
       ],
@@ -2845,7 +2845,7 @@
     "StingTools/Data/Placement/STING_PLACEMENT_RULES.baseline-extensions2.json": {
       "format": "json",
       "schemaVersion": 1,
-      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2); this registry replaced the hand-written JSON Schema (DSCH-8).",
       "readers": [
         "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
       ],
@@ -2870,7 +2870,7 @@
     "StingTools/Data/Placement/STING_PLACEMENT_RULES.ceiling-pendants.json": {
       "format": "json",
       "schemaVersion": 1,
-      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2); this registry replaced the hand-written JSON Schema (DSCH-8).",
       "readers": [
         "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
       ],
@@ -2895,7 +2895,7 @@
     "StingTools/Data/Placement/STING_PLACEMENT_RULES.commissioning.json": {
       "format": "json",
       "schemaVersion": 1,
-      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2); this registry replaced the hand-written JSON Schema (DSCH-8).",
       "readers": [
         "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
       ],
@@ -2920,7 +2920,7 @@
     "StingTools/Data/Placement/STING_PLACEMENT_RULES.conduiting-phase.json": {
       "format": "json",
       "schemaVersion": 1,
-      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2); this registry replaced the hand-written JSON Schema (DSCH-8).",
       "readers": [
         "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
       ],
@@ -2945,7 +2945,7 @@
     "StingTools/Data/Placement/STING_PLACEMENT_RULES.electrical.json": {
       "format": "json",
       "schemaVersion": 1,
-      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2); this registry replaced the hand-written JSON Schema (DSCH-8).",
       "readers": [
         "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
       ],
@@ -2970,7 +2970,7 @@
     "StingTools/Data/Placement/STING_PLACEMENT_RULES.healthcare-education.json": {
       "format": "json",
       "schemaVersion": 1,
-      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2); this registry replaced the hand-written JSON Schema (DSCH-8).",
       "readers": [
         "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
       ],
@@ -2995,7 +2995,7 @@
     "StingTools/Data/Placement/STING_PLACEMENT_RULES.in-wall-chase.json": {
       "format": "json",
       "schemaVersion": 1,
-      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2); this registry replaced the hand-written JSON Schema (DSCH-8).",
       "readers": [
         "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
       ],
@@ -3020,7 +3020,7 @@
     "StingTools/Data/Placement/STING_PLACEMENT_RULES.json": {
       "format": "json",
       "schemaVersion": 1,
-      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2); this registry replaced the hand-written JSON Schema (DSCH-8).",
       "readers": [
         "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
       ],
@@ -3045,7 +3045,7 @@
     "StingTools/Data/Placement/STING_PLACEMENT_RULES.mechanical.json": {
       "format": "json",
       "schemaVersion": 1,
-      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2); this registry replaced the hand-written JSON Schema (DSCH-8).",
       "readers": [
         "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
       ],
@@ -3070,7 +3070,7 @@
     "StingTools/Data/Placement/STING_PLACEMENT_RULES.medical-gases.json": {
       "format": "json",
       "schemaVersion": 1,
-      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2); this registry replaced the hand-written JSON Schema (DSCH-8).",
       "readers": [
         "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
       ],
@@ -3095,7 +3095,7 @@
     "StingTools/Data/Placement/STING_PLACEMENT_RULES.mk-electrical.json": {
       "format": "json",
       "schemaVersion": 1,
-      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2); this registry replaced the hand-written JSON Schema (DSCH-8).",
       "readers": [
         "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
       ],
@@ -3120,7 +3120,7 @@
     "StingTools/Data/Placement/STING_PLACEMENT_RULES.routing.json": {
       "format": "json",
       "schemaVersion": 1,
-      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2); this registry replaced the hand-written JSON Schema (DSCH-8).",
       "readers": [
         "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
       ],
@@ -3145,7 +3145,7 @@
     "StingTools/Data/Placement/STING_PLACEMENT_RULES.toilet-fixtures.json": {
       "format": "json",
       "schemaVersion": 1,
-      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2); this registry replaced the hand-written JSON Schema (DSCH-8).",
       "readers": [
         "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
       ],
@@ -3170,7 +3170,7 @@
     "StingTools/Data/Placement/STING_PLACEMENT_RULES.windows-glazing.json": {
       "format": "json",
       "schemaVersion": 1,
-      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2). For validation this supersedes the hand-written Data/Schemas/STING_PLACEMENT_RULES.schema.json, which nothing reads and which has drifted - ROADMAP DSCH-8.",
+      "description": "Placement rule pack. Keys derived from PlacementRuleSet / PlacementRule (DSCH round 2); this registry replaced the hand-written JSON Schema (DSCH-8).",
       "readers": [
         "StingTools/Core/Placement/PlacementRuleLoader.cs (JsonConvert.DeserializeObject<PlacementRuleSet>)"
       ],
@@ -10649,18 +10649,6 @@
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },
     "StingTools/Data/STING_WIRE_TABLES.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Schemas/STING_DRAWING_TYPES.schema.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Schemas/STING_FAB_RULES.schema.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Schemas/STING_PLACEMENT_RULES.schema.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },
