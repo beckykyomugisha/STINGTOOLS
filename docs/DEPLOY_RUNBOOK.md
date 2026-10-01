@@ -28,7 +28,7 @@ credentials handy — you'll paste them into the Render env group in step 3.
 | **LiveKit** (LiveKit Cloud free tier, or self-host) | Meeting video/WebRTC | API key, API secret, `wss://…` server URL |
 | **Firebase project** | Push notifications (FCM) | Project ID + service-account JSON |
 | **Resend** (or SMTP) | Invites / password reset / owner reset email | Resend API key; verify `planscape.build` as a sending domain |
-| **Autodesk APS app** *(optional)* | Server-side ACC connector | Client ID + secret; set redirect `https://api.planscape.build/api/acc/oauth/callback` |
+| **Autodesk APS app** *(optional)* | Server-side ACC connector | Client ID + secret; set the redirect to **the host that actually serves the API** + `/api/acc/oauth/callback` (e.g. `https://planscape-api-free.onrender.com/api/acc/oauth/callback`). `api.planscape.build` has no DNS (checked 2026-10-01) — a redirect there can never complete. |
 
 Generate the JWT signing key now too:
 ```bash
@@ -117,6 +117,11 @@ Render dashboard → **Env Groups → planscape-shared** → set:
 | `Resend__ApiKey` | Resend key (if `resend`) — or set `Smtp__Host/Username/Password` |
 | `Converter__Token` | a strong random string (must match 3c) |
 | `Acc__ClientId` / `Acc__ClientSecret` | APS app creds (optional; blank disables ACC) |
+| `Acc__CallbackUrl` | `https://<live API host>/api/acc/oauth/callback`, identical to the APS app's callback. Not `api.planscape.build` (no DNS) |
+| `Acc__Scopes` | Leave empty: the default `data:read data:write data:create` (webhooks need `data:create`; a connection made before 2026-10-01 must be reconnected once) |
+| `Autodesk__WebhookSecret` / `Autodesk__WebhookCallbackUrl` | Random secret; `https://<live API host>/api/webhooks/autodesk/event`. Without the URL the callback defaults to the `Acc__CallbackUrl` origin |
+| `Autodesk__WebhookEvents__<system>` | Optional comma list overriding the default events per system (`data`, `autodesk.construction.issues`, `autodesk.construction.reviews`) |
+| `Acc__Ssa__ClientId` / `Acc__Ssa__ClientSecret` / `Acc__Ssa__ServiceAccountId` / `Acc__Ssa__KeyId` / `Acc__Ssa__PrivateKeyPem` (or `__PrivateKeyPath`) | Optional Secure Service Account for unattended sync — a SEPARATE server-to-server APS app. Used only by a connection whose ConfigJson has `"accAuthMode": "ssa"` (`PUT /api/projects/{p}/platform/{id}` merges it in). Empty or `REPLACE_WITH_` values are refused by name |
 
 `Storage__Provider=S3`, `Storage__S3__BucketName=planscape` (auto-created on
 boot), `Storage__S3__Region=us-east-1`, `Storage__S3__ForcePathStyle=true` are
@@ -262,7 +267,7 @@ are API calls made as a project manager / tenant administrator (bearer token):
 | Call | What it does |
 |---|---|
 | `GET /api/projects/{id}/acc/folders` | The ACC project's top folders (hidden ones flagged). `?parentUrn=<folder urn>` lists that folder's sub-folders. |
-| `POST /api/projects/{id}/acc/webhooks/subscribe` body `{}` | Sets the APS webhook secret (`Autodesk__WebhookSecret`), creates the issue hooks and the file-version hooks on the project's top folders (Project Files). The response lists `folderSource` / `folders`. |
+| `POST /api/projects/{id}/acc/webhooks/subscribe` body `{}` | Sets the APS webhook secret (`Autodesk__WebhookSecret`), creates the issue hooks, the review-closed hook (`autodesk.construction.reviews/review.closed-1.0`) and the file-version hooks on the project's top folders (Project Files). Issues hooks need the connection to be signed in as an ACC **Project Admin**. The response lists `folderSource` / `folders`. |
 | … body `{"folderUrns":["urn:…"]}` | Version hooks on exactly those folders instead (a hook on a folder covers its sub-folders). `"folderUrns": []` = issue hooks only. |
 | `DELETE /api/projects/{id}/acc/webhooks` | Removes every hook Planscape recorded. |
 | `GET /api/acc/reconnect-required` | Every ACC connection in the tenant (or the projects you administer) that needs a reconnect, why, and the call to make. |

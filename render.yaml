@@ -363,8 +363,30 @@ envVarGroups:
         sync: false
       - key: Acc__ClientSecret
         sync: false
+      # H-5 (2026-10-01): api.planscape.build has NO DNS (NXDOMAIN), so this default sent the
+      # ACC sign-in redirect - and, through it, the default webhook callback - to a dead host.
+      # Set it in the dashboard to the host that actually serves the API, e.g.
+      # https://planscape-api-free.onrender.com/api/acc/oauth/callback, and register the SAME
+      # URL as the APS app's callback.
       - key: Acc__CallbackUrl
-        value: https://api.planscape.build/api/acc/oauth/callback
+        sync: false
+      - key: Acc__Scopes
+        sync: false             # empty = data:read data:write data:create (webhooks need data:create)
+      - key: Autodesk__WebhookSecret
+        sync: false             # random; signs APS deliveries (x-adsk-signature)
+      - key: Autodesk__WebhookCallbackUrl
+        sync: false             # https://<live API host>/api/webhooks/autodesk/event
+      # Secure Service Account (optional, unattended sync) - a SEPARATE server-to-server APS app
+      - key: Acc__Ssa__ClientId
+        sync: false
+      - key: Acc__Ssa__ClientSecret
+        sync: false
+      - key: Acc__Ssa__ServiceAccountId
+        sync: false
+      - key: Acc__Ssa__KeyId
+        sync: false
+      - key: Acc__Ssa__PrivateKeyPem
+        sync: false             # the PEM from Create Keys (escaped newlines are accepted)
 
       # ── Converter shared token — MUST equal planscape-converter's CONVERTER_TOKEN ──
       - key: Converter__Token
