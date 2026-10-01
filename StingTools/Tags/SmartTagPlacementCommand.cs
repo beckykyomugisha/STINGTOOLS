@@ -1495,6 +1495,13 @@ namespace StingTools.Tags
             public DateTime Created { get; set; } = DateTime.Now;
             public Dictionary<string, CategoryRule> Rules { get; set; }
                 = new Dictionary<string, CategoryRule>(StringComparer.OrdinalIgnoreCase);
+            /// <summary>
+            /// True for the shipped Data/TAG_PLACEMENT_PRESETS_DEFAULT.json preset that
+            /// LoadPresets supplies when the user list has no "Default". Never serialised, and
+            /// SavePresets drops it, so the shipped default is never copied into the user file.
+            /// </summary>
+            [JsonIgnore]
+            public bool IsShippedDefault { get; set; }
         }
 
         /// <summary>
@@ -1675,27 +1682,71 @@ namespace StingTools.Tags
         {
             try
             {
-                string json = JsonConvert.SerializeObject(presets, Formatting.Indented);
+                var toSave = (presets ?? new List<PlacementPreset>())
+                    .Where(p => p != null && !p.IsShippedDefault).ToList();
+                string json = JsonConvert.SerializeObject(toSave, Formatting.Indented);
                 File.WriteAllText(path, json);
-                StingLog.Info($"Saved {presets.Count} tag placement presets to {path}");
+                StingLog.Info($"Saved {toSave.Count} tag placement presets to {path}");
             }
             catch (Exception ex) { StingLog.Error($"SavePresets failed: {ex.Message}"); }
         }
 
-        /// <summary>Load presets from JSON file.</summary>
+        /// <summary>
+        /// Load presets from the user JSON file. When the user list has no preset named
+        /// "Default", the shipped Data/TAG_PLACEMENT_PRESETS_DEFAULT.json is inserted first
+        /// (marked IsShippedDefault, so it is never written back).
+        /// </summary>
         public static List<PlacementPreset> LoadPresets(string path)
         {
+            List<PlacementPreset> presets;
             try
             {
-                if (!File.Exists(path)) return new List<PlacementPreset>();
-                string json = File.ReadAllText(path);
-                return JsonConvert.DeserializeObject<List<PlacementPreset>>(json)
-                    ?? new List<PlacementPreset>();
+                presets = File.Exists(path)
+                    ? JsonConvert.DeserializeObject<List<PlacementPreset>>(File.ReadAllText(path))
+                        ?? new List<PlacementPreset>()
+                    : new List<PlacementPreset>();
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"LoadPresets: {ex.Message}");
-                return new List<PlacementPreset>();
+                presets = new List<PlacementPreset>();
+            }
+            presets.RemoveAll(p => p == null);
+
+            if (!presets.Any(p => string.Equals(p.Name, "Default", StringComparison.OrdinalIgnoreCase)))
+            {
+                var shipped = LoadShippedDefault();
+                if (shipped != null) presets.Insert(0, shipped);
+            }
+            return presets;
+        }
+
+        /// <summary>The shipped default preset, or null when the file is absent or unreadable.</summary>
+        private static PlacementPreset LoadShippedDefault()
+        {
+            try
+            {
+                string file = StingToolsApp.FindDataFile("TAG_PLACEMENT_PRESETS_DEFAULT.json");
+                if (string.IsNullOrEmpty(file) || !File.Exists(file)) return null;
+                var preset = JsonConvert.DeserializeObject<PlacementPreset>(File.ReadAllText(file));
+                if (preset == null) return null;
+                var rules = new Dictionary<string, CategoryRule>(StringComparer.OrdinalIgnoreCase);
+                if (preset.Rules != null)
+                    foreach (var kvp in preset.Rules)
+                    {
+                        if (kvp.Value == null) continue;
+                        kvp.Value.CategoryName = kvp.Key;
+                        rules[kvp.Key] = kvp.Value;
+                    }
+                preset.Rules = rules;
+                if (string.IsNullOrWhiteSpace(preset.Name)) preset.Name = "Default";
+                preset.IsShippedDefault = true;
+                return preset;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LoadPresets: shipped default unreadable: {ex.Message}");
+                return null;
             }
         }
 
