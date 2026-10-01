@@ -1353,7 +1353,13 @@ namespace StingTools.UI
             {
                 t.ViewTemplateName = _currentPack.ViewTemplate;
                 if (!string.Equals(t.Origin, "project", StringComparison.OrdinalIgnoreCase))
+                {
                     t.Origin = "project";   // edits land in project override on save
+                    // DTW-193: the corporate checksum no longer describes this
+                    // entry. Kept, it read as a drifted corporate parent
+                    // (ResolveExtends) on every child that extends it.
+                    t.Checksum = null;
+                }
                 n++;
             }
             // Refresh the Drawing Types tab list display.
@@ -2570,7 +2576,10 @@ namespace StingTools.UI
                     if (string.IsNullOrEmpty(_current.ViewStylePackId)) return;
                     _current.ViewTemplateName = null;
                     if (!string.Equals(_current.Origin, "project", StringComparison.OrdinalIgnoreCase))
+                    {
                         _current.Origin = "project";
+                        _current.Checksum = null; // DTW-193: corporate checksum no longer applies
+                    }
                     RenderForm();   // refresh to show the cleared field
                 }));
             linkRow.Children.Add(MakePackInlineLink("↑ Push to pack",

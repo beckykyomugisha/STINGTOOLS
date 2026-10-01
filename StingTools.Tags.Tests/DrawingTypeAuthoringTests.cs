@@ -187,6 +187,23 @@ namespace StingTools.Tags.Tests
             Assert.Contains("_packOverrideError != null", body);
         }
 
+        // ── DTW-193 ───────────────────────────────────────────────────────
+
+        [Fact]
+        public void Every_editor_promotion_to_project_clears_the_corporate_checksum()
+        {
+            var src = DrawingCatalogueFixture.Source("UI", "DrawingTypeEditorDialog.cs");
+            int from = 0, promotions = 0;
+            while ((from = src.IndexOf("t.Origin = \"project\";", from, StringComparison.Ordinal)) >= 0)
+            {
+                promotions++;
+                var window = src.Substring(from, Math.Min(400, src.Length - from));
+                Assert.Contains(".Checksum = null;", window);
+                from += 10;
+            }
+            Assert.True(promotions >= 2, "found " + promotions + " promotions");
+        }
+
         // ── DTW-186 ───────────────────────────────────────────────────────
 
         [Fact]
