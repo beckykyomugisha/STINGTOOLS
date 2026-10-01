@@ -3516,18 +3516,22 @@ namespace StingTools.BOQ
             if (string.IsNullOrEmpty(path) || !File.Exists(path)) return map;
             try
             {
-                string[] lines = File.ReadAllLines(path);
-                if (lines.Length < 2) return map;
-                var headers = StingToolsApp.ParseCsvLine(lines[0]).Select(h => h.ToLowerInvariant()).ToArray();
-                int catCol = Array.FindIndex(headers, h => h.Contains("category"));
-                int codeCol = Array.FindIndex(headers, h => h.Contains("cost") && h.Contains("code"));
-                if (catCol < 0 || codeCol < 0) return map;
-                for (int i = 1; i < lines.Length; i++)
+                // DSCH-2: exact header names. The old substring match ("category",
+                // "cost"+"code") resolved to these same two columns today, but would
+                // have picked RevitCategory had Category been renamed or moved after it.
+                var t = CsvTable.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                var missing = t.Missing("Category", "CostRateCode");
+                if (missing.Count > 0)
                 {
-                    string[] cols = StingToolsApp.ParseCsvLine(lines[i]);
-                    if (cols.Length <= Math.Max(catCol, codeCol)) continue;
-                    string cat = cols[catCol].Trim();
-                    string code = cols[codeCol].Trim();
+                    StingLog.Warn($"LoadCobieCostCodes: COBIE_TYPE_MAP.csv header has no {string.Join(", ", missing)} column(s).");
+                    return map;
+                }
+                int catCol = t.Col("Category"), codeCol = t.Col("CostRateCode");
+                foreach (var row in t.Rows)
+                {
+                    if (row.Count <= Math.Max(catCol, codeCol)) continue;
+                    string cat = row["Category"];
+                    string code = row["CostRateCode"];
                     if (!string.IsNullOrEmpty(cat) && !string.IsNullOrEmpty(code)) map[cat] = code;
                 }
             }
