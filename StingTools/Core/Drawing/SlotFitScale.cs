@@ -13,6 +13,24 @@ namespace StingTools.Core.Drawing
         internal static readonly int[] StandardScales =
             { 1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 1250, 2000, 2500, 5000, 10000 };
 
+        /// <summary>DTW-157 — used when STING_VIEWPORT_PLACEMENT_RULES.json carries no
+        /// <c>annotationMarginFactor</c>. The fit measures the model crop only; grid
+        /// and level heads, the annotation crop and the viewport title extend the
+        /// viewport past it, so the measured extent is grown by 10 % before fitting.</summary>
+        internal const double DefaultAnnotationMarginFactor = 1.10;
+
+        /// <summary>A factor below 1 would shrink the measured extent and one above 2
+        /// is almost certainly a typo; both are clamped.</summary>
+        internal static double ClampMarginFactor(double f)
+            => double.IsNaN(f) || f < 1.0 ? 1.0 : f > 2.0 ? 2.0 : f;
+
+        /// <summary>DTW-157 — true when a placed viewport's box runs past its slot by
+        /// more than <paramref name="tol"/> on any side. All values in one unit.</summary>
+        internal static bool Overflows(double boxMinX, double boxMinY, double boxMaxX, double boxMaxY,
+            double slotCx, double slotCy, double slotW, double slotH, double tol)
+            => boxMinX < slotCx - slotW / 2 - tol || boxMaxX > slotCx + slotW / 2 + tol
+            || boxMinY < slotCy - slotH / 2 - tol || boxMaxY > slotCy + slotH / 2 + tol;
+
         internal static int RoundUpToStandardScale(double v)
         {
             if (v <= 1) return 1;

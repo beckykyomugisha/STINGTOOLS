@@ -40,6 +40,35 @@ namespace StingTools.Tags.Tests
             Assert.False(c);
         }
 
+        // ── DTW-157 ──────────────────────────────────────────────────────
+
+        [Fact]
+        public void Annotation_margin_pushes_a_borderline_fit_to_the_next_scale()
+        {
+            // The crop alone fits at 1:95 (→ 1:100); heads and title need 10 % more.
+            double required = 95 * SlotFitScale.ClampMarginFactor(SlotFitScale.DefaultAnnotationMarginFactor);
+            int s = SlotFitScale.Decide(required, typeScale: 100, currentScale: 100, scaleHint: null, out bool c);
+            Assert.Equal(200, s);
+            Assert.True(c);
+        }
+
+        [Theory]
+        [InlineData(0.5, 1.0)]
+        [InlineData(double.NaN, 1.0)]
+        [InlineData(1.2, 1.2)]
+        [InlineData(9.0, 2.0)]
+        public void Margin_factor_is_clamped(double input, double expected)
+            => Assert.Equal(expected, SlotFitScale.ClampMarginFactor(input));
+
+        [Fact]
+        public void Overflow_is_any_side_past_the_slot()
+        {
+            // slot centred (100,100), 50 x 40
+            Assert.False(SlotFitScale.Overflows(76, 81, 124, 119, 100, 100, 50, 40, 0.1));
+            Assert.True(SlotFitScale.Overflows(74, 81, 124, 119, 100, 100, 50, 40, 0.1));  // left
+            Assert.True(SlotFitScale.Overflows(76, 81, 124, 121, 100, 100, 50, 40, 0.1));  // top
+        }
+
         [Fact]
         public void The_slot_hint_is_a_floor()
         {

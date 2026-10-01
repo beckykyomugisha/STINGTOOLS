@@ -1952,6 +1952,7 @@ namespace StingTools.Core.Drawing
                             $"Viewport type '{vpTypeName}' not found — viewport for slot '{sp?.Slot?.Label}' uses the default.");
                     }
                 }
+                SheetPlacementBridge.ReportViewportOverflow(vp, sp, result.Warnings); // DTW-157
                 return vp.Id;
             }
             catch (Exception ex)

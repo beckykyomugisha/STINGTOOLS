@@ -443,6 +443,14 @@ namespace StingTools.Commands.Drawing
         [JsonProperty("purposeTagAliases")]  public Dictionary<string, List<string>> PurposeTagAliases { get; set; }
             = new Dictionary<string, List<string>>();
 
+        /// <summary>DTW-157 — fit-to-slot grows the view's measured crop extent by
+        /// this factor before choosing a scale, to leave room for what the crop does
+        /// not measure (grid/level heads, annotation crop, viewport title). Absent
+        /// from the JSON = <see cref="StingTools.Core.Drawing.SlotFitScale.DefaultAnnotationMarginFactor"/>;
+        /// clamped to 1.0–2.0.</summary>
+        [JsonProperty("annotationMarginFactor")] public double AnnotationMarginFactor { get; set; }
+            = StingTools.Core.Drawing.SlotFitScale.DefaultAnnotationMarginFactor;
+
         // P6: Load() ran File.ReadAllText + a JSON parse for every viewport placed
         // (SheetPlacementBridge.BuildFamilySlotContext calls it per placement). The
         // parsed rules are kept per file and re-read when the file's last-write time

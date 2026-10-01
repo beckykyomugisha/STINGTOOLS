@@ -273,6 +273,18 @@ namespace StingTools.Core.Drawing
                     fit = Math.Max(curW * curScale / sp.WidthFt,
                                    curH * curScale / sp.HeightFt);
                 }
+                // DTW-157 — the crop is not the viewport: grid/level heads, the
+                // annotation crop and the title extend past it. Grow the measured
+                // extent by the data-driven margin before choosing a scale.
+                double margin = SlotFitScale.DefaultAnnotationMarginFactor;
+                try
+                {
+                    var rules = StingTools.Commands.Drawing.ViewportPlacementRules.Load();
+                    if (rules != null) margin = rules.AnnotationMarginFactor;
+                }
+                catch (Exception exR) { StingTools.Core.StingLog.Warn($"ApplyFitScale margin: {exR.Message}"); }
+                fit *= SlotFitScale.ClampMarginFactor(margin);
+
                 int target = SlotFitScale.Decide(fit, typeScale, v.Scale, sp.ScaleHint, out bool coarsened);
                 if (coarsened)
                 {
@@ -281,7 +293,17 @@ namespace StingTools.Core.Drawing
                 }
                 if (target > 0 && target != v.Scale)
                 {
-                    try { v.Scale = target; } catch { /* view type rejects scale */ }
+                    // DTW-157 — a view template that controls View Scale makes this
+                    // throw. It used to be swallowed, so the view kept a scale that
+                    // does not fit and nothing said so.
+                    try { v.Scale = target; }
+                    catch (Exception exS)
+                    {
+                        var msg = $"View '{v.Name}': could not set scale 1:{target} for slot '{sp.Slot?.Label}' " +
+                                  $"(stays 1:{v.Scale}; a view template may control View Scale) — {exS.Message}";
+                        StingTools.Core.StingLog.Warn("SheetPlacementBridge.ApplyFitScale: " + msg);
+                        warnings?.Add(msg);
+                    }
                 }
             }
             catch (Exception ex)
@@ -377,6 +399,34 @@ namespace StingTools.Core.Drawing
                 }
             }
             return cache.TryGetValue(familyName, out var d) ? d : null;
+        }
+
+        /// <summary>
+        /// DTW-157 — after placement, compare the viewport's box (which includes
+        /// annotation and title, unlike the crop the fit measured) with its slot
+        /// and report an overrun. Silent when the outline is not available yet.
+        /// </summary>
+        internal static void ReportViewportOverflow(Viewport vp, SlotPlacement sp, List<string> warnings)
+        {
+            if (vp == null || sp?.Center == null || !sp.HasSize || warnings == null) return;
+            try
+            {
+                var box = vp.GetBoxOutline();
+                if (box == null) return;
+                double w = box.MaximumPoint.X - box.MinimumPoint.X, h = box.MaximumPoint.Y - box.MinimumPoint.Y;
+                if (w < 1e-9 || h < 1e-9) return;
+                if (SlotFitScale.Overflows(box.MinimumPoint.X, box.MinimumPoint.Y, box.MaximumPoint.X, box.MaximumPoint.Y,
+                        sp.Center.X, sp.Center.Y, sp.WidthFt, sp.HeightFt, MmToFt(1.0)))
+                {
+                    string name = (vp.Document?.GetElement(vp.ViewId) as View)?.Name ?? vp.ViewId.ToString();
+                    warnings.Add($"Viewport '{name}' ({w * MmPerFt:0} x {h * MmPerFt:0} mm with annotation) runs past slot " +
+                                 $"'{sp.Slot?.Label}' ({sp.WidthFt * MmPerFt:0} x {sp.HeightFt * MmPerFt:0} mm).");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"SheetPlacementBridge.ReportViewportOverflow: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -533,6 +583,7 @@ namespace StingTools.Core.Drawing
                                 StingTools.Core.StingLog.Warn($"SheetPlacementBridge: viewport type '{slot.ViewportType}' not found in document — slot '{slot?.Label}' uses default.");
                             }
                         }
+                        ReportViewportOverflow(vp, sp, pr.Warnings); // DTW-157
                     }
                 }
                 catch (Exception ex) { pr.Warnings.Add($"PlaceAccordingToSlots[{i}]: {ex.Message}"); }
