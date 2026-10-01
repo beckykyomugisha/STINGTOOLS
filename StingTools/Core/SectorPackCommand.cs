@@ -26,6 +26,8 @@ namespace StingTools.Core
         public JObject BoqDefaults;
         public List<string> WorkflowPresets = new List<string>();
         public string Notes;
+        /// <summary>Key into STING_SPATIAL_CODES.json projectTypePresets; written to PROJECT_TYPE on apply.</summary>
+        public string SpatialPreset;
     }
 
     internal static class SectorPackLoader
@@ -48,7 +50,8 @@ namespace StingTools.Core
                         TagStyle = j["tag_style"]?.ToString() ?? "",
                         PreambleProfile = j["preamble_profile"]?.ToString() ?? "",
                         BoqDefaults = j["boq_defaults"] as JObject,
-                        Notes = j["notes"]?.ToString() ?? ""
+                        Notes = j["notes"]?.ToString() ?? "",
+                        SpatialPreset = j["spatial_preset"]?.ToString() ?? ""
                     };
                     if (j["families"] is JArray fa) foreach (var x in fa) p.Families.Add(x.ToString());
                     if (j["presets"]  is JArray pa) foreach (var x in pa) p.Presets.Add(x.ToString());
@@ -84,6 +87,8 @@ namespace StingTools.Core
                 }
                 if (!string.IsNullOrEmpty(pack.TagStyle))
                     TagConfig.SetConfigValue("DEFAULT_TAG_STYLE", pack.TagStyle);
+                if (!string.IsNullOrWhiteSpace(pack.SpatialPreset))
+                    TagConfig.SetConfigValue("PROJECT_TYPE", pack.SpatialPreset.Trim());
                 TagConfig.SetConfigValue("ACTIVE_SECTOR_PACK", pack.Id);
                 StingLog.Info($"Sector pack applied: {pack.Label} (families={pack.Families.Count}, presets={pack.Presets.Count})");
             }
