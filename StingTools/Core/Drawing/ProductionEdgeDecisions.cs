@@ -31,5 +31,24 @@ namespace StingTools.Core.Drawing
         internal static string SheetNotNumberedLine(string drawingTypeId, string reason)
             => $"'{drawingTypeId}': no sheet was made — its number could not be reserved "
              + $"({(string.IsNullOrWhiteSpace(reason) ? "reason unknown" : reason.Trim())}). Nothing of it was produced.";
+
+        // ── DTW-197: the sheet is made after the first view ────────────
+
+        /// <summary>
+        /// Make the request's new sheet now? Only when a sheet was asked for, none exists
+        /// for the request, none has been tried yet, and a view has just been produced. The
+        /// sheet used to come first, so a request whose every rule failed left an empty,
+        /// numbered sheet counted as produced.
+        /// </summary>
+        internal static bool CreateSheetNow(bool createSheetRequested, bool sheetKnown, bool sheetAttempted, bool viewProduced)
+            => createSheetRequested && !sheetKnown && !sheetAttempted && viewProduced;
+
+        /// <summary>
+        /// Remove a sheet this request made? When it was meant to carry the views and ends
+        /// with none on it — every placement failed, or each view is kept on another sheet.
+        /// A sheet asked for without placement (views placed later) is left alone.
+        /// </summary>
+        internal static bool DiscardNewSheet(bool createdThisRequest, bool placeOnSheet, int placed, int reused)
+            => createdThisRequest && placeOnSheet && placed <= 0 && reused <= 0;
     }
 }

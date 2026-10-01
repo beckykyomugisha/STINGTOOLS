@@ -33,5 +33,33 @@ namespace StingTools.Tags.Tests
         [Fact]
         public void A_missing_reason_still_reads_as_a_reason()
             => Assert.Contains("reason unknown", ProductionEdgeDecisions.CountersBlockedLine(null));
+
+        // ── DTW-197 ───────────────────────────────────────────────────
+
+        [Fact]
+        public void No_sheet_is_made_before_a_view_exists()
+            => Assert.False(ProductionEdgeDecisions.CreateSheetNow(true, sheetKnown: false, sheetAttempted: false, viewProduced: false));
+
+        [Fact]
+        public void The_first_produced_view_makes_the_sheet_once()
+        {
+            Assert.True(ProductionEdgeDecisions.CreateSheetNow(true, false, false, true));
+            Assert.False(ProductionEdgeDecisions.CreateSheetNow(true, false, sheetAttempted: true, viewProduced: true));
+        }
+
+        [Fact]
+        public void An_existing_sheet_or_no_sheet_requested_makes_none()
+        {
+            Assert.False(ProductionEdgeDecisions.CreateSheetNow(true, sheetKnown: true, sheetAttempted: false, viewProduced: true));
+            Assert.False(ProductionEdgeDecisions.CreateSheetNow(false, false, false, true));
+        }
+
+        [Theory]
+        [InlineData(true, true, 0, 0, true)]    // made, nothing placed: removed
+        [InlineData(true, true, 1, 0, false)]   // something placed: kept
+        [InlineData(true, false, 0, 0, false)]  // views placed later by the caller: kept
+        [InlineData(false, true, 0, 0, false)]  // an existing sheet is never removed
+        public void An_empty_new_sheet_is_removed(bool created, bool place, int placed, int reused, bool expected)
+            => Assert.Equal(expected, ProductionEdgeDecisions.DiscardNewSheet(created, place, placed, reused));
     }
 }

@@ -389,11 +389,27 @@ namespace StingTools.Core.Drawing
             if (rules.All(r => r == null))
                 return result;
 
+            // DTW-197: the sheet used to be made before any view, so a request whose every
+            // rule failed left an empty, numbered sheet behind, counted as produced. An
+            // existing sheet is found now; a new one is made only once a view exists.
+            bool sheetKnown = false, sheetAttempted = false;
+            NewSheetRecord newSheet = null;
             if (opts.CreateSheet)
             {
-                result.SheetId = CreateOrFindSheet(doc, dt, ctx, opts, result,
+                var found = FindSheetForRequest(doc, dt, ctx, result,
                     opts.Idempotent ? rules.Where(r => r != null).Select(r => r.Idx).ToList() : null);
-                if (result.Failure != null) return result;   // DTW-194: no number, no drawing
+                if (found != null) { result.SheetId = found; sheetKnown = true; }
+                else
+                {
+                    // DTW-194: a new sheet will need a number. When the counters cannot be
+                    // written nothing is produced — not even the views.
+                    var block = SheetSequenceStore.WriteBlockReason(doc);
+                    if (block != null)
+                    {
+                        result.Fail(ProductionEdgeDecisions.SheetNotNumberedLine(dt.Id, block));
+                        return result;
+                    }
+                }
             }
 
             // P1 — resolve the title-block family's slot grid once for this
@@ -413,6 +429,17 @@ namespace StingTools.Core.Drawing
                 result.ViewIds.Add(viewId);
                 StampViewParameters(doc, viewId, dt, rule, ctx);
 
+                if (ProductionEdgeDecisions.CreateSheetNow(opts.CreateSheet, sheetKnown, sheetAttempted, viewProduced: true))
+                {
+                    sheetAttempted = true;
+                    result.SheetId = CreateSheet(doc, dt, ctx, opts, result, ctx.PackageId ?? dt.PackageId ?? "",
+                        BuildContextTag(ctx), out newSheet);
+                    if (result.Failure != null) return result;   // DTW-194: no number, no sheet
+                    if (opts.PlaceOnSheet && result.SheetId != ElementId.InvalidElementId)
+                        famCtx = SheetPlacementBridge.BuildFamilySlotContext(
+                            doc, doc.GetElement(result.SheetId) as ViewSheet, dt, result);
+                }
+
                 if (opts.PlaceOnSheet && result.SheetId != ElementId.InvalidElementId)
                 {
                     // DTW-21: a preset scale is the scale asked for — do not fit it away.
@@ -426,7 +453,62 @@ namespace StingTools.Core.Drawing
                 }
             }
 
+            // DTW-197: no view, so no sheet — and say so, since nothing was drawn.
+            if (opts.CreateSheet && !sheetKnown && !sheetAttempted && result.ViewIds.Count == 0)
+                result.Warnings.Add($"'{dt.Id}': no view could be produced{DescribeContext(ctx)}, so no sheet was made.");
+
+            // DTW-197: a sheet made here that ends with nothing on it (every placement
+            // failed, or each view is kept on another sheet) is removed and its number
+            // released, rather than left as an empty, numbered sheet.
+            if (newSheet != null && ProductionEdgeDecisions.DiscardNewSheet(true, opts.PlaceOnSheet,
+                    result.ViewportIds.Count, result.ViewportsReused))
+                DiscardEmptySheet(doc, dt, newSheet, result);
+
             return result;
+        }
+
+        /// <summary>DTW-197: what a new sheet consumed, so it can be given back.</summary>
+        private sealed class NewSheetRecord
+        {
+            public ElementId SheetId;
+            public string Number;
+            public string Bucket;
+            public int Seq;
+        }
+
+        private static string DescribeContext(DrawingContext ctx)
+        {
+            var what = ctx?.ScopeBox?.Name ?? ctx?.Level?.Name ?? ctx?.Tag;
+            return string.IsNullOrWhiteSpace(what) ? "" : $" for '{what}'";
+        }
+
+        /// <summary>
+        /// DTW-197: delete a sheet this request made and could put nothing on, and give
+        /// back its counter value when no later sheet has taken the next one. The caller's
+        /// transaction owns the delete; a rollback restores both.
+        /// </summary>
+        private static void DiscardEmptySheet(Document doc, DrawingType dt, NewSheetRecord s, ProduceResult result)
+        {
+            try
+            {
+                doc.Delete(s.SheetId);
+                result.SheetId = ElementId.InvalidElementId;
+                try
+                {
+                    if (_existingSheetCache != null)
+                        foreach (var k in _existingSheetCache.Where(kv => kv.Value == s.SheetId).Select(kv => kv.Key).ToList())
+                            _existingSheetCache.Remove(k);
+                    _sheetCtxClaims?.Remove(s.SheetId.Value);
+                }
+                catch (Exception ex) { StingLog.Warn($"DiscardEmptySheet caches: {ex.Message}"); }
+                bool released = SheetSequenceStore.ReleaseIfLast(doc, s.Bucket, s.Seq);
+                result.Warnings.Add($"Sheet {s.Number} ('{dt.Id}') was removed: nothing could be placed on it"
+                    + (released ? ", and its number was released." : "."));
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"Sheet {s.Number} ('{dt.Id}') has nothing on it and could not be removed: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -1413,6 +1495,17 @@ namespace StingTools.Core.Drawing
 
         private static ElementId CreateOrFindSheet(Document doc, DrawingType dt, DrawingContext ctx, ProduceOptions opts, ProduceResult result,
             IReadOnlyCollection<int> reusableRuleIdxs = null)
+            => FindSheetForRequest(doc, dt, ctx, result, reusableRuleIdxs)
+               ?? CreateSheet(doc, dt, ctx, opts, result, ctx.PackageId ?? dt.PackageId ?? "", BuildContextTag(ctx), out _);
+
+        /// <summary>
+        /// The existing sheet for this request — by its stamps, by a former drawing-type
+        /// id, or the sheet a reused view is already on — or null when one must be made.
+        /// DTW-197: split from creation so production can make the sheet only once a view
+        /// exists.
+        /// </summary>
+        private static ElementId FindSheetForRequest(Document doc, DrawingType dt, DrawingContext ctx, ProduceResult result,
+            IReadOnlyCollection<int> reusableRuleIdxs)
         {
             string effectivePackage = ctx.PackageId ?? dt.PackageId ?? "";
             string sheetCtx = BuildContextTag(ctx);
@@ -1444,10 +1537,7 @@ namespace StingTools.Core.Drawing
                 return existing;
             }
 
-            existing = SheetOfReusedView(doc, dt, ctx, reusableRuleIdxs, sheetCtx, legacyCtx, ctxLevelId, effectivePackage, result);
-            if (existing != null) return existing;
-
-            return CreateSheet(doc, dt, ctx, opts, result, effectivePackage, sheetCtx);
+            return SheetOfReusedView(doc, dt, ctx, reusableRuleIdxs, sheetCtx, legacyCtx, ctxLevelId, effectivePackage, result);
         }
 
         /// <summary>
@@ -1641,8 +1731,9 @@ namespace StingTools.Core.Drawing
         }
 
         private static ElementId CreateSheet(Document doc, DrawingType dt, DrawingContext ctx, ProduceOptions opts,
-            ProduceResult result, string effectivePackage, string sheetCtx)
+            ProduceResult result, string effectivePackage, string sheetCtx, out NewSheetRecord made)
         {
+            made = null;
             ElementId titleBlockId = ElementId.InvalidElementId;
             try
             {
@@ -1751,7 +1842,8 @@ namespace StingTools.Core.Drawing
 
             // DTW-194: reserved BEFORE the sheet exists, so a number that cannot be
             // reserved leaves no sheet behind — never one numbered from a guess.
-            var reserved = ResolveSheetSequence(doc, dt, ctx, effectivePackage, policy, numberPattern, result, out var seqFailure);
+            var reserved = ResolveSheetSequence(doc, dt, ctx, effectivePackage, policy, numberPattern, result,
+                out var seqBucket, out var seqFailure);
             if (!reserved.HasValue)
             {
                 result.Fail(ProductionEdgeDecisions.SheetNotNumberedLine(dt.Id, seqFailure));
@@ -1861,6 +1953,7 @@ namespace StingTools.Core.Drawing
                 catch (Exception ex2) { result.Warnings.Add($"TitleBlockParams: {ex2.Message}"); }
             }
 
+            made = new NewSheetRecord { SheetId = sheet.Id, Number = sheet.SheetNumber, Bucket = seqBucket, Seq = seq };
             return sheet.Id;
         }
 
@@ -2355,9 +2448,10 @@ namespace StingTools.Core.Drawing
         /// </summary>
         private static int? ResolveSheetSequence(Document doc, DrawingType dt, DrawingContext ctx,
             string effectivePackage, SheetNumberPolicyKind policy, string numberPattern, ProduceResult result,
-            out string failure)
+            out string bucketKey, out string failure)
         {
             failure = null;
+            bucketKey = null;
             // Phase 169 — persisted sequence counter via ExtensibleStorage on
             // ProjectInfo. Survives Revit restarts and the renumber command's
             // compaction so deleted sheets don't regrow gaps.
@@ -2375,6 +2469,7 @@ namespace StingTools.Core.Drawing
                     result?.Warnings.Add(
                         $"DrawingType '{dt.Id}': sheet-number pattern '{numberPattern}' does not carry exactly one " +
                         "{seq} token, so it cannot share an ISO counter; numbered from its own bucket.");
+                bucketKey = bucket;
                 return SheetSequenceStore.NextForBucket(doc, bucket,
                     () => SeedSequence(doc, dt, effectivePackage, template));
             }

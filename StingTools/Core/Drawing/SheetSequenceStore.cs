@@ -126,6 +126,30 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
+        /// DTW-197: give back <paramref name="seq"/> — the value <see cref="NextForBucket"/>
+        /// just handed out for a sheet that was then removed — when it is still the
+        /// bucket's last value. False (and nothing written) when a later sheet has taken
+        /// the next one, or the counters cannot be read or written; the gap then stays.
+        /// </summary>
+        internal static bool ReleaseIfLast(Document doc, string bucketKey, int seq)
+        {
+            if (doc == null || string.IsNullOrEmpty(bucketKey) || seq <= 0) return false;
+            try
+            {
+                var buckets = ReadAll(doc);
+                if (!buckets.TryGetValue(bucketKey, out var last) || last != seq) return false;
+                buckets[bucketKey] = seq - 1;
+                WriteAll(doc, buckets);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SheetSequenceStore.ReleaseIfLast '{bucketKey}': {ex.Message} — the number stays used.");
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Read every bucket.
         ///
         /// E-5(a): this used to funnel ANY failure into an empty dictionary.
