@@ -27433,3 +27433,31 @@ Guide: [`KUT_ACC_SETUP_AND_SMOKE_TEST.md`](KUT_ACC_SETUP_AND_SMOKE_TEST.md).
 - **H-1 (plugin)** The sign-in lifetime is the documented 14 days, not 15.
 
 Tests: Acc 728; server ACC 211. Every server fix and the H-8 fix fail without the change.
+
+#### ACC second review and Navisworks NWC export (S1–S10, P1–P11, NW-1, 2026-10-01)
+
+Server (`AccSyncService` and friends):
+- **S1** A sync cancelled mid-run no longer abandons a create in flight. That issue is now pending-verify, so the next run checks ACC before posting it again.
+- **S3** Changing a connection's ACC project archives the old project's issue map and says so. Before, the next sync PATCHed issue ids that belong to the old project.
+- **S4** An unclear create that was later closed in Planscape is verified in ACC. If found, it is linked and then closed there. It used to stay open and unlinked.
+- **S6** An issue deleted in ACC is reported as such and never PATCHed. It used to keep every sync PARTIAL.
+- **S7** The SSA connection test no longer needs the browser app.
+- **S8** A browser sign-in on an SSA connection switches it back to browser mode, and the page says so.
+- **S10** Webhook and connector HTTP timeouts are reported, not thrown.
+
+Plugin:
+- **P1** An upload that reached ACC but whose ledger or transmittal record failed now fails the step as PARTIAL, and a re-run completes the bookkeeping. It used to succeed while the transmittal stayed PREPARED.
+- **P4** A scheduled export's last result carries the ACC upload line. A failed or blocked upload logs a warning.
+- **P5** "Find my ACC project", when it picks a different project, clears the old project's container, model set, issue type, folders and review workflow, and names what it cleared.
+- **P9** The project-info and locations CSVs go through the ACC formula guard.
+- **P10** An ACC job number that is not a valid ISO project code (2–8 letters or digits) is shown but never offered as the code.
+- **P11** A token refresh writes only the tokens onto the credentials file as it is now. A card save made during the background keep-alive used to be overwritten. If the file now names another app, the refresh is not saved.
+- Guide: 11 claims in `KUT_ACC_SETUP_AND_SMOKE_TEST.md` corrected against the code.
+
+Navisworks (**NW-1**, plan in [`NAVISWORKS_INTEGRATION_2026-10.md`](NAVISWORKS_INTEGRATION_2026-10.md)):
+- **Export Centre defaults.** NWC used to export an empty selection in internal coordinates: Scope "Selected" with no selection set, and Coordinates "Project", which is not a Navisworks option and became Internal. Now: the whole model in shared coordinates, with element IDs and all parameters.
+- **Old profiles.** A saved profile with the old values is read the same new way, and a warning says so. "Internal" and "CurrentView" are kept when chosen. CurrentView uses a 3D view named "Navisworks", else the active 3D view, else refuses.
+- **How options are set.** Enums are set by member name, checked against Revit 2025's API. Before, ordinals were guessed. Availability uses `OptionalFunctionalityUtils.IsNavisworksExporterAvailable()`, and the failure reason reaches the export row.
+- **ExLink NWC** checks that the exporter is installed and that the file was written, and exports element IDs and all parameters.
+
+Tests: Acc 747; NwcExportPlan 9; ScheduledExportSummary +2; server ACC filter 217. Build 0/0, gates 36/0. Not verified in Revit: an actual NWC export (NEEDS MANUAL CHECK in WORKLOG).

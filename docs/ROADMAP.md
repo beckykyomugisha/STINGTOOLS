@@ -2778,3 +2778,29 @@ The table is in `WORKLOG.md`. C1–C5 and C7–C10 are fixed (see CHANGELOG). Op
 - **ACC-PAGE-1 (unconfirmed) — re-read by id before a NOT_FOUND untrack.** `PullIssuesAsync` pages by offset; an issue created or deleted mid-pull can shift a page and drop one id, which Sync would then untrack as NOT_FOUND.
 - **ACC-CMT-1 (unconfirmed) — comment keys and time zones.** E9 hashes the comment JSON; check whether a date re-serialised in another time zone changes the hash and re-posts.
 - ~~**ACC-SRV-11 — issues created and resolved between sweeps never reach ACC.**~~ **Closed 2026-10-01** (351c2d1f6): reported by default, created closed with `accClosedBetweenSweeps=create`.
+
+### ACC second review (2026-10-01) — P/S items still open
+
+Fixed in this pass: S1, S3, S4, S6, S7, S8, S10 (server) and P1, P4, P5, P9, P10, P11 (plugin) — see CHANGELOG "ACC second review". Open:
+
+- **ACC-REV-P2 — duplicate version on resume.** An item/version create whose answer was lost is re-sent on the next run; look the version up by name + size before re-creating (the AUT-1 `FindItemAsync` pattern).
+- **ACC-REV-P3 — set `msg` on every ACC command failure** so a workflow run records the reason (done for `ACC_UploadModel`; the other ACC commands still return `Failed` with an empty message).
+- **ACC-REV-P6/P7 — `AccRetireDeliverable`.** Match the register status row by id, not position; check the save; make a half-done retire re-runnable.
+- **ACC-REV-P8 — lifecycle-gap escalation key** should be the element `UniqueId`, not the element id (ids change on a workshare detach/copy).
+- **ACC-REV-S2 — ConfigJson lost update.** The sync, webhook and connection PUT each load-modify-save `PlatformConnection.ConfigJson`; two at once lose one write. Use a concurrency token (xmin) and retry.
+- **ACC-REV-S5 — verify an unclear create by the posted title,** not the issue's current title (an edit between sweeps makes the lookup miss).
+- **ACC-REV-S9 — ConfigJson growth and per-issue saves.** Maps and pushed-state grow with every issue and each push saves the whole blob; batch the saves and prune archived entries.
+- **ACC-REV-S11 — unsubscribe webhooks** when a connection is deleted or its project changes (they keep firing at the old project).
+- **ACC-REV-S12 — webhook handler does slow work inline;** enqueue to Hangfire and return 200 fast (cold starts on the free instance exceed APS's delivery timeout).
+
+### Navisworks Manage integration (2026-10-01) — NW-1..7
+
+Plan, sources and the recommended three-way workflow: [`NAVISWORKS_INTEGRATION_2026-10.md`](NAVISWORKS_INTEGRATION_2026-10.md). NW-1 (NWC export defaults) is shipped. Open:
+
+- **NW-2 — publish NWC to the coordination folder** (Export Centre option + workflow step on `AccModelUpload`).
+- **NW-3 — search-set XML from STING tokens.** NEEDS SAMPLE: one search-set XML exported from the team's Navisworks; the schema is not published and will not be guessed.
+- **NW-4 — clash-test XML from `ClashRuleEngine`,** on NW-3's sets. NEEDS SAMPLE.
+- **NW-5 — import Clash Detective XML reports** into STING (map by Element ID, stamp, colour, escalate to ACC). NEEDS SAMPLE.
+- **NW-6 — KUT guide: Coordination Issues Add-In** as the one Navisworks ↔ ACC issue channel.
+- **NW-7 — optional .NET 4.8 Navisworks plug-in,** only if NW-3..5's file round-trip proves too manual.
+- **NW-DEC-1 — `ExportLinks` rule per project** (ExLink NWC embeds links; duplicates geometry in a federated set).

@@ -4,8 +4,9 @@ Standing task (2026-10-01): unattended loop — resume → research → record �
 
 ## Resume here
 1. The user runs docs/KUT_ACC_SETUP_AND_SMOKE_TEST.md. Act on the FAIL lines they send back first.
-2. Redeploy KUT live **only when the user says so** (the drawings session asked; #1040 and the H fixes are merged here, not deployed).
-3. ACC-AUT-8/9 (folder permission pre-flight, attribute mappings), then ACC-LOCK-1.
+2. Redeploy KUT live **only when the user says so**. The drawings session asked; #1040, #1051 (round 9, `7d5c6f5be`) and the H/S/P/NW-1 fixes are not deployed. Merge origin/main first.
+3. Navisworks NW-3/4/5 are waiting on sample XMLs from the team's Navisworks (search set, clash test, clash report). Then do NW-2.
+4. Open review items: ROADMAP "ACC second review" (P2, P3, P6/P7, P8, S2, S5, S9, S11, S12); then ACC-AUT-8/9 and ACC-LOCK-1.
 
 ## Branches
 - **Integration branch:** `claude/acc-work-review-gaps-7e2ac7` (worktree `.claude/worktrees/acc-work-review-gaps-7e2ac7`). Not pushed.
@@ -133,6 +134,13 @@ Seam audit (2026-10-01):
 - **A5** (686930e8a) — "Not set up" and "uploadUnattended not set" return Cancelled → failOnError step reads as skip; header/playbook say no KUT workflow uploads
 
 ## NEEDS MANUAL CHECK
+- **NW-1 NWC export (Revit + Navisworks NWC Export Utility):**
+  1. Export Centre, new profile, NWC only: the file opens in Navisworks at shared coordinates. Properties show an "Element ID" tab and the STING parameters.
+  2. Open a profile saved before this change. The NWC tab shows Entire/Shared, and the export log has the two "NWC:" notes.
+  3. Set CurrentView with no 3D view open and no view named "Navisworks": the row fails with "needs a 3D view".
+  4. On a machine without the utility, the row says it is not detected.
+- **P5:** BCC ACC card → Find my ACC project → pick a different project. The status names the cleared settings. `acc_settings.json` has no coordContainerId / folderUrn / cdeFolders. Picking the same project again clears nothing.
+- **P11:** with the sign-in over 3 days old, open a model, then immediately Save a new hub on the ACC card. After a minute the credentials file holds the new hub and a new refresh token.
 - **ACC automation (AUT-5..7):** see docs/ACC_AUTOMATION_RESEARCH_2026-10.md §6.
   1. Reconnect server ACC to gain `data:create`. Subscribe should then create 5 hooks.
   2. Close a review in ACC. The server log should show `Autodesk webhook review.closed-1.0: ACC review …` (no Planscape client acts on it yet - ACC-AUT-14); then run ACC_ReadReviews in Revit.
@@ -157,6 +165,12 @@ Seam audit (2026-10-01):
 - **Server (Render):** set `DataProtection:CertificateBase64/Password` on API + worker; after deploy call `GET /api/acc/reconnect-required`; register webhooks via `POST acc/webhooks/subscribe`.
 
 ## Decisions
+- **NW-1 coordinates:** a saved profile carrying "Project" now exports in **Shared**, not Internal. "Project" was never a Navisworks option. Shared is what Navisworks federation and ACC Model Coordination align on, and the export log says so. A team that relied on Internal sets "Internal" explicitly.
+- **NW-1 scope:** "Selected" now exports the whole model, with a note. The Export Centre never sets a selection, so the old value could only export nothing.
+- **Navisworks architecture:** ACC is the hub. Navisworks reaches ACC through Autodesk's own Coordination Issues Add-In. STING and Navisworks exchange only files Navisworks already imports or exports (NWC, search-set, clash-test and clash-report XML). A .NET 4.8 Navisworks plug-in (NW-7) waits until the file route proves too manual. Reason: no private bridge for an Autodesk release to break, and each tool can be replaced without rebuilding the others.
+- **NW-3..5 field names:** not written until a real XML sample from the team's Navisworks is in hand. The formats are not published, and guessing would ship a file Navisworks silently ignores.
+- **P10 code rule:** 2–8 letters or digits. One ISO name field with no separator, short enough for the project folder (8).
+- **P11:** when the credentials file names a different client id after a refresh, nothing is written and the user is warned. Those tokens belong to the old app.
 - **A7:** the review version is re-read from ACC at start time (one source of truth) rather than refreshing the local
   queue on every upload path; a failed tip read refuses the review.
 - **A12:** revision-less uploads (models, unregistered files) still upload — only an identical re-send is skipped;
