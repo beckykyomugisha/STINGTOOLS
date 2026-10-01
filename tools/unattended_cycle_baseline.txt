@@ -81,7 +81,7 @@ StingTools/BIMManager/BIMManagerCommands.cs::CDEStatusCommand|new TaskDialog|4	G
 StingTools/BIMManager/PlatformLinkCommands.cs::ACCPublishCommand|new TaskDialog|1	GATED - the suitability picker window itself (same branch as its four AddCommandLinks). Unattended uses publishSuitability or fails; closing the picker now cancels (A3).
 
 # IssueSheetsForRevisionCommand — step IssueSheetsForRevision in FortnightlyIssue
-StingTools/BIMManager/RevisionManagementCommands.cs::IssueSheetsForRevisionCommand|TaskDialog.Show|4	GATED - each sits behind PresetDialog.Quiet / an unattended-or-preset early return (no revision, empty plan, refused gate); the no-document guard cannot run inside a preset.
+StingTools/BIMManager/RevisionManagementCommands.cs::IssueSheetsForRevisionCommand|TaskDialog.Show|5	GATED - each sits behind PresetDialog.Quiet / an unattended-or-preset early return (no revision, empty plan, refused gate, a transaction Revit rolled back - the last from #1021); the no-document guard cannot run inside a preset.
 StingTools/BIMManager/RevisionManagementCommands.cs::IssueSheetsForRevisionCommand|new TaskDialog|1	GATED - the 'issue to the STING-produced sheets?' confirm; RevisionIssueTargets.Plan sets NeedsConfirmation only when !PresetDialog.Quiet, so a preset never reaches it.
 StingTools/BIMManager/RevisionManagementCommands.cs::IssueSheetsForRevisionCommand|TaskDialogResult|2	GATED - reading that confirm; same branch.
 
