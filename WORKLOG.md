@@ -3,9 +3,9 @@
 Standing task (2026-10-01): unattended loop — resume → research → record → fix → verify → commit → merge → update ROADMAP/WORKLOG → repeat. Priority: (1) ACC integration, (2) everything ACC touches, (3) rest of the codebase.
 
 ## Resume here
-1. ACC automation follow-ups (docs/ACC_AUTOMATION_RESEARCH_2026-10.md, ROADMAP ACC-AUT-8..14): first ACC-AUT-9 (issue attribute mappings) and ACC-AUT-8 (folder permission pre-flight). Read each response schema on the APS reference page before coding.
-2. ACC-LOCK-1 (cross-process lock on the shared ACC state files); then ACC-PAGE-1 / ACC-CMT-1.
-3. Redeploy KUT live only when the user asks (the queued task said no deploy.bat). Main #1036-#1041 is now in the integration branch.
+1. The user runs docs/KUT_ACC_SETUP_AND_SMOKE_TEST.md. Act on the FAIL lines they send back first.
+2. Redeploy KUT live **only when the user says so** (the drawings session asked; #1040 and the H fixes are merged here, not deployed).
+3. ACC-AUT-8/9 (folder permission pre-flight, attribute mappings), then ACC-LOCK-1.
 
 ## Branches
 - **Integration branch:** `claude/acc-work-review-gaps-7e2ac7` (worktree `.claude/worktrees/acc-work-review-gaps-7e2ac7`). Not pushed.

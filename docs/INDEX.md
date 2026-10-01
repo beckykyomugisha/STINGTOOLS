@@ -167,6 +167,7 @@ CI rather than reaching an issue.
 
 | Doc | Status |
 |---|---|
+| [`KUT_ACC_SETUP_AND_SMOKE_TEST.md`](KUT_ACC_SETUP_AND_SMOKE_TEST.md) | ✅ **Current, dated 2026-10-01.** The ordered to-do list: Autodesk/ACC setup, plugin sign-in and settings, server env + webhooks (+ optional SSA), then the 13-step smoke test with pass/fail signs. Every name and route checked against the code. |
 | [`ACC_AUTOMATION_RESEARCH_2026-10.md`](ACC_AUTOMATION_RESEARCH_2026-10.md) | ✅ **Current, dated 2026-10-01.** Every APS/ACC call the plugin and server make, what the official APS docs say each API can do (with URLs), the top-10 automation ranking for the fortnightly cycle, what was built (AUT-1 to AUT-7) and what remains. |
 | [`ACC_INTEGRATION_STRATEGY.md`](ACC_INTEGRATION_STRATEGY.md) | ✅ **Current, dated 2026-09-30.** What StingTools does and does not do against ACC as the KUT CDE, measured against the deployed DLL, the working tree and main. Re-check its dated facts against `WORKLOG.md` before acting. |
 | [`KUT_ACC_DAY1_PLAYBOOK.md`](KUT_ACC_DAY1_PLAYBOOK.md) | ✅ **Current.** The Information Manager's day-1 checklist on ACC; its reasoning is in the strategy doc above. |

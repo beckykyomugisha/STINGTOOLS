@@ -27409,3 +27409,27 @@ Round 8 of the drawing review loop, findings DTW-149..214; details and the Revit
 
 Build 0/0; Tags.Tests 5,367; `run_ci_gates.py --quick` 36/36; checksums OK. Not yet run in Revit.
 
+#### ACC hidden-issue pass and the setup / smoke-test guide (H-1 to H-9, 2026-10-01)
+
+Guide: [`KUT_ACC_SETUP_AND_SMOKE_TEST.md`](KUT_ACC_SETUP_AND_SMOKE_TEST.md).
+
+- **H-1** An SSA connection is never listed as needing a reconnect, which would not help it. Its
+  connection test now names the setting to fix instead of saying "try again".
+- **H-2** Saving a connection's config merges the new keys into the stored ones. It used to
+  replace the whole config, which dropped the hub, region and subtype. An explicit `null`
+  removes a key. `accAuthMode` is validated.
+- **H-3** SSA uses its own server-to-server APS app (`Acc:Ssa:ClientId` / `ClientSecret`), not
+  the browser sign-in app.
+- **H-4** Suitability and revision always reach ACC: in the file name, or as attributes.
+  7-field names are implied only when `docsAttributes` is on, and self-check warns on 7-field
+  names without attributes.
+- **H-5** The documented ACC callback host had no DNS. `render.yaml` and the deploy runbook now
+  list every ACC, webhook and SSA setting.
+- **H-6** Each Reviews webhook received is logged. No client acts on it yet (ACC-AUT-14).
+- **H-7** Choosing a hub on the server stores the hub's own region. A failed lookup saves nothing.
+- **H-8** The Docs attribute calls keep their old rate-limit behaviour: a long Retry-After is
+  capped at 60 s and retried, not failed.
+- **H-9** The KUT fortnightly issue has its own entry on SETUP → QUICK WORKFLOWS.
+- **H-1 (plugin)** The sign-in lifetime is the documented 14 days, not 15.
+
+Tests: Acc 728; server ACC 211. Every server fix and the H-8 fix fail without the change.
