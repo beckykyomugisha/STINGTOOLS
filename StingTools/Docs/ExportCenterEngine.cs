@@ -1369,7 +1369,9 @@ namespace StingTools.Docs
                     StingLog.Warn($"PDF export {row.SheetNumber}: {renameWarning}");
                 if (finalPath != null) { outputPath = finalPath; row.OutputPath = finalPath; }
 
-                row.Success = File.Exists(row.OutputPath);
+                // Only the path the export routine vouches for counts: a <stem>.pdf left
+                // by an earlier run is still on disk after a failed re-export (DTW-137).
+                row.Success = finalPath != null && File.Exists(finalPath);
                 if (row.Success)
                 {
                     row.FileSizeBytes = new FileInfo(row.OutputPath).Length;
@@ -1425,6 +1427,16 @@ namespace StingTools.Docs
 
             string produced = ResolveProducedFile(folder, expected, before, "pdf");
             if (produced == null) return null;
+            // ResolveProducedFile falls back to an existing <stem>.pdf whose timestamp did
+            // not move (overwrite mode). When Revit also said the export failed, that file
+            // is an earlier issue, not this one: counting it would register the old PDF
+            // against a failed re-export (DTW-137).
+            if (!revitOk && !WrittenSince(produced, before))
+            {
+                StingLog.Warn($"ExportSingleSheetPdf: Revit reported failure and '{Path.GetFileName(produced)}' " +
+                              "is unchanged from before the export; not counted.");
+                return null;
+            }
             if (!PathsEqual(produced, expected))
             {
                 try
@@ -1527,6 +1539,23 @@ namespace StingTools.Docs
             {
                 StingLog.Warn($"ResolveProducedFile '{folder}': {ex.Message}");
                 return File.Exists(expectedPath) ? expectedPath : null;
+            }
+        }
+
+        /// <summary>True when <paramref name="path"/> is new versus the pre-export
+        /// snapshot, or its last-write time advanced past the snapshot's.</summary>
+        private static bool WrittenSince(string path, Dictionary<string, DateTime> before)
+        {
+            try
+            {
+                if (!File.Exists(path)) return false;
+                if (before == null || !before.TryGetValue(path, out var prev)) return true;
+                return File.GetLastWriteTimeUtc(path) > prev;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"WrittenSince '{path}': {ex.Message}");
+                return false;
             }
         }
 
