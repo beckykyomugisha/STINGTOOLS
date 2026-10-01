@@ -334,6 +334,13 @@ namespace StingTools.Core.Drawing
                             continue;
                         }
                     }
+                    else
+                    {
+                        // DTW-167: an existing registry filter is brought up to its
+                        // current definition once per document per session, so a
+                        // data correction reaches projects that minted it earlier.
+                        RefreshRegistryFilterOnce(doc, rule.FilterName, r);
+                    }
 
                     if (!view.GetFilters().Contains(filterId))
                         view.AddFilter(filterId);
@@ -462,6 +469,18 @@ namespace StingTools.Core.Drawing
                 }
                 catch (Exception ex) { r.Warnings.Add($"Filter '{rule.FilterName}': {ex.Message}"); }
             }
+        }
+
+        private static readonly HashSet<string> _refreshedFilters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private static void RefreshRegistryFilterOnce(Document doc, string filterName, PackApplyResult r)
+        {
+            string key = (doc?.PathName ?? doc?.Title ?? "_") + "|" + filterName;
+            lock (_refreshedFilters) { if (!_refreshedFilters.Add(key)) return; }
+            var def = AecFilterRegistry.GetByName(doc, filterName);
+            if (def == null) return;
+            var f = AecFilterFactory.FindOrCreate(doc, def);
+            foreach (var w in f.Warnings) r.Warnings.Add($"Filter '{filterName}': {w}");
         }
 
         // ── Selective apply methods used by ManagedTemplateSyncer ─────────────────
