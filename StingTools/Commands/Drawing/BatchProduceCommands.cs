@@ -397,6 +397,7 @@ namespace StingTools.Commands.Drawing
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            bool primed = false;
             try
             {
                 var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
@@ -418,7 +419,7 @@ namespace StingTools.Commands.Drawing
                 // GAP-L: primed only once the dialog is confirmed (it was primed before the
                 // dialog and never reset, so a cancelled run left the caches, and a
                 // confirmed one kept them past the command); reset in finally.
-                DrawingProducer.PrimeBatchCaches(doc);
+                DrawingProducer.PrimeBatchCaches(doc); primed = true;
 
                 var opts = BatchProduceCommons.BuildOptions(res.Preset);
                 var pickedTypes = BatchProduceCommons.ResolveSelectedTypes(doc, res.SelectedDrawingTypeIds);
@@ -443,7 +444,7 @@ namespace StingTools.Commands.Drawing
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceViewsPerLevel", ex); return Result.Failed; }
-            finally { DrawingProducer.ResetBatchCaches(); }
+            finally { if (primed) DrawingProducer.ResetBatchCaches(); }   // DTW-108: only the scope this command opened
         }
 
         /// <summary>
@@ -557,6 +558,7 @@ namespace StingTools.Commands.Drawing
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            bool primed = false;
             try
             {
                 var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
@@ -617,7 +619,7 @@ namespace StingTools.Commands.Drawing
                 // GAP-L: primed only once the dialog is confirmed (it was primed before the
                 // dialog and never reset, so a cancelled run left the caches, and a
                 // confirmed one kept them past the command); reset in finally.
-                DrawingProducer.PrimeBatchCaches(doc);
+                DrawingProducer.PrimeBatchCaches(doc); primed = true;
 
                 var opts = BatchProduceCommons.BuildOptions(res.Preset);
                 int views = 0, sheets = 0; var warnings = new List<string>();
@@ -634,7 +636,7 @@ namespace StingTools.Commands.Drawing
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceFromScopeBoxes", ex); return Result.Failed; }
-            finally { DrawingProducer.ResetBatchCaches(); }
+            finally { if (primed) DrawingProducer.ResetBatchCaches(); }   // DTW-108: only the scope this command opened
         }
 
         /// <summary>
@@ -791,6 +793,7 @@ namespace StingTools.Commands.Drawing
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            bool primed = false;
             try
             {
                 var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
@@ -816,7 +819,7 @@ namespace StingTools.Commands.Drawing
                 // GAP-L: primed only once the dialog is confirmed (it was primed before the
                 // dialog and never reset, so a cancelled run left the caches, and a
                 // confirmed one kept them past the command); reset in finally.
-                DrawingProducer.PrimeBatchCaches(doc);
+                DrawingProducer.PrimeBatchCaches(doc); primed = true;
 
                 var opts = BatchProduceCommons.BuildOptions(res.Preset);
                 int views = 0, sheets = 0; var warnings = new List<string>();
@@ -866,7 +869,7 @@ namespace StingTools.Commands.Drawing
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceInteriorElevations", ex); return Result.Failed; }
-            finally { DrawingProducer.ResetBatchCaches(); }
+            finally { if (primed) DrawingProducer.ResetBatchCaches(); }   // DTW-108: only the scope this command opened
         }
     }
 
@@ -876,6 +879,7 @@ namespace StingTools.Commands.Drawing
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            bool primed = false;
             try
             {
                 var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
@@ -902,7 +906,7 @@ namespace StingTools.Commands.Drawing
                 // GAP-L: primed only once the dialog is confirmed (it was primed before the
                 // dialog and never reset, so a cancelled run left the caches, and a
                 // confirmed one kept them past the command); reset in finally.
-                DrawingProducer.PrimeBatchCaches(doc);
+                DrawingProducer.PrimeBatchCaches(doc); primed = true;
 
                 var preset = res.Preset;
                 var sec = preset?.SectionConfig ?? new SectionProductionConfig();
@@ -997,7 +1001,7 @@ namespace StingTools.Commands.Drawing
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceSections", ex); return Result.Failed; }
-            finally { DrawingProducer.ResetBatchCaches(); }
+            finally { if (primed) DrawingProducer.ResetBatchCaches(); }   // DTW-108: only the scope this command opened
         }
     }
 
@@ -1022,6 +1026,7 @@ namespace StingTools.Commands.Drawing
         /// </summary>
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            bool primed = false;
             try
             {
                 var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
@@ -1038,7 +1043,7 @@ namespace StingTools.Commands.Drawing
                 var res = dlg.ShowAndWait();
                 if (res == null || !res.Confirmed) return Result.Succeeded;
                 // GAP-L: primed only once the dialog is confirmed; reset in finally.
-                DrawingProducer.PrimeBatchCaches(doc);
+                DrawingProducer.PrimeBatchCaches(doc); primed = true;
 
                 var elev = res.Preset?.ElevationConfig ?? new ElevationProductionConfig();
                 var opts = BatchProduceCommons.BuildOptions(res.Preset);
@@ -1058,7 +1063,7 @@ namespace StingTools.Commands.Drawing
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceExteriorElevations", ex); return Result.Failed; }
-            finally { DrawingProducer.ResetBatchCaches(); }
+            finally { if (primed) DrawingProducer.ResetBatchCaches(); }   // DTW-108: only the scope this command opened
         }
 
         /// <summary>

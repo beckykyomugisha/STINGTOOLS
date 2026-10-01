@@ -112,6 +112,8 @@ namespace StingTools.Core.Drawing
         // parameter may be unbindable, but within one run we always know which
         // context we just used a sheet for, so claims are tracked here instead.
         [ThreadStatic] private static Dictionary<long, string>      _sheetCtxClaims;
+        // DTW-108: nesting of PrimeBatchCaches / ResetBatchCaches scopes.
+        [ThreadStatic] private static BatchScopeDepth               _scopeDepth;
         [ThreadStatic] private static string                        _cacheDocKey;
         // P-12: view names, collected once per batch. NameExists ran a full
         // OfClass(View) collector and MakeUniqueViewName calls it up to 100
@@ -155,7 +157,12 @@ namespace StingTools.Core.Drawing
         /// </summary>
         public static void PrimeBatchCaches(Document doc)
         {
-            ResetBatchCaches();
+            // DTW-108: a batch opened inside another on the same document (the Setup
+            // Wizard inside an outer batch) keeps the outer batch's caches — including the
+            // STACK-1 sheet claims — rather than wiping them on entry and again on exit.
+            var depth = _scopeDepth ?? (_scopeDepth = new BatchScopeDepth());
+            if (!depth.Enter(doc == null ? null : CacheDocKey(doc))) return;
+            ResetCachesCore();
             if (doc == null) return;
             _cacheDocKey = CacheDocKey(doc);
             // P4: the annotation pass's loaded-symbol index + tag-type memo share
@@ -228,7 +235,18 @@ namespace StingTools.Core.Drawing
             _sheetCtxClaims[sheetId.Value] = ctx ?? "";
         }
 
+        /// <summary>
+        /// Ends the batch scope <see cref="PrimeBatchCaches"/> opened. The caches are dropped
+        /// only when the outermost scope ends (DTW-108); a nested scope's end leaves them.
+        /// </summary>
         public static void ResetBatchCaches()
+        {
+            var depth = _scopeDepth ?? (_scopeDepth = new BatchScopeDepth());
+            if (!depth.Exit()) return;
+            ResetCachesCore();
+        }
+
+        private static void ResetCachesCore()
         {
             _sheetCtxClaims     = null;   // STACK-1
             _existingViewCache  = null;
