@@ -95,5 +95,41 @@ namespace StingTools.Tags.Tests
             Assert.Single(merged);
             Assert.Equal("my-plan", merged[0].DrawingTypeId);
         }
+
+        // ── DTW-184 ───────────────────────────────────────────────────────
+
+        [Fact]
+        public void A_file_written_after_the_ES_migration_wins()
+        {
+            var migrated = new DateTime(2026, 9, 1, 10, 0, 0, DateTimeKind.Utc);
+            Assert.Equal(DrawingOverrideOrigin.File,
+                DrawingOverrideSource.Choose(true, migrated.Ticks, true, migrated.AddMinutes(5)));
+        }
+
+        [Fact]
+        public void The_ES_copy_wins_over_the_file_it_was_migrated_from()
+        {
+            var migrated = new DateTime(2026, 9, 1, 10, 0, 0, DateTimeKind.Utc);
+            Assert.Equal(DrawingOverrideOrigin.ExtensibleStorage,
+                DrawingOverrideSource.Choose(true, migrated.Ticks, true, migrated.AddDays(-3)));
+            Assert.Equal(DrawingOverrideOrigin.ExtensibleStorage,
+                DrawingOverrideSource.Choose(true, migrated.Ticks, false, DateTime.MinValue));
+            Assert.Equal(DrawingOverrideOrigin.ExtensibleStorage,
+                DrawingOverrideSource.Choose(true, 0, true, migrated));
+        }
+
+        [Fact]
+        public void No_ES_entry_falls_back_to_the_file_or_nothing()
+        {
+            Assert.Equal(DrawingOverrideOrigin.File, DrawingOverrideSource.Choose(false, 0, true, DateTime.UtcNow));
+            Assert.Equal(DrawingOverrideOrigin.None, DrawingOverrideSource.Choose(false, 0, false, DateTime.MinValue));
+        }
+
+        [Fact]
+        public void Registry_consults_the_chooser_rather_than_reading_ES_unconditionally()
+        {
+            var src = DrawingCatalogueFixture.Source("Core", "Drawing", "DrawingTypeRegistry.cs");
+            Assert.Contains("DrawingOverrideSource.Choose(", src);
+        }
     }
 }

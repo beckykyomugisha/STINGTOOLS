@@ -384,41 +384,38 @@ namespace StingTools.Core.Drawing
             if (doc == null) return null;
             try
             {
-                // Pack 122 / Gap C — Extensible Storage first. Survives "Save As"
-                // and project renames; only falls back to the on-disk JSON for
-                // pre-migration projects.
-                var esJson = StingTools.Core.Storage.StingDrawingTypesSchema.Read(doc)?.OverridesJson;
-                if (!string.IsNullOrEmpty(esJson))
-                {
-                    var lib = JsonConvert.DeserializeObject<DrawingTypeLibrary>(esJson);
-                    if (lib != null)
-                    {
-                        foreach (var t in lib.DrawingTypes ?? new List<DrawingType>())
-                            if (string.IsNullOrEmpty(t.Origin)) t.Origin = "project";
-                        foreach (var rr in lib.Routing ?? new List<DrawingRoutingRule>())
-                            if (rr != null && string.IsNullOrEmpty(rr.Origin)) rr.Origin = "project";
-                        DedupeById(lib, "project");
-                    }
-                    return lib;
-                }
+                // Pack 122 / Gap C — the override may live in Extensible
+                // Storage (survives "Save As" and renames) and/or on disk.
+                // DTW-184: ES_Migrate copies the file into ES once, but the
+                // editor and the Excel import write the FILE — so reading ES
+                // unconditionally ignored every edit made after migration.
+                // The newer of the two wins (DrawingOverrideSource.Choose).
+                var es = StingTools.Core.Storage.StingDrawingTypesSchema.Read(doc);
+                string path = null;
+                if (!string.IsNullOrEmpty(doc.PathName)
+                    && !string.IsNullOrEmpty(Path.GetDirectoryName(doc.PathName)))
+                    path = StingPaths.MetaFile(doc, "_BIM_COORD", "drawing_types.json");
+                bool fileExists = !string.IsNullOrEmpty(path) && File.Exists(path);
 
-                var projPath = doc.PathName;
-                if (string.IsNullOrEmpty(projPath)) return null;
-                var dir = Path.GetDirectoryName(projPath);
-                if (string.IsNullOrEmpty(dir)) return null;
-                var path = StingPaths.MetaFile(doc, "_BIM_COORD", "drawing_types.json");
-                if (!File.Exists(path)) return null;
-                var jsonOnDisk = File.ReadAllText(path);
-                var libOnDisk = JsonConvert.DeserializeObject<DrawingTypeLibrary>(jsonOnDisk);
-                if (libOnDisk != null)
+                var origin = DrawingOverrideSource.Choose(
+                    !string.IsNullOrEmpty(es?.OverridesJson), es?.UpdatedUtcTicks ?? 0,
+                    fileExists, fileExists ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue);
+                if (origin == DrawingOverrideOrigin.None) return null;
+                if (origin == DrawingOverrideOrigin.File && !string.IsNullOrEmpty(es?.OverridesJson))
+                    StingTools.Core.StingLog.Info(
+                        $"DrawingTypeRegistry: '{path}' is newer than the Extensible Storage copy — loading the file.");
+
+                var json = origin == DrawingOverrideOrigin.File ? File.ReadAllText(path) : es.OverridesJson;
+                var lib = JsonConvert.DeserializeObject<DrawingTypeLibrary>(json);
+                if (lib != null)
                 {
-                    foreach (var t in libOnDisk.DrawingTypes ?? new List<DrawingType>())
-                        if (string.IsNullOrEmpty(t.Origin)) t.Origin = "project";
-                    foreach (var rr in libOnDisk.Routing ?? new List<DrawingRoutingRule>())
+                    foreach (var t in lib.DrawingTypes ?? new List<DrawingType>())
+                        if (t != null && string.IsNullOrEmpty(t.Origin)) t.Origin = "project";
+                    foreach (var rr in lib.Routing ?? new List<DrawingRoutingRule>())
                         if (rr != null && string.IsNullOrEmpty(rr.Origin)) rr.Origin = "project";
-                    DedupeById(libOnDisk, "project");
+                    DedupeById(lib, "project");
                 }
-                return libOnDisk;
+                return lib;
             }
             catch (Exception ex)
             {
