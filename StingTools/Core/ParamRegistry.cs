@@ -4041,6 +4041,9 @@ namespace StingTools.Core
         public const string CST_LABOUR_RATE_GBP_GUID     = "5753b5aa-0005-4000-8000-000000000012";
         public const string CST_FX_RATE_USD_UGX          = "CST_FX_RATE_USD_UGX";
         public const string CST_FX_RATE_USD_UGX_GUID     = "d4e003e1-1f43-5d22-93c1-d9e91d672c52";
+        // Deprecated: same meaning as CST_INSTALL_HRS, which owns it. Read only through
+        // Core/InstallHours (which falls back to it for older models); never write it.
+        [System.Obsolete("Use CST_INSTALL_HRS (read through Core.InstallHours). DSCH-47.")]
         public const string CST_LABOUR_HOURS             = "CST_LABOUR_HOURS";
         public const string CST_LABOUR_HOURS_GUID        = "cb945ed3-ff4d-531c-89fa-c06f503ab46c";
         public const string CST_LABOUR_RATE_UGX          = "CST_LABOUR_RATE_UGX";

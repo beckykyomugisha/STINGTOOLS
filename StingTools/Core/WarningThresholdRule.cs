@@ -65,6 +65,18 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// <paramref name="part"/> as a percentage of <paramref name="whole"/>, as
+        /// invariant text ("25", "12.5"), or null when either is not a number or the
+        /// whole is not positive - there is then nothing to compare, never a 0.
+        /// </summary>
+        public static string PercentOf(string part, string whole)
+        {
+            if (!NumberText.TryParse(part, out double p) || !NumberText.TryParse(whole, out double w) || w <= 0)
+                return null;
+            return Math.Round(100.0 * p / w, 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
         /// The direction the pre-DSCH-47 evaluator read out of a description. Kept ONLY so
         /// the migration stays checkable: every entry's <c>direction</c> must equal what
         /// its <c>message</c> (the old description, verbatim) implied, unless the entry is
