@@ -1455,7 +1455,8 @@ namespace StingTools.Core
     {
         private static readonly ConcurrentDictionary<string, string> _previousOwners = new();
 
-        /// <summary>ED-03: Check for workset ownership changes and log to team activity.</summary>
+        /// <summary>ED-03: Check for workset ownership changes and log to team activity.
+        /// Called after every sync with central; the first call per document only seeds.</summary>
         public static void CheckWorksetChanges(Document doc)
         {
             if (doc == null || !doc.IsWorkshared) return;
@@ -1482,7 +1483,6 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"WorksetChangeNotifier: {ex.Message}"); }
         }
 
-        /// <summary>Reset tracking (document close).</summary>
         /// <summary>Reset tracking (document close).</summary>
         public static void Reset() => _previousOwners.Clear();
     }

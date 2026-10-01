@@ -695,7 +695,12 @@ namespace StingTools.Core
         /// Elements skipped during auto-tagging due to workset ownership are retried here.</summary>
         private static void OnDocumentSynchronizedWithCentral(object sender,
             Autodesk.Revit.DB.Events.DocumentSynchronizedWithCentralEventArgs e)
-            => RetryAfterCentralRefresh(e.Document, "sync-to-central");
+        {
+            RetryAfterCentralRefresh(e.Document, "sync-to-central");
+            // ED-03 (DSCH-27): workset ownership is current after a sync; record who
+            // checked out or released a workset since the last sync in team activity.
+            WorksetChangeNotifier.CheckWorksetChanges(e.Document);
+        }
 
         /// <summary>
         /// TAGACC-17: Reload Latest also brings in other users' SEQ counters and tags, so it
