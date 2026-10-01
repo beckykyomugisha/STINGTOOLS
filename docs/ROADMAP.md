@@ -2753,4 +2753,4 @@ The table is in `WORKLOG.md`. C1–C5 and C7–C10 are fixed (see CHANGELOG). Op
 
 - **ACC-ADJ-C6 — Revit PDF byte-stability (NEEDS MANUAL CHECK).** If two exports of an unchanged sheet differ, the ledger can never skip them as identical. They land as HELD (reported, not failing). A normalised PDF hash would let them skip.
 - ~~**DOCX-REG-1 — show IsoNote in the Document Manager grid.**~~ **Closed 2026-10-01** — see CHANGELOG "Document Manager shows the register's ISO note".
-- **ACC-SRV-11 — issues created and resolved between sweeps never reach ACC.** AccSyncService creates only OPEN/IN_PROGRESS issues. An issue raised and closed inside one interval is never pushed. Decide whether closed-but-never-pushed issues should be created closed, or reported.
+- ~~**ACC-SRV-11 — issues created and resolved between sweeps never reach ACC.**~~ **Closed 2026-10-01** (351c2d1f6): reported by default, created closed with `accClosedBetweenSweeps=create`.

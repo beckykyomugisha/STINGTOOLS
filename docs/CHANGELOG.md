@@ -27011,3 +27011,18 @@ the revision, an unset field, or the S0 default. The Document Manager now shows 
   with another row's note.
 
 Build 0/0; Tags.Tests 5,217 (6 new cases). Not yet checked in Revit.
+
+#### ACC sync reports issues raised and closed between syncs (ACC-SRV-11, 2026-10-01)
+
+The server sync created only open issues. An issue raised and closed in Planscape inside one
+sync interval never reached ACC, and nothing said so.
+
+- By default each such issue is now named once in the sync report, and nothing is sent.
+- With `accClosedBetweenSweeps: "create"` in the connection config, the issue is created in
+  ACC with its closed status and mapped, so it is never created twice. An unrecognised value
+  is reported and treated as `report`.
+- Only issues raised after the connection's first sync count (`accIssueSyncSince`), so turning
+  ACC on never back-fills a project's history. An issue whose earlier create got no answer is
+  never re-posted blind.
+
+Server ACC tests 183 passed (9 new cases). Live ACC acceptance of a closed create is not yet checked.
