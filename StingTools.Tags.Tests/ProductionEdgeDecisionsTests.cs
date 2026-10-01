@@ -61,5 +61,15 @@ namespace StingTools.Tags.Tests
         [InlineData(false, true, 0, 0, false)]  // an existing sheet is never removed
         public void An_empty_new_sheet_is_removed(bool created, bool place, int placed, int reused, bool expected)
             => Assert.Equal(expected, ProductionEdgeDecisions.DiscardNewSheet(created, place, placed, reused));
+
+        // ── DTW-199 ───────────────────────────────────────────────────
+
+        [Fact]
+        public void A_view_moved_to_another_sheet_is_reported_as_kept_there()
+        {
+            var line = ProductionEdgeDecisions.KeptOnOtherSheetLine("Power - Level 1", "E-105", "E-101");
+            Assert.Contains("kept on sheet E-105", line);
+            Assert.Contains("not placed on E-101", line);
+        }
     }
 }

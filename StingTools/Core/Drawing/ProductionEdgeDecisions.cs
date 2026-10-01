@@ -50,5 +50,12 @@ namespace StingTools.Core.Drawing
         /// </summary>
         internal static bool DiscardNewSheet(bool createdThisRequest, bool placeOnSheet, int placed, int reused)
             => createdThisRequest && placeOnSheet && placed <= 0 && reused <= 0;
+
+        // ── DTW-199: a view moved to another sheet stays there ─────────
+
+        /// <summary>The report line for a view kept on the sheet someone moved it to.</summary>
+        internal static string KeptOnOtherSheetLine(string viewName, string otherSheet, string thisSheet)
+            => $"'{viewName}' is kept on sheet {otherSheet}, where it was moved; it was not placed on {thisSheet} "
+             + "and its scale was left alone.";
     }
 }

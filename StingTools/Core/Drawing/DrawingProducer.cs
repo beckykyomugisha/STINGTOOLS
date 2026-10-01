@@ -1973,6 +1973,18 @@ namespace StingTools.Core.Drawing
                     return existingVpId;
                 }
 
+                // DTW-199: a view someone moved to another sheet is theirs to keep there.
+                // The fit below re-scaled it to this sheet's slot, then Viewport.Create threw
+                // (a view sits on one sheet only). Say where it is and leave it alone.
+                var elsewhere = SheetHoldingView(doc, sheetId, viewId);
+                if (elsewhere != null)
+                {
+                    var here = (doc.GetElement(sheetId) as ViewSheet)?.SheetNumber ?? sheetId.Value.ToString();
+                    result.Warnings.Add(ProductionEdgeDecisions.KeptOnOtherSheetLine(
+                        doc.GetElement(viewId)?.Name ?? viewId.Value.ToString(), elsewhere, here));
+                    return ElementId.InvalidElementId;
+                }
+
                 var sp = SheetPlacementBridge.ResolveSlot(doc, sheetId, dt,
                     rule.SlotIndex >= 0 ? rule.SlotIndex : 0, result, famCtx);
                 var pt = sp?.Center;
@@ -2120,6 +2132,28 @@ namespace StingTools.Core.Drawing
                 StingLog.Warn($"IsViewAlreadyOnSheet({viewId}): {ex.Message}");
                 return false;   // fail open — attempt the placement
             }
+        }
+
+        /// <summary>
+        /// DTW-199: the number of the OTHER sheet <paramref name="viewId"/> is placed on, or
+        /// null when it is on no sheet but <paramref name="sheetId"/>. Schedules can sit on
+        /// many sheets and are never "elsewhere".
+        /// </summary>
+        private static string SheetHoldingView(Document doc, ElementId sheetId, ElementId viewId)
+        {
+            try
+            {
+                if (!(doc.GetElement(viewId) is View v) || v is ViewSchedule) return null;
+                if (Viewport.CanAddViewToSheet(doc, sheetId, viewId)) return null;
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(Viewport)))
+                {
+                    if (!(el is Viewport vp) || vp.ViewId != viewId || vp.SheetId == sheetId) continue;
+                    return (doc.GetElement(vp.SheetId) as ViewSheet)?.SheetNumber ?? vp.SheetId.Value.ToString();
+                }
+                var p = v.get_Parameter(BuiltInParameter.VIEWPORT_SHEET_NUMBER)?.AsString();
+                return string.IsNullOrWhiteSpace(p) ? null : p;
+            }
+            catch (Exception ex) { StingLog.Warn($"SheetHoldingView({viewId}): {ex.Message}"); return null; }
         }
 
         private static void StampViewParameters(Document doc, ElementId viewId, DrawingType dt, ProductionRule rule, DrawingContext ctx)
