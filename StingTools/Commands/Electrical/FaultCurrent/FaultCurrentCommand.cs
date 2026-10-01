@@ -75,7 +75,7 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             var wireTables = WireTableSet.Load(StingToolsApp.DataPath);
             var aicTiers   = LoadAicTiers();
             var results = FaultCurrentEngine.PropagateAll(root, utilityKa, wireTables,
-                ResolveSupply, aicTiers).Values.ToList();
+                ResolveSupply, aicTiers, LoadAicSafetyMarginPct()).Values.ToList();
             LastResults = results;
 
             int written = 0;
@@ -258,6 +258,29 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             }
             catch (Exception ex) { StingLog.Warn($"LoadAicTiers: {ex.Message}"); return new double[0]; }
         }
+
+        /// <summary>Margin added to the fault level before picking an AIC tier:
+        /// STING_AIC_TIERS.json <c>safetyMarginPct</c> (≥ 0), else 10 %.</summary>
+        public const double DefaultAicSafetyMarginPct = 10.0;
+
+        public static double LoadAicSafetyMarginPct()
+        {
+            try
+            {
+                string path = StingToolsApp.FindDataFile("STING_AIC_TIERS.json");
+                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return DefaultAicSafetyMarginPct;
+                var tok = JObject.Parse(File.ReadAllText(path))["safetyMarginPct"];
+                if (tok != null && (tok.Type == JTokenType.Integer || tok.Type == JTokenType.Float))
+                {
+                    double v = tok.Value<double>();
+                    if (v >= 0) return v;
+                }
+                StingLog.WarnRateLimited("LoadAicSafetyMarginPct.Invalid",
+                    $"STING_AIC_TIERS.json safetyMarginPct missing or invalid; using {DefaultAicSafetyMarginPct} %.");
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadAicSafetyMarginPct: {ex.Message}"); }
+            return DefaultAicSafetyMarginPct;
+        }
     }
 
     /// <summary>
@@ -290,6 +313,7 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                 return Result.Failed;
             }
             var tiers = FaultCurrentCommand.LoadAicTiers();
+            double marginPct = FaultCurrentCommand.LoadAicSafetyMarginPct();
 
             int stamped = 0;
             using (var tx = new Transaction(doc, "STING Stamp AIC Tiers"))
@@ -303,7 +327,7 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                         if (elId == null) continue;
                         var panel = doc.GetElement(elId) as FamilyInstance;
                         if (panel == null) continue;
-                        double aic = FaultCurrentEngine.NextAicTierKa(r.FaultKa, tiers);
+                        double aic = FaultCurrentEngine.NextAicTierKa(r.FaultKa, tiers, marginPct);
                         ParameterHelpers.SetString(panel, ParamRegistry.ELC_PNL_AIC_KA,
                             $"{aic:0.0}", overwrite: true);
                         stamped++;
