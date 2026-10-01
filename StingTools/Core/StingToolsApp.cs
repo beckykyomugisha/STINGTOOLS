@@ -2091,6 +2091,13 @@ namespace StingTools.Core
             try { Planscape.Docs.Workflow.AuditLog.Shutdown(); }
             catch (Exception ex) { StingLog.Warn($"AuditLog shutdown: {ex.Message}"); }
             StingMcpServer.Stop();
+            // DSCH-27: with PERF_TRACKING_ENABLED the tracker collected timings that
+            // nothing ever showed. Write the session report to the log before closing it.
+            if (PerformanceTracker.Enabled)
+            {
+                try { StingLog.Info(PerformanceTracker.GetReport()); }
+                catch (Exception ex) { StingLog.Warn($"PerformanceTracker report: {ex.Message}"); }
+            }
             StingLog.Shutdown();
             return Result.Succeeded;
         }
