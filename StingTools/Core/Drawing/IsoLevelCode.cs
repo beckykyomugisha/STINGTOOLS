@@ -33,6 +33,10 @@ namespace StingTools.Core.Drawing
         public string Name { get; set; }
         /// <summary>Elevation in millimetres, relative to the project's own datum.</summary>
         public double ElevationMm { get; set; }
+        /// <summary>DTW-116 — Revit's "Building Story" flag (LEVEL_IS_BUILDING_STORY):
+        /// false for a datum level such as "T.O. Steel" that is not a storey; null when the
+        /// caller does not know, in which case the level counts as a storey.</summary>
+        public bool? IsBuildingStorey { get; set; }
     }
 
     public static class IsoLevelCode
@@ -49,9 +53,27 @@ namespace StingTools.Core.Drawing
         /// tell whether a level is 01 or 02 by looking at it alone, which is why the
         /// name-only rule could never have been right.</summary>
         public static Dictionary<string, string> BuildMap(IEnumerable<StoreyDatum> storeys)
+            => BuildMap(storeys, DefaultCoincidentToleranceMm);
+
+        /// <summary>DTW-116 — levels closer than this share a storey: per-building level
+        /// sets at the same height, and datum levels such as "Level 1 SSL" a screed below
+        /// FFL. 50 mm.</summary>
+        public const double DefaultCoincidentToleranceMm = 50.0;
+
+        /// <summary>
+        /// The map, with levels within <paramref name="coincidentToleranceMm"/> of each other
+        /// grouped into one storey (one code, one place in the stack), and levels whose
+        /// <see cref="StoreyDatum.IsBuildingStorey"/> is false left out of the count — they
+        /// take the code of the storey they coincide with or sit in.
+        ///
+        /// Numbering levels by list position gave coincident levels different codes and
+        /// shifted every storey above them (DTW-116).
+        /// </summary>
+        public static Dictionary<string, string> BuildMap(IEnumerable<StoreyDatum> storeys, double coincidentToleranceMm)
         {
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             if (storeys == null) return map;
+            double tol = Math.Max(0, coincidentToleranceMm);
 
             var ordered = storeys
                 .Where(s => s != null && !string.IsNullOrWhiteSpace(s.Name))
@@ -61,33 +83,66 @@ namespace StingTools.Core.Drawing
                 .ToList();
             if (ordered.Count == 0) return map;
 
+            // The stack is the building storeys. A level known NOT to be one (Building
+            // Story off) does not take a number; unknown counts. If nothing is flagged a
+            // storey, every level counts — a model with the flag cleared everywhere still
+            // needs codes.
+            var stack = ordered.Where(s => s.IsBuildingStorey != false).ToList();
+            if (stack.Count == 0) stack = ordered;
+
+            // Group coincident storeys: a new storey starts more than tol above the first
+            // level of the current one.
+            var groups = new List<List<StoreyDatum>>();
+            foreach (var s in stack)
+            {
+                if (groups.Count == 0 || s.ElevationMm - groups[groups.Count - 1][0].ElevationMm > tol)
+                    groups.Add(new List<StoreyDatum>());
+                groups[groups.Count - 1].Add(s);
+            }
+
             // The ground storey: nearest to datum, and on a tie the LOWER one — a
             // building with levels at -150 and +150 has its ground floor at the
             // slab, not the one above it.
-            var ground = ordered
-                .OrderBy(s => Math.Abs(s.ElevationMm))
-                .ThenBy(s => s.ElevationMm)
-                .First();
-            int groundIndex = ordered.IndexOf(ground);
-
-            for (int i = 0; i < ordered.Count; i++)
+            int groundIndex = 0;
+            double best = double.MaxValue, bestElev = double.MaxValue;
+            for (int i = 0; i < groups.Count; i++)
             {
-                var s = ordered[i];
-                string explicitCode = FromName(s.Name);
+                var rep = groups[i].OrderBy(s => Math.Abs(s.ElevationMm)).ThenBy(s => s.ElevationMm).First();
+                double d = Math.Abs(rep.ElevationMm);
+                if (d < best || (d == best && rep.ElevationMm < bestElev))
+                { best = d; bestElev = rep.ElevationMm; groundIndex = i; }
+            }
 
-                // A name that states a special code outranks the stack. ROOF is a
-                // roof wherever it sits, and a project that has named a level GF has
-                // already answered the question this class exists to answer.
-                if (explicitCode != null)
-                {
-                    map[s.Name] = explicitCode;
-                    continue;
-                }
-
+            var groupCodes = new string[groups.Count];
+            for (int i = 0; i < groups.Count; i++)
+            {
+                // A name in the group that states a code speaks for the group: "GF" and a
+                // coincident "Level 1 SSL" are both the ground storey.
+                string stated = groups[i].Select(s => FromName(s.Name)).FirstOrDefault(c => c != null);
                 int offset = i - groundIndex;
-                if (offset == 0) map[s.Name] = "00";
-                else if (offset > 0) map[s.Name] = offset.ToString("00");
-                else map[s.Name] = "B" + (-offset);
+                groupCodes[i] = stated
+                    ?? (offset == 0 ? "00" : offset > 0 ? offset.ToString("00") : "B" + (-offset));
+                foreach (var s in groups[i])
+                    // A name that states a special code outranks the stack. ROOF is a
+                    // roof wherever it sits, and a project that has named a level GF has
+                    // already answered the question this class exists to answer.
+                    map[s.Name] = FromName(s.Name) ?? groupCodes[i];
+            }
+
+            // Levels outside the stack take the storey they coincide with, else the one
+            // they sit in (at or below), else the lowest.
+            foreach (var s in ordered)
+            {
+                if (map.ContainsKey(s.Name)) continue;
+                string stated = FromName(s.Name);
+                if (stated != null) { map[s.Name] = stated; continue; }
+                int pick = -1;
+                for (int i = 0; i < groups.Count && pick < 0; i++)
+                    if (groups[i].Any(g => Math.Abs(g.ElevationMm - s.ElevationMm) <= tol)) pick = i;
+                if (pick < 0)
+                    for (int i = 0; i < groups.Count; i++)
+                        if (groups[i][0].ElevationMm <= s.ElevationMm + tol) pick = i;
+                map[s.Name] = groupCodes[pick < 0 ? 0 : pick];
             }
 
             return map;

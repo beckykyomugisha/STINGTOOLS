@@ -138,5 +138,72 @@ namespace StingTools.Tags.Tests
             Assert.Empty(IsoLevelCode.BuildMap(null));
             Assert.Empty(IsoLevelCode.BuildMap(new List<StoreyDatum>()));
         }
+
+        // ── DTW-116: coincident and non-storey levels ──────────────────────────
+
+        [Fact]
+        public void CoincidentLevelsShareACodeAndDoNotShiftTheStack()
+        {
+            // Per-building level sets: building A and B both have a level at 0 and 3600.
+            // Numbering by list position made B's ground "01" and pushed every storey up.
+            var map = IsoLevelCode.BuildMap(Storeys(
+                ("A Level 1", 0), ("B Level 1", 0),
+                ("A Level 2", 3600), ("B Level 2", 3600),
+                ("A Level 3", 7200)));
+            Assert.Equal("00", map["A Level 1"]);
+            Assert.Equal("00", map["B Level 1"]);
+            Assert.Equal("01", map["A Level 2"]);
+            Assert.Equal("01", map["B Level 2"]);
+            Assert.Equal("02", map["A Level 3"]);
+        }
+
+        [Fact]
+        public void ADatumLevelWithinFiftyMillimetresIsTheSameStorey()
+        {
+            // "Level 1 SSL" sits 40 mm under FFL; it is the same storey.
+            var map = IsoLevelCode.BuildMap(Storeys(
+                ("Level 1 SSL", -40), ("Level 1", 0), ("Level 2", 3600), ("Level 2 SSL", 3560)));
+            Assert.Equal("00", map["Level 1 SSL"]);
+            Assert.Equal("00", map["Level 1"]);
+            Assert.Equal("01", map["Level 2"]);
+            Assert.Equal("01", map["Level 2 SSL"]);
+        }
+
+        [Fact]
+        public void ACoincidentLevelTakesItsGroupsStatedCode()
+        {
+            var map = IsoLevelCode.BuildMap(Storeys(("GF", 0), ("Level 1 SSL", -20), ("First", 3600)));
+            Assert.Equal("00", map["GF"]);
+            Assert.Equal("00", map["Level 1 SSL"]);
+            Assert.Equal("01", map["First"]);
+        }
+
+        [Fact]
+        public void NonStoreyLevelsDoNotCountButTakeTheStoreyTheyAreIn()
+        {
+            // "T.O. Steel" has Building Story off: it is not a storey, so Level 2 stays 01,
+            // and the steel level reads as the storey it sits in.
+            var storeys = new List<StoreyDatum>
+            {
+                new StoreyDatum { Name = "Level 1", ElevationMm = 0, IsBuildingStorey = true },
+                new StoreyDatum { Name = "T.O. Steel", ElevationMm = 3200, IsBuildingStorey = false },
+                new StoreyDatum { Name = "Level 2", ElevationMm = 3600, IsBuildingStorey = true },
+                new StoreyDatum { Name = "Level 3", ElevationMm = 7200, IsBuildingStorey = true },
+            };
+            var map = IsoLevelCode.BuildMap(storeys);
+            Assert.Equal("00", map["Level 1"]);
+            Assert.Equal("01", map["Level 2"]);
+            Assert.Equal("02", map["Level 3"]);
+            Assert.Equal("00", map["T.O. Steel"]);
+        }
+
+        [Fact]
+        public void WithoutStoreyInformationEveryLevelCounts()
+        {
+            // Unknown (null) is not "not a storey": the old behaviour stands.
+            var map = IsoLevelCode.BuildMap(Storeys(("Level 1", 0), ("T.O. Steel", 3200), ("Level 2", 3600)));
+            Assert.Equal("01", map["T.O. Steel"]);
+            Assert.Equal("02", map["Level 2"]);
+        }
     }
 }
