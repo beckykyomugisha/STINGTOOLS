@@ -16,15 +16,8 @@ still open. Rows leave this table when their fix is merged; the worklog keeps th
 | DTW-132 | Wizard dependents match level name only (area/STING:: code boxes skipped); area boxes get every plan type | `ProjectSetupCommand MatchLevels ~1696` | In progress (`fix/dt-r6a`) |
 | DTW-133 | SSL levels 50-150 mm below FFL become separate storeys | `IsoLevelCode tolerance 50 mm` | In progress (`fix/dt-r6a`) |
 | DTW-134 | Heal takes {lvl} from the stamp's level name (stale after a rename) | `DrawingTokenContext.BuildForExistingSheet ~262` | In progress (`fix/dt-r6a`) |
-| DTW-135 | FileName without Combine; exported path recorded without checking it exists | `PrintManager / SheetTemplateEngine / AutomationEngine PDFs` | In progress (`fix/dt-r6b`) |
-| DTW-136 | Renumbers all sheets as XX-NNN, bypassing SheetNumbering (ISO, locks, history) | `AutoNumberSheetsCommand` | In progress (`fix/dt-r6b`) |
-| DTW-137 | Stale earlier PDF counted when the re-export failed | `ExportCenterEngine.ResolveProducedFile ~1523` | In progress (`fix/dt-r6b`) |
 | DTW-138 | Session-long level map cache used by retag after level edits | `ParameterHelpers _levelMap vs SheetNumbering` | In progress (`fix/dt-r6a`) |
-| DTW-139 | Package PDF names carry no revision | `DrawingPackageManager ~119` | In progress (`fix/dt-r6b`) |
-| DTW-140 | No coincident-grid filter: an offset linked grid can beat the host | `AnnotationRunner.DimGrids` | In progress (`fix/dt-r6b`) |
 | DTW-141 | Expensive lookups before checking the pattern uses {vol} | `DrawingTokenContext.ApplyContextVolume` | In progress (`fix/dt-r6a`) |
-| DTW-142 | Nested scope on another document wipes the outer batch's claims | `BatchScopeDepth across documents` | In progress (`fix/dt-r6b`) |
-| DTW-143 | Box names parsed by hand, not through ScopeBoxNames | `ScopeBoxStyle / RenamePattern / MatchLineEngine` | In progress (`fix/dt-r6b`) |
 | DTW-144 | Stricter grammar drops user-typed LOC names silently (log only) | `LOC index (ParameterHelpers ~1735)` | In progress (`fix/dt-r6a`) |
 
 ## Tag family library — missing families (2026-09-30)

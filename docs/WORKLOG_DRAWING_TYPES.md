@@ -189,15 +189,15 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-132 | ProjectSetupCommand MatchLevels ~1696 | Med-High | Wizard dependents match level name only (area/STING:: code boxes skipped); area boxes get every plan type | fix/dt-r6a | In progress |
 | DTW-133 | IsoLevelCode tolerance 50 mm | Med | SSL levels 50-150 mm below FFL become separate storeys | fix/dt-r6a | In progress |
 | DTW-134 | DrawingTokenContext.BuildForExistingSheet ~262 | Med | Heal takes {lvl} from the stamp's level name (stale after a rename) | fix/dt-r6a | In progress |
-| DTW-135 | PrintManager / SheetTemplateEngine / AutomationEngine PDFs | Med | FileName without Combine; exported path recorded without checking it exists | fix/dt-r6b | In progress |
-| DTW-136 | AutoNumberSheetsCommand | Med | Renumbers all sheets as XX-NNN, bypassing SheetNumbering (ISO, locks, history) | fix/dt-r6b | In progress |
-| DTW-137 | ExportCenterEngine.ResolveProducedFile ~1523 | Low-Med | Stale earlier PDF counted when the re-export failed | fix/dt-r6b | In progress |
+| DTW-135 | PrintManager / SheetTemplateEngine / AutomationEngine PDFs | Med | FileName without Combine; exported path recorded without checking it exists | Merged | Done |
+| DTW-136 | AutoNumberSheetsCommand | Med | Renumbers all sheets as XX-NNN, bypassing SheetNumbering (ISO, locks, history) | Merged | Done |
+| DTW-137 | ExportCenterEngine.ResolveProducedFile ~1523 | Low-Med | Stale earlier PDF counted when the re-export failed | Merged | Done |
 | DTW-138 | ParameterHelpers _levelMap vs SheetNumbering | Low-Med | Session-long level map cache used by retag after level edits | fix/dt-r6a | In progress |
-| DTW-139 | DrawingPackageManager ~119 | Low | Package PDF names carry no revision | fix/dt-r6b | In progress |
-| DTW-140 | AnnotationRunner.DimGrids | Low | No coincident-grid filter: an offset linked grid can beat the host | fix/dt-r6b | In progress |
+| DTW-139 | DrawingPackageManager ~119 | Low | Package PDF names carry no revision | Merged | Done |
+| DTW-140 | AnnotationRunner.DimGrids | Low | No coincident-grid filter: an offset linked grid can beat the host | Merged | Done |
 | DTW-141 | DrawingTokenContext.ApplyContextVolume | Low | Expensive lookups before checking the pattern uses {vol} | fix/dt-r6a | In progress |
-| DTW-142 | BatchScopeDepth across documents | Low | Nested scope on another document wipes the outer batch's claims | fix/dt-r6b | In progress |
-| DTW-143 | ScopeBoxStyle / RenamePattern / MatchLineEngine | Low | Box names parsed by hand, not through ScopeBoxNames | fix/dt-r6b | In progress |
+| DTW-142 | BatchScopeDepth across documents | Low | Nested scope on another document wipes the outer batch's claims | Merged | Done |
+| DTW-143 | ScopeBoxStyle / RenamePattern / MatchLineEngine | Low | Box names parsed by hand, not through ScopeBoxNames | Merged | Done |
 | DTW-144 | LOC index (ParameterHelpers ~1735) | Low-Med | Stricter grammar drops user-typed LOC names silently (log only) | fix/dt-r6a | In progress |
 
 ## Decisions
@@ -249,6 +249,12 @@ presets, binding files and docs. This file is the handover: a fresh session cont
   min(300 mm, half the storey); outside that band, to the level at or below.
 - **Volume (DTW-117).** `{vol}` comes from `_BIM_COORD/sheet_volumes.json` (LOC → volume), else
   the LOC code. It applies only when the pattern names `{vol}`.
+- **Auto-number in presets (DTW-136).** Plan-only unless the step sets `apply`. The built-in
+  Document Package, Weekly Data Drop and Residential presets set `apply = true`, because
+  numbering is their purpose. Locked and ISO-identifier sheets are always left alone;
+  drawing-type numbers follow the project pattern.
+- **Nested batches across documents (DTW-142).** The outer batch's caches are set aside and
+  restored, not wiped.
 - **ISO number (DTW-44).** Suitability and revision leave the container id (ISO 19650 keeps them
   as metadata). Only new sheets use the new pattern; existing numbers are not rewritten.
 
