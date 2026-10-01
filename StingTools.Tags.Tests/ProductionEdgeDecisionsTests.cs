@@ -192,6 +192,25 @@ namespace StingTools.Tags.Tests
             Assert.DoesNotContain("\"replaces\"", json);
         }
 
+        // ── DTW-206 ───────────────────────────────────────────────────
+
+        [Fact]
+        public void A_box_reaching_the_level_is_accepted()
+            => Assert.Null(ProductionEdgeDecisions.BoxMissesLevel("STING::A", "Level 1", -1.0, 20.0, 0.0));
+
+        [Fact]
+        public void A_box_above_the_level_is_refused_with_both_extents()
+        {
+            var why = ProductionEdgeDecisions.BoxMissesLevel("STING::A", "Level 1", 10.0, 20.0, 0.0);
+            Assert.NotNull(why);
+            Assert.Contains("does not reach level 'Level 1'", why);
+            Assert.Contains("extend the box", why);
+        }
+
+        [Fact]
+        public void A_level_on_the_box_edge_counts_as_reached()
+            => Assert.Null(ProductionEdgeDecisions.BoxMissesLevel("b", "L", 0.0, 10.0, 10.0));
+
         // ── DTW-199 ───────────────────────────────────────────────────
 
         [Fact]

@@ -163,6 +163,27 @@ namespace StingTools.Core.Drawing
             return by?.Id ?? "";
         }
 
+        // ── DTW-206: an area view its box cannot crop is not produced ───
+
+        /// <summary>
+        /// Null when the scope box's vertical extent reaches the level (feet, model
+        /// coordinates); otherwise why the plan cannot be cropped to it. Revit refuses a
+        /// box that misses the view's level as the crop, and the view stayed a whole-floor
+        /// plan on an area-named sheet with only a warning.
+        /// </summary>
+        internal static string BoxMissesLevel(string boxName, string levelName, double zMinFt, double zMaxFt, double levelFt)
+        {
+            const double tol = 1e-3;
+            if (levelFt >= zMinFt - tol && levelFt <= zMaxFt + tol) return null;
+            return $"scope box '{boxName}' does not reach level '{levelName}' (box {zMinFt * 0.3048:0.###}–{zMaxFt * 0.3048:0.###} m, "
+                 + $"level {levelFt * 0.3048:0.###} m), so its plan cannot be cropped to it — extend the box to the level. Nothing of it was produced.";
+        }
+
+        /// <summary>The failure line when a produced area plan did not take its box as crop.</summary>
+        internal static string NotCroppedLine(string viewName, string boxName)
+            => $"'{viewName}' could not be cropped to scope box '{boxName}' (the box was not accepted as its crop); "
+             + "an uncropped whole-floor view is not kept for an area sheet.";
+
         // ── DTW-199: a view moved to another sheet stays there ─────────
 
         /// <summary>The report line for a view kept on the sheet someone moved it to.</summary>

@@ -399,6 +399,22 @@ namespace StingTools.Core.Drawing
             if (rules.All(r => r == null))
                 return result;
 
+            // DTW-206: an area plan whose box does not reach its level cannot take the box
+            // as crop; it used to stay a whole-floor plan on an area-named sheet.
+            if (ctx.ScopeBox != null && ctx.Level != null && rules.Any(r => r != null && IsPlanRule(r)))
+            {
+                try
+                {
+                    if (ScopeBoxRevit.TryMeasure(ctx.ScopeBox, out var bm, out _))
+                    {
+                        var miss = ProductionEdgeDecisions.BoxMissesLevel(ctx.ScopeBox.Name, ctx.Level.Name,
+                            bm.ZMinFt, bm.ZMaxFt, ctx.Level.ProjectElevation);
+                        if (miss != null) { result.Fail($"'{dt.Id}': {miss}"); return result; }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"DrawingProducer box reach '{ctx.ScopeBox.Name}': {ex.Message}"); }
+            }
+
             // DTW-197: the sheet used to be made before any view, so a request whose every
             // rule failed left an empty, numbered sheet behind, counted as produced. An
             // existing sheet is found now; a new one is made only once a view exists.
@@ -439,6 +455,20 @@ namespace StingTools.Core.Drawing
                 result.ViewIds.Add(viewId);
                 StampViewParameters(doc, viewId, dt, rule, ctx);
 
+                // DTW-206: read back the crop of an area plan; one the box did not take
+                // fails the request (a batch rolls it back) instead of being kept.
+                if (ctx.ScopeBox != null && doc.GetElement(viewId) is ViewPlan vp)
+                {
+                    ElementId crop = null;
+                    try { crop = vp.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP)?.AsElementId(); }
+                    catch (Exception ex) { StingLog.Warn($"Crop read-back '{vp.Name}': {ex.Message}"); }
+                    if (crop != null && crop != ctx.ScopeBox.Id)
+                    {
+                        result.Fail(ProductionEdgeDecisions.NotCroppedLine(vp.Name, ctx.ScopeBox.Name));
+                        return result;
+                    }
+                }
+
                 if (ProductionEdgeDecisions.CreateSheetNow(opts.CreateSheet, sheetKnown, sheetAttempted, viewProduced: true))
                 {
                     sheetAttempted = true;
@@ -475,6 +505,15 @@ namespace StingTools.Core.Drawing
                 DiscardEmptySheet(doc, dt, newSheet, result);
 
             return result;
+        }
+
+        /// <summary>DTW-206: a rule that makes a plan-family view (floor, ceiling, area,
+        /// structural plan) — the views a scope box crops.</summary>
+        private static bool IsPlanRule(ProductionRule r)
+        {
+            var vt = r?.ViewType ?? "";
+            return vt.IndexOf("Plan", StringComparison.OrdinalIgnoreCase) >= 0
+                || string.Equals(vt, "RCP", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>DTW-197: what a new sheet consumed, so it can be given back.</summary>
