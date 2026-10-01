@@ -293,3 +293,13 @@ Stopping here: a full round found nothing new.
 | 7 | 5 | 4 | DSCH-14, DSCH-21 |
 | 8 | 5 (1 a regression of round 7) | 4 (incl. the revert) | DSCH-22 |
 | 9 | 0 | — | — |
+
+## Follow-up — Kibale is a closed project
+
+At the owner's direction (2026-10-01), the Kibale overlay edits from round 6
+(`GUIDES/kibale-project-config/project_config.json`, the added `boq_rate_policy.json`,
+the README row) were **reverted**: the folder stays a record of what was delivered, and
+data-only edits there change no future project. Kept, because they protect every future
+project: the auto-tagger accepting a disc filter written as a JSON array, the warning for
+an unknown `SEQ_SCHEME`, and the corrected rate-priority comment. The rate-card ranking
+lesson is ROADMAP DSCH-23. NEEDS REVIT CHECK 16 (Kibale pricing) is withdrawn.

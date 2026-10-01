@@ -26486,7 +26486,7 @@ defects in temp copies of real files and fails if any goes uncaught. Full record
   sector-pack OH&P to a key nothing reads; electrical snapshot and demand-factor report
   read keys their files lack; lift carbon hours; classification standard read from the
   wrong folder; auto-tagger disc filter from a JSON array; material schema checks read
-  nothing; Kibale rate card outranked by the CSV; duplicate `WORKFLOW_PlumbingDesign`
+  nothing; a project rate card (priority 87) is outranked by the CSV unless a rate policy re-ranks it (DSCH-23); duplicate `WORKFLOW_PlumbingDesign`
   labels; mixed line endings; a shadowed pump catalogue renamed to an example.
 - A geometry-aware separation refinement was **reverted** after review (it relaxed real
   checks); the conservative rule stands — DSCH-22.

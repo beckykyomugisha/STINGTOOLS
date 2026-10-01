@@ -119,7 +119,7 @@ namespace StingTools.BOQ.Rates
                 // <project>/_BIM_COORD/rate_card.json). Priority 87 sits BELOW the
                 // CSV category rate (90) and the material library (95) - the chain is
                 // highest-first - so a QS-priced category only wins when the project's
-                // boq_rate_policy.json re-ranks it (KUT and Kibale ship one at 93).
+                // boq_rate_policy.json re-ranks it (KUT ships one at 93).
                 // Returns null when the file is absent, so legacy projects are
                 // unaffected.
                 Providers.ProjectRateCardProvider.Load(doc),

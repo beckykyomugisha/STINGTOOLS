@@ -10,7 +10,6 @@ You author the `.rvt`. These are everything else.
 |---|---|---|
 | `project_config.json` | **beside the `.rvt`** — `<rvtDir>/project_config.json` | `Temp/ProjectSetupCommand.cs:642-647` writes it here; `Core/TagConfig.cs:733` reads it |
 | `rate_card.json` | `<project>/<CODE>/_data/coord/rate_card.json` | `BOQ/Rates/Providers/ProjectRateCardProvider.cs:50` — `StingPaths.MetaFile(doc,"_BIM_COORD","rate_card.json")` |
-| `boq_rate_policy.json` | `<project>/<CODE>/_data/coord/boq_rate_policy.json` | `BOQ/Rates/RatePolicy.cs` — re-ranks the rate chain so `rate_card.json` (93) beats the corporate CSV (90) and the material library (85). **Without it the rate card never prices anything** (DSCH round 6). |
 | `takeoff_rules.json` | same folder | `BOQ/Takeoff/TakeoffRule.cs:321` |
 | `carbon_factors_ug.json` | same folder | `BOQ/UgCarbonFactors.cs:54` |
 | `boq_links.json` | same folder | `BOQ/BOQCostManager.cs:336` |

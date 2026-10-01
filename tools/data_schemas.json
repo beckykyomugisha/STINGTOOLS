@@ -53,28 +53,6 @@
     "StingTools/Data/TagFamilies/_master": "Master tag family placeholder; binary."
   },
   "schemas": {
-    "GUIDES/kibale-project-config/boq_rate_policy.json": {
-      "format": "json",
-      "schemaVersion": 1,
-      "description": "Keys derived from the C# class the reader deserialises into (DSCH round 2/3).",
-      "readers": [
-        "StingTools/BOQ/Rates/RatePolicy.cs"
-      ],
-      "kind": "object",
-      "poco": [
-        "StingTools/BOQ/Rates/RatePolicy.cs",
-        "RatePolicy"
-      ],
-      "children": {
-        "providers": {
-          "kind": "dict-of-object",
-          "poco": [
-            "StingTools/BOQ/Rates/RatePolicy.cs",
-            "RatePolicyEntry"
-          ]
-        }
-      }
-    },
     "GUIDES/kibale-project-config/spatial_codes.json": {
       "format": "json",
       "schemaVersion": 1,
