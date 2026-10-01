@@ -647,6 +647,39 @@ namespace StingTools.Acc.Tests
             finally { File.Delete(path); }
         }
 
+        // F9: an empty file is an interrupted write, not "no decisions".
+        [Theory]
+        [InlineData("")]
+        [InlineData("   \r\n")]
+        public void AnEmptyQueueFile_IsAnError_NotAnEmptyQueue(string content)
+        {
+            string path = Path.Combine(Path.GetTempPath(), "sting-acc-queue-" + Guid.NewGuid().ToString("N") + ".json");
+            File.WriteAllText(path, content);
+            try
+            {
+                Assert.Null(AccReviewQueue.Load(path, out string err));
+                Assert.Contains("empty", err);
+            }
+            finally { File.Delete(path); }
+        }
+
+        [Fact]
+        public void AnAbsentQueue_IsStillAnEmptyQueue_AndSaveLeavesNoTempFile()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "sting-acc-q-" + Guid.NewGuid().ToString("N"));
+            string path = Path.Combine(dir, AccReviewQueue.FileName);
+            try
+            {
+                var q = AccReviewQueue.Load(path, out string err);
+                Assert.Null(err);
+                Assert.Empty(q.Proposals);
+                q.Save(path);
+                Assert.True(File.Exists(path));
+                Assert.Empty(Directory.GetFiles(dir, "*.tmp"));
+            }
+            finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
+        }
+
         [Fact]
         public void TheQueue_RoundTrips()
         {

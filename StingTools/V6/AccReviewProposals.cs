@@ -165,7 +165,14 @@ namespace StingTools.V6
             try
             {
                 string text = File.ReadAllText(path);
-                if (string.IsNullOrWhiteSpace(text)) return new AccReviewQueue();
+                // F9: an existing file with no content is a failed write, not "no decisions":
+                // reading it as empty re-proposed every decided review and the next save erased them.
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    error = $"{path} exists but is empty (a write was interrupted?); it was left untouched. " +
+                            "Restore it from the .bak or backup, or delete it to start the queue again.";
+                    return null;
+                }
                 var q = JsonConvert.DeserializeObject<AccReviewQueue>(text);
                 if (q == null) { error = "the proposal queue is empty JSON"; return null; }
                 q.Proposals ??= new List<AccReviewProposal>();
@@ -185,9 +192,14 @@ namespace StingTools.V6
         {
             string dir = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-            string tmp = path + ".tmp";
-            File.WriteAllText(tmp, JsonConvert.SerializeObject(this, Formatting.Indented));
-            File.Move(tmp, path, true);
+            // F10 (part): a unique temp name, so two sessions saving at once never share one.
+            string tmp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
+            {
+                File.WriteAllText(tmp, JsonConvert.SerializeObject(this, Formatting.Indented));
+                File.Move(tmp, path, true);
+            }
+            finally { try { if (File.Exists(tmp)) File.Delete(tmp); } catch (IOException) { } }
         }
 
         public IEnumerable<AccReviewProposal> Pending => Proposals.Where(p => p != null && p.IsPending);

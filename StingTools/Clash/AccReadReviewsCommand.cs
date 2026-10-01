@@ -525,7 +525,17 @@ namespace StingTools.Core.Clash
                 return Result.Failed;
             }
             var (added, updated, unchanged) = AccReviewProposals.MergeTransmittals(rows, pull.Value, DateTime.Now);
-            if (added + updated > 0) BIMManagerEngine.SaveJsonFile(path, rows);
+            // F8: the merge is only real once it is on disk; a failed save reported success.
+            if (added + updated > 0 && !BIMManagerEngine.SaveJsonFile(path, rows))
+            {
+                msg = "transmittals.json could not be saved";
+                AccPullClashesCommand.Report(policy, Title,
+                    $"ACC transmittals read: {pull.Value.Count}, but transmittals.json could NOT be saved (see the log), " +
+                    $"so the {added} new and {updated} updated row(s) were not recorded. Nothing in STING changed; run it again " +
+                    "once the file can be written (closed in Excel, synced by OneDrive).");
+                StingLog.Warn($"ACC_ReadTransmittals: save failed - added={added} updated={updated} not recorded");
+                return Result.Failed;
+            }
 
             AccPullClashesCommand.Report(policy, Title,
                 $"ACC transmittals read: {pull.Value.Count}" + (pull.Status == AccFetchStatus.EmptyOk ? " (the project has none)" : "") + "\n" +
