@@ -140,6 +140,7 @@ namespace StingTools.Core.Clash
         private static string Line(string finding, AccLocationNode n, StingSpatialCode c, string detail)
             => string.Join(",", Csv(finding), Csv(n?.Path), Csv(n?.Type), Csv(n?.Barcode), Csv(c?.Kind), Csv(c?.Code), Csv(detail));
 
-        private static string Csv(string s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
+        // P9: ACC names, paths and barcodes are third-party text; a leading = + - @ opens as a formula.
+        private static string Csv(string s) => StingTools.V6.AccCsv.Cell(s);
     }
 }

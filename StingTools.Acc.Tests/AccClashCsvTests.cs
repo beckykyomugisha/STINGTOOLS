@@ -81,3 +81,23 @@ namespace StingTools.Acc.Tests
             => Assert.Equal("'=x", AccFederatedCompliance.Csv("=x"));
     }
 }
+
+namespace StingTools.Acc.Tests
+{
+    // P9: two ACC commands wrote ACC-sourced text (location paths, barcodes, project values)
+    // through a local quote-only helper, so a value starting = + - @ opened as a formula.
+    public class AccCsvGuardCoverageTests
+    {
+        [Theory]
+        [InlineData("AccCheckLocationsCommand.cs")]
+        [InlineData("AccSyncProjectInfoCommand.cs")]
+        public void ACC_command_csv_cells_go_through_the_formula_guard(string file)
+        {
+            string path = AccAttributeNamesTests.FindRepoFile("StingTools", "Clash", file);
+            Assert.NotNull(path);
+            string src = System.IO.File.ReadAllText(path);
+            Assert.Contains("AccCsv.Cell(", src);
+            Assert.DoesNotContain("(s ?? \"\").Replace(\"\\\"\", \"\\\"\\\"\")", src);
+        }
+    }
+}

@@ -226,6 +226,7 @@ namespace StingTools.Core.Clash
             return s.Length <= 60 ? s : s.Substring(0, 57) + "...";
         }
 
-        private static string Csv(string s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
+        // P9: ACC names, paths and barcodes are third-party text; a leading = + - @ opens as a formula.
+        private static string Csv(string s) => StingTools.V6.AccCsv.Cell(s);
     }
 }
