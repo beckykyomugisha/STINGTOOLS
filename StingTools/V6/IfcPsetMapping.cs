@@ -78,8 +78,10 @@ namespace StingTools.V6
                     var e = new IfcPsetEntry
                     {
                         StingParam      = (string)t["sting_param"] ?? string.Empty,
-                        IfcPsetName     = (string)t["ifc_pset"] ?? string.Empty,
-                        IfcPropertyName = (string)t["ifc_property"] ?? string.Empty,
+                        // DSCH-18: 75 of the shipped rows use the server's spelling
+                        // (pset_name / property_name, IfcIngestController); both bind.
+                        IfcPsetName     = (string)t["ifc_pset"] ?? (string)t["pset_name"] ?? string.Empty,
+                        IfcPropertyName = (string)t["ifc_property"] ?? (string)t["property_name"] ?? string.Empty,
                         IfcDataType     = (string)t["ifc_data_type"] ?? "IfcText",
                         IfcEntity       = (string)t["ifc_entity"] ?? string.Empty,
                         Notes           = (string)t["notes"] ?? string.Empty,
