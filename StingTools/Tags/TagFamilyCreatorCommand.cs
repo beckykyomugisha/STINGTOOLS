@@ -2850,19 +2850,7 @@ namespace StingTools.Tags
                 // group and definition through the API for each of ~199 parameters
                 // (~650k reads against the 3,300-definition file), on top of a separate
                 // counting pass. First match by exact name wins, as before.
-                int groupCount = 0;
-                int defCount = 0;
-                var defsByName = new Dictionary<string, ExternalDefinition>(StringComparer.Ordinal);
-                foreach (DefinitionGroup grp in defFile.Groups)
-                {
-                    groupCount++;
-                    foreach (Definition d in grp.Definitions)
-                    {
-                        defCount++;
-                        if (d is ExternalDefinition ed && !defsByName.ContainsKey(ed.Name))
-                            defsByName[ed.Name] = ed;
-                    }
-                }
+                var defsByName = SharedParamDefinitionIndex.Build(defFile, out int groupCount, out int defCount);
                 StingLog.Info($"Shared parameter file opened: {groupCount} groups, {defCount} definitions");
 
                 FamilyManager famMan = famDoc.FamilyManager;
@@ -2885,7 +2873,8 @@ namespace StingTools.Tags
                     var idx = TagParamInjector.BuildIndex(famDoc);
                     foreach (string paramName in paramsToAdd)
                     {
-                        if (paramName == null || !defsByName.TryGetValue(paramName, out ExternalDefinition extDef))
+                        ExternalDefinition extDef = SharedParamDefinitionIndex.Find(defsByName, paramName);
+                        if (extDef == null)
                         {
                             StingLog.Warn($"Shared parameter '{paramName}' not found in file");
                             continue;

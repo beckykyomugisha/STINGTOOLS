@@ -753,43 +753,21 @@ namespace StingTools.Core
                     return;
                 }
 
-                // Validate config keys — warn on unknown keys to catch typos
-                var knownKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    "DISC_MAP","SYS_MAP","PROD_MAP","FUNC_MAP","LOC_CODES","ZONE_CODES","TAG_FORMAT",
-                    "TAG_PREFIX","TAG_SUFFIX","CATEGORY_SKIP","CATEGORY_FORCE_SYS","SEQ_SCHEME",
-                    "SEQ_INCLUDE_ZONE","SEQ_INCLUDE_LOC","SEQ_LEVEL_RESET","STATUS_DEFAULT","REV_DEFAULT",
-                    "RENUMBER_ON_OVERWRITE","RETAG_MOVED_ELEMENTS","SEQ_LOCK_MODE",
-                    "VALIDATE_STRICT_MODE","LOC_PATTERNS","ZONE_PATTERNS","COMPLIANCE_GATE_PCT","TAG1_ONLY",
-                    "SEPARATOR_HISTORY","AUTO_RUN_WORKFLOW_ON_OPEN","ACTIVE_PRESET",
-                    "CATEGORY_TOKEN_OVERRIDES","tag3DFamilyPath",
-                    "AUTO_TAGGER_ENABLED","AUTO_TAGGER_VISUAL","AUTO_TAGGER_STALE_MARKER",
-                    "CUSTOM_VALID_DISC","CUSTOM_VALID_SYS","CUSTOM_VALID_FUNC",
-                    "CUSTOM_VALID_LOC","CUSTOM_VALID_ZONE",
-                    "PROXIMITY_RADIUS_FT","RESOLVE_BATCH_SIZE","STALE_WARNING_THRESHOLD",
-                    "AUTO_CREATE_CDE_FOLDERS","LIVE_CLASH_TRIGGERS_ENABLED","CDE_FIRST_LAYOUT",
-                    "COBIE_STREAM_BATCH_SIZE","PERF_TRACKING_ENABLED",
-                    "COST_RATES_FILE","SHEET_NAMING_STRICT_MODE",
-                    "COST_PRELIMINARIES_PCT","COST_CONTINGENCY_PCT","COST_OVERHEAD_PROFIT_PCT",
-                    "TRADE_DURATION_OVERRIDES","SEQ_RANGE_ALLOCATION",
-                    "CDE_SHARED_MIN_COMPLIANCE","CDE_PUBLISHED_MIN_COMPLIANCE",
-                    "DD_SCHEDULE","DD_REQUIREMENTS",
-                    "TITLE_BLOCK_FAMILY","SHEET_MARGINS",
-                    "DISCIPLINE_PROFILES","FORMULA_CACHE_TTL_MINUTES","GRID_CACHE_TTL_MINUTES",
-                    "SLA_THRESHOLDS","AUTO_SAVE_WARNING_BASELINE","AUTO_SAVE_BASELINE_ON_REVISION",
-                    "DISCIPLINE_LEADS","WARNING_SUPPRESS_PATTERNS","AUTO_TAGGER_DISC_FILTER",
-                    "USER_ROLE","PROJECT_TYPE","LAST_WORKFLOW_NAME",
-                    "EXCEL_IMPORT_BATCH_SIZE",
-                    "AUTO_CORRECT_STATUS_FROM_PHASE","LEADER_CLEARANCE_MARGIN_FT"
-                };
-                var unknownKeys = data.Keys.Where(k => !knownKeys.Contains(k)).ToList();
+                // Validate config keys — warn on unknown keys to catch typos. TAGACC-26: the
+                // known set lives in ProjectConfigKeys (gated against the code), and keys that
+                // are documented but applied by nothing get their own warning. Reads are
+                // case-sensitive, so the check is too: "seq_scheme" is not SEQ_SCHEME.
+                var unknownKeys = data.Keys
+                    .Where(k => ProjectConfigKeys.Classify(k) == ProjectConfigKeys.KeyStatus.Unknown).ToList();
                 if (unknownKeys.Count > 0)
                 {
                     string unknownList = string.Join(", ", unknownKeys.Take(5));
                     StingLog.Warn($"TagConfig: unknown config key(s) in project_config.json: {unknownList}" +
                         (unknownKeys.Count > 5 ? $" (+{unknownKeys.Count - 5} more)" : "") +
-                        " — check for typos");
+                        " — check for typos (names are case-sensitive)");
                 }
+                foreach (var k in data.Keys.Where(k => ProjectConfigKeys.Classify(k) == ProjectConfigKeys.KeyStatus.NotApplied))
+                    StingLog.Warn($"TagConfig: {k} in project_config.json has no effect — {ProjectConfigKeys.NotApplied[k]} (TAGACC-26).");
 
                 DiscMap = TryDeserialize<Dictionary<string, string>>(data, "DISC_MAP") ?? DefaultDiscMap();
                 SysMap = TryDeserialize<Dictionary<string, List<string>>>(data, "SYS_MAP") ?? DefaultSysMap();
@@ -813,14 +791,14 @@ namespace StingTools.Core
                             int? pad = null;
                             string[] segs = null;
 
-                            if (fmt.TryGetValue("separator", out object sepVal) && sepVal is string s)
+                            if (fmt.TryGetValue(StingTools.Tags.TagFormatConfig.SeparatorKey, out object sepVal) && sepVal is string s)
                                 sep = s;
-                            if (fmt.TryGetValue("num_pad", out object padVal))
+                            if (fmt.TryGetValue(StingTools.Tags.TagFormatConfig.NumPadKey, out object padVal))
                             {
                                 if (padVal is long lv) pad = (int)lv;
                                 else if (int.TryParse(padVal?.ToString(), out int iv)) pad = iv;
                             }
-                            if (fmt.TryGetValue("segment_order", out object segVal))
+                            if (fmt.TryGetValue(StingTools.Tags.TagFormatConfig.SegmentOrderKey, out object segVal))
                             {
                                 var parsed = JsonConvert.DeserializeObject<string[]>(
                                     JsonConvert.SerializeObject(segVal));
@@ -829,6 +807,13 @@ namespace StingTools.Core
                             }
 
                             ParamRegistry.ApplyTagFormatOverrides(sep, pad, segs);
+
+                            // TAGACC-23: a format saved by the old Tag Format command used names
+                            // nothing reads. Say so rather than apply it silently or forget it.
+                            if (StingTools.Tags.TagFormatConfig.IsLegacyUnreadSection(
+                                    Newtonsoft.Json.Linq.JObject.FromObject(fmt)))
+                                StingLog.Warn("TAG_FORMAT in " + path + " uses NumPad/SegmentOrder/Separator, " +
+                                    "which were never applied (TAGACC-23). Re-save it with Tag Format to use it.");
                         }
                     }
                     catch (Exception ex)
@@ -959,6 +944,10 @@ namespace StingTools.Core
                             if (string.IsNullOrEmpty(p.DefaultDisc))
                                 p.DefaultDisc = kvp.Key; // Use the dictionary key as DefaultDisc if not explicitly set
                             DisciplineProfiles[kvp.Key] = p;
+                            var ignored = p.IgnoredSettings();
+                            if (ignored.Count > 0)
+                                StingLog.Warn($"TagConfig: DISCIPLINE_PROFILES.{kvp.Key} sets {string.Join(", ", ignored)}, " +
+                                    "which tagging does not apply yet (TAGACC-25) — they have no effect.");
                         }
                     }
                     if (DisciplineProfiles.Count > 0)
@@ -1559,9 +1548,9 @@ namespace StingTools.Core
                     ["ZONE_CODES"] = ZoneCodes,
                     ["TAG_FORMAT"] = new Dictionary<string, object>
                     {
-                        ["separator"] = Separator,
-                        ["num_pad"] = NumPad,
-                        ["segment_order"] = SegmentOrder
+                        [StingTools.Tags.TagFormatConfig.SeparatorKey] = Separator,
+                        [StingTools.Tags.TagFormatConfig.NumPadKey] = NumPad,
+                        [StingTools.Tags.TagFormatConfig.SegmentOrderKey] = SegmentOrder
                     },
                     ["TAG_PREFIX"] = TagPrefix,
                     ["TAG_SUFFIX"] = TagSuffix,
@@ -3665,8 +3654,9 @@ namespace StingTools.Core
                 FamilyInstance fi2 = el as FamilyInstance;
                 if (fi2?.MEPModel?.ConnectorManager == null) return null;
 
-                Domain preferred = PreferredConnectorDomain(categoryName);
-                string inDomain = null, nonAuxiliary = null, first = null;
+                // The decision is SysConnectorChoice.Choose (Revit-free, tested — TAGACC-20);
+                // this loop only reads the connectors, in order.
+                var services = new List<ConnectorService>();
                 foreach (Connector conn in fi2.MEPModel.ConnectorManager.Connectors)
                 {
                     if (conn?.MEPSystem == null) continue;
@@ -3679,46 +3669,26 @@ namespace StingTools.Core
                     bool primary = false;
                     try { primary = conn.GetMEPConnectorInfo()?.IsPrimary == true; }
                     catch (Exception ciEx) { StingLog.WarnRateLimited("SysConnectorInfo", $"Connector info unreadable on {el.Id}: {ciEx.Message}"); }
-                    if (primary) return mapped;
+                    if (primary) return mapped;   // nothing later can outrank it
 
                     Domain d = Domain.DomainUndefined;
                     try { d = conn.Domain; } catch (Exception dEx) { StingLog.WarnRateLimited("SysConnectorDomain", $"Connector domain unreadable on {el.Id}: {dEx.Message}"); }
-                    if (inDomain == null && preferred != Domain.DomainUndefined && d == preferred) inDomain = mapped;
-                    if (nonAuxiliary == null && !AuxiliaryServices.Contains(mapped)) nonAuxiliary = mapped;
-                    if (first == null) first = mapped;
+                    services.Add(new ConnectorService(mapped, false, ToServiceDomain(d)));
                 }
-                return inDomain ?? nonAuxiliary ?? first;
+                return SysConnectorChoice.Choose(services, SysConnectorChoice.PreferredDomain(categoryName));
             }
             catch (Exception ex) { StingLog.Warn($"SYS detection from connector failed: {ex.Message}"); }
             return null;
         }
 
-        /// <summary>Services that are a connection TO equipment rather than what it is for.</summary>
-        private static readonly HashSet<string> AuxiliaryServices =
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GAS", "FOL", "CON", "DRN", "CND" };
-
-        private static Domain PreferredConnectorDomain(string categoryName)
+        private static ServiceDomain ToServiceDomain(Domain d)
         {
-            switch (categoryName ?? "")
+            switch (d)
             {
-                case "Mechanical Equipment":
-                case "Air Terminals":
-                case "Duct Accessories":
-                case "Duct Fittings":
-                    return Domain.DomainHvac;
-                case "Plumbing Fixtures":
-                case "Plumbing Equipment":
-                case "Pipe Accessories":
-                case "Pipe Fittings":
-                case "Sprinklers":
-                    return Domain.DomainPiping;
-                case "Electrical Equipment":
-                case "Electrical Fixtures":
-                case "Lighting Fixtures":
-                case "Lighting Devices":
-                    return Domain.DomainElectrical;
-                default:
-                    return Domain.DomainUndefined;
+                case Domain.DomainHvac: return ServiceDomain.Hvac;
+                case Domain.DomainPiping: return ServiceDomain.Piping;
+                case Domain.DomainElectrical: return ServiceDomain.Electrical;
+                default: return ServiceDomain.Undefined;
             }
         }
 
@@ -3730,21 +3700,17 @@ namespace StingTools.Core
         /// </summary>
         private static string RefineHydronic(string code, string sourceText, Document doc, ElementId systemTypeId)
         {
-            if (!string.Equals(code, "HWS", StringComparison.OrdinalIgnoreCase)) return code;
-            if (string.IsNullOrEmpty(sourceText)
-                || sourceText.IndexOf("HYDRONIC", StringComparison.OrdinalIgnoreCase) < 0) return code;
+            // Only an HWS read from the word HYDRONIC is in question; skip the API read otherwise.
+            if (SysConnectorChoice.RefineHydronic(code, sourceText, SysConnectorChoice.ChilledWaterMaxKelvin) == code) return code;
+            double? kelvin = null;
             try
             {
-                if (doc == null || systemTypeId == null || systemTypeId == ElementId.InvalidElementId) return code;
-                if (doc.GetElement(systemTypeId) is Autodesk.Revit.DB.Plumbing.PipingSystemType pst)
-                {
-                    // FluidTemperature is in Revit internal units (kelvin).
-                    double kelvin = pst.FluidTemperature;
-                    if (kelvin > 0 && kelvin <= 288.15) return "CHW";
-                }
+                if (doc != null && systemTypeId != null && systemTypeId != ElementId.InvalidElementId
+                    && doc.GetElement(systemTypeId) is Autodesk.Revit.DB.Plumbing.PipingSystemType pst)
+                    kelvin = pst.FluidTemperature;   // Revit internal units: kelvin
             }
             catch (Exception ex) { StingLog.WarnRateLimited("RefineHydronic", $"Hydronic temperature check: {ex.Message}"); }
-            return code;
+            return SysConnectorChoice.RefineHydronic(code, sourceText, kelvin);
         }
 
         /// <summary>Layer 2: Read RBS_DUCT_SYSTEM_TYPE or RBS_PIPING_SYSTEM_TYPE parameter.</summary>

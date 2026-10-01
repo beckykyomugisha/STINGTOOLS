@@ -2,6 +2,207 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (DRAW-9 in-Revit smoke failures: curved walls named, failed provenance stamps reported, deleted pipe's notes removed, 2026-10-01)
+
+Verified by unit tests only. The in-Revit smoke rerun (`tools/run_revit_smoke.ps1`) has not been done;
+DRAW-9 stays open in the ROADMAP until it is.
+
+- **Curved wall skipped silently (`ElementDimensionerSmokeTests.WallLength_…_CurvedWarns_…`).** The
+  warning "no pair of planar end faces (curved or joined?)" existed but could not be reached for a curved
+  wall: `TryWallAxis` returned false for any location curve that is not a `Line`, and `RunWallLength`
+  `continue`d on it. The smoke run showed `warnings: []`. `TryWallAxis` now says which kind of location it
+  found (`WallLocationKind`: arc, other curve, none, degenerate), and `WallAxisRules.SkipWarning` (Revit-free,
+  new `Core/Drawing/Dimensioning/WallAxisRules.cs`) names the wall for every kind it cannot dimension.
+  `AutoDimOpenings` had the same silent `continue` and uses the same warning.
+- **Drainage notes treated as orphans after the pipe moved (`DrainageInvertSmokeTests.Invert_PlanView_…`).**
+  Root cause: `StingAnnotationProvenanceSchema` is write-locked (`AccessLevel.Vendor`) to VendorId
+  `Planscape`. ricaun.RevitTest runs the tests inside its own add-in, VendorId `ricaun` (read from the
+  `.addin` bundled in ricaun.RevitTest.TestAdapter 1.11.1), so Revit refused every `SetEntity` — "not
+  allowed to the current add-in". `Stamp` caught that and wrote a `StingLog` line only. The notes were
+  placed, re-runs still matched them by text and position, and only when the pipe moved did the engine
+  report them as "older, unstamped" notes that "predate provenance stamping" — which was not true.
+  - The smoke project now carries `ricaun.RevitTest.Application.VendorId = Planscape`, which ricaun's
+    console writes into its application `.addin` (`UpdateRevitAddinFileUsingTestMetadata`), so the
+    harness writes Extensible Storage the way the plugin does in production.
+  - A stamp that fails is now a run warning, not just a log line: `Stamp(…, out error)` gives the reason,
+    `ProvenanceStampTally` (Revit-free, in `AnnotationProvenance.cs`) counts attempts and failures, and
+    `AutoSpotInvert`, `AutoDimWallLength`, `AutoDimOpenings` and `AutoDimColumnGrid` report
+    "N of M annotation(s) were placed but could not be provenance-stamped (reason)…", naming the required
+    VendorId when Revit's refusal is the vendor lock. The orphan warning no longer claims the notes
+    predate stamping; it says they carry no stamp, for either reason.
+- **Smoke rerun on 3bf1a78b6 (Revit 2025):** the wall-length test and the moved-pipe step now pass, so the
+  harness does write stamps. The drainage test then failed one step later: "deleted pipe: its IL/gradient
+  notes were left behind. warnings: []".
+- **Deleted pipe's notes left behind.** Root cause: `DrainageInvertDimensioner.Run` returned as soon as the
+  view had no drainage pipe (`if (pipes.Count == 0) return;`). The fixture has one drain, so once it was
+  deleted the note pass never ran. The pass holds the cleanup (a stamped note whose pipe no longer exists
+  is removed), so that cleanup was unreachable, and nothing was warned. `Run` now reads the stamped notes first
+  and runs the pass when the view has drainage pipes OR stamped notes (`InvertNoteRules.NeedsPass`). The
+  removal rule moved, unchanged, to `InvertNoteRules.KeysToRemove` (Revit-free). A stale note that cannot
+  be deleted is now a warning, not only a log line.
+- **Tests.** `StingTools.Tags.Tests/AnnotationSmokeFixTests.cs`:
+  - First round: RED 9 failed / 2 passed of 11, measured against helpers that encoded the pre-fix
+    behaviour (no warning). GREEN 12 passed. One case checks that the VendorId in the warning matches
+    `StingTools.addin` and `StingSchemaBuilder.VendorId`.
+  - Deleted pipe: RED 1 failed / 17 passed of 18, with the gate encoding the old "no pipes, no pass"
+    behaviour. GREEN 18/18. The four `KeysToRemove` cases passed from the start: they pin the existing
+    removal rule, which was correct but never reached.
+  - Full `StingTools.Tags.Tests`: 5,176 passing.
+- Not changed: the other stamp sites (`AnnotationRunner` grid/level chains and match-line frames,
+  `MatchLineEngine` captions, `MEPDimensioner`) still only log a failed stamp — listed under DRAW-9.
+#### Completed (TAGFAM-6 measured: the shared-parameter cost is Revit's, 2026-10-01)
+
+- Timed headlessly in Revit 2025 against the `origin/main` build (`pyrevit run
+  tools/pyrevit/headless/time_add_shared_params.py`; it loads `STING_DLL` or the smoke-test build and
+  calls `CreateTagFamiliesCommand.AddSharedParameters` by reflection on a throwaway Metric Door Tag family,
+  nothing saved). Door Tag, 163 parameters, 3,668-definition `MR_PARAMETERS.txt`:
+  - lookup alone — old per-name walk **2.42 s**, index (#1027 / #1029) **0.03 s**;
+  - `AddSharedParameters` end to end — **123.8 s**.
+- `profile_add_params.py` isolates it: `FamilyManager.AddParameter` costs ~0.78 s per parameter whether in
+  one transaction (127.5 s), with a full parameter scan before each add as `TagParamInjector` does
+  (130.1 s, the scans 0.1 s), or in transactions of 20 (131.0 s). **The earlier TAGFAM-6 entries
+  overstated what the index fix would do: it removed ~2 % of the time.** The lever left is the number of
+  parameters per family — logged as TAGFAM-9 for a decision.
+
+#### Completed (TAGFAM-3 finished: 3.5 mm copies and door boxes on all four specialist tags, run headlessly, 2026-10-01)
+
+- **Run without the Revit UI.** `pyrevit run` launches Revit 2025, runs a script and closes it, so the
+  Size Copies step no longer needs anyone at the keyboard. `tools/pyrevit/headless/run_size_copies.py` opens
+  the four families from `STING_TAG_BUILD` (env, default `Documents\STING_TAG_BUILD`), runs the Size Copies
+  pushbutton code unchanged and logs to `size_copies_run.log`; `check_size_switches.py` reports every
+  label / box association and each type's switch values and exports a PNG per type.
+- **Size Copies bug fixed.** Under pyRevit's IronPython `ElementType.Name` raises `AttributeError: Name`;
+  the first run rolled back Fire Door, Accessible Door and Room Finish with "FAILED: Name". Type names are
+  now read through `Element.Name.GetValue` with a parameter fallback. The script also no longer re-saves a
+  family it did not change, so a repeat run leaves the files — and their manifest checksums — as they were.
+- **Result.** Each family has a 2.5 mm label on `TXT_2_5` and a 3.5 mm copy on `TXT_3_5`; Fire Door and
+  Accessible Door have a four-line Tag Box per size on the same switch; each size type sets only its own
+  switch. In a throwaway project (metric template, one door, one room, nothing saved) the two door tags
+  each drew one box — small for 2.5, large for 3.5 — with "D01" at the matching size. The room tags resolve
+  their text (`101 / F: W: / C: B:` and `101 / Comp / FR min / Esc pers`) but the export did not draw any
+  room tag, the template's stock one included, so they were not seen in an image.
+- The four `.rfa` files replace the label-only versions in `Data/TagFamilies`; `STING_CONTENT_MANIFEST.json`
+  re-stamped with `tools/restamp_content_manifest.py --apply` (the TAGFAM-8 gate failed until then, as
+  designed). `StingTools.Tags.Tests` 5,158 passing.
+
+#### Completed (TAGACC-26 project_config.json keys: one registry, checked against the code, 2026-10-01)
+
+- `TagConfig.LoadFromFile` warns about any key it does not recognise ("check for typos"). Its list was kept by
+  hand inside the loader and had drifted both ways:
+  - about 70 keys the plugin really reads or writes were reported as typos — every `COST_*`, `BOQ_TENDER_*`
+    and `WARNING_SLA_*` setting, and even keys the loader itself reads (`FOLDER_CODE_SUFFIX`,
+    `DEFAULT_COLLISION_MODE`, `PROPAGATE_REV_ON_CREATE`) or `SaveToFile` writes (`CATEGORY_VISUAL_POLICY`,
+    so every saved file warned on the next load);
+  - four listed keys are read by nothing: `SEQ_LEVEL_RESET` (SEQ is never reset per level — `SeqLevelReset`
+    is only compared by the migration guard), `DD_SCHEDULE`, `DD_REQUIREMENTS`, `TRADE_DURATION_OVERRIDES`;
+  - the list was case-insensitive while every reader is case-sensitive, so `seq_scheme` passed the check and
+    did nothing.
+- `Core/ProjectConfigKeys` (Revit-free) holds the known keys, the `BOQ_TENDER_` prefix family, keys other
+  commands write with their own JSON code (checked by hand), and a `NotApplied` map. The loader warns for
+  unknown keys (case-sensitive) and separately says a not-applied key "has no effect".
+- **Gate** `ProjectConfigKeysTests`: every key read through `GetConfig*`, set through `SetConfigValue`, read at
+  the top level of `LoadFromFile` or written by `SaveToFile` is known; every known key is used by some code;
+  every not-applied key is used by none. Removing a real key fails it; adding an unused one fails it.
+  `StingTools.Tags.Tests` 5,157 passing; build 0 / 0.
+
+#### Completed (TAGACC-25 interim: unapplied discipline-profile settings are named, 2026-10-01)
+
+- Six `DISCIPLINE_PROFILES` settings load into `DisciplineProfile` and are read by nothing:
+  `CollisionMode`, `SeqScheme`, `DefaultZone`, `DefaultLoc`, `SeqIncludeZone`, `SeqPadWidth`. A project that
+  set one got no effect and no word. Implementing them changes how tokens and SEQ keys are built, so that
+  stays a decision (ROADMAP TAGACC-25). Until then `DisciplineProfile.IgnoredSettings()` names them: the
+  loader logs a warning per discipline, and *Discipline Profiles* shows "Set but NOT applied".
+- **Gate** `DisciplineProfileIgnoredSettingsTests`: every profile property is either read somewhere in the
+  plugin or listed by `IgnoredSettings()` — and an implemented one must come off the list. Dropping one name
+  fails it. `StingTools.Tags.Tests` 5,145 passing; build 0 / 0.
+- (`DisciplineProfile.FromDict`, a snake_case parser, has no callers; the loader binds the PascalCase names
+  the in-app example uses. Left in place, noted here.)
+#### Completed (TAGACC-24 the project's SEQ pad width reaches the SEQ, 2026-10-01)
+
+- `TagConfig.EffectiveSeqPad` (the width every SEQ is padded to) prefers `TagConfig.SeqPadWidth` — default 4 —
+  over `ParamRegistry.NumPad`, and the only writer of `SeqPadWidth` was the dock panel's Tokens & Depth
+  apply. Consequences: `TAG_FORMAT.num_pad` in `project_config.json` changed `NumPad` but never the SEQ;
+  the Tag Format command (TAGACC-23) likewise; and a pad chosen in the panel, saved to the file by any later
+  `SaveToFile`, was back to 4 after a restart (the panel's latch then protected the "project" format it
+  believed had loaded), so one model collected 5- and 4-digit SEQs. The auto-tagger, which never goes
+  through the panel, always used 4.
+- `ParamRegistry.ApplyTagFormatOverrides` — the one place the loader, the Tag Format command and the panel
+  all apply a format — now sets `SeqPadWidth = NumPad`, before its early return.
+- **Behaviour change:** only where a project's saved `num_pad` is not 4. New SEQ values take that width;
+  existing tags are untouched unless re-tagged with Overwrite, which already normalises to the current pad
+  (TAGACC-4). Projects on the default 4 see no change.
+- **Tests** `SeqPadSyncTests`: the method sets it after the NumPad override and before any return; nothing
+  but it and the panel writes `SeqPadWidth`. Fails against main. `StingTools.Tags.Tests` 5,142 passing;
+  build 0 / 0. **Not run in Revit.**
+- Found alongside, logged as **TAGACC-25** (open): four `DISCIPLINE_PROFILES` fields are parsed and never
+  read (`default_zone`, `default_loc`, `seq_include_zone`, `seq_pad_width`).
+
+#### Completed (TAGACC-23 Tag Format saves the format under names the loader reads, 2026-10-01)
+
+- **The bug.** `ConfigurableTagFormatCommand` saved a `TagFormatConfig` object as `TAG_FORMAT`; with no
+  `JsonProperty` names it serialised as `Separator` / `NumPad` / `SegmentOrder`. `TagConfig.LoadFromFile`
+  reads `separator` / `num_pad` / `segment_order` from a case-sensitive dictionary, so a format set there was
+  never applied — the dialog said "Settings saved" and the next tag used the old one. Worse, the save
+  replaced the whole section, so the format the Project Setup Wizard had written (through
+  `TagConfig.SaveToFile`, lowercase) was lost and the project reverted to defaults on the next load. The
+  command also never applied the format in the current session.
+- **The fix.** `TagFormatConfig` moves to `Tags/TagFormatConfig.cs` (Revit-free) with the loader's names
+  pinned as constants; the loader and `SaveToFile` use the same constants. The command applies the saved
+  format immediately (`ParamRegistry.ApplyTagFormatOverrides`, as loading does). A `TAG_FORMAT` written in
+  the old names is logged on load ("never applied … re-save it") rather than applied: switching a project to
+  a format nobody has seen take effect would change how its tags are built.
+- **Tests** `TagFormatConfigTests` (4): serialised names, reading the `SaveToFile` shape, recognising the old
+  section, and the loader / saver using the shared keys. Dropping the `JsonProperty` names fails 2.
+  `StingTools.Tags.Tests` 5,108 passing; build 0 / 0. **Not run in Revit.**
+#### Completed (TAGACC-22 Tag Rule Engine / Tag Format no longer replace an unreadable project_config.json, 2026-10-01)
+
+- `TagIntelligenceHelper.SaveRules` and `SaveFormatConfig` read `project_config.json` before writing, but on a
+  parse failure they logged "Config parse fallback" and wrote a fresh file with only `TAG_RULES` or
+  `TAG_FORMAT` — so one stray comma in the file, followed by *Tag Rule Engine* or *Tag Format*, erased every
+  other project setting. Both now write their key through `ConfigFileMerge.Merge` (TAGACC-19) via a temp
+  file, and an unreadable file throws; `TagRuleEngineCommand` and the Tag Format dialog already catch and
+  show "Failed to save". The other `project_config.json` writers (Tag Rules, Project Cfg toggles, paragraph
+  preset, output location, permissions) were checked: they parse without a catch-and-replace fallback.
+- **Test** `ConfigFileMergeTests.Tag_intelligence_writers_merge_and_never_replace_an_unreadable_file` (fails
+  against main). `StingTools.Tags.Tests` all passing; build 0 / 0.
+
+#### Completed (TAGACC-21 proximity copy rules are testable and share the audit's vocabulary, 2026-10-01)
+
+- `CopyTokensFromNearest` (TAGACC-11) decided same-floor and "was the neighbour's value derived?" inline,
+  around Revit reads, with no test, and its derived/not-derived list was a second copy of the source
+  vocabulary the Token Confidence Audit uses (TAGACC-18). The rules move to `Core/ProximityRule`:
+  `SameFloor` (same level when both have one, else |Δz| ≤ 5 ft), `LocIsCopyable` / `ZoneIsCopyable` (a High
+  band in `TokenConfidenceBands`, or a blank source from before provenance was recorded), `SysIsCopyable`
+  (detection layer below 6). `ParameterHelpers` reads the levels, points and sources and calls them.
+- **One behaviour change:** a LOC / ZONE source the tagger never writes (a hand edit) used to be copied,
+  because the old check was a blacklist; it is now treated as not derived, as the audit already did.
+- **Tests** `ProximityRuleTests` (35), including one that holds proximity and the audit to the same answer
+  for every source the tagger writes. Making `SameFloor` ignore levels fails 2; letting Medium sources
+  through fails 4. Build 0 / 0; `StingTools.Tags.Tests` 5,119 passing. **Not run in Revit.**
+
+#### Completed (TAGACC-20 SYS connector rules are testable, 2026-10-01)
+
+- An audit of which TAGACC fixes have a test or protocol step found TAGACC-7 / 8 with none: the rules
+  lived inside `TagConfig.GetSysFromConnector` / `RefineHydronic`, wrapped around Revit connector
+  reads. They are now `Core/SysConnectorChoice` — `Choose` (primary, else the category's domain, else
+  first non-auxiliary, else first; connector order kept), `PreferredDomain`, `RefineHydronic` (HWS read
+  from HYDRONIC with a known fluid temperature ≤ 288.15 K is CHW). `TagConfig` reads the connectors and
+  the temperature and calls them; behaviour unchanged.
+- **Tests** `SysConnectorChoiceTests` (19): an AHU takes air whatever the connector order, a boiler is not
+  its gas connection, a sink takes its first piping service, primary wins, auxiliary-only falls back, the
+  15 °C boundary both sides, unknown temperature unchanged. Reverting `Choose` to "first connector" fails 2;
+  making the boundary strict fails 1. Build 0 / 0; `StingTools.Tags.Tests` 5,100 passing.
+#### Completed (TAGFAM-6 follow-up: one shared-parameter index for every tag command, 2026-10-01)
+
+- Three more commands carried a private `FindSharedDefinition` that walked the whole shared-parameter
+  file for every name: `MigrateTagLabelReferencesCommand` (once per remapped name **per family**, across
+  the library), `FamilyLabelAuthor.BindSharedParameters` (per label parameter per family) and
+  `StampGateStatusCommand` (4 names). All four sites, the creator included, now use
+  `Tags/SharedParamDefinitionIndex` — built once per opened file (Migrate: once per run), first exact-name
+  match as before. The private copies are removed.
+- **Gate** `SharedParamLookupGateTests`: no source file defines a per-name `FindSharedDefinition` walk
+  again (fails with any one copy restored). Build 0 / 0; `StingTools.Tags.Tests` 5,082 passing.
+  **Not timed in Revit.**
 #### Completed (TAGFAM-8 content manifest lists every shipped tag family, 2026-10-01)
 
 - `Data/TagFamilies` held 210 `.rfa` files; `STING_CONTENT_MANIFEST.json` listed 206. The four TAGFAM-3

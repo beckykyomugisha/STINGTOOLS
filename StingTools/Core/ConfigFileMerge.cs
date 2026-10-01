@@ -8,7 +8,7 @@ namespace StingTools.Core
     // TAGACC-19 — saving tag settings must not delete everything else.
     //
     // project_config.json is shared: TagConfig owns the tag maps and switches,
-    // but the same file carries SEQ_SCHEME / SEQ_INCLUDE_LOC / SEQ_LEVEL_RESET,
+    // but the same file carries SEQ_SCHEME / SEQ_INCLUDE_LOC / SEQ_INCLUDE_ZONE,
     // the folder layout (CDE_FIRST_LAYOUT, FOLDER_CODE_SUFFIX), every COST_* and
     // BOQ_TENDER_* rate, SLA thresholds and more, read through GetConfigValue.
     // Both whole-file writers (TagConfig.SaveToFile and Save Config to Project)

@@ -164,6 +164,8 @@ namespace StingTools.Commands.TagStudio
                     return Result.Failed;
                 }
 
+                // TAGFAM-6: one walk of the file for the whole run, not one per name per family.
+                var defIndex = SharedParamDefinitionIndex.Build(defFile);
                 for (int i = 0; i < families.Count; i++)
                 {
                     if ((i % 5) == 0 && EscapeChecker.IsEscapePressed())
@@ -176,7 +178,7 @@ namespace StingTools.Commands.TagStudio
                     Family fam = families[i];
                     progress.Increment($"Rewriting {fam.Name} ({i + 1}/{families.Count})");
 
-                    var r = MigrateOneFamily(doc, app, fam, defFile, remap);
+                    var r = MigrateOneFamily(doc, app, fam, defIndex, remap);
                     totalParamsReplaced     += r.ParamsReplaced;
                     totalFormulasRewritten  += r.FormulasRewritten;
                     totalSkippedTypeMismatch += r.SkippedTypeMismatch;
@@ -259,7 +261,7 @@ namespace StingTools.Commands.TagStudio
 
         private FamilyResult MigrateOneFamily(Document doc,
             Autodesk.Revit.ApplicationServices.Application app,
-            Family fam, DefinitionFile defFile, Dictionary<string, string> remap)
+            Family fam, Dictionary<string, ExternalDefinition> defIndex, Dictionary<string, string> remap)
         {
             var result = new FamilyResult();
             Document famDoc = null;
@@ -307,7 +309,7 @@ namespace StingTools.Commands.TagStudio
                             if (!byName.TryGetValue(oldName, out FamilyParameter oldFp)) continue;
                             if (oldFp == null || !oldFp.IsShared) continue;
 
-                            ExternalDefinition newExt = FindSharedDefinition(defFile, newName);
+                            ExternalDefinition newExt = SharedParamDefinitionIndex.Find(defIndex, newName);
                             if (newExt == null)
                             {
                                 StingLog.Warn($"{fam.Name}: '{newName}' not in shared param file — skipped");
@@ -696,15 +698,6 @@ namespace StingTools.Commands.TagStudio
                 System.Globalization.DateTimeStyles.AssumeUniversal, out DateTime dt))
                 return false;
             return (DateTime.UtcNow.Date - dt.Date).TotalDays <= days;
-        }
-
-        private static ExternalDefinition FindSharedDefinition(DefinitionFile defFile, string paramName)
-        {
-            if (defFile == null || string.IsNullOrEmpty(paramName)) return null;
-            foreach (DefinitionGroup g in defFile.Groups)
-                foreach (Definition d in g.Definitions)
-                    if (d.Name == paramName && d is ExternalDefinition ext) return ext;
-            return null;
         }
 
         private static StorageType SafeStorageType(FamilyParameter fp)

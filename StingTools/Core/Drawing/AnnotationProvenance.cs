@@ -65,6 +65,31 @@ namespace StingTools.Core.Drawing
             return i < 0 ? key : key.Substring(0, i);
         }
 
+        /// <summary>
+        /// Warning for a run in which some stamps could not be written; null when
+        /// every stamp landed. See <see cref="ProvenanceStampTally"/>.
+        /// </summary>
+        public static string StampFailureWarning(string pass, int attempted, int failed, string firstReason)
+        {
+            if (failed <= 0) return null;
+            var reason = string.IsNullOrWhiteSpace(firstReason) ? "no reason given" : firstReason.Trim();
+            var msg = $"{pass}: {failed} of {attempted} annotation(s) were placed but could not be provenance-stamped ({reason}). " +
+                      "The next run cannot recognise them as its own: they will not follow a moved host, and will be " +
+                      "reported as older, unstamped annotations.";
+            // Revit's refusal for a vendor-locked schema. The provenance schema is
+            // write-locked to the StingTools add-in's VendorId, so a caller running
+            // under another add-in (a test harness, Dynamo, a script host) is refused.
+            if (reason.IndexOf("not allowed to the current add-in", StringComparison.OrdinalIgnoreCase) >= 0)
+                msg += $" The provenance schema only accepts writes from an add-in whose VendorId is \"{SchemaVendorId}\".";
+            return msg;
+        }
+
+        /// <summary>
+        /// VendorId the provenance schema is write-locked to. Mirrors
+        /// StingSchemaBuilder.VendorId (Revit-bound) and the .addin manifest.
+        /// </summary>
+        public const string SchemaVendorId = "Planscape";
+
         /// <summary>The part a key was built with, or null.</summary>
         public static string PartOf(string key)
         {
@@ -72,5 +97,30 @@ namespace StingTools.Core.Drawing
             int i = key.IndexOf(Sep);
             return i < 0 ? null : key.Substring(i + 1);
         }
+    }
+
+    /// <summary>
+    /// Counts the provenance stamps a pass tried to write and how many failed, so
+    /// a failure reaches the run's warnings instead of only the log. An annotation
+    /// whose stamp failed is still placed, but the next run cannot recognise it as
+    /// its own: it cannot follow a moved host and is reported as an older,
+    /// unstamped note. Silent, that reads as a bug in the matching; it is not.
+    /// </summary>
+    public sealed class ProvenanceStampTally
+    {
+        public int Attempted { get; private set; }
+        public int Failed { get; private set; }
+        public string FirstReason { get; private set; }
+
+        public void Record(bool stamped, string reason = null)
+        {
+            Attempted++;
+            if (stamped) return;
+            Failed++;
+            if (FirstReason == null && !string.IsNullOrWhiteSpace(reason)) FirstReason = reason.Trim();
+        }
+
+        public string Warning(string pass) =>
+            AnnotationProvenance.StampFailureWarning(pass, Attempted, Failed, FirstReason);
     }
 }

@@ -2663,7 +2663,7 @@
                             "category":  "Fire Door",
                             "discipline":  "A",
                             "familyFile":  "STING - Fire Door Tag.rfa",
-                            "checksum":  "9ed78cbd543919b36416184af0143c4eb2b1544bffe7a8f205ad898a960f8eb1",
+                            "checksum":  "a0b80699ebd338b50f4f455abcd76392e4b9ecfff139901eb3a4c91ea41d03a8",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2673,7 +2673,7 @@
                             "category":  "Accessible Door",
                             "discipline":  "A",
                             "familyFile":  "STING - Accessible Door Tag.rfa",
-                            "checksum":  "f05536e24a442d2c1573599927742038fb9c0d6ca12436742a42a129d5d9af4c",
+                            "checksum":  "9f4f11f5b77d0ee74d4dbfe90bb2f465a39594c990ceb750eee45dc3ac62cbd4",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2683,7 +2683,7 @@
                             "category":  "Room Finish",
                             "discipline":  "A",
                             "familyFile":  "STING - Room Finish Tag.rfa",
-                            "checksum":  "6b19b7b335fa787382f58fa8a407db73bd060e10a320d909b9cfb809e6c36f69",
+                            "checksum":  "a76437986e030c70fa88ff41aebcf6e61e3a64a8bdb1330908c840d9808fb0f2",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2693,7 +2693,7 @@
                             "category":  "Fire Compartment",
                             "discipline":  "A",
                             "familyFile":  "STING - Fire Compartment Tag.rfa",
-                            "checksum":  "bf2a7ca914026432b324fe7207347930636495f82809cb2d1eb75c2618511752",
+                            "checksum":  "4137bb24ac9589ed0908074dea11bfb47098977d5d08b1e56a68677b4acb81fc",
                             "status":  "built",
                             "origin":  "corporate"
                         }

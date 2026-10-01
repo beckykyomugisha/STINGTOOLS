@@ -106,5 +106,24 @@ namespace StingTools.Tags.Tests
             Assert.Contains("TagConfig.SaveToFile(path)", editor);
             Assert.DoesNotContain("{ \"DISC_MAP\", TagConfig.DiscMap }", editor);
         }
+
+        /// <summary>TAGACC-22: the Tag Intelligence writers (TAG_RULES, TAG_FORMAT) used to
+        /// replace a project_config.json they could not parse with a one-key file.</summary>
+        [Fact]
+        public void Tag_intelligence_writers_merge_and_never_replace_an_unreadable_file()
+        {
+            string src = File.ReadAllText(Path.Combine(DrawingCatalogueFixture.RepoRoot(),
+                "StingTools", "Tags", "TagIntelligenceCommands.cs"));
+            foreach (string sig in new[] { "public static void SaveRules(", "public static void SaveFormatConfig(" })
+            {
+                int i = src.IndexOf(sig);
+                Assert.True(i > 0, sig + " not found");
+                int end = src.IndexOf("\n        }", i);
+                string body = src.Substring(i, end - i);
+                Assert.Contains("ConfigFileMerge.Merge(", body);
+                Assert.DoesNotContain("Config parse fallback", body);
+                Assert.DoesNotContain("new Dictionary<string, object>();", body);
+            }
+        }
     }
 }

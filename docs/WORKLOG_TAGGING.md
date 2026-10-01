@@ -7,22 +7,27 @@ gates + CI; never weaken a test; never renumber/overwrite a real model.
 
 ## Resume here
 
-1. Merge PR #1026 (TAGFAM-5 arrowheads) and the TAGFAM-6 PR when CI is green (merge `origin/main`
-   in first if CHANGELOG conflicts — keep both entries, newest first).
-2. **NEEDS REVIT CHECK** items below — #1 (pyRevit Size Copies) unblocks committing the three
-   remaining specialist `.rfa` files; #4 times the TAGFAM-6 change.
-3. Next research: F6 gate (tag-family consistency — names on disk vs names the code looks up, see
-   TAGFAM-7), then the other private `FindSharedDefinition` copies (MigrateTagLabelReferences,
-   StampGateStatus, FamilyLabelAuthor) for the same per-parameter walk as TAGFAM-6.
+1. Merge #1038 (TAGACC-26, project_config key registry) when CI is green; merge `origin/main` in first if
+   CHANGELOG / ROADMAP conflict (keep both, rows in numeric order).
+2. **Decision for Sting — TAGACC-25:** six `DISCIPLINE_PROFILES` settings are parsed and applied by nothing
+   (`CollisionMode`, `SeqScheme`, `DefaultZone`, `DefaultLoc`, `SeqIncludeZone`, `SeqPadWidth`). Implement
+   (changes token/SEQ building) or remove. Interim warning is live.
+3. **NEEDS REVIT CHECK** below — the live KUT build carries main through at least #1028; #1 (pyRevit Size
+   Copies) unblocks the last three specialist `.rfa` files (then re-stamp the manifest); TAGACC-12 Part A/B
+   can run on the KUT build.
+4. Next research seams (same shape as TAGACC-23/24/26 — config that loads but does nothing): other
+   `TryDeserialize` sections of `project_config.json` whose POCOs have no `JsonProperty` names
+   (`CATEGORY_VISUAL_POLICY`, `CATEGORY_TOKEN_OVERRIDES`, `SLA_THRESHOLDS`, `SHEET_MARGINS`); then the
+   AnnotationRunner auto-load enhancement; then TAGFAM-7.
 
-## State (2026-10-01, pass 1 continued)
+## State (2026-10-01, pass 3)
 
-- Merged: #1019, #1020 (specialist labels), #1022 TAGACC-18, #1023 TAGACC-19, #1024 worklog, #1025 TAGFAM-7 log.
-- Open: #1026 TAGFAM-5 (branch `claude/tagfam-5-arrowheads`); TAGFAM-6 (branch `claude/tagfam-6-param-index`).
-- Live Revit build is `C:\Dev\STING_KUT_LIVE` (detached, ACC hardening + an early snapshot of TAGFAM-1). It does
-  **not** have #1018 onward. Rebuilding it (merge `origin/main` into `claude/kut-combined-acc-tags`)
-  is blocked for this agent by the auto-mode classifier ("Modify Shared Resources"); a person must do it.
-  Steps are in the TAGFAM-2 ROADMAP row.
+- Merged today: #1019, #1020, #1022–#1037 (TAGACC-18…25-interim, TAGFAM-5…8, protocol, worklogs).
+- Open: #1038 TAGACC-26.
+- Spun off (outside tagging): `cost_rates_5d.csv` fails `tools/validate_data_schemas.py` on main, and no CI
+  job runs that validator — offered as a separate task.
+- Live Revit build `C:\Dev\STING_KUT_LIVE` is maintained by the ACC-review session (redeployed at `57c3b236e`
+  with main through #1028; it picks up later PRs as they merge).
 - All work happens in worktree `.claude/worktrees/tag-families-setup-976ed0` (the session hook refuses
   writes to other worktrees); switch branches there, one branch per change from `origin/main`.
 
@@ -58,17 +63,17 @@ second Revit; the Claude desktop window can sit over Revit and swallow clicks.
 
 ## NEEDS REVIT CHECK
 
-1. **Size copies + door boxes** — open `STING - Fire Door Tag.rfa`, `STING - Accessible Door Tag.rfa`,
-   `STING - Room Finish Tag.rfa` (and Fire Compartment, harmless — it is idempotent); pyRevit tab › Reload;
-   *STING Families › Tag Labels › Size Copies*. Read the output window: each family should report
-   "3.5 mm copy created", "-> TXT_3_5", and for doors "box 2.5 mm drawn" / "box 3.5 mm drawn", then
-   "saved". In *Family Types*, switch `2.5_…` / `3.5_…`: only that size's label (and box) shows.
-2. **TAGFAM-2 second run** (needs the redeployed KUT build): *Create Tag Fams* in a throwaway project —
-   families load (hub button now `Manual`), Temporary Structure / MEP Ancillary Framing tags are accepted
-   or reported.
-3. **TAGACC-12** — `pwsh tools/run_revit_smoke.ps1`, then protocol Part B with two users.
-4. **TAGFAM-6 timing** — on the next *Create Tag Fams* run, note seconds per family from the STING log
-   (`AddSharedParameters: added …` lines are one per family) and compare with ~300 s on 2026-09-30.
+1. ~~Size copies + door boxes~~ **Done 2026-10-01 headlessly** (`pyrevit run tools/pyrevit/headless/run_size_copies.py
+   --revit=2025 --purge`, #1041). Left: one look at a Room Finish and a Fire Compartment tag of each size in a project —
+   the headless export drew no room tags at all (stock tag included).
+2. **TAGFAM-2 second run** — *Create Tag Fams* in a throwaway project on the KUT build (now main through #1028).
+3. **TAGACC-12** — Part A **ran 2026-10-01** on origin/main `a7b7cff50` (`tools/run_revit_smoke.ps1`, add-in manifest
+   moved aside for the run and restored): **all 4 tagging-accuracy tests pass**, harness integrity passes. 4 annotation
+   smoke tests did not: drainage-invert moved-pipe notes, wall-length curved-wall warning (both real, being fixed on
+   `claude/annotation-smoke-fixes`), and 2 spot-slope tests inconclusive (the metric template's slope type cannot be
+   applied / deleted). Part B (two users on a central model) still needs two people.
+4. ~~TAGFAM-6 timing~~ **Measured 2026-10-01**: 124 s per door tag, ~0.78 s per parameter in Revit's `AddParameter`;
+   see TAGFAM-6 / TAGFAM-9.
 
 ## Decisions
 
@@ -95,6 +100,16 @@ second Revit; the Claude desktop window can sit over Revit and swallow clicks.
 | F6 | Med | families | text types/sizes consistent; labels' params registered + bound; coverage; orphans | **part done** — manifest coverage + checksums gated (TAGFAM-8); label params gated earlier (`DeclaredTagFamiliesTests`); text types inside `.rfa` need Revit |
 | F7 | Low | families | three tie-in tags built as `… Tag` (doubled) — the tier map and config declare the name without it | logged **TAGFAM-7**; no effect today, renaming risky |
 | F8 | — | config | do any UI setters change in-memory TagConfig keys that `SaveToFile` does not write? | **Checked** — SEQ setters are the G2 in-memory restore; `AUTO_TAGGER_DISC_FILTER` uses `SetConfigValue`, which a later `SaveToFile` used to wipe — fixed by TAGACC-19 |
+| F9 | Med | coverage | which TAGACC fixes have a test or protocol step? 7/8, 11, 13, 14, 16, 17 had none by id | TAGACC-20 (#1030) and -21 (#1032) make 7/8 and 11 executable; #1031 names 2/13/17 in the protocol and says 14/16 call sites are untested |
+| F10 | Low | content | four specialist `.rfa` files not in `STING_CONTENT_MANIFEST.json` | **TAGFAM-8** (#1028), gated |
+| F11 | Low | perf | four private per-name walks of the shared-parameter file | **TAGFAM-6** (#1027, #1029), gated |
+| F12 | — | SEQ | can a stale user lower the shared SEQ counters? | **Checked** — `StingSeqLockStore.Save` max-merges; renumbers leave gaps, never duplicates |
+| F13 | — | annotation | missing drawing-type tag family silent? | **Checked** — warned, then falls back to the STING family of the category; auto-load is an enhancement |
+| F14 | Med | config | Tag Rule Engine / Tag Format replaced an unparseable `project_config.json` with a one-key file | **TAGACC-22** (#1034) |
+| F15 | **High** | config | Tag Format saved TAG_FORMAT as PascalCase; loader reads snake_case — never applied, and erased the wizard's section | **TAGACC-23** (#1035) |
+| F16 | **High** | SEQ | `SeqPadWidth` only set by the dock panel — project `num_pad` never reached the SEQ; panel pad lost on restart | **TAGACC-24** (#1036) |
+| F17 | Med | config | six DISCIPLINE_PROFILES fields parsed, never read | **TAGACC-25** interim (#1037); decision open |
+| F18 | Med | config | known-key list called ~70 real keys typos, listed 4 dead keys, case-insensitive vs case-sensitive readers | **TAGACC-26** (#1038) |
 
 Lesson from F1/F2: the standing brief's "known items" were written from memory; check the code
 before planning a fix.
