@@ -5652,7 +5652,7 @@ namespace StingTools.Core
         {
             try
             {
-                string s = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
+                string s = ParameterHelpers.GetString(el, ParamRegistry.ASS_TOKEN_LOCK_TXT);
                 if (string.IsNullOrWhiteSpace(s)) return null;
                 return new HashSet<string>(
                     s.Split(',').Select(k => k.Trim()).Where(k => k.Length > 0),
@@ -5830,7 +5830,7 @@ namespace StingTools.Core
                     // Phase 74d: Only allocate locked snapshot when token lock is non-empty (rare)
                     try
                     {
-                        string preLockStr = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
+                        string preLockStr = ParameterHelpers.GetString(el, ParamRegistry.ASS_TOKEN_LOCK_TXT);
                         if (!string.IsNullOrWhiteSpace(preLockStr))
                         {
                             lockedSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

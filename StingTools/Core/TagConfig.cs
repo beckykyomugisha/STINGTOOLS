@@ -2784,7 +2784,7 @@ namespace StingTools.Core
             Dictionary<string, string> catOverrides = null;
             if (overwriteTokens)
             {
-                string lockStr = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
+                string lockStr = ParameterHelpers.GetString(el, ParamRegistry.ASS_TOKEN_LOCK_TXT);
                 if (!string.IsNullOrWhiteSpace(lockStr))
                     lockedKeys = new HashSet<string>(
                         lockStr.Split(',').Select(k => k.Trim()).Where(k => k.Length > 0),

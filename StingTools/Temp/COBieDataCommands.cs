@@ -252,7 +252,9 @@ namespace StingTools.Temp
                     if (SetIfVal(el, ParamRegistry.Ext("MATERIAL"), t.Material)) any = true;
                     if (SetIfVal(el, ParamRegistry.Ext("FINISH"), t.Finish)) any = true;
                     if (SetIfVal(el, ParamRegistry.Ext("DESC"), t.Description)) any = true;
-                    if (SetIfVal(el, ParamRegistry.Ext("REPLACE_COST"), t.ReplacementCostGBP.ToString("F0"))) any = true;
+                    // ReplacementCostGBP is not written: the only replacement-cost parameter
+                    // is PER_REPLACEMENT_COST_UGX, and a GBP figure in a UGX field is wrong
+                    // data where today there is none (DSCH-42; CobieFieldMap does the same).
                     if (SetIfVal(el, ParamRegistry.Ext("EXPECTED_LIFE"), t.ExpectedLifeYears.ToString())) any = true;
                     if (SetIfVal(el, ParamRegistry.Ext("DUR_UNIT"), t.DurationUnit)) any = true;
                     if (SetIfVal(el, ParamRegistry.Ext("WARR_DUR_PARTS"), t.WarrantyDurationYears.ToString())) any = true;
@@ -371,7 +373,7 @@ namespace StingTools.Temp
                     if (SetIfVal(el, ParamRegistry.Ext("MATERIAL"), match.Material)) any = true;
                     if (SetIfVal(el, ParamRegistry.Ext("FINISH"), match.Finish)) any = true;
                     if (SetIfVal(el, ParamRegistry.Ext("DESC"), match.Description)) any = true;
-                    if (SetIfVal(el, ParamRegistry.Ext("REPLACE_COST"), match.ReplacementCostGBP.ToString("F0"))) any = true;
+                    // ReplacementCostGBP not written - see PushTypeToElements (DSCH-42).
                     if (SetIfVal(el, ParamRegistry.Ext("EXPECTED_LIFE"), match.ExpectedLifeYears.ToString())) any = true;
                     if (SetIfVal(el, ParamRegistry.Ext("WARR_DUR_PARTS"), match.WarrantyDurationYears.ToString())) any = true;
                     if (SetIfVal(el, ParamRegistry.Ext("WARR_DUR_UNIT"), "year")) any = true;

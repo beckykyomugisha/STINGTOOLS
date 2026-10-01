@@ -3435,6 +3435,25 @@ namespace StingTools.Core
             _extendedParams["WARR_GUAR_PARTS"] = "ASS_WARRANTY_PARTS_TXT"; _extendedParams["WARR_DUR_PARTS"] = "ASS_WARRANTY_DURATION_PARTS_YRS";
             _extendedParams["WARR_GUAR_LABOR"] = "ASS_WARRANTY_LABOR_TXT"; _extendedParams["WARR_DUR_LABOR"] = "ASS_WARRANTY_DURATION_LABOR_YRS";
             _extendedParams["WARR_DUR_UNIT"] = "ASS_WARRANTY_DUR_UNIT_TXT"; _extendedParams["MODEL_REF"] = "ASS_MODEL_REF_TXT";
+            // DSCH-42. These keys had no mapping, so Ext() returned "" and every COBie
+            // type push and COBie export column below read and wrote nothing. Each maps
+            // to the [COBie V2.4] parameter that already existed - the targets
+            // Core/Cobie/CobieFieldMap uses for the same columns.
+            _extendedParams["MATERIAL"] = "ASS_MATERIAL_TXT"; _extendedParams["FINISH"] = "ASS_FINISH_TXT";
+            _extendedParams["COLOR"] = "ASS_COLOR_TXT"; _extendedParams["SHAPE"] = "ASS_SHAPE_TXT";
+            _extendedParams["GRADE"] = "ASS_GRADE_TXT"; _extendedParams["CONSTITUENTS"] = "ASS_CONSTITUENTS_TXT";
+            _extendedParams["FEATURES"] = "ASS_FEATURES_TXT"; _extendedParams["SUPPLIER"] = "ASS_SUPPLIER_TXT";
+            _extendedParams["ACCESS_PERF"] = "ASS_ACCESS_PERF_TXT"; _extendedParams["CODE_PERF"] = "ASS_CODE_PERF_TXT";
+            _extendedParams["SUSTAIN_PERF"] = "ASS_SUSTAIN_PERF_TXT"; _extendedParams["DUR_UNIT"] = "ASS_DUR_UNIT_TXT";
+            _extendedParams["NOM_LENGTH"] = "ASS_NOM_LENGTH_TXT"; _extendedParams["NOM_WIDTH"] = "ASS_NOM_WIDTH_TXT";
+            _extendedParams["NOM_HEIGHT"] = "ASS_NOM_HEIGHT_TXT";
+            _extendedParams["EXPECTED_LIFE"] = "ASS_EXPECTED_LIFE_YEARS_YRS";
+            // Replacement cost: the bound parameter is UGX (CURRENCY). Read it with
+            // GetValueText; nothing writes a figure of another currency into it
+            // (CobieFieldMap leaves ReplacementCost out for the same reason).
+            _extendedParams["REPLACE_COST"] = "PER_REPLACEMENT_COST_UGX";
+            // Tag style ints written by the param-driven style engine.
+            _extendedParams["STYLE_SIZE"] = "TAG_STYLE_SIZE_INT"; _extendedParams["STYLE_WEIGHT"] = "TAG_STYLE_WEIGHT_INT";
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -4091,6 +4110,11 @@ namespace StingTools.Core
         // --- T7: Fabrication & QC (BS EN ISO 6412 spool / QC inspector chain) ---
         public const string ASS_SPOOL_NR_TXT             = "ASS_SPOOL_NR_TXT";
         public const string ASS_SPOOL_NR_TXT_GUID        = "1a4353be-eaaa-5e46-95ee-b64a74667194";
+        // DSCH-42. The tokens an element keeps through re-derivation (comma-separated
+        // keys, e.g. "LVL,ZONE"). BatchTagCommand read it through Ext("TOKEN_LOCK"),
+        // a key with no mapping, so its lock check never fired.
+        public const string ASS_TOKEN_LOCK_TXT           = "ASS_TOKEN_LOCK_TXT";
+        public const string ASS_TOKEN_LOCK_TXT_GUID      = "c9e5a3b4-d6f7-4a8c-b10d-3e4f5a6b7c8d";
         public const string ASS_FAB_STATUS_TXT           = "ASS_FAB_STATUS_TXT";
         public const string ASS_FAB_STATUS_TXT_GUID      = "29ba93ba-238e-5aad-930a-a621b0f43b5b";
         public const string ASS_QC_INSPECTOR_TXT         = "ASS_QC_INSPECTOR_TXT";
