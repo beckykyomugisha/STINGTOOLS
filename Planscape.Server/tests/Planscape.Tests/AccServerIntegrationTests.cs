@@ -361,6 +361,54 @@ public partial class AccServerIntegrationTests
         Assert.Equal("more detail", (string?)body["description"]);
     }
 
+    // F3: a withheld status used to advance pushedAt, so the divergence was reported once and
+    // then vanished, and Planscape's status was never sent even after ACC came back.
+    [Fact]
+    public async Task A_withheld_status_is_reported_every_sync_and_sent_once_ACC_returns()
+    {
+        var fx = new Fx();
+        await fx.SeedAsync(openIssues: 1);
+        StubAcc(fx.Http, okPosts: 10);   // read-back reports acc-1 "closed": ACC moved it since the push
+        using (var db = fx.Db()) await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+        using (var db = fx.Db())
+        {
+            var i = await db.Issues.SingleAsync();
+            i.Status = "RESOLVED"; i.UpdatedAt = DateTime.UtcNow.AddMinutes(5);
+            await db.SaveChangesAsync();
+        }
+
+        AccSyncService.AccSyncReport r;
+        fx.Http.Calls.Clear();
+        using (var db = fx.Db()) r = await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+        Assert.Equal(1, r.Diverged);
+        Assert.DoesNotContain(fx.Http.Calls, c => c.Method == HttpMethod.Patch);
+
+        // Nothing changed: the divergence is still there, so it is still reported.
+        using (var db = fx.Db()) r = await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+        Assert.Equal(1, r.Diverged);
+
+        // ACC goes back to "open" (what was pushed). The next read-back records it...
+        var orig = fx.Http.Respond;
+        fx.Http.Respond = (req, x) =>
+        {
+            var url = Uri.UnescapeDataString(req.RequestUri!.ToString());
+            if (req.Method == HttpMethod.Get && url.Contains("filter[id]="))
+            {
+                var ids = url.Substring(url.IndexOf("filter[id]=") + 11).Split('&')[0].Split(',');
+                var results = ids.Select(id => new { id, status = "open" }).ToArray();
+                return Json(HttpStatusCode.OK, new { pagination = new { limit = 100, offset = 0, totalResults = results.Length }, results });
+            }
+            return orig!(req, x);
+        };
+        using (var db = fx.Db()) await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+        // ...and the sync after that sends Planscape's status.
+        fx.Http.Calls.Clear();
+        using (var db = fx.Db()) r = await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+        var patch = Assert.Single(fx.Http.Calls, c => c.Method == HttpMethod.Patch);
+        Assert.Equal("completed", (string?)JObject.Parse(patch.Body!)["status"]);
+        Assert.Equal(0, r.Diverged);
+    }
+
     [Fact]
     public async Task A_legacy_mapping_gets_a_baseline_not_a_mass_patch()
     {

@@ -556,7 +556,8 @@ public class AccSyncService
         if (pullError != null) errors.Add($"Open-count pull failed: {pullError}");
         if (readBackError != null) errors.Add($"Status read-back failed: {readBackError}");
         if (failed > 0) errors.Add($"{failed} of {failed + pushed + updated} push(es) failed; first: {failures[0]}");
-        if (diverged > 0) errors.Add($"{diverged} issue(s) closed in ACC are still open in Planscape (status not pushed back)");
+        if (diverged > 0) errors.Add($"{diverged} issue(s) changed status in Planscape but ACC changed it too since the last push, " +
+                                     "so Planscape's status was not sent (re-checked every sync)");
         if (closedNote != null) errors.Add(closedNote);
 
         if (pullError != null || (failed > 0 && pushed == 0 && updated == 0)) status = StatusFailed;
@@ -715,8 +716,10 @@ public class AccSyncService
             if (decision.Body.Count == 0)
             {
                 // UpdatedAt moved but nothing ACC carries changed (or only a withheld status):
-                // nothing to send, and nothing of ACC's is touched.
-                pushedAt[key] = issue.UpdatedAt;
+                // nothing to send, and nothing of ACC's is touched. F3: a withheld status does
+                // NOT advance pushedAt, so the issue is re-planned (and the divergence reported)
+                // every sweep until ACC and Planscape agree or ACC returns to what was pushed.
+                if (!decision.StatusWithheld) pushedAt[key] = issue.UpdatedAt;
                 pushedState[key] = decision.Next.ToJson();
                 dirty = true;
                 continue;
@@ -727,7 +730,7 @@ public class AccSyncService
             if (ok)
             {
                 updated++;
-                pushedAt[key] = issue.UpdatedAt;
+                if (!decision.StatusWithheld) pushedAt[key] = issue.UpdatedAt;   // F3, as above
                 pushedState[key] = decision.Next.ToJson();
                 dirty = true;
             }
