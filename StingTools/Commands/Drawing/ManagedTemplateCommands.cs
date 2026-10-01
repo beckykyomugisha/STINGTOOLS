@@ -237,7 +237,8 @@ namespace StingTools.Commands.Drawing
                     // DTW-9: replace, don't append — the pack may already carry a
                     // rule for this filter (inherited, or from an earlier convert),
                     // and two rules for one filter left the result order-dependent.
-                    pack.Filters.RemoveAll(f => string.Equals(f?.FilterName, pf.Name, StringComparison.OrdinalIgnoreCase));
+                    // DT-R11-C: the pack may spell it as the data does ("STING - Struct: Concrete").
+                    pack.Filters.RemoveAll(f => RevitNameRules.Matches(pf.Name, f?.FilterName));
                     pack.Filters.Add(rule);
                     filterRead++;
                 }
@@ -364,7 +365,7 @@ namespace StingTools.Commands.Drawing
                         {
                             // Strip prefix; replace : with — for clarity
                             var suffix = tpl.Name.Substring(prefix.Length);
-                            var candidate = $"{newBase} — {suffix}";
+                            var candidate = RevitNameRules.Sanitize($"{newBase} — {suffix}");   // DT-R11-C: a pack name is free text
                             try { tpl.Name = candidate; }
                             catch { tpl.Name = candidate + "_" + Guid.NewGuid().ToString("N").Substring(0, 4); }
                             firstRenamed = firstRenamed ?? tpl.Name;

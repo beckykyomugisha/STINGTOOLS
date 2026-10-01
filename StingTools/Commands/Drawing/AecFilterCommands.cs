@@ -127,7 +127,10 @@ namespace StingTools.Commands.Drawing
                     .Select(f => f.Name),
                 StringComparer.OrdinalIgnoreCase);
 
-            int present = lib.Filters.Count(f => existingNames.Contains(f.Name));
+            // DT-R11-C: a filter is created under its Revit name (RevitNameRules), so it is
+            // present when either spelling is in the model.
+            bool InDoc(AecFilterDefinition f) => RevitNameRules.Candidates(f.Name).Any(existingNames.Contains);
+            int present = lib.Filters.Count(InDoc);
             int missing = lib.Filters.Count - present;
 
             // Tag breakdown.
@@ -151,7 +154,7 @@ namespace StingTools.Commands.Drawing
             {
                 sb.AppendLine();
                 sb.AppendLine("Missing — first 25:");
-                foreach (var f in lib.Filters.Where(f => !existingNames.Contains(f.Name)).Take(25))
+                foreach (var f in lib.Filters.Where(f => !InDoc(f)).Take(25))
                     sb.AppendLine($"  · [{f.Id}] {f.Name}");
                 if (missing > 25) sb.AppendLine($"  ... +{missing - 25} more.");
                 sb.AppendLine();

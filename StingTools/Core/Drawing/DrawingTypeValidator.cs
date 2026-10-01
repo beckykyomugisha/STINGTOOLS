@@ -693,7 +693,8 @@ namespace StingTools.Core.Drawing
                 if (p?.Filters == null) continue;
                 var dupes = p.Filters
                     .Where(f => !string.IsNullOrWhiteSpace(f?.FilterName))
-                    .GroupBy(f => f.FilterName, StringComparer.OrdinalIgnoreCase)
+                    // DT-R11-C: two spellings of one Revit name are the same filter.
+                    .GroupBy(f => RevitNameRules.Sanitize(f.FilterName.Trim()), StringComparer.OrdinalIgnoreCase)
                     .Where(g => g.Count() > 1)
                     .Select(g => $"{g.Key} (x{g.Count()})")
                     .ToList();

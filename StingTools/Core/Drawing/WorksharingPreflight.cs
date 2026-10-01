@@ -138,7 +138,8 @@ namespace StingTools.Core.Drawing
 
                 // DTW-227: the byMaterialClass filters (STING_MAT_CLASS_*) are edited by the
                 // same filter pass (EnsureMaterialClassFilter rebuilds their rules), so they
-                // are checked with the named ones.
+                // are checked with the named ones. DT-R11-C: PackFilterNames lists each
+                // filter's Revit name (RevitNameRules) as well as its spelling in the data.
                 var filterNames = ProductionEdgeDecisions.PackFilterNames(
                     pack.Filters?.Select(f => f?.FilterName), pack.ByMaterialClass?.Keys);
                 if (filterNames.Count > 0)
