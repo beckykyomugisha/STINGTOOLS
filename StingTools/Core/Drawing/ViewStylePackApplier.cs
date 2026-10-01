@@ -86,7 +86,11 @@ namespace StingTools.Core.Drawing
                 ApplyCategoryOverrides(doc, view, pack, r);
                 ApplyLineWeightScale(doc, view, pack, r, extraLineWeightScale);
             }
-            if (!filtersMasked) ApplyFilterRules(doc, view, pack, r);
+            if (!filtersMasked)
+            {
+                ApplyFilterRules(doc, view, pack, r);
+                ApplyMaterialClassOverrides(doc, view, pack, r);   // DTW-177: was never called
+            }
             if (!worksetsMasked) ApplyWorksetVisibility(doc, view, pack, r);
             ApplyLinkOverrides(doc, view, pack, r);   // element overrides: never template-controlled
             ApplyColorFillSchemes(doc, view, pack, r);
@@ -229,6 +233,19 @@ namespace StingTools.Core.Drawing
                     }
                     if (!view.IsFilterApplied(filter.Id))
                         view.AddFilter(filter.Id);
+
+                    // DTW-177: the filter used to be added with no override, so it
+                    // changed nothing on the drawing. Apply the class's override.
+                    var ogs = view.GetFilterOverrides(filter.Id) ?? new OverrideGraphicSettings();
+                    if (src.Halftone.HasValue) ogs.SetHalftone(src.Halftone.Value);
+                    if (src.Transparency.HasValue) ogs.SetSurfaceTransparency(Clamp(src.Transparency.Value, 0, 100));
+                    ApplyWeight(src.ProjectionLineWeight, w => ogs.SetProjectionLineWeight(w), $"byMaterialClass '{className}'", "projectionLineWeight", r);
+                    ApplyWeight(src.CutLineWeight, w => ogs.SetCutLineWeight(w), $"byMaterialClass '{className}'", "cutLineWeight", r);
+                    if (!string.IsNullOrEmpty(src.ProjectionLineColor)) ogs.SetProjectionLineColor(HexColor(src.ProjectionLineColor));
+                    if (!string.IsNullOrEmpty(src.CutLineColor)) ogs.SetCutLineColor(HexColor(src.CutLineColor));
+                    view.SetFilterOverrides(filter.Id, ogs);
+                    view.SetFilterVisibility(filter.Id, true);
+                    r.AppliedByMaterialClass++;
                 }
                 catch (Exception ex)
                 {
@@ -511,6 +528,8 @@ namespace StingTools.Core.Drawing
             if (doc == null || view == null || pack == null || r == null) return;
             try { ApplyFilterRules(doc, view, pack, r); }
             catch (Exception ex) { r.Warnings.Add($"ApplyFilterRulesOnly: {ex.Message}"); }
+            try { ApplyMaterialClassOverrides(doc, view, pack, r); }
+            catch (Exception ex) { r.Warnings.Add($"ApplyFilterRulesOnly (byMaterialClass): {ex.Message}"); }
         }
 
         /// <summary>

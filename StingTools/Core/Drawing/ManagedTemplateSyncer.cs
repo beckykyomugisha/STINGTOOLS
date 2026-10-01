@@ -67,7 +67,8 @@ namespace StingTools.Core.Drawing
             return ManagedTemplateFields.Effective(
                 pack.ManagedFields ?? DefaultManagedFields,
                 hasVgOverrides: pack.VgOverrides != null && pack.VgOverrides.Count > 0,
-                hasFilters: pack.Filters != null && pack.Filters.Count > 0,
+                hasFilters: (pack.Filters != null && pack.Filters.Count > 0)
+                            || (pack.ByMaterialClass != null && pack.ByMaterialClass.Count > 0),
                 hasWorksetVisibility: !string.IsNullOrWhiteSpace(pack.WorksetVisibility),
                 hasViewRange: pack.ViewRange != null,
                 ignored: f =>
