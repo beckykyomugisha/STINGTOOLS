@@ -3,7 +3,7 @@
 Standing task (2026-10-01): unattended loop — resume → research → record → fix → verify → commit → merge → update ROADMAP/WORKLOG → repeat. Priority: (1) ACC integration, (2) everything ACC touches, (3) rest of the codebase.
 
 ## Resume here
-1. Merge the round-4 agent's branch `claude/acc-round4-plugin` (E1, E3–E11) once it reports. Then build, run Acc/Tags/Cost/Mep and the gates, and mark the E rows.
+1. ACC round 5 audit: a fresh pass over what rounds 1–4 changed. Look for new defects in the round-4 code (escalation holds, review → register writes, MIDP refusal paths) and for ACC-SRV-11.
 2. Deploy the INTEGRATION branch (now includes origin/main #1021, merge `1cca9c45b`) to `C:\Dev\STING_KUT_LIVE` once Revit is closed (watcher armed). Verify per "Deploy". Then tell the user to re-run **Load Shared Parameters** on existing projects, because #1021's drawing stamps now bind to Views.
 3. Area 2/3: DOCX-REG-1 (Document Manager IsoNote display), ACC-SRV-11 (create-and-close between sweeps), then tagging, drawing production and MEP.
 
@@ -22,7 +22,7 @@ dotnet test Planscape.Server/tests/Planscape.Tests --filter "FullyQualifiedName~
 powershell -File tools/check_path_discipline.ps1 ; tools/check_workflow_wiring.ps1 ; tools/check_export_routing.ps1
 python tools/check_kut_workflow_tags.py ; python tools/check_unattended_cycle.py
 ```
-Last full green (2026-10-01, `1cca9c45b`, after merging origin/main #1021): build 0/0; Acc 637, Tags 5211, Cost 147, Mep 87; `run_ci_gates.py --quick` 36/0; drawing-type checksums OK.
+Last full green (2026-10-01, after merging round 4 onto #1021): build 0/0; Acc 697, Tags 5217, Cost 169, Mep 87; `run_ci_gates.py --quick` 36/0; drawing-type checksums OK.
 
 ## Deploy (KUT live)
 `git -C C:/Dev/STING_KUT_LIVE checkout --detach <commit>` then `cmd.exe //c 'C:\Dev\STING_KUT_LIVE\deploy.bat'` with Revit closed. Verify: manifests point at STING_KUT_LIVE; deployed DLL == `StingTools/bin/Release/StingTools.dll`; 210 tag families in `CompiledPlugin/data/TagFamilies`; **no `Seeds/` folder** (the 137 seed families are superseded — never restore them). Last deploy: `4ad350c46` at 23:13 on 2026-09-30.
@@ -79,17 +79,17 @@ ACC seam audit A1–A16: all fixed (see "Findings (done)"). Open work is the rev
 ## Findings — ACC round 4: data contract (audit 2026-10-01)
 | Id | Area | Where | Sev | Defect | Plan |
 |---|---|---|---|---|---|
-| E1 | Escalation | Clash/AccSyncIssueStatusCommand.cs:119-138; AccPullClashesCommand.cs:226 | P1 | An escalation closed/voided in ACC Issues is untracked while the clash stays active → re-escalated every cycle; a deleted issue stays tracked forever | Untrack only on clash absence; remember closed-in-ACC per signature; pure decision fn + tests |
+| E1 | Escalation | Clash/AccSyncIssueStatusCommand.cs:119-138; AccPullClashesCommand.cs:226 | P1 | An escalation closed/voided in ACC Issues is untracked while the clash stays active → re-escalated every cycle; a deleted issue stays tracked forever | **Done** 0503259c3: AccEscalationReconcile.Decide; un-track only when the clash is absent from a complete pull (acc_clash_presence.json), else hold in closedInAcc; NOT_FOUND un-tracked |
 | E2 | Server update (my C10) | AccSyncService.cs MapStatus/AccIssueUpdatePlan | P1 | MapStatus case-sensitive, IN_PROGRESS→open; Plan always sends status/title/description → reverts an assignee's ACC in_progress/completed, overwrites ACC wording | **Done** 42b57d9e3: per-issue pushed snapshot (status + text hashes); only changed fields sent; status only when ACC still shows the last pushed value; IN_PROGRESS mapped; server suite 1122/0 |
-| E3 | Reviews | V6/AccReviewProposals.cs:348-362 FindTransmittal | P1 | version-or-item match, first hit → approval recorded on the v1 transmittal | Exact version first; item only when unique; refuse ambiguity |
-| E4 | Reviews → register | AccReviewProposals.cs:394-397; BIMManagerCommands UpdateDocumentSuitability | P1 | Register rows matched on doc_id only (never matches export rows); write failure silent but reported applied; no revision check on accept | Match doc_number/file_name/doc_id; return result; pairing check; refuse revision mismatch |
-| E5 | MIDP dates | Core/Delivery/MidpCsv.cs:120-127 | P1 | dd/MM dates with day <= 12 parsed as MM/dd (invariant TryParse first) | ISO first, declared order, ambiguous refused/flagged |
-| E6 | Import defaults | V6/AccIssueImport.cs:387-427; IssueSchema.Create | P1 | Imported ACC issues get MEDIUM priority, now as created date, importer as raiser → SLA/overdue wrong | Map createdAt/createdBy; priority not defaulted; SLA "no SLA"; export display id + assignee name |
-| E7 | MIDP header | MidpCsv.cs:72,88-89 | P2 | Renamed code column → all rows dropped silently | Required-column check; skipped counts; synonyms |
-| E8 | Watermark | V6/AccIssueImportState.cs:96-118 | P2 | Local clock watermark; skew > overlap loses updates until the weekly full read | Watermark from ACC (max updatedAt / Date header) |
-| E9 | Comments push | V6/AccIssuePush.cs:110-131,237 | P2 | Comment-only changes never pushed; notes lost on AgreeFields/non-pushable status | Comments a candidate reason; hash-keyed pushed comments |
-| E10 | CSV injection | AccClashCsv.cs:41; AccImport/Push/SyncIssueStatus CSV writers | P2 | Leading = + - @ from third-party names not neutralised | One shared CSV cell helper with the guard |
-| E11 | Culture | V6/AccIssueSync.cs:554 | P2 | dueDate formatted in current culture | InvariantCulture |
+| E3 | Reviews | V6/AccReviewProposals.cs:348-362 FindTransmittal | P1 | version-or-item match, first hit → approval recorded on the v1 transmittal | **Done** 8492912fe: exact version first; item fallback only when unique and no other version recorded; else refused with a reason |
+| E4 | Reviews → register | AccReviewProposals.cs:394-397; BIMManagerCommands UpdateDocumentSuitability | P1 | Register rows matched on doc_id only (never matches export rows); write failure silent but reported applied; no revision check on accept | **Done** af7f7e85e: match doc_number/file_name/doc_id; ApprovedRevision from the file name; revision mismatch refused; contradicted code flagged iso_conflict; save result reported |
+| E5 | MIDP dates | Core/Delivery/MidpCsv.cs:120-127 | P1 | dd/MM dates with day <= 12 parsed as MM/dd (invariant TryParse first) | **Done** b5c9f636a: ISO first, then day-first (step param dateOrder=mdy for month-first); unreadable dates refused and counted |
+| E6 | Import defaults | V6/AccIssueImport.cs:387-427; IssueSchema.Create | P1 | Imported ACC issues get MEDIUM priority, now as created date, importer as raiser → SLA/overdue wrong | **Done** 082e61015: ACC createdAt/createdBy kept; priority blank + priority_defaulted, SLA "no SLA"; CSV adds display id + assignee name |
+| E7 | MIDP header | MidpCsv.cs:72,88-89 | P2 | Renamed code column → all rows dropped silently | **Done** b5c9f636a: MidpCsv.ParseDetailed names missing required columns (file refused); skipped rows counted; header synonyms |
+| E8 | Watermark | V6/AccIssueImportState.cs:96-118 | P2 | Local clock watermark; skew > overlap loses updates until the weekly full read | **Done** 9c2f6f8cf: watermark from ACC Date header, else newest updatedAt; skew logged (lastSkewSeconds) |
+| E9 | Comments push | V6/AccIssuePush.cs:110-131,237 | P2 | Comment-only changes never pushed; notes lost on AgreeFields/non-pushable status | **Done** e3a760d86: comment-only changes pushed; content-hash keys in acc_comments_pushed_keys; failed post fails the run |
+| E10 | CSV injection | AccClashCsv.cs:41; AccImport/Push/SyncIssueStatus CSV writers | P2 | Leading = + - @ from third-party names not neutralised | **Done** da2897ccc: AccCsv.Cell/Guard (always quoted; leading = + - @ tab CR neutralised) in every ACC CSV writer |
+| E11 | Culture | V6/AccIssueSync.cs:554 | P2 | dueDate formatted in current culture | **Done** 116e04b60: dueDate InvariantCulture |
 
 ## Findings (done)
 - 2026-10-01 audit fixes on `claude/acc-audit-fixes-y` (not pushed): **A7** `eec4bf778` (review on the live tip version) ·
@@ -125,6 +125,13 @@ Seam audit (2026-10-01):
   on the new version (live DM `items/{item}` tip read unproved).
 - **Live ACC (KUT):** run `ACC_SelfCheck` first; then playbook §7 V1–V8 (docs/KUT_ACC_DAY1_PLAYBOOK.md). Confirm: Admin API/member list permission (needs Project/Account Admin or Custom Integration), Locations tree readable by members, Model Properties `indexes:batch-status` spelling, Reviews approval-status path encoding, issue `filter[updatedAt]` open range, comment `body` field, `customAttributes`/`rootCauseId` on create, BCF `.bcfzip` as issue attachment, `planscape://` links clickable in ACC web.
 - **Revit:** cloud model root mapping prompt + `Cloud_SetProjectRoot`; workshared central-root + Move; `planscape://revit/select` handler; ACC card buttons; `ACC_SyncProjectInfo` write path.
+- **ACC round 4 (E1, E4, E5/E7, E6, E8, E9):**
+  1. E1: escalate a clash, void its issue in ACC, then run Sync Issue Status. Expect "untrack + hold" and a `closedInAcc` entry. Pull Clashes again: it reports "CLOSED IN ACC, STILL CLASHING" and creates no new issue. Resolve the clash, then re-run the clash test and Pull Clashes: the hold is released. Delete an issue in ACC, then run Sync: it reports NOT_FOUND and un-tracks the issue.
+  2. E4: approve an Export Centre file (`…-0001-C01.pdf`) in a review mapped to A1, then Read Reviews and Accept. The doc_number row shows A1. With the row at C02, the result is NOT applied, giving the revision reason.
+  3. E6: import an issue several weeks old. `issues.json` carries ACC's created date and creator name, and priority is blank. Confirm Issues v1 returns `createdBy`.
+  4. E8: import twice. The log shows the ACC Date watermark and a skew line, and the state file has `lastSkewSeconds`.
+  5. E9: add only a comment to an imported issue and run Push Issue Changes. The comment appears in ACC, and a second run posts nothing.
+  6. E5/E7: import a MIDP CSV with `05/03/2027`, which lands on 5 March. A CSV with no Ref column is refused, naming the column.
 - **Server (Render):** set `DataProtection:CertificateBase64/Password` on API + worker; after deploy call `GET /api/acc/reconnect-required`; register webhooks via `POST acc/webhooks/subscribe`.
 
 ## Decisions
@@ -189,3 +196,10 @@ Seam audit (2026-10-01):
 - **D9:** the copy goes through AccHttp with an optional AccCredentials, so the token-only signature still works. Moving the rest of AccDocsMetadata stays deferred (see A11).
 - **Area 3 input rule (final, 6fc1d2de4):** a step param, when set, is always used; when missing, a person present is asked (PresetDialog.CanAsk = !IsUnattended); unattended runs fail naming the param. Result windows are quiet in any preset. Exception: ExportSheetRegister's unattended output defaults to the project's routed SheetRegister folder, which is a project convention rather than an invented value, so it does not fail.
 - **CHANGELOG merge conflicts:** always keep both entries (tool: scratchpad keepboth.py refuses >1 region).
+- **E1:** the hold is a separate, mutable `closedInAcc` list in the origins file, and the append-only `entries` are untouched. "Present" means the clash is in the latest *complete* pull of any recorded model set. With no complete pull on record, a closed escalation is held, never assumed gone.
+- **E3:** a single item match that records a different version is refused too. That is stricter than the brief, so v3's approval cannot land on v1's only transmittal.
+- **E4:** a contradicted code keeps the existing suitability, writes `iso_conflict` and is NOT applied. With no revision in the file name, the code is judged against the row's own revision.
+- **E5:** the default is day-first (UK/Uganda); the KUT MIDP template has no explicit dates, so this is a convention, not something read from it. The order is overridable per workflow step (`dateOrder`), following the `m0` param pattern.
+- **E6:** earlier imports with a defaulted MEDIUM priority are left as they are, because a deliberate MEDIUM cannot be told apart from a default.
+- **E8:** the full-read timer still uses local time; using the max updatedAt there would force a full read on every run.
+- **DOCX-REG-1:** the ISO note is its own display field. Suitability drives CDE logic, so a marker must never be written into it.
