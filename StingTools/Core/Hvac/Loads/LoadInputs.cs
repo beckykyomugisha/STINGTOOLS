@@ -202,7 +202,7 @@ namespace StingTools.Core.Hvac.Loads
             : 1.0;
         public List<ZoneLoadResult> Zones  { get; } = new();
         /// <summary>Inputs the engine assumed rather than read, in plain words
-        /// (e.g. "design wind 3.0 m/s assumed"). Empty when nothing was assumed.</summary>
+        /// (e.g. "heating design wind 4.0 m/s assumed"). Empty when nothing was assumed.</summary>
         public List<string> Assumptions    { get; } = new();
     }
 }

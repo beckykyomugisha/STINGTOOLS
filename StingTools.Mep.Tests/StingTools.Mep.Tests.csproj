@@ -24,6 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\StingTools\Core\Climate\DesignWind.cs" Link="Linked\DesignWind.cs" />
     <Compile Include="..\StingTools\Core\Hvac\Psychrometrics.cs" Link="Linked\Psychrometrics.cs" />
     <Compile Include="..\StingTools\Core\Mep\Networks\FlowTree.cs" Link="Linked\FlowTree.cs" />
     <Compile Include="..\StingTools\Core\Mep\Networks\MepDesignData.cs" Link="Linked\MepDesignData.cs" />

@@ -139,9 +139,10 @@ namespace StingTools.Core.Hvac.Loads
                     blk.BlockSensibleW = peakW;
                     blk.BlockHour      = peakH;
                     blk.BlockLatentW   = blk.SystemLatentW[peakH];
-                    if (climate.DesignWindAssumed && blk.Zones.Any(zr => zr.UsedDesignWind))
+                    if (climate.Wind.AssumedFor(cooling) && blk.Zones.Any(zr => zr.UsedDesignWind))
                         blk.Assumptions.Add(
-                            $"design wind {climate.DesignWindMs:0.0} m/s assumed (site '{climate.Id}' records no designWindMs)");
+                            $"{(cooling ? "cooling" : "heating")} design wind {climate.Wind.MsFor(cooling):0.0} m/s assumed " +
+                            $"(site '{climate.Id}' records no {(cooling ? "coolingWindMs" : "heatingWindMs")}; default per BS EN ISO 6946 Rse convention)");
                     return blk;
                 })
                 .ToList();
@@ -212,7 +213,7 @@ namespace StingTools.Core.Hvac.Loads
                 usedDesignWind = envM2 > 0;
                 infLs = (envM2 > 0)
                     ? CibseInfiltrationLs(z.Q4PaM3PerHperM2, envM2, z.HeightM,
-                                          tSet, tPeak, c.DesignWindMs,
+                                          tSet, tPeak, c.Wind.MsFor(cooling),
                                           assumptions.InfiltrationWindwardCp)
                     : z.InfiltrationAch * z.VolumeM3 * 1000.0 / 3600.0;
             }
