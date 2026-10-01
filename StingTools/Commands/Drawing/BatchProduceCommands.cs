@@ -152,6 +152,87 @@ namespace StingTools.Commands.Drawing
             };
         }
 
+        /// <summary>
+        /// The drawing-type ids a STING:: box is produced with by the box route. Inside a
+        /// workflow with no types named, ProduceFromScopeBoxes produces the MEP-bound boxes
+        /// only (HeadlessProductionInputs.IsMepDiscipline); from the dialog, any box bound to
+        /// a type in the catalogue. Shared by that filter and by per-level coverage (DTW-99)
+        /// so a box counts as covering a pair exactly when the box route draws it.
+        /// </summary>
+        internal static Func<string, bool> BoxTypeProduced(Document doc, bool mepOnly)
+            => id =>
+            {
+                var dt = DrawingTypeRegistry.Get(doc, id);
+                return dt != null && (!mepOnly || HeadlessProductionInputs.IsMepDiscipline(dt.Discipline));
+            };
+
+        /// <summary>
+        /// DTW-99: per-level production skips a (drawing type, level) pair a scope box already
+        /// produces — a STING::&lt;type&gt;::&lt;level&gt; box the box route draws, or a
+        /// STING-AREA:: box producing that type on that level — and produces every other pair.
+        /// Wraps <paramref name="inner"/> (null = every pair); each skipped pair is added to
+        /// <paramref name="covered"/> as "type on level: covered by scope box X". The decision
+        /// is PerLevelBoxCoverage (Revit-free, tested).
+        /// </summary>
+        internal static Func<DrawingType, Level, bool> SkipBoxCovered(Document doc, Func<DrawingType, Level, bool> inner,
+            List<string> covered, bool mepBoxesOnly)
+        {
+            PerLevelBoxCoverage cov;
+            try
+            {
+                var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().ToList();
+                var codes = ScopeBoxRevit.LevelCodes(doc);
+                var levelRefs = levels.Select(l => new LevelRef
+                {
+                    Id = l.Id.Value, Name = l.Name,
+                    Code = codes.TryGetValue(l.Id.Value, out var c) ? c : null,
+                }).ToList();
+                var names = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                    .WhereElementIsNotElementType().Select(e => e.Name ?? "").ToList();
+                var notes = new List<string>();
+                var areaCovers = new List<BoxCover>();
+                if (names.Any(n => ScopeBoxNames.Classify(n) == ScopeBoxKind.Area))
+                {
+                    // What Produce From Area Boxes would make with no types named.
+                    var plan = ScopeBoxPlannerService.LoadPlan(doc, out var planErr);
+                    if (planErr != null) notes.Add("area boxes not counted: " + planErr);
+                    else
+                    {
+                        var sel = RoutedMepPerLevel(doc);
+                        var items = ScopeBoxPlannerService.PlanProduction(doc, plan, new List<string>(),
+                            sel.Types.Select(t => t.Id).ToList(), sel.Include);
+                        areaCovers.AddRange(items.Where(i => i.Level != null && i.Type != null)
+                            .Select(i => new BoxCover { BoxName = i.Box.Name, TypeId = i.Type.Id, LevelId = i.Level.Id.Value }));
+                    }
+                }
+                cov = PerLevelBoxCoverage.Build(names, levelRefs, areaCovers, notes, BoxTypeProduced(doc, mepBoxesOnly));
+                foreach (var n in notes) StingLog.Info("Per-level box coverage: " + n);
+            }
+            catch (Exception ex)
+            {
+                // Cannot tell what the boxes cover: produce every pair rather than skip silently.
+                StingLog.Warn($"Per-level box coverage: {ex.Message} — no pair skipped for scope boxes.");
+                return inner;
+            }
+            if (cov.Count == 0) return inner;
+            return (dt, lvl) =>
+            {
+                if (inner != null && !inner(dt, lvl)) return false;
+                if (dt != null && lvl != null && cov.TryCovered(dt.Id, lvl.Id.Value, out var box))
+                {
+                    covered?.Add($"{dt.Id} on {lvl.Name}: covered by scope box {box}");
+                    return false;
+                }
+                return true;
+            };
+        }
+
+        /// <summary>One warning line for the pairs <see cref="SkipBoxCovered"/> left to the scope boxes.</summary>
+        internal static string CoveredSummary(List<string> covered)
+            => covered == null || covered.Count == 0 ? null
+             : $"Not produced per level, {covered.Count} drawing type / level pair(s) a scope box already produces: "
+               + string.Join("; ", covered.Take(12)) + (covered.Count > 12 ? " …" : "");
+
         private static bool LevelHasModel(Document doc, Level lvl)
         {
             try
@@ -348,7 +429,12 @@ namespace StingTools.Commands.Drawing
                 var include = res.Preset?.General?.SkipEmptyLevels == true
                     ? BatchProduceCommons.SkipEmptyLevels(doc, skippedEmpty)
                     : null;
+                // DTW-99: a pair a scope box already produces is not produced again whole-floor.
+                var covered = new List<string>();
+                include = BatchProduceCommons.SkipBoxCovered(doc, include, covered, mepBoxesOnly: false);
                 Produce(doc, pickedTypes, pickedLevels, opts, res.Preset?.PackageId, ref views, ref sheets, warnings, include);
+                var coveredLine = BatchProduceCommons.CoveredSummary(covered);
+                if (coveredLine != null) warnings.Insert(0, coveredLine);
                 if (skippedEmpty.Count > 0)
                     warnings.Insert(0, $"Skipped {skippedEmpty.Count} drawing type / level pair(s) with nothing modelled "
                         + "('Skip levels with nothing modelled'): " + string.Join("; ", skippedEmpty.Take(12))
@@ -382,10 +468,26 @@ namespace StingTools.Commands.Drawing
             var picked = levels.Where(l => names.Contains(l.Name)).ToList();
 
             int views = 0, sheets = 0; var warnings = new List<string>();
+            // DTW-99: skip only the (type, level) pairs a scope box produces — inside the MEP
+            // preset the box step draws MEP-bound STING:: boxes, so only those stand in for a
+            // whole-floor plan. The step runs whenever area boxes are absent (no_area_boxes).
+            var covered = new List<string>();
+            var skipCovered = BatchProduceCommons.SkipBoxCovered(doc, sel.Include, covered, mepBoxesOnly: true);
+            int attempted = 0;
+            Func<DrawingType, Level, bool> include = (dt, lvl) =>
+            {
+                bool go = skipCovered == null || skipCovered(dt, lvl);
+                if (go) attempted++;
+                return go;
+            };
             DrawingTypePresentation.Prewarm(doc);
             using (DrawingProducer.PrimeBatchScope(doc))
-                Produce(doc, types, picked, opts, packageId, ref views, ref sheets, warnings, sel.Include);
+                Produce(doc, types, picked, opts, packageId, ref views, ref sheets, warnings, include);
             message = BatchProduceCommons.StepSummary("Produce Per Level", views, sheets, warnings);
+            var coveredLine = BatchProduceCommons.CoveredSummary(covered);
+            if (coveredLine != null) { StingLog.Info("Produce Per Level: " + coveredLine); message += " " + coveredLine + "."; }
+            if (attempted == 0 && covered.Count > 0)
+            { message += " Every requested pair is drawn by a scope box; nothing to produce per level."; return Result.Cancelled; }
             if (views == 0) { message += " Nothing was produced."; return Result.Failed; }
             return Result.Succeeded;
         }
@@ -557,17 +659,24 @@ namespace StingTools.Commands.Drawing
             {
                 // No types named: an MEP preset produces the MEP boxes only. The A / S
                 // STING:: boxes in the same model are another team's drawings.
-                var mep = new HashSet<string>(HeadlessProductionInputs.MepDisciplines, StringComparer.OrdinalIgnoreCase);
-                var other = types.Where(t => !mep.Contains((t.Discipline ?? "").Trim())).Select(t => t.Id).ToList();
-                types = types.Where(t => mep.Contains((t.Discipline ?? "").Trim())).ToList();
+                // DTW-99: one rule with per-level coverage (BoxTypeProduced), so a box this
+                // step leaves out never stands in for a whole-floor plan either.
+                var produced = BatchProduceCommons.BoxTypeProduced(doc, mepOnly: true);
+                var other = types.Where(t => !produced(t.Id)).Select(t => t.Id).ToList();
+                types = types.Where(t => produced(t.Id)).ToList();
                 if (other.Count > 0)
                     StingLog.Info("Produce From Scope Boxes: not an M/E/P/FP/MG type, not produced (name it in params.drawingTypes to include it): "
                                   + string.Join(", ", other));
                 if (types.Count == 0 && other.Count > 0)
                 {
+                    // Failed, not Cancelled: boxes exist and this step drew none of them. A
+                    // SKIP read as "nothing to do here", and an architect's model came out of
+                    // the MEP preset with no box drawings and no reason. The per-level step
+                    // still draws the MEP plans — these boxes cover none of them.
                     message = $"Produce From Scope Boxes: the STING:: boxes are bound only to non-MEP drawing types ({string.Join(", ", other)}); "
-                            + "nothing to produce for an MEP set. Name them in params.drawingTypes to produce them.";
-                    return Result.Cancelled;
+                            + "nothing to produce for an MEP set — the MEP plans come from the per-level step. "
+                            + "Name them in params.drawingTypes to produce them.";
+                    return Result.Failed;
                 }
             }
             if (types.Count == 0)

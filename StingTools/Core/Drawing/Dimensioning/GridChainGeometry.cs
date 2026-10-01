@@ -54,6 +54,37 @@ namespace StingTools.Core.Drawing.Dimensioning
         public const double DefaultCoincidentTolFt = 1.0 / 304.8;   // 1 mm
 
         /// <summary>
+        /// DTW-101: the <see cref="GridSeg.Index"/> of every grid not lying on the same
+        /// infinite line as an earlier one (parallel within <paramref name="angleTolDeg"/>,
+        /// either direction, and within <paramref name="coincidentTolFt"/> across). Order
+        /// is preference: callers list host grids before linked ones, so where a link's grid
+        /// sits on a host grid (copy / monitor) the host grid is the one a dimension uses.
+        /// Degenerate (zero-length) grids are dropped.
+        /// </summary>
+        public static List<int> KeepFirstOfCoincident(IReadOnlyList<GridSeg> grids,
+            double angleTolDeg = DefaultAngleTolDeg, double coincidentTolFt = DefaultCoincidentTolFt)
+        {
+            var kept = new List<int>();
+            if (grids == null) return kept;
+            double sinTol = Math.Sin(angleTolDeg * Math.PI / 180.0);
+            var keptSegs = new List<(double X, double Y, double Dx, double Dy)>();
+            foreach (var g in grids)
+            {
+                double dx = g.X1 - g.X0, dy = g.Y1 - g.Y0, len = Math.Sqrt(dx * dx + dy * dy);
+                if (len < 1e-9) continue;
+                dx /= len; dy /= len;
+                double mx = (g.X0 + g.X1) / 2, my = (g.Y0 + g.Y1) / 2;
+                bool onEarlier = keptSegs.Any(k =>
+                    Math.Abs(k.Dx * dy - k.Dy * dx) <= sinTol                       // parallel (either way)
+                    && Math.Abs((mx - k.X) * -k.Dy + (my - k.Y) * k.Dx) <= coincidentTolFt);   // same line
+                if (onEarlier) continue;
+                keptSegs.Add((g.X0, g.Y0, dx, dy));
+                kept.Add(g.Index);
+            }
+            return kept;
+        }
+
+        /// <summary>
         /// Group <paramref name="grids"/> by direction and plan one chain per group.
         /// Position = dot(grid point, set normal); the line runs along the normal,
         /// <paramref name="marginFt"/> beyond the far end of every grid and

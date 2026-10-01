@@ -461,6 +461,29 @@ namespace StingTools.Core.Fabrication
                     registryNumPattern = drawingType.SheetNumberPattern;
                 }
             }
+            // DTW-100: {lvl} as the producer reads it. Under an ISO-shaped pattern the spool
+            // sheet carries the ISO 19650 code of the assembly's level (DrawingProducer's
+            // DTW-43 code, from the same BuildIsoLevelMap), not ASS_LVL_COD_TXT — the two
+            // differed, so a spool sheet and a produced sheet on one level used different
+            // level codes and different ISO counter buckets. Any other pattern keeps
+            // ASS_LVL_COD_TXT. The number's code also feeds the bucket, the counter and the
+            // title-block tokens; the name pattern is resolved on its own.
+            string numberPattern = !string.IsNullOrEmpty(options?.SheetNumberPattern) ? options.SheetNumberPattern : registryNumPattern;
+            string namePattern = !string.IsNullOrEmpty(options?.SheetNamePattern) ? options.SheetNamePattern : drawingType?.SheetNamePattern;
+            string assemblyLevelCode = levelCode;
+            string nameLevelCode = levelCode;
+            if (SheetNumberPolicy.IsAlreadyIso(numberPattern) || SheetNumberPolicy.IsAlreadyIso(namePattern))
+            {
+                string levelName = AssemblyLevelName(doc, ai);
+                var isoMap = levelName != null ? StingTools.Core.Drawing.DrawingProducer.BuildIsoLevelMap(doc) : null;
+                levelCode = SheetNumberPolicy.SpoolLevelToken(numberPattern, assemblyLevelCode, levelName, isoMap);
+                nameLevelCode = SheetNumberPolicy.SpoolLevelToken(namePattern, assemblyLevelCode, levelName, isoMap);
+                if (levelName == null)
+                    result?.Warnings.Add($"Spool sheet: the assembly's level could not be found, so its ISO number uses "
+                                       + $"ASS_LVL_COD_TXT '{assemblyLevelCode}' for {{lvl}}, not the level's ISO code.");
+                bucket = $"{discCode}:{sysCode}:{levelCode}";
+            }
+
             // The ISO counter applies only when the policy-resolved pattern is the one
             // that numbers this sheet (a pattern captured in the options dialog wins).
             string isoTemplate = null;
@@ -538,13 +561,13 @@ namespace StingTools.Core.Fabrication
             string unique = EnsureUniqueSheetNumber(doc, sheetNumber, result?.Warnings);
             try { sheet.SheetNumber = unique; }
             catch (Exception ex)
-            { result.Warnings.Add($"SheetNumber assign ('{unique}'): {ex.Message}"); }
+            { result?.Warnings.Add($"SheetNumber assign ('{unique}'): {ex.Message}"); }
 
             string registryNamePattern = drawingType?.SheetNamePattern;
             string sheetName = !string.IsNullOrEmpty(options?.SheetNamePattern)
-                ? SubstituteTokens(options.SheetNamePattern, spool, discCode, sysCode, levelCode, seq, discipline, extras: extraTokens)
+                ? SubstituteTokens(options.SheetNamePattern, spool, discCode, sysCode, nameLevelCode, seq, discipline, extras: extraTokens)
                 : !string.IsNullOrEmpty(registryNamePattern)
-                    ? SubstituteTokens(registryNamePattern, spool, discCode, sysCode, levelCode, seq, discipline, extras: extraTokens)
+                    ? SubstituteTokens(registryNamePattern, spool, discCode, sysCode, nameLevelCode, seq, discipline, extras: extraTokens)
                     : (!string.IsNullOrEmpty(spool)
                         ? $"Spool {spool}"
                         : $"{discipline} spool {unique}");
@@ -601,6 +624,42 @@ namespace StingTools.Core.Fabrication
                 }
             }
             catch (Exception ex) { result.Warnings.Add($"ApplyToSheet: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// DTW-100: the name of the level an assembly sits on — its own level when Revit
+        /// gives it one, else the level most of its members are on (a member's level, or
+        /// an MEP curve's reference level). Null when none can be found; the caller then
+        /// keeps ASS_LVL_COD_TXT and says so.
+        /// </summary>
+        private static string AssemblyLevelName(Document doc, AssemblyInstance ai)
+        {
+            try
+            {
+                if (ai.LevelId != null && ai.LevelId != ElementId.InvalidElementId
+                    && doc.GetElement(ai.LevelId) is Level own)
+                    return own.Name;
+                var counts = new Dictionary<long, int>();
+                foreach (var id in ai.GetMemberIds())
+                {
+                    var m = doc.GetElement(id);
+                    if (m == null) continue;
+                    var lid = m.LevelId;
+                    if ((lid == null || lid == ElementId.InvalidElementId) && m is MEPCurve mc)
+                        lid = mc.ReferenceLevel?.Id;
+                    if (lid == null || lid == ElementId.InvalidElementId) continue;
+                    counts.TryGetValue(lid.Value, out var n);
+                    counts[lid.Value] = n + 1;
+                }
+                if (counts.Count == 0) return null;
+                var best = counts.OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key).First().Key;
+                return (doc.GetElement(new ElementId(best)) as Level)?.Name;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ShopDrawingComposer: assembly {ai?.Id.Value} level: {ex.Message}");
+                return null;
+            }
         }
 
         private static string ReadString(Element el, string param)
