@@ -1312,6 +1312,8 @@ namespace StingTools.UI
                      "Value the unpriced sheets at their own build-up percentages (labour / materials / plant), writing the valuation back to the register and exporting an annexure-style priced sheet. CSV.", false),
                     ("Attach Daywork to VO", "Daywork_Attach",
                      "Attach a priced sheet to a variation as a Daywork-rated item. Its value then reaches the final account through that VO instead of standalone — counted once, never twice.", false),
+                    ("Apply Star Rate to VO", "Variation_ApplyStarRate",
+                     "Price a new variation item at a saved star rate: pick the rate and an open variation (Draft / Submitted / Reviewed), enter the measured quantity. Refuses a settled variation, a currency mismatch or an empty build-up - never converted or guessed.", false),
                 }));
 
             sp.Children.Add(BuildActionGroup("Delivery & Risk (ISO 19650)",
