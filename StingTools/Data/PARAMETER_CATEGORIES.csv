@@ -73,7 +73,7 @@ ASS_BOQ_LINE_REF,Boq Line Ref,TEXT,Instance,<ALL>,ASS_MNG,eb8aa554-1c95-4d89-917
 ASS_BOQ_SECTION_NAME,Boq Section Name,TEXT,Instance,<ALL>,ASS_MNG,f96d1f95-0bd4-4177-90d1-d3647e48b5ec,BOQ section name this element belongs to [ISO 19650-3:2020]
 ASS_BOUNDING_VOL_CU_M,Bounding Vol Cu M,TEXT,Instance,<ALL>,ASS_MNG,b6be2fbe-d1ce-57c7-aac7-5ba84b0d7476,Element bounding volume in cubic metres
 ASS_CAPACITY_TXT,Capacity,TEXT,Instance,<ALL>,ELC_PWR,6c883d6a-6671-5c6c-be21-968aa8918e8c,Asset capacity specification [ISO 19650-2:2018]
-ASS_CAT_TXT,Category,TEXT,Instance,<ALL>,ASS_MNG,f8fe813a-44e9-5e47-9109-921171dc53b6,Ass Cat Txt [ISO 19650-3:2020]
+ASS_CAT_TXT,Category,TEXT,Instance,<ALL>,ASS_MNG,f8fe813a-44e9-5e47-9109-921171dc53b6,Category name [ISO 19650-3:2020]
 ASS_CDE_STATUS_TXT,Cde Status,TEXT,Instance,<ALL>,STINGTags_ISO19650,444a69c6-c2b3-58d3-a572-45a6df9e36c7,CDE container status code (WIP/SHARED/PUBLISHED/ARCHIVE) [ISO 19650-1:2018 Sec.12]
 ASS_CDE_SUITABILITY_TXT,Cde Suitability,TEXT,Instance,<ALL>,STINGTags_ISO19650,37de21ec-8bb3-530d-92e3-b55b312ce611,CDE suitability code for information exchange [ISO 19650-2:2018 Sec.5.6]
 ASS_CLASS_COD_TXT,Class Cod,TEXT,Instance,<ALL>,ASS_MNG,6fbd8fc7-8944-5595-8bb8-6f3a5a8e5326,Classification code (Uniclass/NRM)
@@ -102,27 +102,27 @@ ASS_CST_STALE_REASON_TXT,Cost Stale Reason,TEXT,Instance,<ALL>,CST_PROC,b9d4e1a2
 ASS_CST_STALE_TXT,Cst Stale,TEXT,Instance,<ALL>,CST_PROC,59de159f-ea20-5f57-b508-5679ddc19d37,ASS_CST_STALE_BOOL display mirror [auto-generated]
 ASS_CST_TOTAL_UGX_NR,Total Cost,CURRENCY,Instance,<ALL>,ASS_MNG,32347c5d-1605-50ab-9c8c-5dc36c0c1765,Ass Cst Total Ugx Nr [ISO 19650-3:2020]
 ASS_CST_TOTAL_UGX_TXT,Cst Total Ugx,TEXT,Instance,<ALL>,ASS_MNG,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8,ASS_CST_TOTAL_UGX_NR display mirror [auto-generated]
-ASS_CST_UNIT_PRICE_UGX_NR,Unit Rate,CURRENCY,Instance,<ALL>,ASS_MNG,57d29e0c-b1ef-50e6-9c3d-d58e751c9f49,Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020]
+ASS_CST_UNIT_PRICE_UGX_NR,Unit Rate,CURRENCY,Instance,<ALL>,ASS_MNG,57d29e0c-b1ef-50e6-9c3d-d58e751c9f49,Unit cost [ISO 19650-3:2020]
 ASS_CST_UNIT_PRICE_UGX_TXT,Cst Unit Price Ugx,TEXT,Instance,<ALL>,ASS_MNG,4a8ee051-94ad-5357-8b43-c7a1963b6d84,ASS_CST_UNIT_PRICE_UGX_NR display mirror [auto-generated]
 ASS_CST_UNIT_RATE_NR,Unit Rate (neutral),NUMBER,Instance,<ALL>,CST_PROC,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41,Currency-neutral unit rate  -  Currency carried by ASS_CST_CURRENCY_TXT [Phase 184]
 ASS_CST_UNIT_RATE_NR_DISP_TXT,Cst Unit Rate Nr Disp,TEXT,Instance,<ALL>,CST_PROC,465171ad-d9b5-54c2-a002-86cbff6f15cf,Currency-neutral unit rate  -  Currency carried by ASS_CST_CURRENCY_TXT — TEXT display mirror for tag labels
 ASS_CST_UNIT_RATE_TXT,Cst Unit Rate,TEXT,Instance,<ALL>,CST_PROC,87396d32-3d9d-54be-a262-7d5f7d29748c,ASS_CST_UNIT_RATE_NR display mirror [auto-generated]
 ASS_CUT_COUNT_NR,Cut Count,INTEGER,Instance,<ALL>,ASS_MNG,16e7224e-cab9-5233-b155-3fbe194a3d56,Number of cut operations required to fabricate the assembly
-ASS_DEPARTMENT_ASSIGNMENT_TXT,Department Assignment,TEXT,Instance,<ALL>,ASS_MNG,f6d2f12b-d9af-5383-86c3-a3c3c937083d,Ass Department Assignment Txt [ISO 19650-3:2020]
-ASS_DESCRIPTION_TXT,Description,TEXT,Instance,<ALL>,ASS_MNG,3ee68ef4-0cad-505f-a973-8817e9cf5d08,Ass Description Txt [ISO 19650-3:2020]
+ASS_DEPARTMENT_ASSIGNMENT_TXT,Department Assignment,TEXT,Instance,<ALL>,ASS_MNG,f6d2f12b-d9af-5383-86c3-a3c3c937083d,Department assignment [ISO 19650-3:2020]
+ASS_DESCRIPTION_TXT,Description,TEXT,Instance,<ALL>,ASS_MNG,3ee68ef4-0cad-505f-a973-8817e9cf5d08,Element description [ISO 19650-3:2020]
 ASS_DESIGN_LTG_LVL_LUX_NR,Design Lighting Level (lux),NUMBER,Instance,<ALL>,ASS_MNG,bfacc484-130a-5d4f-ab93-6980d071f989,Ass Design Ltg Lvl Lux Nr [ISO 19650-3:2020]
 ASS_DESIGN_LTG_LVL_LUX_TXT,Design Ltg Lvl Lux,TEXT,Instance,<ALL>,ASS_MNG,0fb2556e-ec10-5480-900c-b73a57bf52fa,ASS_DESIGN_LTG_LVL_LUX_NR display mirror [auto-generated]
 ASS_DESIGN_OCCUPANCY_INT,Design Occupancy,INTEGER,Instance,<ALL>,ASS_MNG,65769434-297a-58ea-b9af-7a885f365936,Ass Design Occupancy Int [ISO 19650-3:2020]
 ASS_DESIGN_OCCUPANCY_TXT,Design Occupancy,TEXT,Instance,<ALL>,ASS_MNG,0010d317-701e-5981-ba89-44823cc1ff33,ASS_DESIGN_OCCUPANCY_INT display mirror [auto-generated]
 ASS_DESIGN_OPTION_TXT,Design Option,TEXT,Instance,<ALL>,ASS_MNG,88e92abe-385f-55a3-8734-43458adb98f2,Design option name for element
 ASS_DISCIPLINES_TXT,Disciplines,TEXT,Instance,<ALL>,ASS_MNG,c2eb2acb-c38f-52a9-9d39-4303446b081e,Project discipline codes
-ASS_DISCIPLINE_COD_TXT,Discipline Code,TEXT,Instance,<ALL>,ASS_MNG,8c7dcfd7-f922-52d0-b859-81cae8d17dc0,Ass Discipline Cod Txt [ISO 19650-3:2020]
+ASS_DISCIPLINE_COD_TXT,Discipline Code,TEXT,Instance,<ALL>,ASS_MNG,8c7dcfd7-f922-52d0-b859-81cae8d17dc0,"Discipline code (M, E, P, A, S, FP, LV, G) [ISO 19650-3:2020]"
 ASS_DISPLAY_TXT,Display,TEXT,Instance,<ALL>,STINGTags_ISO19650,6954e197-0524-5620-a2bb-aea7f274475a,Display mode tag text (short-form tag)
 ASS_DRIVE_TXT,Drive,TEXT,Instance,<ALL>,ELC_PWR,bda7dbb2-896a-5d04-bed9-1d107522251c,Asset drive type/mechanism [ISO 19650-2:2018]
 ASS_DUR_UNIT_TXT,Dur Unit,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-500c-4a01-b001-000000000112,Expected life duration unit [COBie V2.4]
 ASS_ELEVATION_M,Elevation M,LENGTH,Instance,<ALL>,ASS_MNG,fe2d8cd1-5f3c-55d2-b303-29ca59f1d651,Element elevation in metres from project base
 ASS_ELEVATION_TXT,Elevation,TEXT,Instance,<ALL>,ASS_MNG,227b2546-457f-5b19-8791-6b9178d5f87f,ASS_ELEVATION_M display mirror [auto-generated]
-ASS_EQUIPMENT_TAG_TXT,Equipment Tag,TEXT,Instance,<ALL>,ASS_MNG,2cebbb9e-70f2-550a-8a85-80cb1aa550d7,Ass Equipment Tag Txt [ISO 19650-3:2020]
+ASS_EQUIPMENT_TAG_TXT,Equipment Tag,TEXT,Instance,<ALL>,ASS_MNG,2cebbb9e-70f2-550a-8a85-80cb1aa550d7,Equipment tag [ISO 19650-3:2020]
 ASS_EXPECTED_LIFE_YEARS_YRS,Expected Life Years,TEXT,Instance,<ALL>,ASS_MNG,3bc7b880-b296-532f-9faf-8c41d69df5c3,Ass Expected Life Years Yrs [ISO 19650-3:2020]
 ASS_FAB_LOC_TXT,Fab Loc,TEXT,Instance,<ALL>,ASS_MNG,e420804b-d43f-593c-91b1-fd00a18aa584,Fabrication location (WORKSHOP / SITE)
 ASS_FAB_NOTES_TXT,Fab Notes,TEXT,Instance,<ALL>,ASS_MNG,9107dff2-054c-5371-b3ae-6d329aa12542,Free-text fabrication notes consumed by ShopDrawingComposer
@@ -134,7 +134,7 @@ ASS_FINISH_TXT,Finish,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-5014-4a01-b001-000000
 ASS_FITTING_COUNT_NR,Fitting Count,INTEGER,Instance,<ALL>,ASS_MNG,ead7d5f3-68fa-58c6-8a21-fa8c6a1ff318,Total number of inline fittings in the assembly
 ASS_FLANGE_COUNT_NR,Flange Count,INTEGER,Instance,<ALL>,ASS_MNG,016faa7f-1e8f-5a5d-acfb-14983937de69,Total number of flanged connections in the assembly
 ASS_FLOW_RATE_TXT,Flow Rate,TEXT,Instance,<ALL>,HVC_SYSTEMS,d9a5078f-1c08-56f9-b4e0-5feeb97692e0,Flow rate for MEP elements
-ASS_FUNC_TXT,Asset Management - Spare 01,TEXT,Instance,<ALL>,ASS_MNG,1ddff9a8-6e66-4a93-88fe-f3b94fbd5710,Spare parameter 1 for ASS_MNG group
+ASS_FUNC_TXT,Asset Management - Spare 01,TEXT,Instance,<ALL>,ASS_MNG,1ddff9a8-6e66-4a93-88fe-f3b94fbd5710,Function code (CIBSE/Uniclass)
 ASS_GRADE_TXT,Grade,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-5015-4a01-b001-000000000121,Asset material grade [COBie V2.4]
 ASS_GRID_DIST_NR,Grid Dist,TEXT,Instance,<ALL>,ASS_MNG,c8d9eafb-acbd-4cef-5e6f-7a8b9cadbecf,Distance to nearest grid intersection
 ASS_GRID_REF_TXT,Grid Ref,TEXT,Instance,<ALL>,ASS_MNG,e74bcb65-d0f2-5ced-9576-184678b62c0b,Ass Grid Ref [ISO 19650]
@@ -142,13 +142,13 @@ ASS_GRID_X_ID_INT,Grid X Id,TEXT,Instance,<ALL>,ASS_MNG,c6d7e8f9-aabb-4ccd-3e4f-
 ASS_GRID_Y_ID_INT,Grid Y Id,TEXT,Instance,<ALL>,ASS_MNG,c7d8e9fa-abbc-4cde-4e5f-6a7b8c9daebf,Nearest Y grid element ID
 ASS_HOST_ELEMENT_TXT,Host Element,TEXT,Instance,<ALL>,ASS_MNG,50f91aad-5ca3-55b6-8250-aa4d836d5bb7,Host element tag (wall/floor/ceiling hosting this element)
 ASS_HOST_TYPE_TXT,Host Type,TEXT,Instance,<ALL>,ASS_MNG,cadbecfd-aecf-4d0b-7e8f-9aabbbccddee,Host element type name
-ASS_ID_TXT,Element ID,TEXT,Instance,<ALL>,ASS_MNG,8e35ebf9-4a16-5901-b566-4a5e0edd17aa,Ass Id Txt [ISO 19650-3:2020]
+ASS_ID_TXT,Element ID,TEXT,Instance,<ALL>,ASS_MNG,8e35ebf9-4a16-5901-b566-4a5e0edd17aa,Element mark / ID [ISO 19650-3:2020]
 ASS_INHERIT_STATUS_TXT,Inherit Status,TEXT,Instance,<ALL>,ASS_MNG,b8d5f342-0a93-5e2b-c5b1-4f7029e3ad16,Token inheritance status (PROXIMITY_OK/PROXIMITY_FAIL/TYPE_INHERIT/MANUAL)
 ASS_INSPECT_FREQ_TXT,Inspect Freq,TEXT,Instance,<ALL>,ELC_PWR,288c4577-3730-5cb1-a8c2-203106b1604e,Asset inspection frequency [ISO 19650-2:2018]
 ASS_INSTALLATION_DATE_TXT,Installation Date,TEXT,Instance,<ALL>,ASS_MNG,cfc716aa-126d-5e9e-a9e8-3c2a2b52d933,Planned or actual installation date [ISO 19650-3:2020]
 ASS_INSTALL_DATE_TXT,Install Date,TEXT,Instance,<ALL>,ASS_MNG,953575a9-1d0c-5bb5-a4d2-c52b4b4adf96,DEPRECATED -- use ASS_INSTALLATION_DATE_TXT. ISO 8601 date when assembly was installed on site.
-ASS_INST_DATE_TXT,Installation Date,TEXT,Instance,<ALL>,ASS_MNG,0d021db7-c85a-5df7-82e3-6a2fd48eb619,Ass Inst Date Txt [ISO 19650-3:2020]
-ASS_INST_DETAIL_NUM_TXT,Inst Detail Txt,TEXT,Instance,<ALL>,ASS_MNG,73f74429-76da-4ae8-ae90-66884bad8a06,Inst Detail Txt [ISO 19650-1:2018]
+ASS_INST_DATE_TXT,Installation Date,TEXT,Instance,<ALL>,ASS_MNG,0d021db7-c85a-5df7-82e3-6a2fd48eb619,DEPRECATED -- use ASS_INSTALLATION_DATE_TXT. Auto-generated stub retained because the GUID may be bound in existing models; do not write to it. [ISO 19650-3:2020]
+ASS_INST_DETAIL_NUM_TXT,Inst Detail Txt,TEXT,Instance,<ALL>,ASS_MNG,73f74429-76da-4ae8-ae90-66884bad8a06,Installation detail number [ISO 19650-1:2018]
 ASS_INST_DETAIL_TXT,Plumbing Spt Installation Detail,TEXT,Instance,<ALL>,ASS_MNG,45944ceb-71cc-5cfd-895c-e9fcd4a07540,Inst Detail Txt [ISO 19650-1:2018]
 ASS_INSULATION_AREA_M2,Insulation Area M2,NUMBER,Instance,<ALL>,ASS_MNG,21a49d34-9ae2-5058-8d7e-43db4dabd545,External insulation surface area in square metres
 ASS_ITEM_CODE_TXT,Item Code,TEXT,Instance,<ALL>,ASS_MNG,d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a,Procurement item code for asset ordering
@@ -158,19 +158,19 @@ ASS_LAST_TOKEN_HASH_TXT,Last Token Hash,TEXT,Instance,<ALL>,ASS_MNG,d3a5b1c4-7e9
 ASS_LENGTH_TOTAL_MM,Length Total Mm,NUMBER,Instance,<ALL>,ASS_MNG,2605366f-f56b-5843-b8cb-9781b42a4345,Total linear length of the assembly in millimetres
 ASS_LOCAL_SERVICE_AVAILABLE_TXT,Local Service Available,TEXT,Instance,<ALL>,ASS_MNG,e90787eb-ec50-5876-82d9-0944cf6355ff,Ass Local Service Available Txt [ISO 19650-3:2020]
 ASS_LOC_SOURCE_TXT,Loc Source,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d,LOC detection source (Room/Project/Manual)
-ASS_LOC_TXT,Location,TEXT,Instance,<ALL>,ASS_MNG,b7469c27-c80e-5b59-b999-1a99ba620cd1,Ass Loc Txt [ISO 19650-3:2020]
+ASS_LOC_TXT,Location,TEXT,Instance,<ALL>,ASS_MNG,b7469c27-c80e-5b59-b999-1a99ba620cd1,Location/building code [ISO 19650-3:2020]
 ASS_LOD_VERIFIED_TXT,Lod Verified,TEXT,Instance,<ALL>,ASS_MNG,60440963-a414-5667-88f4-d12082344c4d,Ass Lod Verified [milestone id passed at LOD]
-ASS_LVL_COD_TXT,Level,TEXT,Instance,<ALL>,ASS_MNG,b1e51fab-fa88-50df-8b2f-bcdbe48e7c78,Ass Lvl Cod Txt [ISO 19650-3:2020]
+ASS_LVL_COD_TXT,Level,TEXT,Instance,<ALL>,ASS_MNG,b1e51fab-fa88-50df-8b2f-bcdbe48e7c78,"Level code (L01, GF, B1, RF, XX) [ISO 19650-3:2020]"
 ASS_LVL_ELEM_ID_INT,Lvl Elem Id,TEXT,Instance,<ALL>,ASS_MNG,c5d6e7f8-a9ba-4cbd-2e3f-4a5b6c7d8e9d,Level element ID for stale detection
 ASS_MAINTENANCE_FREQUENCY_MONTHS,Maintenance Frequency Months,NUMBER,Instance,<ALL>,ASS_MNG,a52cf606-da2b-516a-9f18-e37000a4c329,Ass Maintenance Frequency Months [ISO 19650-3:2020]
 ASS_MAINTENANCE_FREQUENCY_MONTHS_TXT,Maintenance Frequency Months,TEXT,Instance,<ALL>,ASS_MNG,8a0871ac-5bb2-50d4-ae14-71cfa5269991,ASS_MAINTENANCE_FREQUENCY_MONTHS display mirror [auto-generated]
 ASS_MAINTENANCE_SCHEDULE_TXT,Maintenance Schedule,TEXT,Instance,<ALL>,ASS_MNG,38145ae9-205a-58e1-9df7-4553b299dd32,Ass Maintenance Schedule Txt [ISO 19650-3:2020]
 ASS_MAINT_INTERVAL_TXT,Maint Interval,TEXT,Instance,<ALL>,ASS_MNG,930f241d-9c78-580a-9576-b665f99064fe,Maintenance interval schedule
 ASS_MAINT_NEXT_TXT,Maint Next,TEXT,Instance,<ALL>,ASS_MNG,ee8bbc8d-e28d-5123-91fc-d563ad7f2bfe,Next maintenance date
-ASS_MANUFACTURER_TXT,Material Manufacturer,TEXT,Instance,<ALL>,ASS_MNG,822bb665-a508-5268-b490-28d8546d6300,Ass Manufacturer Txt [ISO 19650-3:2020]
+ASS_MANUFACTURER_TXT,Material Manufacturer,TEXT,Instance,<ALL>,ASS_MNG,822bb665-a508-5268-b490-28d8546d6300,Manufacturer [ISO 19650-3:2020]
 ASS_MATERIAL_TXT,Material,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-5001-4a01-b001-000000000101,Asset material description [COBie V2.4]
 ASS_MEP_SYS_NAME_TXT,Mep Sys Name,TEXT,Instance,<ALL>,ASS_MNG,c9daebfc-adbe-4cfa-6e7f-8a9bacbdced0,MEP system name from Revit MEP System API
-ASS_MODEL_NR_TXT,Model Number,TEXT,Instance,<ALL>,ASS_MNG,305de400-5d2f-54f6-a4ed-acc93f5a1ab2,Ass Model Nr Txt [ISO 19650-3:2020]
+ASS_MODEL_NR_TXT,Model Number,TEXT,Instance,<ALL>,ASS_MNG,305de400-5d2f-54f6-a4ed-acc93f5a1ab2,Model number [ISO 19650-3:2020]
 ASS_MODEL_REF_TXT,Model Ref,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-5011-4a01-b001-000000000117,Model reference identifier [COBie V2.4]
 ASS_NOM_HEIGHT_TXT,Nom Height,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-5010-4a01-b001-000000000116,Nominal height [COBie V2.4]
 ASS_NOM_LENGTH_TXT,Nom Length,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-500e-4a01-b001-000000000114,Nominal length [COBie V2.4]
@@ -187,7 +187,7 @@ ASS_OANDM_MANUALS_PROVIDED_TXT,O&M Manuals Provided,TEXT,Instance,<ALL>,ASS_MNG,
 ASS_OMNICLASS_TXT,Omniclass,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-5022-4a01-b001-000000000134,OmniClass classification code
 ASS_OPTION_PRIMARY_BOOL,Ass Option Primary,YESNO,Instance,<ALL>,ASS_MNG,a7c0b2e4-d000-4003-9c7e-7f6e5d4c3b2a,Element lives in a primary design option [Design Options]
 ASS_OPTION_SET_TXT,Ass Option Set,TEXT,Instance,<ALL>,ASS_MNG,a7c0b2e4-d000-4002-9c7e-7f6e5d4c3b2a,Design option set name carried on the element [Design Options]
-ASS_ORIGINATOR_COD_TXT,ASS_ORIGINATOR_COD_TXT,TEXT,Instance,<ALL>,STINGTags_ISO19650,87dc564e-8542-497d-a36f-ee335fd32bd4,
+ASS_ORIGINATOR_COD_TXT,ASS_ORIGINATOR_COD_TXT,TEXT,Instance,<ALL>,STINGTags_ISO19650,87dc564e-8542-497d-a36f-ee335fd32bd4,ISO 19650 originator code (GROUP 17)
 ASS_ORIGIN_TXT,Origin,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-5024-4a01-b001-000000000136,Asset origin (Manufactured/Imported/Local)
 ASS_PART_NUMBER_TXT,Part Number,TEXT,Instance,<ALL>,ASS_MNG,54ea24c5-d286-5eb3-85f3-2855dd4b8a9b,Ass Part Number Txt [ISO 19650-3:2020]
 ASS_PHASE_CREATED_TXT,Phase Created,TEXT,Instance,<ALL>,ASS_MNG,fd9dbd9d-3e18-5576-a86f-a050d6262706,Revit phase in which element was created
@@ -213,10 +213,10 @@ ASS_PMT_PRO_PO_NR_TXT,Purchase Order Number,TEXT,Instance,<ALL>,ASS_MNG,c2a216f1
 ASS_PMT_PRO_SUPPLIER_TXT,Supplier,TEXT,Instance,<ALL>,ASS_MNG,e371f568-6516-5329-a270-02c6cb9ab850,Ass Pmt Pro Supplier Txt [ISO 19650-3:2020]
 ASS_PMT_QTY_ORDERED_NR,Quantity with Wastage,TEXT,Instance,<ALL>,ASS_MNG,b3ec8ea6-760c-5d7b-b3fd-2a90aeb08566,Ass Pmt Qty Ordered Nr [ISO 19650-3:2020]
 ASS_POWER_RATING_TXT,Power Rating,TEXT,Instance,<ALL>,ELC_PWR,28c52839-f0b9-55f6-bc9e-7cad2149acc3,Electrical power rating (kW/VA)
-ASS_PRODCT_COD_TXT,Product Code,TEXT,Instance,<ALL>,ASS_MNG,082a2a05-3387-5501-b355-51dd45e23e9f,Ass Prodct Cod Txt [ISO 19650-3:2020]
+ASS_PRODCT_COD_TXT,Product Code,TEXT,Instance,<ALL>,ASS_MNG,082a2a05-3387-5501-b355-51dd45e23e9f,Product code [ISO 19650-3:2020]
 ASS_PROD_DETECT_TXT,Prod Detect,TEXT,Instance,<ALL>,ASS_MNG,c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f,PROD code detection source
 ASS_PROD_PATTERN_SRC_TXT,Prod Pattern Src,TEXT,Instance,<ALL>,ASS_MNG,c2d3e4f5-a6b7-4c8d-9e0f-1a2b3c4d5e6a,PROD pattern match source family name
-ASS_PROJECT_COD_TXT,ASS_PROJECT_COD_TXT,TEXT,Instance,<ALL>,STINGTags_ISO19650,24bc19e4-8ec6-4d4c-b457-5e14a1f42e58,
+ASS_PROJECT_COD_TXT,ASS_PROJECT_COD_TXT,TEXT,Instance,<ALL>,STINGTags_ISO19650,24bc19e4-8ec6-4d4c-b457-5e14a1f42e58,ISO 19650 project code (GROUP 17)
 ASS_PROJECT_TXT,Project,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-5025-4a01-b001-000000000137,Project name
 ASS_QA_CERT_TXT,Qa Cert,TEXT,Instance,<ALL>,ELC_PWR,f96aabb3-733f-5322-8ada-9f3de9546952,QA certificate reference [ISO 19650-2:2018]
 ASS_QA_TEST_REPORT_TXT,Qa Test Report,TEXT,Instance,<ALL>,ELC_PWR,13438d8d-6e18-5bdf-99ad-8076b7fc613d,QA test report reference [ISO 19650-2:2018]
@@ -224,15 +224,15 @@ ASS_QC_INSPECTOR_TXT,Qc Inspector,TEXT,Instance,<ALL>,ASS_MNG,a028f908-b100-53bc
 ASS_REV_COD_TXT,ASS_REV_COD_TXT,TEXT,Instance,<ALL>,STINGTags_ISO19650,83b2139d-67bb-48db-a50f-32140c0dc753,ISO 19650 revision code token in the tag container system (GROUP 17). Written by the tag pipeline. See also ASS_REV_TXT (GROUP 1) for the display revision label.
 ASS_REV_TXT,Rev,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-5026-4a01-b001-000000000138,"Current revision code (display label, GROUP 1). See also ASS_REV_COD_TXT (GROUP 17) for the ISO 19650 tag container token."
 ASS_RM_COD_TXT,Room Code,TEXT,Instance,<ALL>,ASS_MNG,8d968690-c7fe-5d71-a6af-ebd19c60793e,Ass Rm Cod Txt [ISO 19650-1:2018]
-ASS_ROOM_AREA_SQ_M,Room Area (m²),AREA,Instance,<ALL>,ASS_MNG,1514d5cf-3d32-5a68-b5cb-f18d97060e9f,Ass Room Area Sq M [ISO 19650-3:2020]
+ASS_ROOM_AREA_SQ_M,Room Area (m²),AREA,Instance,<ALL>,ASS_MNG,1514d5cf-3d32-5a68-b5cb-f18d97060e9f,Room area (m2) [ISO 19650-3:2020]
 ASS_ROOM_AREA_TXT,Room Area,TEXT,Instance,<ALL>,ASS_MNG,8a10a348-6a17-54ed-a724-0852d6492917,ASS_ROOM_AREA_SQ_M display mirror [auto-generated]
 ASS_ROOM_FUNCTION_USE_TXT,Room Function Use,TEXT,Instance,<ALL>,ASS_MNG,124f7ab0-bdf4-5740-9c65-22cdac508908,Ass Room Function Use Txt [ISO 19650-3:2020]
 ASS_ROOM_HEIGHT_MM,Room Height Mm,TEXT,Instance,<ALL>,BLE_ELES,a626d6ee-8bc6-532b-8dc8-2d8a1a8637c3,Room height in mm from room bounding geometry
 ASS_ROOM_NAME_TXT,Room Name,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-5028-4a01-b001-000000000140,Room name from spatial lookup
 ASS_ROOM_NUM_TXT,Room Num,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-5029-4a01-b001-000000000141,Room number from spatial lookup
-ASS_ROOM_VOLUME_CU_M,Room Volume (m³),TEXT,Instance,<ALL>,ASS_MNG,bdc645e1-057b-5dd3-a08f-c6fba2b5118e,Ass Room Volume Cu M [ISO 19650-3:2020]
-ASS_SEQ_NUM_TXT,Asset Management - Spare 02,TEXT,Instance,<ALL>,ASS_MNG,bbe1cd55-247b-48bd-94ba-a08031f06d5b,Spare parameter 2 for ASS_MNG group
-ASS_SERIAL_NR_TXT,Serial Number,TEXT,Instance,<ALL>,ASS_MNG,56584938-d8f5-5c70-9ca1-2ac4568e9ff9,Ass Serial Nr Txt [ISO 19650-3:2020]
+ASS_ROOM_VOLUME_CU_M,Room Volume (m³),TEXT,Instance,<ALL>,ASS_MNG,bdc645e1-057b-5dd3-a08f-c6fba2b5118e,Room volume (m3) [ISO 19650-3:2020]
+ASS_SEQ_NUM_TXT,Asset Management - Spare 02,TEXT,Instance,<ALL>,ASS_MNG,bbe1cd55-247b-48bd-94ba-a08031f06d5b,4-digit sequence number
+ASS_SERIAL_NR_TXT,Serial Number,TEXT,Instance,<ALL>,ASS_MNG,56584938-d8f5-5c70-9ca1-2ac4568e9ff9,Asset serial number. Maps from Revit ALL_MODEL_SERIAL_NUMBER. Used in COBie Component Section 7F. [ISO 19650-3:2020]
 ASS_SHAPE_TXT,Shape,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-5012-4a01-b001-000000000118,Asset shape description [COBie V2.4]
 ASS_SHIP_DATE_TXT,Ship Date,TEXT,Instance,<ALL>,ASS_MNG,c2fc8e62-b793-517c-94c6-d2d7ae7584fe,ISO 8601 date when assembly was shipped to site
 ASS_SIZE_TXT,Size,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-5023-4a01-b001-000000000135,Element size description
@@ -240,20 +240,20 @@ ASS_SKIRTING_TYPE_TXT,Skirting Type,TEXT,Instance,<ALL>,ASS_MNG,e15fa9ab-ec13-50
 ASS_SPOOL_DRAWING_REF_TXT,Spool Drawing Ref,TEXT,Instance,<ALL>,ASS_MNG,c1a5983c-333d-53ff-94d1-4326d9ffff86,Reference to the generated shop / spool drawing sheet number
 ASS_SPOOL_NR_TXT,Spool Nr,TEXT,Instance,<ALL>,ASS_MNG,1a4353be-eaaa-5e46-95ee-b64a74667194,Spool or bundle number assigned by AssemblyBuilder
 ASS_STALE_TOKENS_TXT,Stale Tokens,TEXT,Instance,<ALL>,WARN_THRESHOLDS,a7c4e231-9f82-5d1a-b4a0-3e6f18d29c05,Comma-separated list of stale token names for targeted re-derivation
-ASS_STATUS_TXT,ASS_STATUS_TXT,TEXT,Instance,<ALL>,ASS_MNG,b97665a8-5e34-585b-9674-fbdd83d7637f,Ass Status Txt [ISO 19650-3:2020]
+ASS_STATUS_TXT,ASS_STATUS_TXT,TEXT,Instance,<ALL>,ASS_MNG,b97665a8-5e34-585b-9674-fbdd83d7637f,"Status (EXISTING, NEW, DEMOLISHED, TEMPORARY) [ISO 19650-3:2020]"
 ASS_SUPPLIER_TXT,Supplier,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-5002-4a01-b001-000000000102,Asset supplier name [COBie V2.4]
 ASS_SUPPORT_COUNT_NR,Support Count,INTEGER,Instance,<ALL>,ASS_MNG,9fadd466-7dfa-5845-9a18-d618c77c418d,Number of supports / hangers referenced by the assembly
 ASS_SUSTAIN_PERF_TXT,Sustain Perf,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-501a-4a01-b001-000000000126,Sustainability performance rating [COBie V2.4]
 ASS_SYSTEMS_TXT,Systems,TEXT,Instance,<ALL>,ASS_MNG,e3f4a5b6-c7d8-4e9f-a0b1-2c3d4e5f6a7b,Pipe/duct systems this element connects to (pipe-delimited)
-ASS_SYSTEM_TYPE_TXT,System Type,TEXT,Instance,<ALL>,ASS_MNG,2b3658d9-bfc6-56db-9df5-901337fde0f5,Ass System Type Txt [ISO 19650-3:2020]
+ASS_SYSTEM_TYPE_TXT,System Type,TEXT,Instance,<ALL>,ASS_MNG,2b3658d9-bfc6-56db-9df5-901337fde0f5,System type (CIBSE/Uniclass) [ISO 19650-3:2020]
 ASS_SYS_DETECT_LAYER_INT,Sys Detect Layer,TEXT,Instance,<ALL>,ASS_MNG,a3b4c5d6-e7f8-4a9b-0c1d-2e3f4a5b6c7f,"SYS detection layer (1=MEP API, 2=Connector, 3=Proximity, 4=Category)"
-ASS_TAG_1_TXT,Element Mark,TEXT,Instance,<ALL>,ASS_MNG,1eeb577d-342d-5039-97f1-f1dd8d80c8c4,Ass Tag 1 Txt [ISO 19650-3:2020]
-ASS_TAG_2_TXT,Tag 2,TEXT,Instance,<ALL>,ASS_MNG,bf6cb687-478f-459a-8c5d-ece073c24831,Ass Tag 2 Txt [ISO 19650-3:2020]
+ASS_TAG_1_TXT,Element Mark,TEXT,Instance,<ALL>,ASS_MNG,1eeb577d-342d-5039-97f1-f1dd8d80c8c4,Full 8-segment tag [ISO 19650-3:2020]
+ASS_TAG_2_TXT,Tag 2,TEXT,Instance,<ALL>,ASS_MNG,bf6cb687-478f-459a-8c5d-ece073c24831,Short ID (DISC-PROD-SEQ) [ISO 19650-3:2020]
 ASS_TAG_3D_TXT,Tag 3d,TEXT,Instance,<ALL>,ASS_MNG,57a75c25-166b-5246-a053-7ea761aed180,3D view tag text
-ASS_TAG_3_TXT,Tag 3,TEXT,Instance,<ALL>,ASS_MNG,068abd3b-650e-4a7c-ac07-82e556160de0,Ass Tag 3 Txt [ISO 19650-3:2020]
-ASS_TAG_4_TXT,Ass Tag 3 Txt,TEXT,Instance,<ALL>,ASS_MNG,9432c6e4-8912-4a0b-bf04-2ee1cf3afadf,Ass Tag 3 Txt [ISO 19650-3:2020]
-ASS_TAG_5_TXT,Ass Tag 3 Txt,TEXT,Instance,<ALL>,ASS_MNG,c875d795-d764-4a8b-826a-2677635b15b9,Ass Tag 3 Txt [ISO 19650-3:2020]
-ASS_TAG_6_TXT,Ass Tag 3 Txt,TEXT,Instance,<ALL>,ASS_MNG,6fcfc27b-a42d-4f54-92ad-66c875f9be38,Ass Tag 3 Txt [ISO 19650-3:2020]
+ASS_TAG_3_TXT,Tag 3,TEXT,Instance,<ALL>,ASS_MNG,068abd3b-650e-4a7c-ac07-82e556160de0,Location (LOC-ZONE-LVL) [ISO 19650-3:2020]
+ASS_TAG_4_TXT,Ass Tag 3 Txt,TEXT,Instance,<ALL>,ASS_MNG,9432c6e4-8912-4a0b-bf04-2ee1cf3afadf,System (SYS-FUNC) [ISO 19650-3:2020]
+ASS_TAG_5_TXT,Ass Tag 3 Txt,TEXT,Instance,<ALL>,ASS_MNG,c875d795-d764-4a8b-826a-2677635b15b9,Multi-line top -- DISC-LOC-ZONE-LVL (top line of a 2-line tag family layout: place TAG_5 above TAG_6) [ISO 19650-3:2020]
+ASS_TAG_6_TXT,Ass Tag 3 Txt,TEXT,Instance,<ALL>,ASS_MNG,6fcfc27b-a42d-4f54-92ad-66c875f9be38,Multi-line bottom -- SYS-FUNC-PROD-SEQ (bottom line of a 2-line tag family layout: place below TAG_5) [ISO 19650-3:2020]
 ASS_TAG_7A_TXT,Tag 7a,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-502b-4a01-b001-000000000143,TAG7 Section A: Identity Header
 ASS_TAG_7B_TXT,Tag 7b,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-502c-4a01-b001-000000000144,TAG7 Section B: System and Function
 ASS_TAG_7C_TXT,Tag 7c,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-502d-4a01-b001-000000000145,TAG7 Section C: Spatial Context
@@ -277,8 +277,8 @@ ASS_TIEIN_ELEV_TXT,Tiein Elev,TEXT,Instance,<ALL>,ASS_MNG,5ce9a926-497f-4403-ba6
 ASS_TIEIN_FLOW_DIR_TXT,Tiein Flow Dir,TEXT,Instance,<ALL>,ASS_MNG,5ce85a72-707e-4af9-8521-ed872c8793c8,Tie-in flow direction (IN/OUT/BIDIRECTIONAL) [ISO 19650-3:2020]
 ASS_TIEIN_IFC_REF_TXT,Tiein Ifc Ref,TEXT,Instance,<ALL>,ASS_MNG,06a09689-3d8a-4b24-8483-37959f648f89,Tie-in IFC GUID reference [ISO 19650-3:2020]
 ASS_TIEIN_PHASE_TXT,Tiein Phase,TEXT,Instance,<ALL>,ASS_MNG,e98813a4-3ca9-4f70-bc7b-c4ac37b088e0,Tie-in construction phase [ISO 19650-3:2020]
-ASS_TIEIN_REF_TXT,Tiein Ref,TEXT,Instance,<ALL>,ASS_MNG,40e9482b-e3d2-5b7d-81cf-61d68303613d,Ass Tiein Ref [ISO 19650]
-ASS_TIEIN_SIZE_TXT,Tiein Size,TEXT,Instance,<ALL>,ASS_MNG,5bc65c4e-492c-5e7f-b892-b9c14b58d20a,Ass Tiein Size [ISO 19650]
+ASS_TIEIN_REF_TXT,Tiein Ref,TEXT,Instance,<ALL>,ASS_MNG,40e9482b-e3d2-5b7d-81cf-61d68303613d,Tie-in point reference code (e.g. TI-M-HWS-001). Assembled by STING from DISC+SYS+SEQ. [ISO 19650]
+ASS_TIEIN_SIZE_TXT,Tiein Size,TEXT,Instance,<ALL>,ASS_MNG,5bc65c4e-492c-5e7f-b892-b9c14b58d20a,"Size of pipe/duct/conduit at the tie-in point (e.g. DN50, 400x250, 32mm EMT). Auto-read from PLM_PPE_SZ_MM or HVC_DCT_SZ_TXT. [ISO 19650]"
 ASS_TIEIN_STATUS_TXT,Tiein Status,TEXT,Instance,<ALL>,ASS_MNG,1b76c524-7911-4829-bd55-5a1bdbfa2f6b,Tie-in status: OPEN / CONNECTED / DEFERRED [ISO 19650-3:2020]
 ASS_TIEIN_TAG_1_TXT,Tiein Tag 1,TEXT,Instance,<ALL>,ASS_MNG,e169cb1f-3f9e-4897-8312-7d06c1cb2ee5,Tie-in connected-to asset primary tag [ISO 19650-3:2020]
 ASS_TOKEN_LOCK_TXT,Token Lock,TEXT,Instance,<ALL>,ASS_MNG,c9e5a3b4-d6f7-4a8c-b10d-3e4f5a6b7c8d,Ass Token Lock [ISO 19650]
@@ -297,7 +297,7 @@ ASS_VAR_NO_TXT,Variation No,TEXT,Instance,<ALL>,CST_PROC,b9d4e1a2-7c63-4f89-9e0a
 ASS_VAR_VALUATION_NR,Variation Valuation,NUMBER,Instance,<ALL>,CST_PROC,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62,Variation valuation amount in project base currency [Phase 184g / P5]
 ASS_VAR_VALUATION_NR_DISP_TXT,Var Valuation Nr Disp,TEXT,Instance,<ALL>,CST_PROC,8854c07f-d664-545c-a5a3-89c0be61961a,Variation valuation amount in project base currency — TEXT display mirror for tag labels
 ASS_VAR_VALUATION_TXT,Var Valuation,TEXT,Instance,<ALL>,CST_PROC,6a1a42f5-5097-52fb-b552-f14af0d6ee46,ASS_VAR_VALUATION_NR display mirror [auto-generated]
-ASS_VOLUME_COD_TXT,ASS_VOLUME_COD_TXT,TEXT,Instance,<ALL>,STINGTags_ISO19650,4f51f371-c2b1-43f5-9dea-da797442c1fb,
+ASS_VOLUME_COD_TXT,ASS_VOLUME_COD_TXT,TEXT,Instance,<ALL>,STINGTags_ISO19650,4f51f371-c2b1-43f5-9dea-da797442c1fb,ISO 19650 volume/zone code (GROUP 17)
 ASS_VOL_TXT,Vol,TEXT,Instance,<ALL>,ASS_MNG,a1b2c3d4-5027-4a01-b001-000000000139,Volume/zone code for ISO 19650 naming
 ASS_WARRANTY_DURATION_LABOR_YRS,Warranty Duration Labor Yrs,TEXT,Instance,<ALL>,ASS_MNG,cff93906-a238-526b-8b29-af4c681f0032,Warranty duration labor in years (COBie)
 ASS_WARRANTY_DURATION_PARTS_YRS,Warranty Period,TEXT,Instance,<ALL>,ASS_MNG,2d93e44d-2520-5108-ae5c-680043fe53db,Warranty duration parts in years (COBie)
@@ -316,7 +316,7 @@ ASS_WEIGHT_KG_TXT,Weight Kg,TEXT,Instance,<ALL>,ASS_MNG,d461c3ab-0925-5748-923c-
 ASS_WELD_COUNT_NR,Weld Count,INTEGER,Instance,<ALL>,ASS_MNG,6c77833e-4b97-57f5-9a8b-97cc20d6cb61,Total number of welds in the assembly
 ASS_WORKSET_TXT,Workset,TEXT,Instance,<ALL>,ASS_MNG,a3325c40-fe23-5387-a8dc-2ae36f551d90,Workset name for worksharing tracking
 ASS_ZONE_SOURCE_TXT,Zone Source,TEXT,Instance,<ALL>,ASS_MNG,a2b3c4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6e,ZONE detection source (Department/Room/Manual)
-ASS_ZONE_TXT,Zone,TEXT,Instance,<ALL>,ASS_MNG,dc0d940f-e4ce-5e73-a0a7-fc7094148c84,Ass Zone Txt [ISO 19650-3:2020]
+ASS_ZONE_TXT,Zone,TEXT,Instance,<ALL>,ASS_MNG,dc0d940f-e4ce-5e73-a0a7-fc7094148c84,"Zone code (Z01-Z04, ZZ, XX) [ISO 19650-3:2020]"
 ATEX_CLASSIFICATION_OK,Classification Ok,TEXT,Instance,"Electrical Equipment, Electrical Fixtures, Cable Trays, Cable Tray Fittings, Conduits, Conduit Fittings, Electrical Circuits",ELC_PWR,b5a3c98d-24d8-5e0d-91ae-3d93cc979fda,Atex Classification Ok [STING]
 ATEX_EX_RATING_TXT,Ex Rating,TEXT,Instance,"Electrical Equipment, Electrical Fixtures",ELC_PWR,5a2ae125-37db-5ff1-bb2a-bc0f1ed0433d,Equipment Ex marking (e.g. Ex d IIC T4 Gb) checked against ATEX_ZONE_TXT by ATEX Classification.
 ATEX_ZONE_TXT,Zone,TEXT,Instance,"Electrical Equipment, Electrical Fixtures",ELC_PWR,8caf65dc-924d-5209-8e01-01f4832f5d6a,"Hazardous-area zone the equipment is installed in (Zone 0 / 1 / 2 for gas, 20 / 21 / 22 for dust) per IEC 60079-10; read by ATEX Classification."
@@ -383,7 +383,7 @@ BLE_CEILING_FIN_TILE_QTY_NR,Ble Ceiling Fin Tile Qty Nr,TEXT,Instance,Ceilings,B
 BLE_CEILING_GRID_SZ_MM,Ceiling Grid Size,LENGTH,Instance,Ceilings,CST_PROC,f639312b-a94a-53de-a653-b97705fd197a,Ble Ceiling Grid Sz Mm [ISO 19650-1:2018]
 BLE_CEILING_GRID_SZ_TXT,Ceiling Grid Sz,TEXT,Instance,Ceilings,CST_PROC,2ddb2e9f-1097-5d62-aef4-f5b9742993f9,BLE_CEILING_GRID_SZ_MM display mirror [auto-generated]
 BLE_CEILING_GRID_TXT,Ceiling Grid,TEXT,Instance,Ceilings,BLE_ELES,fbdca2f3-3f9b-52f8-864b-70a50c5618f7,Ble Ceiling Grid [ISO 19650]
-BLE_CEILING_HEIGHT_MM,Ceiling Height,LENGTH,Instance,"Ceilings, Rooms",CST_PROC,b1eaf7da-66bc-50d7-8261-eba13ac865e6,Ble Ceiling Height Mm [ISO 19650-1:2018]
+BLE_CEILING_HEIGHT_MM,Ceiling Height,LENGTH,Instance,"Ceilings, Rooms",CST_PROC,b1eaf7da-66bc-50d7-8261-eba13ac865e6,Ceiling height (mm) [ISO 19650-1:2018]
 BLE_CEILING_HEIGHT_TXT,Ceiling Height,TEXT,Instance,"Ceilings, Rooms",CST_PROC,6e92a1ff-e900-5756-ab32-a226bd175c53,BLE_CEILING_HEIGHT_MM display mirror [auto-generated]
 BLE_CEILING_LIGHT_REFLECTANCE_PCT,Ceiling Light Reflectance,TEXT,Instance,Ceilings,CST_PROC,711abfdb-7127-56c1-b3f5-7f318171812d,Ble Ceiling Light Reflectance Pct [ISO 19650-1:2018]
 BLE_CEILING_MAT_TXT,Ceiling Material,TEXT,Instance,"Ceilings, Roof Soffits",CST_PROC,38f20d97-20e0-5896-a8c5-ac8e20d9beb3,Ble Ceiling Mat Txt [ISO 19650-1:2018]
@@ -408,7 +408,7 @@ BLE_DOOR_GLAZING_TXT,Door Glazing,TEXT,Instance,Doors,BLE_ELES,4bb218e5-fa70-5af
 BLE_DOOR_GLAZING_TYPE_TXT,Door Glazing Type,TEXT,Instance,Doors,BLE_ELES,966dd692-1728-4a8a-a041-5d55162df180,Door glazing type specification [ISO 19650-1:2018]
 BLE_DOOR_HARDWARE_SPECIFICATION_TXT,Hardware Specification,TEXT,Instance,Doors,CST_PROC,0c1496c9-bbad-5d9d-90ce-1f9b51624a30,Ble Door Hardware Specification Txt [ISO 19650-1:2018]
 BLE_DOOR_HEAD_HEIGHT_MM,Door Head Height Mm,TEXT,Instance,Doors,CST_PROC,a1b2c3d4-503d-4a01-b001-000000000161,Door head height from floor in mm
-BLE_DOOR_HEIGHT_MM,Door Height (mm),LENGTH,Instance,Doors,CST_PROC,e4519d6e-f603-593f-8262-bbbe441bba02,Ble Door Height Mm [ISO 19650-1:2018]
+BLE_DOOR_HEIGHT_MM,Door Height (mm),LENGTH,Instance,Doors,CST_PROC,e4519d6e-f603-593f-8262-bbbe441bba02,Door height (mm) [ISO 19650-1:2018]
 BLE_DOOR_HEIGHT_TXT,Door Height,TEXT,Instance,Doors,CST_PROC,434b3940-d611-58e5-a81c-d63d18da15aa,BLE_DOOR_HEIGHT_MM display mirror [auto-generated]
 BLE_DOOR_LEADING_EDGE_CLEAR_MM,Door Leading Edge Clear Mm,TEXT,Instance,Doors,BLE_ELES,2c404fa6-b02f-5f05-a1cf-4f6f599f942d,"Unobstructed space beside the leading edge of the door on the pull side, mm; minimum 300 mm [Approved Document M Vol 2 / BS 8300-2:2018]"
 BLE_DOOR_MATERIAL_FINISH_TXT,Door Material Finish,TEXT,Instance,Doors,CST_PROC,88ef6723-f840-5bad-b4ab-404bfe2734ed,Door material and finish specification [ISO 19650-1:2018]
@@ -421,9 +421,9 @@ BLE_DOOR_SECURITY_RATING_GRADE_TXT,Security Grade,TEXT,Instance,Doors,CST_PROC,6
 BLE_DOOR_THRESHOLD_TXT,Door Threshold,TEXT,Instance,Doors,CST_PROC,80711d71-6a16-4a57-85f9-cd628ac9e924,Door threshold type and specification [ISO 19650-1:2018]
 BLE_DOOR_TYPE_TXT,Door Type,TEXT,Instance,Doors,CST_PROC,52fe10d6-2e18-451d-8473-106ce64fd68e,Door type classification (Solid/Glazed/Fire/Acoustic) [ISO 19650-1:2018]
 BLE_DOOR_VISION_PANEL_ZONE_BOOL,Door Vision Panel Zone,YESNO,Instance,Doors,BLE_ELES,6a6bbe4c-a3f2-5eff-93d7-4cb5b8345d0a,Vision panel gives a zone of visibility from 500 mm to 1500 mm above finished floor level (may be interrupted between 800 mm and 1150 mm) [Approved Document M Vol 2 / BS 8300-2:2018]
-BLE_DOOR_WIDTH_MM,Door Width (mm),LENGTH,Instance,Doors,CST_PROC,0fc57b7c-5ae3-5ace-a5b2-5ab7a79493a8,Ble Door Width Mm [ISO 19650-1:2018]
+BLE_DOOR_WIDTH_MM,Door Width (mm),LENGTH,Instance,Doors,CST_PROC,0fc57b7c-5ae3-5ace-a5b2-5ab7a79493a8,Door width (mm) [ISO 19650-1:2018]
 BLE_DOOR_WIDTH_TXT,Door Width,TEXT,Instance,Doors,CST_PROC,4734089c-fa37-579e-8f71-758a42b82221,BLE_DOOR_WIDTH_MM display mirror [auto-generated]
-BLE_ELE_AREA_SQ_M,Element Area Sq,AREA,Instance,<ALL>,CST_PROC,d31ebc0e-6721-5d60-be6b-5bb5e9bb0f3d,Ble Ele Area Sq M [ISO 19650-1:2018]
+BLE_ELE_AREA_SQ_M,Element Area Sq,AREA,Instance,<ALL>,CST_PROC,d31ebc0e-6721-5d60-be6b-5bb5e9bb0f3d,Element area (m2) [ISO 19650-1:2018]
 BLE_ELE_AREA_TXT,Ele Area,TEXT,Instance,<ALL>,CST_PROC,d4b0741c-a2d7-5ee5-892e-02be28efd9c1,BLE_ELE_AREA_SQ_M display mirror [auto-generated]
 BLE_ELE_LENGTH_M,Ele Length M,TEXT,Instance,<ALL>,CST_PROC,a1b2c3d4-5043-4a01-b001-000000000167,Element length in metres
 BLE_ELE_VOLUME_CU_M,Ele Volume Cu M,TEXT,Instance,<ALL>,CST_PROC,a1b2c3d4-5044-4a01-b001-000000000168,Element volume in cubic metres
@@ -468,7 +468,7 @@ BLE_FLR_RAISED_ACCESS_FLR_TXT,Floor Raised Access Floor,TEXT,Instance,Floors,CST
 BLE_FLR_RAISED_FLR_HEIGHT_MM,Floor Raised Floor Height,TEXT,Instance,Floors,CST_PROC,1396e2c7-8f70-5754-b125-1bddd38b514b,Ble Flr Raised Flr Height Mm [ISO 19650-1:2018]
 BLE_FLR_SLIP_RESISTANCE_RATING_NR,Floor Slip Resistance Rating,TEXT,Instance,Floors,CST_PROC,8587af48-41e4-551b-b127-47fbfba712da,Ble Flr Slip Resistance Rating Nr [ISO 19650-1:2018]
 BLE_FLR_STRUCTURAL_SYSTEM_TXT,Floor Structural System,TEXT,Instance,Floors,CST_PROC,6fd7e2d6-1471-58dd-9226-6424a5ca3072,Ble Flr Structural System Txt [ISO 19650-1:2018]
-BLE_FLR_THICKNESS_MM,Floor Thickness,LENGTH,Instance,"Floors, Slab Edges",CST_PROC,4e849c26-5bfe-5ca2-bb5a-aa39e03e31bb,Ble Flr Thickness Mm [ISO 19650-1:2018]
+BLE_FLR_THICKNESS_MM,Floor Thickness,LENGTH,Instance,"Floors, Slab Edges",CST_PROC,4e849c26-5bfe-5ca2-bb5a-aa39e03e31bb,Floor thickness (mm) [ISO 19650-1:2018]
 BLE_FLR_THICKNESS_TXT,Flr Thickness,TEXT,Instance,"Floors, Slab Edges",CST_PROC,29a70160-6c99-50a7-83ed-0ea27f51fed5,BLE_FLR_THICKNESS_MM display mirror [auto-generated]
 BLE_FLR_TILE_QTY_NR,Ble Flr Tile Qty Nr,TEXT,Instance,Floors,BLE_ELES,da8a5092-8b76-50d2-8431-2ee49178446c,Ble Flr Tile Qty Nr [ISO 19650-1:2018]
 BLE_FLR_TYPE_CLASSIFICATION_TXT,Floor Type Classification,TEXT,Instance,Floors,CST_PROC,163aec51-823d-59e4-86b0-3e2e35d90aac,Ble Flr Type Classification Txt [ISO 19650-1:2018]
@@ -532,11 +532,11 @@ BLE_RAMP_HEIGHT_MM,Ble Ramp Height Mm,TEXT,Instance,Ramps,BLE_ELES,c1c64793-e79f
 BLE_RAMP_LANDING_TXT,Ramp Landing,TEXT,Instance,Ramps,CST_PROC,c26995bf-3cbb-4714-a933-78db5b9342e1,Ramp landing specification [ISO 19650-1:2018]
 BLE_RAMP_LENGTH_MM,Ble Ramp Length Mm,LENGTH,Instance,Ramps,BLE_ELES,13c1cf4a-0146-5dfe-8f15-7c1267ed09a1,Ble Ramp Length Mm [ISO 19650-1:2018]
 BLE_RAMP_LENGTH_TXT,Ramp Length,TEXT,Instance,Ramps,BLE_ELES,b2ce7f06-1e90-588c-852d-861c674477db,BLE_RAMP_LENGTH_MM display mirror [auto-generated]
-BLE_RAMP_SLOPE_PCT,Ramp Slope,NUMBER,Instance,"Ramps, Rooms",CST_PROC,d0e7a861-94a5-5014-b190-7d3d5a58a5b7,Ble Ramp Slope Pct [ISO 19650-1:2018]
+BLE_RAMP_SLOPE_PCT,Ramp Slope,NUMBER,Instance,"Ramps, Rooms",CST_PROC,d0e7a861-94a5-5014-b190-7d3d5a58a5b7,Ramp slope (%) [ISO 19650-1:2018]
 BLE_RAMP_SLOPE_TXT,Ramp Slope,TEXT,Instance,"Ramps, Rooms",CST_PROC,6d067dcc-a4a8-534e-89a0-7ef33a11d653,BLE_RAMP_SLOPE_PCT display mirror [auto-generated]
 BLE_RAMP_SURFACE_FINISH_TXT,Ramp Surface Finish,TEXT,Instance,Ramps,CST_PROC,72b1ed50-5119-5269-9367-0f1a832c8af9,Ble Ramp Surface Finish Txt [ISO 19650-1:2018]
 BLE_RAMP_SURFACE_TXT,Ramp Surface,TEXT,Instance,Ramps,BLE_ELES,02722adc-5b60-5a4e-98a4-91fd38b0f2d8,Ble Ramp Surface [ISO 19650]
-BLE_RAMP_WIDTH_MM,Ramp Width,LENGTH,Instance,"Ramps, Rooms",CST_PROC,2d201a03-f8c9-5ba5-acbc-37d9452cf3a7,Ble Ramp Width Mm [ISO 19650-1:2018]
+BLE_RAMP_WIDTH_MM,Ramp Width,LENGTH,Instance,"Ramps, Rooms",CST_PROC,2d201a03-f8c9-5ba5-acbc-37d9452cf3a7,Ramp width (mm) [ISO 19650-1:2018]
 BLE_RAMP_WIDTH_TXT,Ramp Width,TEXT,Instance,"Ramps, Rooms",CST_PROC,57b52bf8-9954-5c31-bd01-fd1b7e8255cf,BLE_RAMP_WIDTH_MM display mirror [auto-generated]
 BLE_ROOF_AREA_SQ_M,Roof Area Sq M,AREA,Instance,Roofs,CST_PROC,9f4db3ce-b9d5-41c1-909c-4dccf65a7b7e,Roof plan area in sq.m [ISO 19650-1:2018]
 BLE_ROOF_AREA_TXT,Roof Area,TEXT,Instance,Roofs,CST_PROC,1aa96203-7842-5246-bdf5-0d876cd1d66e,BLE_ROOF_AREA_SQ_M display mirror [auto-generated]
@@ -553,7 +553,7 @@ BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT,Roof Plumbing Drainage System Type,TEXT,Instanc
 BLE_ROOF_PRIMARY_MAT_TXT,Roof Primary Mat,TEXT,Instance,Roofs,BLE_ELES,5e1b2f62-c810-5971-9c1d-0121faa787de,Ble Roof Primary Mat [ISO 19650-1:2018]
 BLE_ROOF_RAINWTR_HARVESTING_INTEGRATION_BOOL,Roof Rainwtr Harvesting Integration,YESNO,Instance,Roofs,CST_PROC,184f2852-179b-54d4-a09c-3b6c51f9569f,Ble Roof Rainwtr Harvesting Integration Bool [ISO 19650-1:2018]
 BLE_ROOF_SHEET_PROFILE_TXT,Roof Sheet Profile,TEXT,Instance,Roofs,CST_PROC,5394dcdb-bf63-5192-a44b-98ff7c579b2f,Roof sheet profile type [ISO 19650-2:2018]
-BLE_ROOF_SLOPE_DEG,Roof Slope (°),NUMBER,Instance,Roofs,CST_PROC,8d51616d-812b-58d6-a3c2-3ef872fc3ed0,Ble Roof Slope Deg [ISO 19650-1:2018]
+BLE_ROOF_SLOPE_DEG,Roof Slope (°),NUMBER,Instance,Roofs,CST_PROC,8d51616d-812b-58d6-a3c2-3ef872fc3ed0,Roof slope (degrees) [ISO 19650-1:2018]
 BLE_ROOF_SLOPE_TXT,Roof Slope,TEXT,Instance,Roofs,CST_PROC,abc0ddb3-b246-5ae1-bedc-a2c5a6a4722b,BLE_ROOF_SLOPE_DEG display mirror [auto-generated]
 BLE_ROOF_SOLAR_REFLECTANCE_INDEX_NR,Roof Solar Reflectance Index,TEXT,Instance,Roofs,CST_PROC,bd6b9e9b-777a-517c-bde4-597df17f6d94,Ble Roof Solar Reflectance Index Nr [ISO 19650-1:2018]
 BLE_ROOF_STRUCTURE_TYPE_TXT,Roof Structure Type,TEXT,Instance,Roofs,CST_PROC,64ed7ace-2c12-5bfb-86be-314ee494b706,Ble Roof Structure Type Txt [ISO 19650-1:2018]
@@ -571,8 +571,8 @@ BLE_ROOM_FINISH_WALL_COD_TXT,Room Finish Wall Cod,TEXT,Instance,Rooms,CST_PROC,a
 BLE_ROOM_FINISH_WALL_TXT,Room Finish Wall,TEXT,Instance,Rooms,CST_PROC,a1b2c3d4-5041-4a01-b001-000000000165,Room wall finish material
 BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR,Room Fire Escape Capacity,NUMBER,Instance,Rooms,CST_PROC,df9197f1-d5c9-4ef0-bec7-052656671371,Room fire escape capacity in persons [ISO 19650-1:2018]
 BLE_ROOM_FIRE_ESCAPE_CAPACITY_TXT,Room Fire Escape Capacity,TEXT,Instance,Rooms,CST_PROC,c4e6bdb8-e228-5ff2-a3c9-cbe1af209963,BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR display mirror [auto-generated]
-BLE_ROOM_NAME_TXT,Room Name,TEXT,Instance,Rooms,CST_PROC,0bf56335-3e98-58cb-81eb-a998c017d657,Ble Room Name Txt [ISO 19650-1:2018]
-BLE_ROOM_NUM_TXT,Room Number,TEXT,Instance,"Air Terminals, Ceilings, Doors, Fire Alarm Devices, Generic Models, Lighting Fixtures, Plumbing Fixtures, Rooms, Windows",CST_PROC,08c45bc2-6903-5a41-b295-9c3111de6882,Ble Room Num Txt [ISO 19650-1:2018]
+BLE_ROOM_NAME_TXT,Room Name,TEXT,Instance,Rooms,CST_PROC,0bf56335-3e98-58cb-81eb-a998c017d657,BLE room name (fallback) [ISO 19650-1:2018]
+BLE_ROOM_NUM_TXT,Room Number,TEXT,Instance,"Air Terminals, Ceilings, Doors, Fire Alarm Devices, Generic Models, Lighting Fixtures, Plumbing Fixtures, Rooms, Windows",CST_PROC,08c45bc2-6903-5a41-b295-9c3111de6882,"The room's OWN number, written onto the Room element. Distinct from ROOM_NUM / ASS_ROOM_NUM_TXT, which is bound <ALL> and records the number of the room an ASSET sits in. Pairs with BLE_ROOM_NAME. [ISO 19650-1:2018]"
 BLE_ROOM_OCCUPANCY_NR,Room Occupancy,NUMBER,Instance,"Rooms, Spaces",BLE_ELES,9ae2bd6a-1cd6-57ae-b021-677d0d7fc77d,Ble Room Occupancy [ISO 19650]
 BLE_ROOM_OCCUPANCY_TXT,Room Occupancy,TEXT,Instance,"Rooms, Spaces",BLE_ELES,83f1b4c5-0ede-5d8b-809e-b48515f7dc40,BLE_ROOM_OCCUPANCY_NR display mirror [auto-generated]
 BLE_ROOM_VENTILATION_RATE_LPS,Room Ventilation Rate Lps,NUMBER,Instance,"Rooms, Spaces",CST_PROC,aaa7d06b-881d-447c-b28d-ec2764597319,Room design ventilation rate in l/s [ISO 19650-1:2018]
@@ -586,7 +586,7 @@ BLE_SLAB_RIB_WIDTH_MM,Slab Rib Width Mm,TEXT,Instance,Floors,BLE_ELES,51ab0002-5
 BLE_SLAB_SYSTEM_TXT,Slab System,TEXT,Instance,Floors,BLE_ELES,51ab0001-5c0d-5eab-9a01-000000000001,MAT-4 slab system: Solid/Ribbed/Waffle/HollowPot/Maxspan/BeamBlock [ISO 19650-2:2018]
 BLE_SLAB_TOPPING_MM,Slab Topping Mm,TEXT,Instance,Floors,BLE_ELES,51ab0005-5c0d-5eab-9a01-000000000005,MAT-4 slab structural topping thickness (mm) [ISO 19650-2:2018]
 BLE_STAIR_BALUSTRADE_TYPE_TXT,Hvc Stair Balustrade Type,TEXT,Instance,"Stairs, Railings",BLE_STRUCTURE,576bda4d-9284-5ac7-bfe9-2a45a70780aa,Hvc Stair Balustrade Type Txt [ISO 19650-1:2018]
-BLE_STAIR_GOING_MM,Stair Going,LENGTH,Instance,"Railings, Stair Runs, Stairs",CST_PROC,3cb19d18-6500-5dc5-b461-d03a276b645f,Ble Stair Going Mm [ISO 19650-1:2018]
+BLE_STAIR_GOING_MM,Stair Going,LENGTH,Instance,"Railings, Stair Runs, Stairs",CST_PROC,3cb19d18-6500-5dc5-b461-d03a276b645f,Stair tread depth (mm) [ISO 19650-1:2018]
 BLE_STAIR_GOING_TXT,Stair Going,TEXT,Instance,"Railings, Stair Runs, Stairs",CST_PROC,df42357b-7d1b-5b0b-a7d6-1763c0471652,BLE_STAIR_GOING_MM display mirror [auto-generated]
 BLE_STAIR_HANDRAIL_HEIGHT_MM,Stair Handrail Height,TEXT,Instance,"Stairs, Railings",CST_PROC,1ef12b1c-c3f9-57ba-a454-212d5b5f8c0b,Ble Stair Handrail Height Mm [ISO 19650-1:2018]
 BLE_STAIR_HANDRAIL_MAT_TXT,Hvc Stair Handrail Material,TEXT,Instance,"Stairs, Railings",BLE_STRUCTURE,acfcc9ad-ceb4-597e-866e-355b024dc498,Hvc Stair Handrail Mat Txt [ISO 19650-1:2018]
@@ -597,11 +597,11 @@ BLE_STAIR_NOSING_TYPE_TXT,Hvc Stair Nosing Type,TEXT,Instance,"Stairs, Railings"
 BLE_STAIR_NR_RISERS_NR,Stair Nr Risers,TEXT,Instance,"Stairs, Railings",BLE_ELES,9d89ab30-8c23-53fa-9730-970af9124216,Ble Stair Risers [ISO 19650]
 BLE_STAIR_PITCH_LINE_MM,Ble Stair Pitch Line Mm,TEXT,Instance,"Stairs, Railings",BLE_ELES,6d2c0cf8-58b7-5fc3-aabc-f5a85679f33a,Ble Stair Pitch Line Mm [ISO 19650-1:2018]
 BLE_STAIR_RISE_GOING_RATIO_NR,Ble Stair Rise Going Ratio Nr,TEXT,Instance,"Stairs, Railings",BLE_ELES,016ba1bd-3f50-5a11-afbc-34f3846cdae6,Ble Stair Rise Going Ratio Nr [ISO 19650-1:2018]
-BLE_STAIR_RISE_MM,Stair Rise,LENGTH,Instance,"Railings, Stair Runs, Stairs",CST_PROC,0dcbfb44-1130-51b2-bea9-832d4ee087f7,Ble Stair Rise Mm [ISO 19650-1:2018]
+BLE_STAIR_RISE_MM,Stair Rise,LENGTH,Instance,"Railings, Stair Runs, Stairs",CST_PROC,0dcbfb44-1130-51b2-bea9-832d4ee087f7,Stair riser height (mm) [ISO 19650-1:2018]
 BLE_STAIR_RISE_TXT,Stair Rise,TEXT,Instance,"Railings, Stair Runs, Stairs",CST_PROC,0ac4b034-dbe9-5847-9eee-ec5c831a76b5,BLE_STAIR_RISE_MM display mirror [auto-generated]
 BLE_STAIR_TREAD_FINISH_TXT,Hvc Stair Tread Finish,TEXT,Instance,"Railings, Stair Landings, Stair Runs, Stairs",BLE_STRUCTURE,138dc87d-fb13-50b6-a5cf-07c9b2478746,Hvc Stair Tread Finish Txt [ISO 19650-1:2018]
 BLE_STAIR_TYPE_TXT,Stair Type,TEXT,Instance,"Stairs, Railings",CST_PROC,c15cc821-78dc-51b7-b237-0d5ee6e7c2fe,Ble Stair Type Txt [ISO 19650-1:2018]
-BLE_STAIR_WIDTH_MM,Stair Width,LENGTH,Instance,"Railings, Stair Landings, Stair Runs, Stairs",CST_PROC,dcaea437-8a54-5727-8011-81e5713d7054,Ble Stair Width Mm [ISO 19650-1:2018]
+BLE_STAIR_WIDTH_MM,Stair Width,LENGTH,Instance,"Railings, Stair Landings, Stair Runs, Stairs",CST_PROC,dcaea437-8a54-5727-8011-81e5713d7054,Stair width (mm) [ISO 19650-1:2018]
 BLE_STAIR_WIDTH_TXT,Stair Width,TEXT,Instance,"Railings, Stair Landings, Stair Runs, Stairs",CST_PROC,17a05cf1-cb77-543e-a764-c681437bc529,BLE_STAIR_WIDTH_MM display mirror [auto-generated]
 BLE_STRUCT_BEAM_SZ_TXT,Structural Beam Size,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",CST_PROC,7cead505-38f5-57a5-9425-b349170a9ee7,Ble Struct Beam Sz Txt [ISO 19650-1:2018]
 BLE_STRUCT_CAMBER_MM,Struct Camber Mm,LENGTH,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_ELES,61923c99-e1ae-5562-a508-ff47f6e696a8,Ble Struct Camber Mm [ISO 19650]
@@ -610,7 +610,7 @@ BLE_STRUCT_COLUMN_SZ_TXT,Structural Column Size,TEXT,Instance,"Columns, Floors, 
 BLE_STRUCT_CONCRETE_GRADE_TXT,Structural Concrete Grade,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",CST_PROC,9499fb71-5eab-5b17-9f5b-8741104bd98c,Ble Struct Concrete Grade Txt [ISO 19650-1:2018]
 BLE_STRUCT_COVER_MM,Struct Cover Mm,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_ELES,857ec2f6-f710-5bf4-9989-896925852ce3,Ble Struct Cover Mm [ISO 19650]
 BLE_STRUCT_DEPTH_MM,Struct Depth Mm,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_ELES,0fe238c3-8e59-538b-ae52-5c7b02159f13,Ble Struct Depth Mm [ISO 19650]
-BLE_STRUCT_ELE_TYPE_TXT,Element Type,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",CST_PROC,e21a2a53-114b-57ba-a655-39c32ce37694,Ble Struct Ele Type Txt [ISO 19650-1:2018]
+BLE_STRUCT_ELE_TYPE_TXT,Element Type,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",CST_PROC,e21a2a53-114b-57ba-a655-39c32ce37694,Structural element type [ISO 19650-1:2018]
 BLE_STRUCT_EXPOSURE_CLASS_TXT,Struct Exposure Class,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_ELES,7aca83fa-0893-5ec1-8df0-5fa9881c8324,Ble Struct Exposure Class [ISO 19650]
 BLE_STRUCT_FDN_BEARING_KPA,Struct Fdn Bearing Kpa,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_ELES,fe1d4c69-165a-574a-a2e6-c13a2fe7712f,Foundation bearing capacity in kPa
 BLE_STRUCT_FOUNDATION_DEPTH_MM,Foundation depth in millimeters,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_ELES,c3d4e5f6-a7b8-9012-cdef-3456789012c3,Foundation depth in millimeters [ISO 19650-1:2018]
@@ -628,19 +628,19 @@ BLE_STRUCT_STEEL_GRADE_TXT,Structural Steel Grade,TEXT,Instance,"Floors, Structu
 BLE_STRUCT_STEEL_SECTION_TXT,Struct Steel Section,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",CST_PROC,3409f563-245b-54f0-ac10-943a04d01711,Structural steel section size designation [ISO 19650-1:2018]
 BLE_STRUCT_WATERPROOFING_TXT,Struct Waterproofing,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_ELES,02326eda-b65b-5a28-b9c4-ccb8ffb8bea1,Ble Struct Waterproofing [ISO 19650]
 BLE_SURFACE_CONDITION_TXT,Surface Condition,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Rooms",CST_PROC,b699cbd1-09e5-53a2-84ce-f7bea8811fe1,Surface condition assessment [ISO 19650-2:2018]
-BLE_TAG_7_PARA_CURTAIN_MULLIONS_TXT,Tag 7 Para Curtain Mullions,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,4901dfc6-6fb5-51c8-a0d3-48cb63058de4,Curtain Mullions paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_CURTAIN_PANELS_TXT,Tag 7 Para Curtain Panels,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,78c8d5b2-e11b-5848-baec-b3aecc3d568f,Curtain Panels paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_CURTAIN_MULLIONS_TXT,Tag 7 Para Curtain Mullions,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,4901dfc6-6fb5-51c8-a0d3-48cb63058de4,Curtain wall mullion paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_CURTAIN_PANELS_TXT,Tag 7 Para Curtain Panels,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,78c8d5b2-e11b-5848-baec-b3aecc3d568f,Curtain panels paragraph [ISO 19650-3:2020]
 BLE_TAG_7_PARA_FASCIA_TXT,Tag 7 Para Fascia,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,c1db2a4f-2882-524a-8dd7-a60070cc05f2,Fascia paragraph [ISO 19650-3:2020]
 BLE_TAG_7_PARA_GUTTER_TXT,Tag 7 Para Gutter,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,caf49275-8298-5829-8f74-c86126d9b8c5,Gutter paragraph [ISO 19650-3:2020]
 BLE_TAG_7_PARA_HANDRAILS_TXT,Tag 7 Para Handrails,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,86424e9d-7648-5dca-816a-6806bc75ffc2,Handrails paragraph [ISO 19650-3:2020]
 BLE_TAG_7_PARA_RAILINGS_TXT,Tag 7 Para Railings,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,0946e049-f33f-5178-a946-3dbcecd79e45,Railings paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_ROOF_SOFFITS_TXT,Tag 7 Para Roof Soffits,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,108a5a68-f892-59b3-91f2-cccd742cf37e,Roof Soffits paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_SLAB_EDGES_TXT,Tag 7 Para Slab Edges,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,e9d72eb5-3d2d-5e67-b1d3-1b9aeb3cf30b,Slab Edges paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_STAIR_LANDINGS_TXT,Tag 7 Para Stair Landings,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,db503223-4793-5a9c-930f-a4a12d8c8cbb,Stair Landings paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_STAIR_RUNS_TXT,Tag 7 Para Stair Runs,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,331ab10b-cbf2-525b-b177-24a0a82d198e,Stair Runs paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_STAIR_SUPPORTS_TXT,Tag 7 Para Stair Supports,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,68c2d05e-ad97-5fc5-ba54-3fb6f47efa09,Stair Supports paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_TOP_RAILS_TXT,Tag 7 Para Top Rails,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,ed3da683-d461-5eed-b703-59d92e0cd2da,Top Rails paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_WALL_SWEEPS_TXT,Tag 7 Para Wall Sweeps,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,d96f4951-1828-57f9-9405-be1e74b8c3d2,Wall Sweeps paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_ROOF_SOFFITS_TXT,Tag 7 Para Roof Soffits,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,108a5a68-f892-59b3-91f2-cccd742cf37e,Roof soffits paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_SLAB_EDGES_TXT,Tag 7 Para Slab Edges,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,e9d72eb5-3d2d-5e67-b1d3-1b9aeb3cf30b,Slab edges paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_STAIR_LANDINGS_TXT,Tag 7 Para Stair Landings,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,db503223-4793-5a9c-930f-a4a12d8c8cbb,Stair landings paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_STAIR_RUNS_TXT,Tag 7 Para Stair Runs,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,331ab10b-cbf2-525b-b177-24a0a82d198e,Stair runs paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_STAIR_SUPPORTS_TXT,Tag 7 Para Stair Supports,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,68c2d05e-ad97-5fc5-ba54-3fb6f47efa09,Stair supports paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_TOP_RAILS_TXT,Tag 7 Para Top Rails,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,ed3da683-d461-5eed-b703-59d92e0cd2da,Top rails paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_WALL_SWEEPS_TXT,Tag 7 Para Wall Sweeps,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Doors, Windows, Columns, Stairs, Ramps, Casework, Furniture, Curtain Panels, Railings, Generic Models, Specialty Equipment",BLE_ELES,d96f4951-1828-57f9-9405-be1e74b8c3d2,Wall sweeps paragraph [ISO 19650-3:2020]
 BLE_TILE_JOINT_WIDTH_MM,Tile Joint Width Mm,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Rooms",CST_PROC,2942e34c-a113-5888-b0df-8f14f8ba33f8,Tile joint width mm [ISO 19650-2:2018]
 BLE_TILE_SIZE_TXT,Tile Size,TEXT,Instance,"Walls, Floors, Ceilings, Roofs, Rooms",CST_PROC,950b1a4e-2e93-5353-a8fa-8d9fb2312097,Tile size specification [ISO 19650-2:2018]
 BLE_WALL_CORE_MATERIAL_TXT,Wall Core Material,TEXT,Instance,"Walls, Curtain Panels, Curtain Wall Mullions",CST_PROC,5fd6fd59-0f76-45ba-b505-aaca6ef8af02,Wall core structural material (Concrete/Masonry/Steel/Timber) [ISO 19650-1:2018]
@@ -648,16 +648,16 @@ BLE_WALL_CST_METHOD_TXT,Wall Cost Method,TEXT,Instance,"Walls, Curtain Panels, C
 BLE_WALL_EXTERIOR_FINISH_TXT,Wall Exterior Finish,TEXT,Instance,"Curtain Panels, Curtain Wall Mullions, Fascia, Hardscape, Walls",CST_PROC,a2b0283d-78f6-551a-9725-c54d2558ed67,Ble Wall Exterior Finish Txt [ISO 19650-1:2018]
 BLE_WALL_FINISH_TXT,Wall Finish,TEXT,Instance,"Curtain Panels, Curtain Wall Mullions, Rooms, Walls",CST_PROC,7d0dd06c-f0b7-595f-8610-9cb53e4d691e,Ble Wall Finish Txt [ISO 19650-1:2018]
 BLE_WALL_FUNCTION_TXT,Wall Function,TEXT,Instance,"Walls, Curtain Panels, Curtain Wall Mullions",CST_PROC,10966c31-806d-55af-ba50-91e124888e77,Ble Wall Function Txt [ISO 19650-1:2018]
-BLE_WALL_HEIGHT_MM,Wall Height,TEXT,Instance,"Walls, Curtain Panels, Curtain Wall Mullions",CST_PROC,c2dd0f26-f3ed-5490-85aa-f39f19e72b65,Ble Wall Height Mm [ISO 19650-1:2018]
+BLE_WALL_HEIGHT_MM,Wall Height,TEXT,Instance,"Walls, Curtain Panels, Curtain Wall Mullions",CST_PROC,c2dd0f26-f3ed-5490-85aa-f39f19e72b65,Wall height (mm) [ISO 19650-1:2018]
 BLE_WALL_INSULATION_TXT,Wall Insulation,TEXT,Instance,"Walls, Curtain Panels, Curtain Wall Mullions",CST_PROC,32338b6f-32f8-4e41-a1e7-d2ade3c45618,Wall insulation type and specification [ISO 19650-1:2018]
 BLE_WALL_INTERIOR_FINISH_TXT,Wall Interior Finish,TEXT,Instance,"Ceilings, Curtain Panels, Curtain Wall Mullions, Floors, Roof Soffits, Walls",CST_PROC,1aa80c73-1145-500a-8018-2e007cb412e6,Ble Wall Interior Finish Txt [ISO 19650-1:2018]
-BLE_WALL_LENGTH_MM,Wall Length,TEXT,Instance,"Walls, Curtain Panels, Curtain Wall Mullions",CST_PROC,fdff76e0-dada-58bc-b94a-ae26b5bb2821,Ble Wall Length Mm [ISO 19650-1:2018]
+BLE_WALL_LENGTH_MM,Wall Length,TEXT,Instance,"Walls, Curtain Panels, Curtain Wall Mullions",CST_PROC,fdff76e0-dada-58bc-b94a-ae26b5bb2821,Wall length (mm) [ISO 19650-1:2018]
 BLE_WALL_MOISTURE_BARRIER_INCLUDED_TXT,Wall Moisture Barrier Included,TEXT,Instance,"Walls, Curtain Panels, Curtain Wall Mullions",CST_PROC,b0cf547c-cf10-556d-b05e-f833b518b61d,Ble Wall Moisture Barrier Included Txt [ISO 19650-1:2018]
 BLE_WALL_PRIMARY_WALL_MAT_TXT,Wall Primary Wall Material,TEXT,Instance,"Curtain Panels, Curtain Wall Mullions, Wall Sweeps, Walls",CST_PROC,83fce03a-5dbf-57cf-b9d5-d797969487f9,Ble Wall Primary Wall Mat Txt [ISO 19650-1:2018]
 BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,Wall Sound Transmission Class Rating,NUMBER,Instance,"Ceilings, Curtain Panels, Curtain Wall Mullions, Doors, Floors, Walls, Windows",CST_PROC,a1ae48ce-4bb1-5530-ba0b-e0d6ddba76c4,Ble Wall Sound Transmission Class Rating Nr [ISO 19650-1:2018]
 BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_TXT,Wall Sound Transmission Class Rating,TEXT,Instance,"Ceilings, Curtain Panels, Curtain Wall Mullions, Doors, Floors, Walls, Windows",CST_PROC,6c64d0a3-aea6-59dc-b086-d7f8de019994,BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR display mirror [auto-generated]
 BLE_WALL_THERMAL_TRANSMITTANCE_U_VALUE_W_M_2K_NR,Wall Thermal Transmittance U Value W M 2K,TEXT,Instance,"Walls, Curtain Panels, Curtain Wall Mullions",CST_PROC,5ee56aa6-f559-578c-9b72-6100c852fda1,Ble Wall Thermal Transmittance U Value W M 2k Nr [ISO 19650-1:2018]
-BLE_WALL_THICKNESS_MM,Wall Thickness,LENGTH,Instance,"Curtain Panels, Curtain Wall Mullions, Hardscape, Pads, Roads, Walls",CST_PROC,d0c788c3-fd82-50e8-8361-52f0e26cfc40,Ble Wall Thickness Mm [ISO 19650-1:2018]
+BLE_WALL_THICKNESS_MM,Wall Thickness,LENGTH,Instance,"Curtain Panels, Curtain Wall Mullions, Hardscape, Pads, Roads, Walls",CST_PROC,d0c788c3-fd82-50e8-8361-52f0e26cfc40,Wall thickness (mm) [ISO 19650-1:2018]
 BLE_WALL_THICKNESS_TXT,Wall Thickness,TEXT,Instance,"Curtain Panels, Curtain Wall Mullions, Hardscape, Pads, Roads, Walls",CST_PROC,d083d603-797b-5775-aba8-a2d988ea67ad,BLE_WALL_THICKNESS_MM display mirror [auto-generated]
 BLE_WALL_TYPE_CLASSIFICATION_TXT,Wall Type Classification,TEXT,Instance,"Curtain Panels, Curtain Wall Mullions, Wall Sweeps, Walls",CST_PROC,123bc70f-d9f7-5d1e-818b-aea8222786fa,Ble Wall Type Classification Txt [ISO 19650-1:2018]
 BLE_WALL_WATERPROOF_TXT,Wall Waterproof,TEXT,Instance,"Walls, Curtain Panels, Curtain Wall Mullions",CST_PROC,9b681221-e642-4285-b5bb-9a6bb2bbe227,Wall waterproofing system type [ISO 19650-1:2018]
@@ -667,12 +667,12 @@ BLE_WINDOW_BURGLAR_BARS_REQUIRED_UGANDA_BOOL,Burglar Bars,YESNO,Instance,Windows
 BLE_WINDOW_FRAME_MAT_TXT,Frame Material,TEXT,Instance,Windows,CST_PROC,80c97926-59ac-5e7d-8ce0-236dd786bf9f,Ble Window Frame Mat Txt [ISO 19650-1:2018]
 BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT,Glazing Type,TEXT,Instance,Windows,CST_PROC,4d3d9bf9-9244-599c-88ae-16e0469fa44f,Ble Window Glazing Type Single Double Triple Txt [ISO 19650-1:2018]
 BLE_WINDOW_HEAD_HEIGHT_MM,Window Head Height Mm,TEXT,Instance,Windows,CST_PROC,a1b2c3d4-5042-4a01-b001-000000000166,Window head height from floor in mm
-BLE_WINDOW_HEIGHT_MM,Height (mm),LENGTH,Instance,Windows,CST_PROC,9e4ae2aa-fb63-55cc-8674-df05f460882f,Ble Window Height Mm [ISO 19650-1:2018]
+BLE_WINDOW_HEIGHT_MM,Height (mm),LENGTH,Instance,Windows,CST_PROC,9e4ae2aa-fb63-55cc-8674-df05f460882f,Window height (mm) [ISO 19650-1:2018]
 BLE_WINDOW_HEIGHT_TXT,Window Height,TEXT,Instance,Windows,CST_PROC,891b9d0d-741f-55ab-b05f-e66304fd1cb9,BLE_WINDOW_HEIGHT_MM display mirror [auto-generated]
 BLE_WINDOW_MOSQUITO_SCREEN_INCLUDED_TXT,Mosquito Screen,TEXT,Instance,Windows,CST_PROC,1ae1279e-2471-5cd5-be3a-ed5a6e2ccd3f,Ble Window Mosquito Screen Included Txt [ISO 19650-1:2018]
 BLE_WINDOW_OPERATION_TYPE_TXT,Window Operation,TEXT,Instance,Windows,CST_PROC,ad3d94fe-900b-5662-985c-54e2af3eb0f9,Ble Window Operation Type Txt [ISO 19650-1:2018]
 BLE_WINDOW_SHGC_NR,Window Shgc,TEXT,Instance,Windows,BLE_ELES,2076ba01-9a86-5747-8a97-4f0eff7c05df,Ble Window Shgc [ISO 19650]
-BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM,Sill Height (mm),TEXT,Instance,Windows,CST_PROC,50341648-0677-525e-a2d8-6d8686e9e87e,Ble Window Sill Height From Flr Mm [ISO 19650-1:2018]
+BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM,Sill Height (mm),TEXT,Instance,Windows,CST_PROC,50341648-0677-525e-a2d8-6d8686e9e87e,Window sill height (mm) [ISO 19650-1:2018]
 BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR,Shgc,NUMBER,Instance,"Curtain Panels, Windows",CST_PROC,f1e3b7f1-ee7b-51e2-8aa3-2039753098fc,Ble Window Solar Heat Gain Coefficient Nr [ISO 19650-1:2018]
 BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_TXT,Window Solar Heat Gain Coefficient,TEXT,Instance,"Curtain Panels, Windows",CST_PROC,bb0d271d-f7d4-556e-9118-706ab7bbbc47,BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR display mirror [auto-generated]
 BLE_WINDOW_TYPE_CLASSIFICATION_TXT,Window Type,TEXT,Instance,Windows,CST_PROC,2226d834-1132-5fa8-a468-19fbb11000d4,Ble Window Type Classification Txt [ISO 19650-1:2018]
@@ -680,7 +680,7 @@ BLE_WINDOW_U_VALUE_W_M_2K_NR,U-Value (W/m²K),NUMBER,Instance,Windows,CST_PROC,9
 BLE_WINDOW_U_VALUE_W_M_2K_TXT,Window U Value W M 2k,TEXT,Instance,Windows,CST_PROC,f9ebfe27-54f6-519a-a789-bc86a75fd3f8,BLE_WINDOW_U_VALUE_W_M_2K_NR display mirror [auto-generated]
 BLE_WINDOW_VISIBLE_LIGHT_TRANSMITTANCE_PCT,Vlt %,TEXT,Instance,Windows,CST_PROC,21068de7-9b17-5dd0-a477-ec1688fa318a,Ble Window Visible Light Transmittance Pct [ISO 19650-1:2018]
 BLE_WINDOW_VLT_NR,Window Vlt,TEXT,Instance,Windows,BLE_ELES,08630c62-dec2-5e29-8c5d-7b3de605862a,Ble Window Vlt [ISO 19650]
-BLE_WINDOW_WIDTH_MM,Width (mm),LENGTH,Instance,Windows,CST_PROC,d7506fd3-c17c-513a-8c82-2a632e55a0a6,Ble Window Width Mm [ISO 19650-1:2018]
+BLE_WINDOW_WIDTH_MM,Width (mm),LENGTH,Instance,Windows,CST_PROC,d7506fd3-c17c-513a-8c82-2a632e55a0a6,Window width (mm) [ISO 19650-1:2018]
 BLE_WINDOW_WIDTH_TXT,Window Width,TEXT,Instance,Windows,CST_PROC,2fe8a5aa-96d4-52f0-9673-349e20d2d5dd,BLE_WINDOW_WIDTH_MM display mirror [auto-generated]
 BLE_WINDOW_WWR_PCT,Ble Window Wwr Pct,TEXT,Instance,Windows,BLE_ELES,735b9c37-3324-5b46-bc82-4e6c3e5c9432,Ble Window Wwr Pct [ISO 19650-1:2018]
 CBL_TYPE_TXT,Cable Type,TEXT,Instance,"Cable Tray Fittings, Cable Trays, Communication Devices, Conduit Fittings, Conduits, Data Devices, Electrical Equipment, Electrical Fixtures, Generic Models, Nurse Call Devices, Security Devices, Telephone Devices",ELC_PWR,b796eeed-e108-53b5-9bf7-deb0842cdea3,Elc Cbl Type Txt [ISO 19650-1:2018]
@@ -810,11 +810,11 @@ COM_DAT_SPARE_02_TXT,Common Data - Spare 02,TEXT,Instance,"Data Devices, Communi
 COM_DEV_TAG,Com Dev Tag,TEXT,Instance,<ALL>,COM_DAT,61d0d77d-c061-5d3b-9f64-5f0f8b279eef,Communications device tag container [ISO 19650-2:2018]
 COM_DEV_TAG_01_TXT,Com Dev Tag 01 Txt,TEXT,Instance,"Data Devices, Communication Devices, Telephone Devices, Security Devices, Nurse Call Devices",COM_DAT,7775b009-25a6-43b9-b0ec-31ac063a9183,BMS/comms device identity + network address + BACnet instance tag [ISO 19650-1:2018]
 COM_FIBER_TYPE_TXT,Com Fiber Type,TEXT,Instance,"Data Devices, Communication Devices, Telephone Devices, Security Devices, Nurse Call Devices",COM_DAT,90103260-cba6-50da-8114-31a1cb2bd1e8,Fibre optic cable type (SM/MM/OM3/OM4)
-COM_HANDOVER_STATUS_TXT,Com Handover Status,TEXT,Instance,"Data Devices, Communication Devices, Telephone Devices, Security Devices, Nurse Call Devices",COM_DAT,c7283cb7-804f-6024-edfc-bd3f2085facc,Com Handover Status [ISO 19650]
+COM_HANDOVER_STATUS_TXT,Com Handover Status,TEXT,Instance,"Data Devices, Communication Devices, Telephone Devices, Security Devices, Nurse Call Devices",COM_DAT,c7283cb7-804f-6024-edfc-bd3f2085facc,Handover/practical completion status [ISO 19650]
 COM_INSTALL_DATE_TXT,Com Install Date,TEXT,Instance,"Data Devices, Communication Devices, Telephone Devices, Security Devices, Nurse Call Devices",COM_DAT,f8a42943-9f11-52d1-b373-6b9b0b7db29f,Installation date (COBie)
 COM_PROTOCOL_TXT,Com Protocol,TEXT,Instance,"Data Devices, Communication Devices, Telephone Devices, Security Devices, Nurse Call Devices",COM_DAT,06dd171f-a679-57ad-92f2-630bd05e5634,Communications protocol (Ethernet/WiFi6/5G/BACnet)
 COM_TAG_7_PARA_BMS_TXT,BMS Paragraph,TEXT,Instance,<ALL>,COM_DAT,10c0be4c-8534-5a16-85a5-2c2c5335e6bf,BMS device paragraph [ISO 19650-3:2020]
-COM_TEST_CERT_REF_TXT,Com Test Cert Ref,TEXT,Instance,"Data Devices, Communication Devices, Telephone Devices, Security Devices, Nurse Call Devices",COM_DAT,a380bb76-6058-906b-bf3c-0c82930bfc32,Com Test Cert Ref [ISO 19650]
+COM_TEST_CERT_REF_TXT,Com Test Cert Ref,TEXT,Instance,"Data Devices, Communication Devices, Telephone Devices, Security Devices, Nurse Call Devices",COM_DAT,a380bb76-6058-906b-bf3c-0c82930bfc32,Test certificate reference number [ISO 19650]
 COM_WARRANTY_START_TXT,Com Warranty Start,TEXT,Instance,"Data Devices, Communication Devices, Telephone Devices, Security Devices, Nurse Call Devices",COM_DAT,4c40b92b-76eb-5140-ae41-8823580d4a5d,Warranty start date (COBie)
 CP_ELEMENT_TYPE_TXT,Cp Element Type,TEXT,Instance,Generic Models,TPL_TRACKING,5cdeb37b-1acc-4042-8aa9-16fc6e5b3792,Element type in palette [ISO 19650-1:2018]
 CP_HEX_CODE_TXT,Cp Hex Code,TEXT,Instance,Generic Models,TPL_TRACKING,507d4787-323a-4e10-b4fe-810f8aca3f48,Color hex code [ISO 19650-1:2018]
@@ -861,7 +861,7 @@ CST_ELEMENT_COST_NR,Element Cost,NUMBER,Instance,<ALL>,PRJ_INFORMATION,ac000000-
 CST_EMBODIED_CARBON_KG,Embodied Carbon Kg,NUMBER,Instance,<ALL>,CST_PROC,52512f2c-ecdf-4f7b-8128-a8c99222aa0d,Embodied carbon in kgCO2e for this element [ISO 19650-3:2020]
 CST_ENERGY_ANNUAL_UGX_NUM_NR,Energy Annual UGX Num,TEXT,Instance,<ALL>,COM_DAT,18b42e2d-7570-5ece-b334-f68dec24c7a4,Cst Energy Annual Ugx Num Nr [ISO 19650-2:2018]
 CST_FIX_CAT_NR,Fix Category,TEXT,Instance,<ALL>,COM_DAT,0687a7ee-ab2a-5d4b-afd4-f0e2291d4e68,Cst Fix Cat Nr [ISO 19650-2:2018]
-CST_FIX_LUMEN_OUTPUT_LM,Fix Lumen Output Lm,NUMBER,Instance,<ALL>,COM_DAT,91bdce9c-49bf-56b9-b058-3e0892f457cb,Cst Fix Lumen Output Lm [ISO 19650-2:2018]
+CST_FIX_LUMEN_OUTPUT_LM,Fix Lumen Output Lm,NUMBER,Instance,<ALL>,COM_DAT,91bdce9c-49bf-56b9-b058-3e0892f457cb,Lumen output (lm) [ISO 19650-2:2018]
 CST_FIX_LUMEN_OUTPUT_TXT,Fix Lumen Output,TEXT,Instance,<ALL>,COM_DAT,2faac999-b3b7-55bc-9fd4-57a40f64e14c,CST_FIX_LUMEN_OUTPUT_LM display mirror [auto-generated]
 CST_FORMWORK_TYPE_TXT,Formwork Type,TEXT,Instance,<ALL>,COM_DAT,2e0bccf5-7ebc-5fbd-86f6-ad5f651789c6,Formwork type specification [ISO 19650-2:2018]
 CST_FX_RATE_USD_UGX,Fx Rate Usd Ugx,NUMBER,Instance,<ALL>,CST_PROC,d4e003e1-1f43-5d22-93c1-d9e91d672c52,USD to UGX exchange rate snapshot used on quote date
@@ -1059,7 +1059,7 @@ ELC_CBL_NUM_OF_CORES_TXT,Cbl Num Of Cores,TEXT,Instance,"Cable Trays, Conduits, 
 ELC_CBL_RATED_V_NR,Cable Rated Voltage,NUMBER,Instance,"Cable Trays, Conduits, Electrical Circuits",ELC_PWR,826c7919-4bb2-56eb-a0df-7ec7bd852126,"Cable rated voltage U in volts, the higher figure of U0/U (500 for 300/500 V, 750 for 450/750 V, 1000 for 0.6/1 kV). Entered from the cable specification; the Spec validator checks it against the circuit voltage."
 ELC_CBL_SOURCE_FROM_TXT,Elc Cable Source From,TEXT,Instance,"Cable Trays, Conduits, Electrical Circuits",ELC_PWR,f4e05f48-bd68-53d7-bbcf-01555243629b,Elc Cbl Source From Txt [ISO 19650-1:2018]
 ELC_CBL_SOURCE_TXT,Cbl Source,TEXT,Instance,"Cable Trays, Conduits, Electrical Circuits",ELC_PWR,38ed7ba8-207c-5aee-a9d9-c84c87203d36,Elc Cbl Source [ISO 19650-1:2018]
-ELC_CBL_SZ_MM,Elc Cable Size Mm,TEXT,Instance,"Cable Trays, Conduits, Electrical Circuits",ELC_PWR,d08c2c5d-577f-5861-b615-b1b427d573a7,Elc Cbl Sz Mm [ISO 19650-1:2018]
+ELC_CBL_SZ_MM,Elc Cable Size Mm,TEXT,Instance,"Cable Trays, Conduits, Electrical Circuits",ELC_PWR,d08c2c5d-577f-5861-b615-b1b427d573a7,Assigned cable CSA -- reuses existing Phase 175 param [STING Phase 178]
 ELC_CBL_SZ_PER_CORE_MM,Elc Cable Size Per Core Mm,TEXT,Instance,"Cable Trays, Conduits, Electrical Circuits",ELC_PWR,25d3aadf-0495-5897-84ee-e07c33fe2244,Elc Cbl Sz Per Core Mm [ISO 19650-1:2018]
 ELC_CBL_TOTAL_AREA_MM2,Cbl Total Area Mm2,NUMBER,Instance,"Cable Trays, Conduits, Electrical Circuits",ELC_PWR,22ee1ae1-d559-5f7c-924f-b4eaefe77077,Sum of the overall cross-sectional areas (mm2) of every cable in this conduit or tray; input to live fill % and conduit auto-size.
 ELC_CBL_TYPE_TXT,Cbl Type,TEXT,Instance,"Cable Trays, Conduits, Electrical Circuits",HVC_SYSTEMS,ac344ae1-aef1-545b-8da5-7ac51d20de17,Electrical cable type [ISO 19650-2:2018]
@@ -1120,12 +1120,12 @@ ELC_CKT_FINAL_TXT,Final Circuit,TEXT,Instance,Electrical Circuits,ELC_PWR,9cec85
 ELC_CKT_IDENTIFICATION_TXT,Circuit ID,TEXT,Instance,Electrical Circuits,ELC_PWR,554e6560-f728-552e-8879-f949664d2f8d,Elc Ckt Identification Txt [ISO 19650-1:2018]
 ELC_CKT_LENGTH_M,Length (m),TEXT,Instance,Electrical Circuits,ELC_PWR,26374738-d41a-5995-97d2-3de4eb1664a0,Elc Ckt Length M [ISO 19650-1:2018]
 ELC_CKT_NR,Circuit Number,TEXT,Instance,"Conduits, Electrical Circuits, Electrical Equipment, Electrical Fixtures, Lighting Devices, Lighting Fixtures",ELC_PWR,6ad8ee51-59c2-551d-8b26-ad7194c50ec8,"Circuit number as Revit shows it, including multi-pole numbers such as 1,3,5 [ISO 19650-1:2018]"
-ELC_CKT_PHASE_COUNT_NR,Phases,NUMBER,Instance,"Conduits, Electrical Circuits, Electrical Equipment, Electrical Fixtures",ELC_PWR,9a3d204e-5cc8-5e7a-8199-174d407c0210,Elc Ckt Phase Count Nr [ISO 19650-1:2018]
+ELC_CKT_PHASE_COUNT_NR,Phases,NUMBER,Instance,"Conduits, Electrical Circuits, Electrical Equipment, Electrical Fixtures",ELC_PWR,9a3d204e-5cc8-5e7a-8199-174d407c0210,Phase count [ISO 19650-1:2018]
 ELC_CKT_PHASE_COUNT_TXT,Ckt Phase Count,TEXT,Instance,"Conduits, Electrical Circuits, Electrical Equipment, Electrical Fixtures",ELC_PWR,add8ab8a-b528-533d-a39f-ef2202475da9,ELC_CKT_PHASE_COUNT_NR display mirror [auto-generated]
-ELC_CKT_PWR_KW,Power (kW),TEXT,Instance,Electrical Circuits,ELC_PWR,af31c470-7148-5135-b18d-7fe4eb536de5,Elc Ckt Pwr Kw [ISO 19650-1:2018]
+ELC_CKT_PWR_KW,Power (kW),TEXT,Instance,Electrical Circuits,ELC_PWR,af31c470-7148-5135-b18d-7fe4eb536de5,Circuit power (kW) [ISO 19650-1:2018]
 ELC_CKT_TXT,Ckt,TEXT,Instance,"Electrical Circuits, Electrical Equipment",ELC_PWR,421483f2-ce3b-58eb-ba9b-3607c0c4f477,ELC_CKT_NR display mirror [auto-generated]
 ELC_CKT_VD_BASIS_TXT,Ckt Vd Basis,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,e66e86de-f5a7-5525-81b7-5ae0f76d3889,"How ELC_VLT_DROP_PCT was obtained: A4 (Appendix 4 mV/A/m, recorded cable), A4-MAX (upper bound, no cable recorded), A4-SIZED (sizer result), R60228 (conductor resistance, NEC), IMPORT (another tool) or NONE with the reason. Blank = a value from before this basis existed."
-ELC_CKT_VLT_V,Voltage (V),TEXT,Instance,Electrical Circuits,ELC_PWR,b1bf20ca-7ff0-51c0-8a21-55eb9e18fe7f,Elc Ckt Vlt V [ISO 19650-1:2018]
+ELC_CKT_VLT_V,Voltage (V),TEXT,Instance,Electrical Circuits,ELC_PWR,b1bf20ca-7ff0-51c0-8a21-55eb9e18fe7f,Circuit voltage (V) [ISO 19650-1:2018]
 ELC_CONDUIT_HOME_RUN_BOOL,Conduit Home Run,YESNO,Instance,"Conduits, Conduit Fittings",ELC_PWR,a4c24cde-c13c-542e-9466-5a5c46beb012,Marks this conduit as a home run to its panel; read by HomeRunPlanAnnotation (Elec_HomeRunAnnotate) to place the arrow and circuit label.
 ELC_CONDUIT_HOME_RUN_END_TXT,Conduit Home Run End,TEXT,Instance,"Conduits, Conduit Fittings",ELC_PWR,c23051bf-7a76-5efd-af42-ff63591b8876,Which end of this home-run conduit is at the panel: Start or End. Blank = the end with the lower X coordinate.
 ELC_CONDUIT_ROUTE_TXT,Conduit Route,TEXT,Instance,"Electrical Equipment, Electrical Fixtures, Cable Trays, Cable Tray Fittings, Conduits, Conduit Fittings, Electrical Circuits",ELC_PWR,a2e7f8d9-100a-5179-9179-10000000000a,Auto-routed conduit path identifier (AUTO:<circuit-id>) [STING Phase 179]
@@ -1162,7 +1162,7 @@ ELC_GEN_RUN_HRS_TGT_NR,Gen Run Hrs Tgt,NUMBER,Instance,"Electrical Equipment, El
 ELC_GEN_TEST_LOG_REF_TXT,Gen Test Log Ref,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,c8d4f6e2-2301-4d27-8c61-0e7a3f9be001,Generator test log document reference [H-27 / NFPA 110]
 ELC_IPS_BOOL,Ips,YESNO,Instance,"Electrical Equipment, Electrical Fixtures, Cable Trays, Cable Tray Fittings, Conduits, Conduit Fittings, Electrical Circuits, Communication Devices, Data Devices, Lighting Devices, Lighting Fixtures",ELC_PWR,c8d4f6e2-f003-4d27-8c61-0e7a3f9b5003,Powered from Isolated Power System (NEC 517)
 ELC_IPS_LIM_BOOL,Ips Lim,YESNO,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,8a271d62-6dba-55cb-98b7-01a766d49a6e,A Line Isolation Monitor is installed on this isolated power system board (NFPA 99 7.2.2.3.3 / IEC 60364-7-710 insulation monitoring); read first by IPS Validation.
-ELC_IP_RATING_TXT,Ip Rating,TEXT,Instance,"Cable Tray Fittings, Cable Trays, Conduit Fittings, Conduits, Electrical Circuits, Electrical Equipment, Electrical Fixtures, Lighting Fixtures",ELC_PWR,4529878a-ddd0-5dd1-8c12-caad8b5bd8ed,Elc Ip Rating Txt [ISO 19650-1:2018]
+ELC_IP_RATING_TXT,Ip Rating,TEXT,Instance,"Cable Tray Fittings, Cable Trays, Conduit Fittings, Conduits, Electrical Circuits, Electrical Equipment, Electrical Fixtures, Lighting Fixtures",ELC_PWR,4529878a-ddd0-5dd1-8c12-caad8b5bd8ed,IP rating [ISO 19650-1:2018]
 ELC_IT_CARDIAC_BOOL,It Cardiac,YESNO,Instance,Electrical Fixtures,ELC_PWR,c8d4f6e2-f004-4d27-8c61-0e7a3f9b5004,Cardiac-protected outlet (IT-network NEC 517.19)
 ELC_JB_AUTO_PLACED_BOOL,Jb Auto Placed,YESNO,Instance,Electrical Fixtures,ELC_PWR,f0a293bc-decb-4f50-6172-839405162718,True (1) when the box was auto-placed by JunctionBoxAutoPlacer at a bend-count or run-length break-point. False (0) for manually-placed boxes.
 ELC_JB_REASON_TXT,Jb Reason,TEXT,Instance,Electrical Fixtures,ELC_PWR,a1b3a4cd-efdc-5061-7283-940516271829,Reason auto-placer put the box here: BENDS_EXCESS / RUN_TOO_LONG / FILL_OVER / WALL_PENETRATION / MANUAL. Surfaced in the Penetration / Pull-Box register schedule.
@@ -1247,25 +1247,25 @@ ELC_PNL_CIRCUIT_GROUP_TXT,Pnl Circuit Group,TEXT,Instance,"Electrical Equipment,
 ELC_PNL_CKT_SOURCE_NAME_02_TXT,Elc Pnl tag,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,2edc2860-64a8-4597-8f4d-ef5123a84bf3,Elc Pnl tag
 ELC_PNL_CKT_SOURCE_NAME_03_TXT,Elc Pnl tag,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,b5da8314-11c4-4b6d-aa38-eeae56c9f9b8,Elc Pnl tag
 ELC_PNL_CKT_SOURCE_NAME_TXT,Circuit Source,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,3efc7b1a-5be1-533b-af3e-99cbd8c04af5,Elc Pnl Ckt Source Name Txt [ISO 19650-1:2018]
-ELC_PNL_CONNECTED_LOAD_KW,Connected Load (kW),NUMBER,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,9df4b41b-3c97-5bbd-bce8-4e3ff9c5e0dc,Elc Pnl Connected Load Kw [ISO 19650-1:2018]
+ELC_PNL_CONNECTED_LOAD_KW,Connected Load (kW),NUMBER,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,9df4b41b-3c97-5bbd-bce8-4e3ff9c5e0dc,Panel connected load (kW) [ISO 19650-1:2018]
 ELC_PNL_CONNECTED_LOAD_TXT,Pnl Connected Load,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,8630888a-98a9-56ff-9c2a-83a50130187a,ELC_PNL_CONNECTED_LOAD_KW display mirror [auto-generated]
-ELC_PNL_DESIGNATION_NAME_TXT,Panel Designation,TEXT,Instance,"Electrical Circuits, Electrical Equipment, Electrical Fixtures, Lighting Devices",ELC_PWR,ea6fc977-0678-5a5c-b1b5-a19e9f3e17e0,Elc Pnl Designation Name Txt [ISO 19650-1:2018]
+ELC_PNL_DESIGNATION_NAME_TXT,Panel Designation,TEXT,Instance,"Electrical Circuits, Electrical Equipment, Electrical Fixtures, Lighting Devices",ELC_PWR,ea6fc977-0678-5a5c-b1b5-a19e9f3e17e0,Panel designation name [ISO 19650-1:2018]
 ELC_PNL_ENCLOSURE_TXT,Pnl Enclosure,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,67cd15ac-ff99-5877-9273-a549fbbf6a68,"Board enclosure / mounting type (Floor Standing / Wall Mounted / Din Rail); written by the PNLS panel card save (Panel_WriteParams), shown beside the IP rating in the STING panel schedule header. Not an IP code."
 ELC_PNL_FAULT_LG_KA,Pnl Fault Lg Ka,NUMBER,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,d1a9b4fa-71a1-56e9-b8b5-32e205658092,"Prospective line-to-ground (earth) fault current at this board in kA, as imported from an EasyPower study (EasyPower Import)."
 ELC_PNL_FED_FROM,Pnl Fed From,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,a1b2c3d4-504d-4a01-b001-000000000177,Panel fed from source
-ELC_PNL_FED_FROM_PNL_TXT,Fed From Panel,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,1a340249-26d2-55ff-b3fe-63d245e170df,Elc Pnl Fed From Pnl Txt [ISO 19650-1:2018]
+ELC_PNL_FED_FROM_PNL_TXT,Fed From Panel,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,1a340249-26d2-55ff-b3fe-63d245e170df,Panel fed from [ISO 19650-1:2018]
 ELC_PNL_IP_RATING_TXT,Pnl Ip Rating,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,82a4b44c-5d41-5e8f-b9e8-58384cba5158,Elc Pnl Ip Rating [ISO 19650-1:2018]
-ELC_PNL_MAIN_BRK_A,Main Breaker (A),NUMBER,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,ec3c2a37-6a06-5794-a048-e405c362a8a4,Elc Pnl Main Brk A [ISO 19650-1:2018]
+ELC_PNL_MAIN_BRK_A,Main Breaker (A),NUMBER,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,ec3c2a37-6a06-5794-a048-e405c362a8a4,Main breaker (A) [ISO 19650-1:2018]
 ELC_PNL_MAIN_BRK_TXT,Pnl Main Brk,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,c800dcd8-bf15-5bf5-93ad-0287ff86949d,ELC_PNL_MAIN_BRK_A display mirror [auto-generated]
 ELC_PNL_NAME_TXT,Pnl Name,TEXT,Instance,"Electrical Equipment, Electrical Circuits, Conduits",ELC_PWR,b04373ec-3a97-5c0e-a13b-b72450d52f02,Source panel / distribution board name stamped on conduit by WireParamStampCommand (matches ElectricalSystem.BaseEquipment.Name) [STING Gap 1/2]
-ELC_PNL_NUM_OF_WAYS_NR,Number Of Ways,NUMBER,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,7f871de1-9153-549f-a19f-290683618f46,Elc Pnl Num Of Ways Nr [ISO 19650-1:2018]
+ELC_PNL_NUM_OF_WAYS_NR,Number Of Ways,NUMBER,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,7f871de1-9153-549f-a19f-290683618f46,Number of ways [ISO 19650-1:2018]
 ELC_PNL_NUM_OF_WAYS_TXT,Pnl Num Of Ways,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,312ce154-a768-5ad8-8be9-b4f3e98707b6,ELC_PNL_NUM_OF_WAYS_NR display mirror [auto-generated]
 ELC_PNL_PHS_COUNT_NR,Phase Count,NUMBER,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,febd6223-1632-599f-991b-cbeb3b8fd979,Elc Pnl Phs Count Nr [ISO 19650-1:2018]
 ELC_PNL_PHS_COUNT_TXT,Pnl Phs Count,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,ea7a5324-3196-5f29-83dd-239c8f59a233,ELC_PNL_PHS_COUNT_NR display mirror [auto-generated]
 ELC_PNL_RATED_KW,Panel Rated kW,NUMBER,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,ce012518-4b1d-5cfd-b57d-fbfa5d9e2a23,Panel rated capacity kW (for overload check) [ISO 19650-3:2020]
 ELC_PNL_RATED_TXT,Pnl Rated,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,6917f15c-d540-584d-a35e-8b9a1399337d,ELC_PNL_RATED_KW display mirror [auto-generated]
 ELC_PNL_SHORT_CIRCUIT_KA,Pnl Short Circuit Ka,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,a372001a-40f2-5db4-817a-d18d8e701774,Elc Pnl Short Circuit Ka [ISO 19650-1:2018]
-ELC_PNL_SHORT_CIRCUIT_RATING_KA,Short Circuit Rating (kA),NUMBER,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,eac6e4e0-593e-521c-a4d8-f6142f0010a5,Elc Pnl Short Circuit Rating Ka [ISO 19650-1:2018]
+ELC_PNL_SHORT_CIRCUIT_RATING_KA,Short Circuit Rating (kA),NUMBER,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,eac6e4e0-593e-521c-a4d8-f6142f0010a5,Calculated fault current at panel (kA) -- reuses Phase 175 short-circuit param [STING Phase 178]
 ELC_PNL_SHORT_CIRCUIT_RATING_TXT,Pnl Short Circuit Rating,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,2e2ca5cc-6ab2-57de-a7f7-2bda8a0eff6c,ELC_PNL_SHORT_CIRCUIT_RATING_KA display mirror [auto-generated]
 ELC_PNL_SPARE_WAYS_NR,Pnl Spare Ways,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,6988649a-80e1-5cd5-b6de-52206c4d526d,Elc Pnl Spare Ways [ISO 19650-1:2018]
 ELC_PNL_VLT_TXT,Pnl Vlt,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,6abac03e-94a6-52a2-bbf1-56759c2bccb4,ELC_PNL_VLT_V display mirror [auto-generated]
@@ -1287,8 +1287,8 @@ ELC_TAG_7_PARA_CIRCUIT_TXT,Circuit Paragraph,TEXT,Instance,<ALL>,ELC_PWR,2f21931
 ELC_TAG_7_PARA_CIRC_TXT,Tag 7 Para Circ,TEXT,Instance,<ALL>,ELC_PWR,d44883db-4f85-5f9b-a5ca-0611014e55e6,Electrical TAG7 paragraph container for circ
 ELC_TAG_7_PARA_COMM_TXT,Tag 7 Para Comm,TEXT,Instance,<ALL>,ELC_PWR,e0d7b65b-2999-41ac-969b-27bf8db00ee4,Communication device electrical paragraph container [ISO 19650-3:2020]
 ELC_TAG_7_PARA_CONDUIT_TXT,Conduit Paragraph,TEXT,Instance,<ALL>,ELC_PWR,e035389f-58b4-567e-a820-0d674ee6c2b8,Conduit paragraph [ISO 19650-3:2020]
-ELC_TAG_7_PARA_ELC_CONNECTORS_TXT,Tag 7 Para Elc Connectors,TEXT,Instance,<ALL>,ELC_PWR,cf72798b-2ef1-5f50-85cf-314a29ea967d,Elc Connectors paragraph [ISO 19650-3:2020]
-ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT,Tag 7 Para Fab Containment,TEXT,Instance,<ALL>,ELC_PWR,2e2894ee-37eb-552b-aa61-92fc3b3d562d,Fab Containment paragraph [ISO 19650-3:2020]
+ELC_TAG_7_PARA_ELC_CONNECTORS_TXT,Tag 7 Para Elc Connectors,TEXT,Instance,<ALL>,ELC_PWR,cf72798b-2ef1-5f50-85cf-314a29ea967d,Electrical connector paragraph [ISO 19650-3:2020]
+ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT,Tag 7 Para Fab Containment,TEXT,Instance,<ALL>,ELC_PWR,2e2894ee-37eb-552b-aa61-92fc3b3d562d,Fabrication containment paragraph [ISO 19650-3:2020]
 ELC_TAG_7_PARA_FIXTURE_TXT,Tag 7 Para Fixture,TEXT,Instance,<ALL>,ELC_PWR,26e933e4-83fd-52bc-b28d-d7b21a97c816,Electrical fixture TAG7 paragraph narrative
 ELC_TAG_7_PARA_LPS_TXT,Tag 7 Para Lps,TEXT,Instance,<ALL>,ELC_PWR,e1c5f9d4-1007-5111-9111-100000000007,"Electrical TAG7 paragraph container for LPS (class, LPZ, down conductors, earth resistance, last test) [STING Phase 176]"
 ELC_TAG_7_PARA_PANEL_TXT,DB Panel Paragraph,TEXT,Instance,<ALL>,ELC_PWR,3f4684f4-9274-5275-993a-85c7b190fcac,DB panel paragraph container [ISO 19650-3:2020]
@@ -1296,10 +1296,10 @@ ELC_TAG_7_PARA_TIEIN_TXT,Tag 7 Para Tiein,TEXT,Instance,<ALL>,ELC_PWR,e97f6a5b-3
 ELC_TAG_7_PARA_TRAY_TXT,Cable Tray Paragraph,TEXT,Instance,<ALL>,ELC_PWR,a0837add-84a6-525b-9339-02d5d01105d6,Cable tray paragraph [ISO 19650-3:2020]
 ELC_TRANSFER_LOAD_OK,Transfer Load Ok,TEXT,Instance,"Electrical Equipment, Electrical Fixtures, Cable Trays, Cable Tray Fittings, Conduits, Conduit Fittings, Electrical Circuits",ELC_PWR,d97abf37-af03-52db-ab48-8e03c54f9a1d,Elc Transfer Load Ok [STING]
 ELC_UPS_REPLACE_DT,Ups Replace Dt,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,c8d4f6e2-2303-4d27-8c61-0e7a3f9be003,UPS battery replacement date ISO 8601 [H-27]
-ELC_VLT_DROP_PCT,Voltage Drop %,NUMBER,Instance,"Electrical Circuits, Electrical Equipment",ELC_PWR,cf27a6c4-4056-543b-876f-ca8747265b83,Elc Vlt Drop Pct [ISO 19650-1:2018]
+ELC_VLT_DROP_PCT,Voltage Drop %,NUMBER,Instance,"Electrical Circuits, Electrical Equipment",ELC_PWR,cf27a6c4-4056-543b-876f-ca8747265b83,Calculated voltage drop % -- reuses existing Phase 175 param [STING Phase 178]
 ELC_VLT_DROP_TXT,Vlt Drop,TEXT,Instance,"Electrical Equipment, Electrical Circuits",ELC_PWR,efcb399c-f695-51e3-b34e-f6a67bfdb82b,ELC_VLT_DROP_PCT display mirror [auto-generated]
 ELC_VLT_PRIMARY_RATING_TXT,Vlt Primary Rating,TEXT,Instance,"Conduits, Electrical Circuits, Electrical Equipment, Electrical Fixtures",ELC_PWR,0553394c-6926-5460-bc44-4fc45ac42ed9,ELC_VLT_PRIMARY_RATING_V display mirror [auto-generated]
-ELC_VLT_PRIMARY_RATING_V,Elc Vlt Primary Rating V,NUMBER,Instance,"Conduits, Electrical Circuits, Electrical Equipment, Electrical Fixtures",ELC_PWR,af785641-08c5-5f2b-91b9-40ea678f25c5,Elc Vlt Primary Rating V [ISO 19650-1:2018]
+ELC_VLT_PRIMARY_RATING_V,Elc Vlt Primary Rating V,NUMBER,Instance,"Conduits, Electrical Circuits, Electrical Equipment, Electrical Fixtures",ELC_PWR,af785641-08c5-5f2b-91b9-40ea678f25c5,Panel voltage rating (V) [ISO 19650-1:2018]
 ELC_VOLTAGE_TXT,Voltage,TEXT,Instance,"Electrical Equipment, Electrical Fixtures, Wire",ELC_PWR,fa5f8fbb-0d15-536e-adc7-5b5a5570359d,ELC_VOLTAGE_V display mirror [auto-generated]
 ELC_VOLTAGE_V,Voltage V,NUMBER,Instance,"Electrical Equipment, Electrical Fixtures, Wire",ELC_PWR,ff29a613-abb3-45ef-9577-2f311b14074d,Device operating voltage in V [ISO 19650-1:2018]
 ELC_WIRE_AMPACITY_A,Wire Ampacity A,NUMBER,Instance,"Cable Trays, Conduits, Electrical Circuits",ELC_PWR,27081920-3b4c-45d6-4a5b-6c7d8e9fa0b1,Cable current-carrying capacity (ampacity) in amperes at design installation method [BS 7671 Table 4D1A/4D2A]
@@ -1372,7 +1372,7 @@ FLS_LIFE_SFTY_SPARE_02_TXT,Fire/Life Safety - Spare 02,TEXT,Instance,"Sprinklers
 FLS_PROT_CORROSION_PROT_LVL_NR,Fls Prot Corrosion Prot Level,TEXT,Instance,"Fire Alarm Devices, Fire Protection, Sprinklers",FLS_LIFE_SFTY,cd8edcd1-b76e-5f87-8528-1f9522dfcd59,Fls Prot Corrosion Prot Lvl Nr [ISO 19650-1:2018]
 FLS_PROT_FLS_ESCAPE_STAIR_TXT,Fls Prot Fls Escape Stair,TEXT,Instance,"Fire Alarm Devices, Fire Protection, Sprinklers",FLS_LIFE_SFTY,a8435ffb-cfba-5718-a929-d12f6b3322df,Fls Prot Fls Escape Stair Txt [ISO 19650-1:2018]
 FLS_PROT_FLS_RESISTANCE_MINUTES_CALC,Fls Prot Fls Resistance Minutes Calc,TEXT,Instance,"Fire Alarm Devices, Fire Protection, Sprinklers",FLS_LIFE_SFTY,1017f0fe-68c8-5d96-9e48-866fb330144d,Fls Prot Fls Resistance Minutes Calc [ISO 19650-1:2018]
-FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Fire Rating (min),NUMBER,Instance,"Ceilings, Doors, Fire Alarm Devices, Fire Protection, Floors, Sprinklers, Walls",FLS_LIFE_SFTY,d173e059-7b9e-54ca-83fc-2bef567411cb,Fls Prot Fls Resistance Rating Minutes Min [ISO 19650-1:2018]
+FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Fire Rating (min),NUMBER,Instance,"Ceilings, Doors, Fire Alarm Devices, Fire Protection, Floors, Sprinklers, Walls",FLS_LIFE_SFTY,d173e059-7b9e-54ca-83fc-2bef567411cb,Fire resistance rating (min) [ISO 19650-1:2018]
 FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN_TXT,Prot Fls Resistance Rating Minutes Min,TEXT,Instance,"Ceilings, Doors, Fire Alarm Devices, Fire Protection, Floors, Sprinklers, Walls",FLS_LIFE_SFTY,065fe2d3-5cae-5050-8f3c-66eb20d5fcd8,FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN display mirror [auto-generated]
 FLS_PROT_PRODUCT_TXT,Prot Product,TEXT,Instance,"Fire Alarm Devices, Fire Protection, Sprinklers",FLS_LIFE_SFTY,f1a74a80-f189-42d5-9ee4-6475a4f00026,Fire protection product specification reference [ISO 19650-1:2018]
 FLS_PROT_SPRINKLER_HED_TYPE_TXT,Fls Prot Sprinkler Hed Type,TEXT,Instance,"Sprinklers, Fire Alarm Devices",FLS_LIFE_SFTY,2365d6a5-e39b-5b67-8e32-82d5cf7dd88e,Fls Prot Sprinkler Hed Type Txt [ISO 19650-1:2018]
@@ -1411,7 +1411,7 @@ FLS_SUPPRESSION_COST_UGX,Fls Suppression Cost Ugx,TEXT,Instance,"Sprinklers, Fir
 FLS_SUPPRESSION_PIPE_LENGTH_M,Fls Suppression Pipe Length M,TEXT,Instance,"Sprinklers, Fire Alarm Devices",FLS_LIFE_SFTY,05e317b9-b680-52f3-8d1e-9ca5e503272f,Fls Suppression Pipe Length M [ISO 19650-1:2018]
 FLS_TAG_7_PARA_DEVICE_TXT,Tag 7 Para Device,TEXT,Instance,<ALL>,FLS_LIFE_SFTY,c48c8fcc-f3f6-5b91-9f13-3a4ceeb161d2,Fire safety device TAG7 paragraph narrative
 FLS_TAG_7_PARA_FA_TXT,Fire Alarm Paragraph,TEXT,Instance,<ALL>,FLS_LIFE_SFTY,b4c8f661-0a7e-5763-8043-49a4647f023f,Fire alarm paragraph container - NEW v4.3 [ISO 19650-3:2020]
-FLS_TAG_7_PARA_FIRE_PROT_TXT,Tag 7 Para Fire Prot,TEXT,Instance,<ALL>,FLS_LIFE_SFTY,85b3a45a-fa22-5301-a4ed-f53617b6d214,Fire Prot paragraph [ISO 19650-3:2020]
+FLS_TAG_7_PARA_FIRE_PROT_TXT,Tag 7 Para Fire Prot,TEXT,Instance,<ALL>,FLS_LIFE_SFTY,85b3a45a-fa22-5301-a4ed-f53617b6d214,Fire protection paragraph [ISO 19650-3:2020]
 FLS_TAG_7_PARA_SPR_TXT,Sprinkler Paragraph,TEXT,Instance,<ALL>,FLS_LIFE_SFTY,3b1cbb9c-d07b-5ca4-95cd-8f178d555b1c,Sprinkler paragraph container - NEW v4.3 [ISO 19650-3:2020]
 FLS_TAG_7_PARA_TIEIN_TXT,Tag 7 Para Tiein,TEXT,Instance,<ALL>,FLS_LIFE_SFTY,37d0977b-71e9-4d5a-9714-35ac6a67db9f,Fire protection tie-in paragraph container [ISO 19650-3:2020]
 FLS_TOTAL_DEMAND_LPM,Fls Total Demand Lpm,TEXT,Instance,"Sprinklers, Fire Alarm Devices",FLS_LIFE_SFTY,577f7ff9-1bd0-50e5-b2b1-53bae6686935,Fls Total Demand Lpm [ISO 19650-1:2018]
@@ -1459,7 +1459,7 @@ HVC_CAP_TXT,Cap,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct 
 HVC_CONTROL_TYPE_TXT,Control Type,TEXT,Instance,"Air Terminals, Duct Accessories, Duct Fittings, Duct Insulation, Ducts, Flex Ducts, HVAC Zones, Mechanical Equipment",HVC_SYSTEMS,34d15f62-cb02-5a6b-9cf1-825c6b98c08a,Hvc Control Type Txt [ISO 19650-1:2018]
 HVC_DCT_EQUIVALENT_DIAMETER_IN,Size (mm),TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Duct Insulation, Flex Ducts",HVC_SYSTEMS,e28e8a3d-b7e2-5247-85c3-a6b72b1d4a40,Hvc Dct Equivalent Diameter In [ISO 19650-1:2018]
 HVC_DCT_FAB_METHOD_TXT,Dct Fab Method,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Duct Insulation, Flex Ducts",HVC_SYSTEMS,0cadc641-be47-4650-bd0c-6fba88a0a808,Duct fabrication method
-HVC_DCT_FLW_CFM,Airflow (CFM),NUMBER,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Duct Insulation, Flex Ducts",HVC_SYSTEMS,39e255ff-7a42-5d4f-954c-960347ab434e,Hvc Dct Flw Cfm [ISO 19650-1:2018]
+HVC_DCT_FLW_CFM,Airflow (CFM),NUMBER,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Duct Insulation, Flex Ducts",HVC_SYSTEMS,39e255ff-7a42-5d4f-954c-960347ab434e,Duct flow (CFM) (HVAC_AIRFLOW type) [ISO 19650-1:2018]
 HVC_DCT_FLW_TXT,Dct Flw,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Duct Insulation, Flex Ducts",HVC_SYSTEMS,42f1024e-ff68-5bea-bf9a-e774cdd0fe7f,HVC_DCT_FLW_CFM display mirror [auto-generated]
 HVC_DCT_HANGER_TYPE_TXT,Dct Hanger Type,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Duct Insulation, Flex Ducts",HVC_SYSTEMS,96a9533f-b824-4d8a-9769-66b823ba30bb,Duct hanger type
 HVC_DCT_HEIGHT_MM,Dct Height Mm,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Duct Insulation, Flex Ducts",HVC_SYSTEMS,a1b2c3d4-5046-4a01-b001-000000000170,Duct height in mm
@@ -1490,7 +1490,7 @@ HVC_DUCT_CLASS_TXT,Duct Class,TEXT,Instance,"Mechanical Equipment, Air Terminals
 HVC_DUCT_FLOWRATE_M3H,Flow Rate (m³/h),NUMBER,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Duct Insulation, Flex Ducts",HVC_SYSTEMS,4715ba3e-adf9-526d-b7d8-e8fa5d529097,Hvc Duct Flowrate M3h [ISO 19650-1:2018]
 HVC_DUCT_FLOWRATE_TXT,Duct Flowrate,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Duct Insulation, Flex Ducts",HVC_SYSTEMS,4c234732-d8b4-5495-bf1e-396a644b0dba,HVC_DUCT_FLOWRATE_M3H display mirror [auto-generated]
 HVC_DUCT_LINING_TXT,Lining,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Duct Insulation, Flex Ducts",HVC_SYSTEMS,971cd951-7bac-5a58-a887-ab87eecad874,Hvc Duct Lining Txt [ISO 19650-1:2018]
-HVC_EFF_RATIO_NR,Efficiency Ratio,NUMBER,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Duct Insulation, Flex Ducts",HVC_SYSTEMS,f9f3d362-50dc-5880-accb-dcf8fff886b1,Hvc Eff Ratio Nr [ISO 19650-1:2018]
+HVC_EFF_RATIO_NR,Efficiency Ratio,NUMBER,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Duct Insulation, Flex Ducts",HVC_SYSTEMS,f9f3d362-50dc-5880-accb-dcf8fff886b1,HVAC equipment COP/efficiency ratio. Maps from RBS_MECH_COP_PARAM. [ISO 19650-1:2018]
 HVC_EFF_RATIO_TXT,Eff Ratio,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Duct Insulation, Flex Ducts",HVC_SYSTEMS,3d7a7cb8-0465-5473-910b-623aab16f554,HVC_EFF_RATIO_NR display mirror [auto-generated]
 HVC_EQP_TAG,Eqp Tag,TEXT,Instance,<ALL>,HVC_SYSTEMS,6123865a-d82e-5c99-b5cd-bffa452f29b6,HVAC equipment tag container [ISO 19650-2:2018]
 HVC_EQP_TAG_01_TXT,HVAC - Spare 01,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Duct Insulation, Flex Ducts",HVC_SYSTEMS,62f66802-8bd6-4861-aad0-f23e5b1905d2,HVC_EQP_TAG
@@ -1553,14 +1553,14 @@ HVC_SYSTEM_ID_TXT,Air System,TEXT,Instance,"MEP Spaces, Rooms",HVC_SYSTEMS,3955e
 HVC_TAG_7_PARA_ANAL_DUCTS_TXT,Tag 7 Para Anal Ducts,TEXT,Instance,<ALL>,HVC_SYSTEMS,db9572ae-e4ee-58dd-8a77-66d045ca57a5,Anal Ducts paragraph [ISO 19650-3:2020]
 HVC_TAG_7_PARA_AT_TXT,Air Terminal Paragraph,TEXT,Instance,<ALL>,HVC_SYSTEMS,d483bd8b-d73c-55d1-a4e9-a3fb23c9bf34,Air terminal paragraph container [ISO 19650-3:2020]
 HVC_TAG_7_PARA_DCTACC_TXT,Duct Accessory Paragraph,TEXT,Instance,<ALL>,HVC_SYSTEMS,90cd5680-b46f-5438-8545-3d64496d3083,Duct accessory paragraph [ISO 19650-3:2020]
-HVC_TAG_7_PARA_DUCT_INSULATION_TXT,Tag 7 Para Duct Insulation,TEXT,Instance,<ALL>,HVC_SYSTEMS,8b48923f-96ea-5b9f-b49f-ef5c54833a74,Duct Insulation paragraph [ISO 19650-3:2020]
-HVC_TAG_7_PARA_DUCT_LINING_TXT,Tag 7 Para Duct Lining,TEXT,Instance,<ALL>,HVC_SYSTEMS,166add3f-f25f-54ab-b9f3-7df0400c050f,Duct Lining paragraph [ISO 19650-3:2020]
+HVC_TAG_7_PARA_DUCT_INSULATION_TXT,Tag 7 Para Duct Insulation,TEXT,Instance,<ALL>,HVC_SYSTEMS,8b48923f-96ea-5b9f-b49f-ef5c54833a74,Duct insulation paragraph [ISO 19650-3:2020]
+HVC_TAG_7_PARA_DUCT_LINING_TXT,Tag 7 Para Duct Lining,TEXT,Instance,<ALL>,HVC_SYSTEMS,166add3f-f25f-54ab-b9f3-7df0400c050f,Duct lining paragraph [ISO 19650-3:2020]
 HVC_TAG_7_PARA_DUCT_TXT,Duct Paragraph,TEXT,Instance,<ALL>,HVC_SYSTEMS,afc99d4a-df1f-52e3-8e5a-3187771464af,Duct paragraph container [ISO 19650-3:2020]
-HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT,Tag 7 Para Fab Dct Stiffeners,TEXT,Instance,<ALL>,HVC_SYSTEMS,5bc63337-8783-55d6-9d1b-8746824dc314,Fab Dct Stiffeners paragraph [ISO 19650-3:2020]
-HVC_TAG_7_PARA_FAB_DUCTWORK_TXT,Tag 7 Para Fab Ductwork,TEXT,Instance,<ALL>,HVC_SYSTEMS,606bb249-0311-5e9d-b26d-e8600d5cd067,Fab Ductwork paragraph [ISO 19650-3:2020]
+HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT,Tag 7 Para Fab Dct Stiffeners,TEXT,Instance,<ALL>,HVC_SYSTEMS,5bc63337-8783-55d6-9d1b-8746824dc314,Fabrication ductwork stiffeners paragraph [ISO 19650-3:2020]
+HVC_TAG_7_PARA_FAB_DUCTWORK_TXT,Tag 7 Para Fab Ductwork,TEXT,Instance,<ALL>,HVC_SYSTEMS,606bb249-0311-5e9d-b26d-e8600d5cd067,Fabrication ductwork paragraph [ISO 19650-3:2020]
 HVC_TAG_7_PARA_FLEXDUCT_TXT,Flex Duct Paragraph,TEXT,Instance,<ALL>,HVC_SYSTEMS,330a9fed-2a9b-5e88-863f-b63fe6f59e3d,Flex duct paragraph [ISO 19650-3:2020]
-HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT,Tag 7 Para Mech Ctrl Dev,TEXT,Instance,<ALL>,HVC_SYSTEMS,2d8f2ed6-3e4b-53c7-b63f-fbd8ac9fc07a,Mech Ctrl Dev paragraph [ISO 19650-3:2020]
-HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT,Tag 7 Para Mech Equip Sets,TEXT,Instance,<ALL>,HVC_SYSTEMS,284d4834-f700-5e7c-87d1-271c0e943e84,Mech Equip Sets paragraph [ISO 19650-3:2020]
+HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT,Tag 7 Para Mech Ctrl Dev,TEXT,Instance,<ALL>,HVC_SYSTEMS,2d8f2ed6-3e4b-53c7-b63f-fbd8ac9fc07a,Mechanical control device paragraph [ISO 19650-3:2020]
+HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT,Tag 7 Para Mech Equip Sets,TEXT,Instance,<ALL>,HVC_SYSTEMS,284d4834-f700-5e7c-87d1-271c0e943e84,Mechanical equipment set paragraph [ISO 19650-3:2020]
 HVC_TAG_7_PARA_SPEC_TXT,HVAC Equipment Paragraph,TEXT,Instance,<ALL>,HVC_SYSTEMS,b62dfc26-b575-5f57-8a51-15a0296eb912,HVAC equipment paragraph container [ISO 19650-3:2020]
 HVC_TAG_7_PARA_TIEIN_TXT,Tag 7 Para Tiein,TEXT,Instance,<ALL>,HVC_SYSTEMS,4381a69b-5e61-45c9-8782-18e575a109cd,HVAC tie-in point paragraph container [ISO 19650-3:2020]
 HVC_TERMINAL_DAMPER_TXT,Hvc Terminal Damper,TEXT,Instance,Air Terminals,HVC_SYSTEMS,05a44669-a8ec-5f2d-abca-5bf15bcbbe76,Hvc Terminal Damper Txt [ISO 19650-1:2018]
@@ -1568,7 +1568,7 @@ HVC_TERMINAL_FINISH_TXT,Hvc Terminal Finish,TEXT,Instance,Air Terminals,HVC_SYST
 HVC_TERMINAL_MAT_TXT,Hvc Terminal Material,TEXT,Instance,Air Terminals,HVC_SYSTEMS,b4b20432-2a18-5392-809e-8768a0c45401,Hvc Terminal Mat Txt [ISO 19650-1:2018]
 HVC_TERMINAL_PATTERN_TXT,Hvc Terminal Pattern,TEXT,Instance,Air Terminals,HVC_SYSTEMS,c22dc02b-885d-51a6-a02b-10e8b225d871,Hvc Terminal Pattern Txt [ISO 19650-1:2018]
 HVC_THROW_M,Throw M,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Duct Insulation, Flex Ducts",HVC_SYSTEMS,f5c0c3e9-1b5c-5ec8-be38-06306373214c,Hvc Throw M [ISO 19650]
-HVC_VEL_MPS,Velocity (m/s),NUMBER,Instance,"Air Terminals, Duct Accessories, Duct Fittings, Duct Insulation, Ducts, Flex Ducts, Mechanical Equipment, Pipes",HVC_SYSTEMS,e7c4c2ab-a4f8-5c1d-bea0-933630bfae47,Hvc Vel Mps [ISO 19650-1:2018]
+HVC_VEL_MPS,Velocity (m/s),NUMBER,Instance,"Air Terminals, Duct Accessories, Duct Fittings, Duct Insulation, Ducts, Flex Ducts, Mechanical Equipment, Pipes",HVC_SYSTEMS,e7c4c2ab-a4f8-5c1d-bea0-933630bfae47,Velocity (m/s) [ISO 19650-1:2018]
 HVC_VEL_TXT,Vel,TEXT,Instance,"Air Terminals, Duct Accessories, Duct Fittings, Duct Insulation, Ducts, Flex Ducts, Mechanical Equipment, Pipes",HVC_SYSTEMS,63a173d6-6108-5ff4-b87d-f318250e313f,HVC_VEL_MPS display mirror [auto-generated]
 HVC_VLT_V,Voltage (V),TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Duct Insulation, Flex Ducts",HVC_SYSTEMS,06b47e63-5eae-54ca-91ad-ef47d8aa57be,Hvc Vlt V [ISO 19650-1:2018]
 ICT_CAT_RATING_TXT,Ict Cat Rating,TEXT,Instance,"Data Devices, Communication Devices, Telephone Devices, Security Devices, Nurse Call Devices",COM_DAT,3c04d5a6-e4d1-5ed8-8e72-8246bb484680,Ict Cat Rating [ISO 19650]
@@ -1586,7 +1586,7 @@ ICT_RTLS_ANCHOR_ID_TXT,Ict Rtls Anchor Id,TEXT,Instance,"Data Devices, Communica
 ICT_RTLS_COVERAGE_M_NR,Ict Rtls Coverage M,NUMBER,Instance,"Data Devices, Communication Devices, Telephone Devices, Security Devices, Nurse Call Devices",COM_DAT,c8d4f6e2-2404-4d27-8c61-0e7a3f9bf004,RTLS anchor effective coverage radius (m) [H-29]
 ICT_RTLS_TECH_TXT,Ict Rtls Tech,TEXT,Instance,"Data Devices, Communication Devices, Telephone Devices, Security Devices, Nurse Call Devices",COM_DAT,c8d4f6e2-2402-4d27-8c61-0e7a3f9bf002,RTLS tech: BLE / UWB / Wi-Fi-RSSI / IR / RFID-1356 [H-29]
 ICT_RTLS_TX_POWER_DBM_NR,Ict Rtls Tx Power Dbm,NUMBER,Instance,"Data Devices, Communication Devices, Telephone Devices, Security Devices, Nurse Call Devices",COM_DAT,c8d4f6e2-2403-4d27-8c61-0e7a3f9bf003,RTLS anchor TX power (dBm) [H-29]
-ICT_TAG_7_PARA_AV_DEV_TXT,Ict Tag 7 Para Av Dev,TEXT,Instance,<ALL>,COM_DAT,2b072ef2-21e1-5be8-9221-e71c2665ed49,Av Dev paragraph [ISO 19650-3:2020]
+ICT_TAG_7_PARA_AV_DEV_TXT,Ict Tag 7 Para Av Dev,TEXT,Instance,<ALL>,COM_DAT,2b072ef2-21e1-5be8-9221-e71c2665ed49,Audio visual device paragraph [ISO 19650-3:2020]
 ICT_TAG_7_PARA_DATA_TXT,Data Outlet Paragraph,TEXT,Instance,<ALL>,COM_DAT,a5ee1f80-17ac-5088-a4bb-bd72bcb56cf8,Data/telephone outlet paragraph [ISO 19650-3:2020]
 ICT_TAG_7_PARA_TEL_TXT,Ict Tag 7 Para Tel,TEXT,Instance,<ALL>,COM_DAT,bbddf716-c33b-56ba-9449-19a113cabe0a,Telephone device paragraph [ISO 19650-3:2020]
 ICT_TEL_OUTLET_QTY_NR,Ict Tel Outlet Qty,NUMBER,Instance,"Data Devices, Communication Devices, Telephone Devices, Security Devices, Nurse Call Devices",COM_DAT,c2ca3e24-ee24-5245-a398-ea4eed6e42ee,Number of telephone outlets [ISO 19650-1:2018]
@@ -1626,7 +1626,7 @@ LTG_EMRG_TYPE_TXT,Lighting Emrg Type,TEXT,Instance,Lighting Fixtures,LTG_CONTROL
 LTG_FIX_EFFICACY_LM_W,Fix Efficacy Lm W,TEXT,Instance,Lighting Fixtures,LTG_CONTROLS,a1b2c3d4-5050-4a01-b001-000000000180,Luminaire efficacy in lumens per watt
 LTG_FIX_LAMP_TYPE_TXT,Fix Lamp Type,TEXT,Instance,Lighting Fixtures,LTG_CONTROLS,a1b2c3d4-504f-4a01-b001-000000000179,Lamp type (LED/Fluorescent/HID/Incandescent)
 LTG_FIX_LMP_WATTAGE_TXT,Fix Lmp Wattage,TEXT,Instance,Lighting Fixtures,LTG_CONTROLS,27a3fae8-4cc8-5638-8329-826db3ce4880,LTG_FIX_LMP_WATTAGE_W display mirror [auto-generated]
-LTG_FIX_LMP_WATTAGE_W,Lighting Fix Lmp Wattage W,NUMBER,Instance,Lighting Fixtures,LTG_CONTROLS,811bfba5-d434-5070-9aee-6779c85a4c21,Ltg Fix Lmp Wattage W [ISO 19650-1:2018]
+LTG_FIX_LMP_WATTAGE_W,Lighting Fix Lmp Wattage W,NUMBER,Instance,Lighting Fixtures,LTG_CONTROLS,811bfba5-d434-5070-9aee-6779c85a4c21,Lamp wattage (W) [ISO 19650-1:2018]
 LTG_FIX_TAG,Fix Tag,TEXT,Instance,<ALL>,LTG_CONTROLS,449aa2da-345f-5d91-8f4b-037cc0fd9db3,Lighting fixture tag container [ISO 19650-2:2018]
 LTG_FIX_TAG_01_TXT,Ltg Fix Tag,TEXT,Instance,Lighting Fixtures,LTG_CONTROLS,647a8916-560f-4c0c-b6ca-f2ee23a97fb0,Ltg Fix Tag
 LTG_FIX_TAG_02_TXT,Ltg Fix Tag,TEXT,Instance,Lighting Fixtures,LTG_CONTROLS,7783ce57-766b-4903-8e9f-bde24b706b42,Ltg Fix Tag
@@ -1707,26 +1707,26 @@ MEC_CTRL_FUNCTION_TXT,Ctrl Function,TEXT,Instance,<ALL>,HVC_SYSTEMS,fb78bf18-024
 MEC_CTRL_SIGNAL_TXT,Ctrl Signal,TEXT,Instance,<ALL>,HVC_SYSTEMS,d5b2a4a6-bce1-44c4-a6c4-d9cb3a5074c7,Mechanical control signal type (Pneumatic/DDC/Electric) [ISO 19650-1:2018]
 MEC_SET_CAPACITY_KW,Set Capacity Kw,TEXT,Instance,<ALL>,HVC_SYSTEMS,b557693f-01a1-45bd-91fc-788c1a589a0e,Mechanical equipment set capacity in kW [ISO 19650-1:2018]
 MEC_SYS_TXT,Sys,TEXT,Instance,<ALL>,HVC_SYSTEMS,b8c9d0e1-f2a3-4b4c-d5e6-f7a8b9c0d1e2,Mechanical system code
-MED_TAG_7_PARA_MED_EQUIP_TXT,Med Tag 7 Para Med Equip,TEXT,Instance,<ALL>,COM_DAT,d7036940-1cbb-538d-aa9b-b98c19575f7b,Med Equip paragraph [ISO 19650-3:2020]
-MEP_CONNECTOR_COUNT_NR,Connector Count,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,aa37f8cd-757f-655b-6557-33ac70e4d01c,Mep Connector Count [ISO 19650]
+MED_TAG_7_PARA_MED_EQUIP_TXT,Med Tag 7 Para Med Equip,TEXT,Instance,<ALL>,COM_DAT,d7036940-1cbb-538d-aa9b-b98c19575f7b,Medical equipment paragraph [ISO 19650-3:2020]
+MEP_CONNECTOR_COUNT_NR,Connector Count,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,aa37f8cd-757f-655b-6557-33ac70e4d01c,Number of active connectors on element [ISO 19650]
 MEP_DELTA_PRESS_PA,Delta Press Pa,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,cec7bae6-3598-5c85-8dff-05c918a32767,Differential pressure in Pascals
 MEP_DESIGN_FLOW_M3S,Design Flow M3s,NUMBER,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,ac000000-0000-0000-0000-000000000092,ArchiCAD IFC: MEP design flow rate m3/s (Pset_DistributionFlowElementCommon)
 MEP_DESIGN_TEMP_C,Design Temp C,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,a1361cc9-0cdf-5242-b174-e42be709cb9c,Design temperature in degrees Celsius
 MEP_DESIGN_VEL_MS,Design Vel Ms,NUMBER,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,ac000000-0000-0000-0000-000000000093,ArchiCAD IFC: MEP design velocity m/s
 MEP_DIVERSITY_FACTOR,Diversity Factor,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,b50e813b-04a9-5914-96f3-2b4eec5b23e5,Load diversity factor (0.0 to 1.0)
-MEP_DOWNSTREAM_ELEMENT_TXT,Downstream Element,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,da914397-556f-7f68-fa85-96c4b5f6d47e,Mep Downstream Element [ISO 19650]
+MEP_DOWNSTREAM_ELEMENT_TXT,Downstream Element,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,da914397-556f-7f68-fa85-96c4b5f6d47e,Downstream connected element (served element) [ISO 19650]
 MEP_INSULATED_BOOL,Insulated,YESNO,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,ac000000-0000-0000-0000-000000000094,ArchiCAD IFC: MEP element is insulated
 MEP_MATERIAL_TXT,Material,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,ac000000-0000-0000-0000-000000000095,ArchiCAD IFC: MEP element material Steel/uPVC/Copper/Galvanised
 MEP_NOISE_LEVEL_DB,Noise Level Db,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,a1804903-df4f-55a5-a59c-34307c22f6f8,Noise level in decibels (dBA)
 MEP_NOMINAL_DIAMETER_MM,Nominal Diameter Mm,NUMBER,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,ac000000-0000-0000-0000-000000000091,ArchiCAD IFC: MEP nominal diameter DN mm (Pset_DistributionFlowElementCommon)
 MEP_PUMP_HEAD_M,Pump Head M,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,75818724-2312-52e3-bde3-7e3af87ef18d,Pump head pressure in metres of water
-MEP_SYSTEM_ABBREVIATION_TXT,System Abbreviation,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,611ded5d-9a8a-5c9e-037b-d904e4e9c082,Mep System Abbreviation [ISO 19650]
-MEP_SYSTEM_NAME_TXT,System Name,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,3bcf2b8b-642f-e555-3ec5-63f673479b3b,Mep System Name [ISO 19650]
+MEP_SYSTEM_ABBREVIATION_TXT,System Abbreviation,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,611ded5d-9a8a-5c9e-037b-d904e4e9c082,MEP system abbreviation code [ISO 19650]
+MEP_SYSTEM_NAME_TXT,System Name,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,3bcf2b8b-642f-e555-3ec5-63f673479b3b,Connected MEP system name(s) [ISO 19650]
 MEP_TAG_7_PARA_ANCILLARY_TXT,Tag 7 Para Ancillary,TEXT,Instance,<ALL>,HVC_SYSTEMS,9b88b580-3cc1-5d10-933c-07e6022d66a2,Ancillary paragraph [ISO 19650-3:2020]
-MEP_TAG_7_PARA_FAB_HANGERS_TXT,Tag 7 Para Fab Hangers,TEXT,Instance,<ALL>,HVC_SYSTEMS,dc61115b-a02a-5e7c-9970-ebe31bd46960,Fab Hangers paragraph [ISO 19650-3:2020]
+MEP_TAG_7_PARA_FAB_HANGERS_TXT,Tag 7 Para Fab Hangers,TEXT,Instance,<ALL>,HVC_SYSTEMS,dc61115b-a02a-5e7c-9970-ebe31bd46960,Fabrication hangers paragraph [ISO 19650-3:2020]
 MEP_TIE_POINT_ID_TXT,Tie Point Id,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",PER_SUST,30ba8ffb-0e94-5bad-bc92-d1d25c7e69be,MEP tie-in point identifier
 MEP_TYPE_TXT,Type,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",PLM_DRN,1b1cd925-5ef5-5ce4-b184-0a1262345292,Plm Type Txt [ISO 19650-1:2018]
-MEP_UPSTREAM_ELEMENT_TXT,Upstream Element,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,895da2e2-1bf2-c45c-e8ee-221af3666d58,Mep Upstream Element [ISO 19650]
+MEP_UPSTREAM_ELEMENT_TXT,Upstream Element,TEXT,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,895da2e2-1bf2-c45c-e8ee-221af3666d58,Upstream connected element (supply source) [ISO 19650]
 MEP_WORKING_PRESSURE_PA,Working Pressure Pa,NUMBER,Instance,"Mechanical Equipment, Air Terminals, Ducts, Duct Fittings, Duct Accessories, Flex Ducts, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Plumbing Fixtures, Electrical Equipment, Electrical Fixtures, Cable Trays, Conduits",HVC_SYSTEMS,ac000000-0000-0000-0000-000000000090,ArchiCAD IFC: MEP system working pressure Pa (Pset_DistributionFlowElementCommon)
 MGS_AAP_REF_TXT,Mgs Aap Ref,TEXT,Instance,"Specialty Equipment, Mechanical Equipment, Plumbing Fixtures, Medical Equipment, Generic Models",MGS_SYSTEMS,c8d4f6e2-b008-4d27-8c61-0e7a3f9b1008,Owning area alarm panel ID
 MGS_DESIGN_FLOW_LPM_NR,Mgs Design Flow Lpm,NUMBER,Instance,"Specialty Equipment, Mechanical Equipment, Plumbing Fixtures, Medical Equipment, Pipes, Pipe Fittings, Pipe Accessories",MGS_SYSTEMS,c8d4f6e2-b003-4d27-8c61-0e7a3f9b1003,"Design flow l/min, free air [HTM 02-01]"
@@ -1749,26 +1749,26 @@ MGS_WORKING_PRESSURE_KPA,Mgs Working Pressure,TEXT,Instance,"Specialty Equipment
 MGS_ZVB_REF_TXT,Mgs Zvb Ref,TEXT,Instance,"Specialty Equipment, Mechanical Equipment, Plumbing Fixtures, Medical Equipment, Pipes, Pipe Fittings, Pipe Accessories, Generic Models",MGS_SYSTEMS,c8d4f6e2-b007-4d27-8c61-0e7a3f9b1007,Owning zone valve box ID (denormalised; canonical link rides ASS_TIEIN_REF_TXT)
 MGS_ZV_ZONE_TXT,Zv Zone,TEXT,Instance,"Specialty Equipment, Mechanical Equipment, Plumbing Fixtures, Medical Equipment, Pipe Accessories",MGS_SYSTEMS,4fca49b1-69c3-542d-970c-a0bf8af48f77,Marks this element as a medical gas zone valve and names the zone it isolates; read by the MGPS schematic. The owning box ID for other elements is MGS_ZVB_REF_TXT.
 MNT_ACCESS_DIR_TXT,Maintenance Access Side,TEXT,Instance,"Mechanical Equipment, Electrical Equipment, Plumbing Fixtures, Fire Protection, Specialty Equipment",PER_SUST,949f0c78-685c-5f70-b670-fe74183f81dd,"Side of the equipment the maintenance access zone is on: FRONT (default), BACK, LEFT, RIGHT, TOP or BOTTOM. Read by the maintenance clash check."
-MNT_ACCESS_REQUIREMENTS_TXT,Access Requirements,TEXT,Instance,<ALL>,PER_SUST,88ccb178-34ab-ede3-1279-b3eb7e0545c1,Mnt Access Requirements [ISO 19650]
+MNT_ACCESS_REQUIREMENTS_TXT,Access Requirements,TEXT,Instance,<ALL>,PER_SUST,88ccb178-34ab-ede3-1279-b3eb7e0545c1,"Maintenance access requirements (height, clearance, tools) [ISO 19650]"
 MNT_CAL_LAST_DT,Cal Last Dt,TEXT,Instance,<ALL>,COMMISSIONING,c8d4f6e2-1401-4d27-8c61-0e7a3f9b9001,Last calibration date (ISO 8601) -- distinct from service date
 MNT_CAL_NEXT_DT,Cal Next Dt,TEXT,Instance,<ALL>,COMMISSIONING,c8d4f6e2-1402-4d27-8c61-0e7a3f9b9002,Next calibration due (ISO 8601)
 MNT_CONDITION_GRADE_TXT,Condition Grade,TEXT,Instance,<ALL>,ASS_MNG,71d9f078-60f2-5ce4-8c4a-c791fb050a3a,Asset condition grade (1-5 scale per SFG20)
 MNT_CRITICALITY_RATING_TXT,Criticality Rating,TEXT,Instance,<ALL>,ASS_MNG,00096b96-c7c9-53fa-b4e3-b3c7cd61994b,Asset criticality rating (Critical/High/Medium/Low)
 MNT_DURATION_TXT,Duration,TEXT,Instance,<ALL>,COMMISSIONING,5af47f5b-5e51-5b30-b2f1-599ddd75302c,Mnt Duration Txt [STING]
-MNT_FREQUENCY_TXT,Frequency,TEXT,Instance,<ALL>,PER_SUST,6b13cb44-d7fa-418d-27c4-ccc16bd05188,Mnt Frequency [ISO 19650]
+MNT_FREQUENCY_TXT,Frequency,TEXT,Instance,<ALL>,PER_SUST,6b13cb44-d7fa-418d-27c4-ccc16bd05188,Maintenance frequency (DAILY/WEEKLY/MONTHLY/QUARTERLY/ANNUAL) [ISO 19650]
 MNT_HGT_MM,Mnt Hgt,LENGTH,Instance,<ALL>,ELC_PWR,67f74e7b-256f-5611-bd11-1eb958f6e5b4,Elc Mnt Hgt Mm [ISO 19650-1:2018]
 MNT_HGT_TXT,Hgt,TEXT,Instance,<ALL>,ELC_PWR,496f30fe-abc1-5ecb-b3a6-46dfaafb1c77,MNT_HGT_MM display mirror [auto-generated]
 MNT_LAST_INSPECTION_TXT,Last Inspection,TEXT,Instance,<ALL>,ASS_MNG,2c5ded5d-fe6f-5631-b0fe-c3b0f2e77ed5,Date of last maintenance inspection
-MNT_LAST_SERVICE_DATE_TXT,Last Service Date,TEXT,Instance,<ALL>,PER_SUST,340e26d1-c299-2940-ee8e-3322267c0a97,Mnt Last Service Date [ISO 19650]
+MNT_LAST_SERVICE_DATE_TXT,Last Service Date,TEXT,Instance,<ALL>,PER_SUST,340e26d1-c299-2940-ee8e-3322267c0a97,Last service/inspection date [ISO 19650]
 MNT_NEXT_SERVICE_DATE_TXT,Next Service Date,TEXT,Instance,<ALL>,PER_SUST,882b643a-b0d8-5ebf-8151-d266ecac4378,Next service date
 MNT_REPLACEMENT_YEAR,Replacement Year,TEXT,Instance,<ALL>,ASS_MNG,9f8f7d36-e0c3-59f6-9b3a-bc618fabe0f7,Planned replacement year for lifecycle planning
 MNT_SERVICE_INTERVAL_TXT,Service Interval,TEXT,Instance,<ALL>,PER_SUST,ea719aed-0995-52f7-b218-2c0bd4d47d10,Service interval (COBie)
 MNT_SERVICE_PROVIDER_TXT,Service Provider,TEXT,Instance,<ALL>,PER_SUST,345147ba-11e4-5c9e-8afc-d1c7dbe8d7d8,Service provider (COBie)
 MNT_SPARES_REQUIRED_TXT,Spares Required,TEXT,Instance,<ALL>,PER_SUST,555f0a10-b936-5e45-bdf5-53a516834b05,Spares required list (COBie)
-MNT_SPARE_PARTS_TXT,Spare Parts,TEXT,Instance,<ALL>,PER_SUST,90b280e2-b414-545a-2db9-f011a3130677,Mnt Spare Parts [ISO 19650]
+MNT_SPARE_PARTS_TXT,Spare Parts,TEXT,Instance,<ALL>,PER_SUST,90b280e2-b414-545a-2db9-f011a3130677,Required spare parts for maintenance [ISO 19650]
 MNT_TASK_DESC_TXT,Task Desc,TEXT,Instance,<ALL>,COMMISSIONING,caef2806-33cc-5b87-9366-308472d53fb3,Mnt Task Desc Txt [STING]
 MNT_TASK_NAME_TXT,Task Name,TEXT,Instance,<ALL>,COMMISSIONING,3b419f66-131a-52a2-a9c7-cd68220dcb0c,Mnt Task Name Txt [STING]
-MNT_TYPE_TXT,Lighting Mnt Type,TEXT,Instance,<ALL>,LTG_CONTROLS,9358b203-900a-52c5-9e80-3a4d67dc5c51,Ltg Mnt Type Txt [ISO 19650-1:2018]
+MNT_TYPE_TXT,Lighting Mnt Type,TEXT,Instance,<ALL>,LTG_CONTROLS,9358b203-900a-52c5-9e80-3a4d67dc5c51,Maintenance type [ISO 19650-1:2018]
 MNT_WARRANTY_EXPIRY_TXT,Warranty Expiration Date,TEXT,Instance,<ALL>,ASS_MNG,1c2c0236-5c2b-5eb9-8a61-93165c69a44c,Warranty expiry date
 MOUNTING_REFERENCE_TXT,Reference,TEXT,Instance,<ALL>,ASS_MNG,af9b68ed-1359-5fa5-ad7f-9f9955a52b00,Mounting Reference Txt [STING]
 NBS_CODE_TXT,Code,TEXT,Instance,<ALL>,ASS_MNG,7dd1529e-886b-56b5-96fa-d023f03b6a32,NBS specification clause reference for this type -- read by ClassificationReader as a classification fallback [NBS]
@@ -1841,7 +1841,7 @@ PER_ENVIRONMENTAL_HUMIDITY_DESIGN_PCT,Environmental Humidity Design,TEXT,Instanc
 PER_ENVIRONMENTAL_RAINFALL_ANNUAL_MM,Environmental Rainfall Annual,TEXT,Instance,<ALL>,PER_SUST,cc663fcc-4576-5b0f-aad0-0d9bbef6db4e,Per Environmental Rainfall Annual Mm [ISO 19650-1:2018]
 PER_ENVIRONMENTAL_TEMP_DESIGN_C,Environmental Temp Design C,TEXT,Instance,<ALL>,PER_SUST,6ea4104d-783a-5819-ad44-f3383a8c376d,Per Environmental Temp Design C [ISO 19650-1:2018]
 PER_ENVIRONMENTAL_TERMITE_PROT_BOOL,Environmental Termite Prot,YESNO,Instance,<ALL>,PER_SUST,d2d10f94-a398-5220-ba62-2fc99f741f91,Per Environmental Termite Prot Bool [ISO 19650-1:2018]
-PER_EXPECTED_LIFE_YEARS,Expected Life Years,NUMBER,Instance,<ALL>,PER_SUST,9502f071-2b22-50ef-11d6-daddba4cc3f1,Per Expected Life Years [ISO 19650]
+PER_EXPECTED_LIFE_YEARS,Expected Life Years,NUMBER,Instance,<ALL>,PER_SUST,9502f071-2b22-50ef-11d6-daddba4cc3f1,Expected service life in years (for lifecycle costing) [ISO 19650]
 PER_EXPECTED_LIFE_YEARS_TXT,Expected Life Years,TEXT,Instance,<ALL>,PER_SUST,c79ec06d-24da-5b4c-9d92-876158b3b3ef,PER_EXPECTED_LIFE_YEARS display mirror [auto-generated]
 PER_FIRE_RATING_HR,Fire Rating Hr,NUMBER,Instance,<ALL>,PER_SUST,204f0610-4f8b-5eab-9af2-8a7dbee3962e,Per Fire Rating Hr [ISO 19650]
 PER_FIRE_RATING_MINS,Fire Rating Mins,TEXT,Instance,<ALL>,PER_SUST,34af60d9-b0f4-5d16-8775-6bcafd7bd82e,Fire resistance rating in minutes [BS 476 / EN 13501]
@@ -1851,11 +1851,11 @@ PER_HANDICAP_ACCESS_BOOL,Handicap Access,YESNO,Instance,<ALL>,FLS_LIFE_SFTY,ac00
 PER_IS_EXTERNAL_BOOL,Is External,YESNO,Instance,<ALL>,FLS_LIFE_SFTY,ac000000-0000-0000-0000-000000000047,ArchiCAD IFC: element is external / envelope (Pset_WallCommon / SlabCommon.IsExternal)
 PER_LOAD_BEARING_BOOL,Load Bearing,YESNO,Instance,<ALL>,LTG_CONTROLS,ac000000-0000-0000-0000-000000000046,ArchiCAD IFC: element is load-bearing structural (Pset_WallCommon / ColumnCommon.LoadBearing)
 PER_PITCH_ANGLE_DEG,Pitch Angle Deg,NUMBER,Instance,<ALL>,FLS_LIFE_SFTY,ac000000-0000-0000-0000-00000000004c,ArchiCAD IFC: roof / slab pitch angle degrees (Pset_SlabCommon / RoofCommon.PitchAngle)
-PER_RECYCLABILITY_PCT,Recyclability Pct,NUMBER,Instance,<ALL>,PER_SUST,6cfbec62-d60b-a0ef-4954-0e5cc4789aa5,Per Recyclability Pct [ISO 19650]
+PER_RECYCLABILITY_PCT,Recyclability Pct,NUMBER,Instance,<ALL>,PER_SUST,6cfbec62-d60b-a0ef-4954-0e5cc4789aa5,Material recyclability percentage [ISO 19650]
 PER_RECYCLABILITY_TXT,Recyclability,TEXT,Instance,<ALL>,PER_SUST,bbf9bcbc-1b12-5fde-9c9b-4ae747d363b4,PER_RECYCLABILITY_PCT display mirror [auto-generated]
 PER_RECYCLED_CONTENT_PCT_NR,Recycled Content Pct,TEXT,Instance,<ALL>,PER_SUST,5da0f8a9-e70e-5b23-bd2c-0b48d7c53346,Recycled content percentage (COBie)
 PER_REPLACEMENT_COST_TXT,Replacement Cost,TEXT,Instance,<ALL>,PER_SUST,0d29b8c2-019e-571b-89dc-0e71e0ad813f,PER_REPLACEMENT_COST_UGX display mirror [auto-generated]
-PER_REPLACEMENT_COST_UGX,Replacement Cost Ugx,CURRENCY,Instance,<ALL>,PER_SUST,b89f39a7-54ec-e344-a786-445af1f3b3d0,Per Replacement Cost Ugx [ISO 19650]
+PER_REPLACEMENT_COST_UGX,Replacement Cost Ugx,CURRENCY,Instance,<ALL>,PER_SUST,b89f39a7-54ec-e344-a786-445af1f3b3d0,Replacement cost (UGX) for lifecycle analysis [ISO 19650]
 PER_SECURITY_RATING_TXT,Security Rating,TEXT,Instance,<ALL>,FLS_LIFE_SFTY,ac000000-0000-0000-0000-00000000004b,ArchiCAD IFC: security rating RC class / PAS 24 / BS EN 1627 (Pset_DoorCommon / WindowCommon)
 PER_SELF_CLOSING_BOOL,Self Closing,YESNO,Instance,<ALL>,FLS_LIFE_SFTY,ac000000-0000-0000-0000-000000000048,ArchiCAD IFC: door has self-closing device (Pset_DoorCommon.SelfClosing)
 PER_SMOKE_STOP_BOOL,Smoke Stop,YESNO,Instance,<ALL>,PER_SUST,ac000000-0000-0000-0000-000000000049,ArchiCAD IFC: door/window is smoke-sealed (Pset_DoorCommon.SmokeStop)
@@ -2011,7 +2011,7 @@ PLM_PIPE_SERVICE_TXT,Plm Pipe Service,TEXT,Instance,"Pipes, Pipe Fittings, Pipe 
 PLM_POU_FILTER_BOOL,Pou Filter,YESNO,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,c8d4f6e2-1204-4d27-8c61-0e7a3f9b7004,Point-of-use filter fitted [HTM 04-01]
 PLM_PPE_COLOR_BS1710_TXT,Ppe Color Bs1710,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,1f327972-191d-55e5-98fb-8c6a46d84d3b,Pipe identification colour per BS 1710 [Phase 178b]
 PLM_PPE_FAB_METHOD_TXT,Ppe Fab Method,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,8460c5a1-154e-467f-aaf0-2a201128b192,Pipe fabrication method
-PLM_PPE_FLW_LPS,Flow (L/s),NUMBER,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,800e6613-f502-52f0-9c12-14ec3e358056,Plm Ppe Flw Lps [ISO 19650-1:2018]
+PLM_PPE_FLW_LPS,Flow (L/s),NUMBER,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,800e6613-f502-52f0-9c12-14ec3e358056,Pipe flow (L/s) [ISO 19650-1:2018]
 PLM_PPE_FLW_TXT,Ppe Flw,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,0cdfd7a4-8174-59bf-b496-b3ef1f97ab51,PLM_PPE_FLW_LPS display mirror [auto-generated]
 PLM_PPE_GRADE_TXT,Ppe Grade,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,b56727b6-4e83-5e65-85f9-6fcce50ee8cf,Material grade R220 R250 316L 304L PE100 [Phase 178b]
 PLM_PPE_HANGER_TYPE_TXT,Ppe Hanger Type,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,bc442e99-1ac1-43ad-9f04-d2a41f2ecb21,Pipe hanger type
@@ -2020,7 +2020,7 @@ PLM_PPE_INS_THK_MM,Insulation Thickness (mm),LENGTH,Instance,"Pipes, Pipe Fittin
 PLM_PPE_INS_THK_TXT,Ppe Ins Thk,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,5bf693b8-574e-58f1-967e-338bb43ce853,PLM_PPE_INS_THK_MM display mirror [auto-generated]
 PLM_PPE_INS_TYPE_TXT,Insulation Type,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,3eebb62d-4e9f-507a-8e9a-301a838ab774,Plm Ppe Ins Type Txt [ISO 19650-1:2018]
 PLM_PPE_JOINT_TYPE_TXT,Joint Type,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,463fabb0-eda8-5a62-b621-36fb077c9f97,Plm Ppe Joint Type Txt [ISO 19650-1:2018]
-PLM_PPE_LENGTH_M,Length (m),LENGTH,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,dc5e612c-656a-5930-a87a-4a412e2cd119,Plm Ppe Length M [ISO 19650-1:2018]
+PLM_PPE_LENGTH_M,Length (m),LENGTH,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,dc5e612c-656a-5930-a87a-4a412e2cd119,Pipe length (m) [ISO 19650-1:2018]
 PLM_PPE_LENGTH_TXT,Ppe Length,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,70816e3d-82c5-53a5-ac09-2aa19c82d786,PLM_PPE_LENGTH_M display mirror [auto-generated]
 PLM_PPE_MAT_TXT,Material,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,7b08fe47-9d31-5d9a-8982-0e71f44eb6ae,Plm Ppe Mat Txt [ISO 19650-1:2018]
 PLM_PPE_NOMINAL_SZ_INCH_NR,Nominal Size (inch),TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,f1c79a9d-17d3-5390-8437-c936024f9dbc,Plm Ppe Nominal Sz Inch Nr [ISO 19650-1:2018]
@@ -2034,7 +2034,7 @@ PLM_PPE_STANDARD_TXT,Ppe Standard,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Acce
 PLM_PPE_SUPPORTS_SPACING_MM,Ppe Supports Spacing Mm,LENGTH,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,6fac991a-6e6a-4af3-aa07-e0d7a7f25d07,Pipe support spacing
 PLM_PPE_SUPPORTS_SPACING_TXT,Ppe Supports Spacing,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,3c97f82e-a2a8-5d9b-9b33-5fdc647b82b4,PLM_PPE_SUPPORTS_SPACING_MM display mirror [auto-generated]
 PLM_PPE_SZ_INCH,Plm Ppe Sz Inch,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,4e3628c9-1165-5f72-8289-11aaa613c0ea,Plm Ppe Sz Inch [ISO 19650-1:2018]
-PLM_PPE_SZ_MM,Size (mm),LENGTH,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,7280f00f-3961-5c97-bee1-281f3ae98f0e,Plm Ppe Sz Mm [ISO 19650-1:2018]
+PLM_PPE_SZ_MM,Size (mm),LENGTH,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,7280f00f-3961-5c97-bee1-281f3ae98f0e,Pipe size (mm) [ISO 19650-1:2018]
 PLM_PPE_SZ_TXT,Ppe Sz,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,b9d2812d-5e30-5f84-994c-ddb7e018ba08,PLM_PPE_SZ_MM display mirror [auto-generated]
 PLM_PPE_VELOCITY_CALC_MPS,Ppe Velocity Calc Mps,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",HVC_SYSTEMS,0dc2c254-ded2-57d1-bbfa-a724be0fe0b7,Pipe velocity calculated m/s [ISO 19650-2:2018]
 PLM_PPE_WALL_THK_MM,Ppe Wall Thk Mm,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,e4412254-bea7-5a5e-9113-fee0ee9f5ff2,Pipe wall thickness mm for invert calc [Phase 178b]
@@ -2089,12 +2089,12 @@ PLM_TAG_7_PARA_ANAL_PIPES_TXT,Tag 7 Para Anal Pipes,TEXT,Instance,"Pipes, Pipe F
 PLM_TAG_7_PARA_DRAIN_TXT,Drainage Paragraph,TEXT,Instance,<ALL>,PLM_DRN,399a3864-44ab-540f-bfdf-0b36cc9fe60b,"Drainage paragraph (trap type, cleanout, vent terminals, expansion joints, strainers) [ISO 19650-3:2020]"
 PLM_TAG_7_PARA_EQUIPMENT_TXT,Plumbing Equipment Paragraph,TEXT,Instance,<ALL>,PLM_DRN,bf7affae-dec5-5843-9cf1-a7253e9dd3b7,Plumbing equipment paragraph [ISO 19650-3:2020]
 PLM_TAG_7_PARA_EQUIP_TXT,Tag 7 Para Equip,TEXT,Instance,<ALL>,PLM_DRN,a1b2c3d4-505a-4a01-b001-000000000190,TAG7 paragraph container for plumbing equipment
-PLM_TAG_7_PARA_FAB_PIPEWORK_TXT,Tag 7 Para Fab Pipework,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,5a9b300a-faae-55ee-a790-5be1eaddd34d,Fab Pipework paragraph [ISO 19650-3:2020]
+PLM_TAG_7_PARA_FAB_PIPEWORK_TXT,Tag 7 Para Fab Pipework,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,5a9b300a-faae-55ee-a790-5be1eaddd34d,Fabrication pipework paragraph [ISO 19650-3:2020]
 PLM_TAG_7_PARA_FIXTURE_TXT,Sanitary Fixture Paragraph,TEXT,Instance,<ALL>,PLM_DRN,224e3954-97ca-5715-b935-bf9c4c124241,Sanitary fixture paragraph [ISO 19650-3:2020]
 PLM_TAG_7_PARA_PIPEACC_TXT,Pipe Accessory Paragraph,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,cc56afc1-ec0a-542f-9f9b-35fc7f6e982a,Pipe accessory paragraph [ISO 19650-3:2020]
-PLM_TAG_7_PARA_PIPE_INSULATION_TXT,Tag 7 Para Pipe Insulation,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,35d10048-af1c-564f-872d-88189e0a0626,Pipe Insulation paragraph [ISO 19650-3:2020]
+PLM_TAG_7_PARA_PIPE_INSULATION_TXT,Tag 7 Para Pipe Insulation,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,35d10048-af1c-564f-872d-88189e0a0626,Pipe insulation paragraph [ISO 19650-3:2020]
 PLM_TAG_7_PARA_PIPE_TXT,Pipe Paragraph,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,80d8eccd-69a8-5a0d-915a-01d23118e0ab,Pipe paragraph container - NEW v4.3 [ISO 19650-3:2020]
-PLM_TAG_7_PARA_PLM_EQUIP_TXT,Tag 7 Para Plm Equip,TEXT,Instance,<ALL>,PLM_DRN,8a00649c-4e5c-5f2c-a324-e23dac1ed7a1,Plm Equip paragraph [ISO 19650-3:2020]
+PLM_TAG_7_PARA_PLM_EQUIP_TXT,Tag 7 Para Plm Equip,TEXT,Instance,<ALL>,PLM_DRN,8a00649c-4e5c-5f2c-a324-e23dac1ed7a1,Plumbing equipment paragraph [ISO 19650-3:2020]
 PLM_TAG_7_PARA_TIEIN_TXT,Tag 7 Para Tiein,TEXT,Instance,<ALL>,PLM_DRN,34a8524b-d77e-4314-b3e3-ddd3147c88a4,Plumbing tie-in point paragraph container [ISO 19650-3:2020]
 PLM_TMV_ASSISTED_BOOL,Tmv Assisted,YESNO,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,ac32041d-b1f2-5bfc-86bd-80622407b94b,"TMV serves an assisted bath (HTM 04-01 Part A Table 2: 46 C assisted, 44 C unassisted; Yes only where the WSG approved assisted bathing above 44 C) [DSCH-25]"
 PLM_TMV_BLEND_TEMP_C,Tmv Blend Temp C,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,1cc13cfc-9059-538d-8c2d-02c9384ef850,TMV blended outlet temperature setpoint C [Phase 178b]
@@ -2110,7 +2110,7 @@ PLM_TRAP_SEAL_DEPTH_MM,Trap Seal Depth Mm,TEXT,Instance,"Pipes, Pipe Fittings, P
 PLM_TRAP_SEAL_MM,Trap Seal Mm,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,46ba5500-b9b1-5ec2-99fc-bb61e8a19616,Trap seal depth in mm
 PLM_TRAP_TYPE_TXT,Trap Type,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,057c62dc-2dea-5f99-b7be-039afbd93d15,Plm Trap Type [ISO 19650]
 PLM_VELOCITY_MPS,Velocity Mps,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,12bdb567-8260-51e3-9048-c853ad1536e1,Design flow velocity m/s [Phase 178b]
-PLM_VEL_MPS,Velocity (m/s),NUMBER,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,d85554af-6914-563d-a8f2-0cef71e09f2d,Plm Vel Mps [ISO 19650-1:2018]
+PLM_VEL_MPS,Velocity (m/s),NUMBER,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,d85554af-6914-563d-a8f2-0cef71e09f2d,Pipe velocity (m/s) [ISO 19650-1:2018]
 PLM_VEL_TXT,Vel,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,184dc33c-9982-5614-9fa1-e3712a601ec7,PLM_VEL_MPS display mirror [auto-generated]
 PLM_VENT_CONNECTED_TO_TXT,Plumbing Ventilation Connected To,TEXT,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,aec0b857-0c69-550c-a3f2-0dbed660038a,Plm Vent Connected To Txt [ISO 19650-1:2018]
 PLM_VENT_SIZE_DN,Vent Size Dn,INTEGER,Instance,"Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes, Pipe Insulation, Plumbing Fixtures",PLM_DRN,ce6f77ba-72d5-5904-ba1a-b01d6a09274c,Vent pipe nominal diameter mm [IPC 2021 Table 916.1 Phase 178b]
@@ -2139,7 +2139,7 @@ PRJ_AREA_NAME_TXT,Area Name,TEXT,Instance,"<ALL>, Project Information",PRJ_INFOR
 PRJ_BUILDING_USE_TXT,Building Use,TEXT,Instance,Project Information,PRJ_INFORMATION,9ad27194-1950-5205-bb3e-8d9ff117db9f,Declared building use / sector (Office / Healthcare / Education / Residential ...); read by ProjectSector for spare-capacity targets and by the sustainability engine.
 PRJ_CLIMATE_SITE_ID,Climate Site Id,TEXT,Instance,"<ALL>, Project Information",PRJ_INFORMATION,4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b65,Active STING climate site id resolved by ClimateRegistry (london / paris / new_york / etc.) [Phase 187]
 PRJ_CLIMATE_SITE_LABEL_TXT,Climate Site Label,TEXT,Instance,"<ALL>, Project Information",PRJ_INFORMATION,4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b67,Human-readable climate site label stamped by the DocumentOpened auto-stamp [Phase 187b]
-PRJ_COMMENTS_TXT,Comments,TEXT,Instance,"<ALL>, Project Information",PRJ_INFORMATION,6e4b8ba6-b6e5-53e9-a0b5-1f6c65f3b764,Prj Comments Txt [ISO 19650-1:2018]
+PRJ_COMMENTS_TXT,Comments,TEXT,Instance,"<ALL>, Project Information",PRJ_INFORMATION,6e4b8ba6-b6e5-53e9-a0b5-1f6c65f3b764,Project/instance comments [ISO 19650-1:2018]
 PRJ_CONSTRUCTION_PROFILE_TXT,Construction Profile,TEXT,Instance,"<ALL>, Project Information",PRJ_INFORMATION,4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b68,Active construction profile id (PartL2021 / PartL2013 / PreRegs1990 / Passivhaus / IECC2021_CZ4 / ASHRAE901_2019_CZ5 / EnEV2014_DE)  -  drives U-values + SHGC in BlockLoadEngine [Phase 187c]
 PRJ_CORPORATE_LIBRARY_PATH_TXT,Corporate Library Path,TEXT,Instance,"<ALL>, Project Information",PRJ_INFORMATION,a1f2b3c4-d5e6-4f70-8123-456789abcd03,Path to corporate template library (network share / local seed) — overrides %APPDATA% global config [Template Manager v2]
 PRJ_CORPORATE_LIBRARY_VERSION_TXT,Corporate Library Version,TEXT,Instance,"<ALL>, Project Information",PRJ_INFORMATION,a1f2b3c4-d5e6-4f70-8123-456789abcd04,Stamped library version on this project — drift baseline vs corporate library [Template Manager v2]
@@ -2152,7 +2152,7 @@ PRJ_DWG_SUITABILITY_COD_TXT,Dwg Suitability Code,TEXT,Instance,Sheets,PRJ_INFORM
 PRJ_DWG_SUITABILITY_DESC_TXT,Dwg Suitability Desc,TEXT,Instance,Sheets,PRJ_INFORMATION,7d12b6b6-9c62-515e-a611-92ab4e74e93f,"Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT -- e.g. for ""S2"" the description is ""Shared, Non-contractual"" [BS EN ISO 19650-2:2018 s.5.6 Annex A]"
 PRJ_DWG_SUPERSEDES_TXT,Dwg Supersedes,TEXT,Instance,Sheets,PRJ_INFORMATION,aa16b2c1-64d5-50b9-b262-64bddce585cb,Prj Dwg Supersedes Txt [ISO 19650-1:2018]
 PRJ_ELC_SUPPLY_VOLTAGE_TXT,Supply Voltage,TEXT,Instance,Project Information,PRJ_INFORMATION,878bb409-fa13-5d8f-ae92-8fdac5aa7375,Electrical supply voltage and phases chosen in Project Setup (for example 400/230 V 3-phase). Recorded for schedules and title blocks.
-PRJ_GRID_REF_TXT,Grid Reference,TEXT,Instance,"<ALL>, Project Information",PRJ_INFORMATION,6d1b5293-8685-59e6-b4c0-798aec064283,Prj Grid Ref Txt [ISO 19650-1:2018]
+PRJ_GRID_REF_TXT,Grid Reference,TEXT,Instance,"<ALL>, Project Information",PRJ_INFORMATION,6d1b5293-8685-59e6-b4c0-798aec064283,Grid reference [ISO 19650-1:2018]
 PRJ_INFORMATION_SPARE_01_TXT,Project - Spare 01,TEXT,Instance,"<ALL>, Project Information",PRJ_INFORMATION,7080d132-e4e6-4b1c-9419-8f8403f52183,Spare parameter 1 for PRJ_INFORMATION group
 PRJ_INFORMATION_SPARE_02_TXT,Project - Spare 02,TEXT,Instance,"<ALL>, Project Information",PRJ_INFORMATION,b4e2d00d-a873-4fa9-bdc4-3d57fe742671,Spare parameter 2 for PRJ_INFORMATION group
 PRJ_ISO_STD_TXT,Iso Standard,TEXT,Instance,"<ALL>, Project Information",PRJ_INFORMATION,ba6ba04a-dc2c-5abc-b8ac-472f4f5576c3,Prj Iso Std Txt [ISO 19650-1:2018]
@@ -2342,7 +2342,7 @@ RAD_USE_FACTOR_NR,Use Factor,NUMBER,Instance,"Specialty Equipment, Mechanical Eq
 RAD_WORKLOAD_MAWK_NR,Workload Mawk,NUMBER,Instance,"Specialty Equipment, Mechanical Equipment, Plumbing Fixtures, Medical Equipment",RAD_PROTECTION,c8d4f6e2-c003-4d27-8c61-0e7a3f9b2003,Workload (mA.min/wk) [NCRP 147]
 RGL_ACCESSIBILITY_COMPLIANT_TXT,Accessibility Compliant,TEXT,Instance,<ALL>,RGL_CMPL,3adfc6e8-7199-5994-83b4-5905f093a225,Accessibility compliance status (COBie)
 RGL_ACCESSIBILITY_GRADE_TXT,Accessibility Grade,TEXT,Instance,<ALL>,RGL_CMPL,b110e059-12a9-577b-98d2-97bac3006b37,Accessibility compliance grade [BS 8300 / Equality Act 2010]
-RGL_ACCESSIBILITY_STATUS_TXT,Accessibility Status,TEXT,Instance,<ALL>,RGL_CMPL,13649513-c638-a34c-d650-786ca388102a,Rgl Accessibility Status [ISO 19650]
+RGL_ACCESSIBILITY_STATUS_TXT,Accessibility Status,TEXT,Instance,<ALL>,RGL_CMPL,13649513-c638-a34c-d650-786ca388102a,Accessibility compliance status (COMPLIANT/NON-COMPLIANT/N-A) [ISO 19650]
 RGL_ACCESS_BRAILLE_SIGNAGE_BOOL,Accessibility Braille Signage,YESNO,Instance,<ALL>,RGL_CMPL,e9b7f81c-81f4-5574-a901-81afceb33824,Rgl Access Braille Signage Bool [ISO 19650-1:2018]
 RGL_ACCESS_CLEAR_WIDTH_CHECK_BOOL,Rgl Access Clear Width Check Bool,YESNO,Instance,<ALL>,RGL_CMPL,2de42300-5411-5009-9089-368cb409da5d,Rgl Access Clear Width Check Bool [ISO 19650-1:2018]
 RGL_ACCESS_CLEAR_WIDTH_MM,Clear Width (mm),TEXT,Instance,<ALL>,RGL_CMPL,0a5c2f46-8c87-53dc-88b4-9a886e0d908e,Rgl Access Clear Width Mm [ISO 19650-1:2018]
@@ -2358,7 +2358,7 @@ RGL_ACCESS_THRESHOLD_CHECK_BOOL,Rgl Access Threshold Check Bool,YESNO,Instance,<
 RGL_ACCESS_THRESHOLD_HEIGHT_MM,Accessibility Threshold Height,TEXT,Instance,<ALL>,RGL_CMPL,ec375f69-730f-5b7a-aea3-44f12902f333,Rgl Access Threshold Height Mm [ISO 19650-1:2018]
 RGL_ACCESS_TURNING_CHECK_BOOL,Rgl Access Turning Check Bool,YESNO,Instance,<ALL>,RGL_CMPL,34e14443-f8d3-5e24-914c-273c83b0c502,Rgl Access Turning Check Bool [ISO 19650-1:2018]
 RGL_ACCESS_TURNING_RADIUS_MM,Accessibility Turning Radius,TEXT,Instance,<ALL>,RGL_CMPL,89a66a66-1279-54dd-8b1e-40338509ceb8,Rgl Access Turning Radius Mm [ISO 19650-1:2018]
-RGL_BUILDING_CODE_REF_TXT,Building Code Ref,TEXT,Instance,<ALL>,RGL_CMPL,a79dad8a-dc36-e227-e96a-2f26fc162ca3,Rgl Building Code Ref [ISO 19650]
+RGL_BUILDING_CODE_REF_TXT,Building Code Ref,TEXT,Instance,<ALL>,RGL_CMPL,a79dad8a-dc36-e227-e96a-2f26fc162ca3,Applicable building code clause reference [ISO 19650]
 RGL_BUILDING_FOOTPRINT_SQ_M,Rgl Building Footprint Sq M,TEXT,Instance,<ALL>,RGL_CMPL,e9d4be02-e986-5857-9f37-c18e0ad40ae3,Rgl Building Footprint Sq M [ISO 19650-1:2018]
 RGL_BUILDING_REG_REF_TXT,Building Reg Ref,TEXT,Instance,<ALL>,RGL_CMPL,0622ba9f-fe83-56e9-ab82-37d576db892c,Building Regulations reference (Part A-P) [England/Wales]
 RGL_CDM_RISK_LEVEL_TXT,Cdm Risk Level,TEXT,Instance,<ALL>,RGL_CMPL,368bc1e1-226d-56a3-b382-a0c2a5055b68,CDM 2015 risk level (High/Medium/Low/Negligible)
@@ -2366,7 +2366,7 @@ RGL_CERTIFICATION_REF_TXT,Certification Ref,TEXT,Instance,<ALL>,RGL_CMPL,67da24b
 RGL_CMPL_SPARE_01_TXT,Regulatory - Spare 01,TEXT,Instance,<ALL>,RGL_CMPL,4982cb29-ea74-4497-bc4f-3d4ebbcc7840,Spare parameter 1 for RGL_CMPL group
 RGL_CMPL_SPARE_02_TXT,Regulatory - Spare 02,TEXT,Instance,<ALL>,RGL_CMPL,e09f8a5d-d804-4eab-9ae5-da56f1f77e02,Spare parameter 2 for RGL_CMPL group
 RGL_COMPLIANCE_STATUS_TXT,Compliance Status,TEXT,Instance,<ALL>,RGL_CMPL,2894aaba-6fe0-5245-85c1-ce55b2199110,Compliance status (COBie)
-RGL_ENVIRONMENTAL_CERT_TXT,Environmental Cert,TEXT,Instance,<ALL>,RGL_CMPL,414f9c89-42c8-03f7-99be-67f56230de0a,Rgl Environmental Cert [ISO 19650]
+RGL_ENVIRONMENTAL_CERT_TXT,Environmental Cert,TEXT,Instance,<ALL>,RGL_CMPL,414f9c89-42c8-03f7-99be-67f56230de0a,Environmental certification reference (EDGE/LEED/BREEAM) [ISO 19650]
 RGL_FIRE_RATING_TXT,Fire Rating,TEXT,Instance,<ALL>,RGL_CMPL,cd75c8d0-e6ed-5f08-8933-c98b285081fa,Fire rating classification
 RGL_INSPECTION_DATE_TXT,Inspection Date,TEXT,Instance,<ALL>,RGL_CMPL,776f9683-1c42-5aaa-b33d-533c31a49b68,Last inspection date (COBie)
 RGL_KCCA_APPROVAL_REQ_BOOL,Kcca Approval Required,YESNO,Instance,<ALL>,RGL_CMPL,71628414-da7f-5bc2-bf30-2adb501283aa,Rgl Kcca Approval Req Bool [ISO 19650-1:2018]
@@ -2563,7 +2563,7 @@ STRUCT_FRM_AXIAL_LOAD_KN,Frm Axial Load Kn,TEXT,Instance,"Structural Framing, St
 STRUCT_FRM_DEFLECTION_MM,Frm Deflection Mm,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_STRUCTURE,f0fffd0e-712f-4368-8499-1429e46ccd33,Frame deflection
 STRUCT_FRM_MOMENT_KNM,Frm Moment Knm,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_STRUCTURE,75f70dfb-5899-4755-9319-17e1af60fef9,Frame bending moment
 STRUCT_FRM_SHEAR_KN,Frm Shear Kn,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_STRUCTURE,692169c3-160b-4050-aeca-fb9bc74e06e3,Frame shear force
-STR_ANALYTICAL_MODEL_TXT,Analytical Model,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_STRUCTURE,b7a84859-b5b1-10b2-7306-3c220ecd8ae7,Str Analytical Model [ISO 19650]
+STR_ANALYTICAL_MODEL_TXT,Analytical Model,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_STRUCTURE,b7a84859-b5b1-10b2-7306-3c220ecd8ae7,Analytical model status and type [ISO 19650]
 STR_AREA_LOAD_KN_M2,Area Load Kn M2,TEXT,Instance,"Area Loads, Floors, Internal Area Loads, Structural Columns, Structural Foundations, Structural Framing, Structural Rebar",BLE_STRUCTURE,8c367e7c-cb16-55eb-af05-470fa7e0c0ef,Str Area Load Kn M2 [ISO 19650]
 STR_BAR_MARK_TXT,Bar Mark,TEXT,Instance,"Floors, Structural Area Reinforcement, Structural Columns, Structural Fabric Reinforcement, Structural Foundations, Structural Framing, Structural Path Reinforcement, Structural Rebar, Structural Rebar Couplers",BLE_STRUCTURE,cbd94272-6db5-557c-8e6d-2f254888afc6,Rebar bar mark from bending schedule [BS 8666:2020]
 STR_BEAM_CAMBER_MM,Beam Camber Mm,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_STRUCTURE,4b990b3c-dff5-5068-9e66-dd830f2cf6aa,Str Beam Camber Mm [ISO 19650]
@@ -2618,7 +2618,7 @@ STR_FDN_BEARING_KN_M2,Fdn Bearing Kn M2,NUMBER,Instance,"Structural Framing, Str
 STR_FDN_BEARING_TXT,Fdn Bearing,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_STRUCTURE,aa42c948-e992-5c11-ad8a-063444b63681,STR_FDN_BEARING_KN_M2 display mirror [auto-generated]
 STR_FDN_COVER_MM,Fdn Cover Mm,LENGTH,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_STRUCTURE,d38c58f7-86a5-5aa4-81a7-4f305f0e00a1,Str Fdn Cover Mm [ISO 19650]
 STR_FDN_COVER_TXT,Fdn Cover,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_STRUCTURE,bfe441bd-a402-5ae9-a93a-314e766aa900,STR_FDN_COVER_MM display mirror [auto-generated]
-STR_FDN_DEPTH_MM,Fdn Depth Mm,LENGTH,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_STRUCTURE,c27c1b03-a0c9-5b9f-8d83-878ee9f6c7d9,Str Fdn Depth Mm [ISO 19650]
+STR_FDN_DEPTH_MM,Fdn Depth Mm,LENGTH,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_STRUCTURE,c27c1b03-a0c9-5b9f-8d83-878ee9f6c7d9,Foundation depth in mm. Maps from INSTANCE_ELEVATION_PARAM. [ISO 19650]
 STR_FDN_DEPTH_TXT,Fdn Depth,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_STRUCTURE,5110768a-b5a2-5cd0-9308-4aff706affe6,STR_FDN_DEPTH_MM display mirror [auto-generated]
 STR_FDN_EXPOSURE_CLASS_TXT,Fdn Exposure Class,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_STRUCTURE,617ec04c-cb91-5738-9159-50155fc13e37,Str Fdn Exposure Class [ISO 19650]
 STR_FDN_MATERIAL_TXT,Fdn Material,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_STRUCTURE,34904a0f-b1b7-532c-a33c-839bf60f90a5,Str Fdn Material [ISO 19650]
@@ -2680,7 +2680,7 @@ STR_SLAB_REBAR_TXT,Slab Rebar,TEXT,Instance,"Structural Framing, Structural Colu
 STR_SLAB_TYPE_TXT,Slab Type,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_STRUCTURE,101ae552-0df9-5cd3-94ac-ad82d566fc17,Str Slab Type [ISO 19650]
 STR_SOIL_BEARING_KPA,Soil Bearing Kpa,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors, Project Information",BLE_STRUCTURE,b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d05,Allowable / characteristic soil bearing capacity kPa — Uganda lateritic / volcanic / alluvial regional default [Phase 189]
 STR_STEEL_TAG_TXT,Steel Specification Tag,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_ELES,e4f2fcf1-4764-4f8c-9b8d-e8512834e1aa,"Steel specification tag: grade, section size, fire protection, material [ISO 19650-2:2018]"
-STR_STRUCTURAL_USAGE_TXT,Structural Usage,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_STRUCTURE,1cb89cd0-62f0-5fd8-0099-eeff65ad1621,Str Structural Usage [ISO 19650]
+STR_STRUCTURAL_USAGE_TXT,Structural Usage,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",BLE_STRUCTURE,1cb89cd0-62f0-5fd8-0099-eeff65ad1621,"Structural usage (beam, column, brace, other) [ISO 19650]"
 STR_SURFACE_AREA_M2_M,Surface Area M2 M,NUMBER,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors",LTG_CONTROLS,ac000000-0000-0000-0000-000000000087,ArchiCAD IFC: surface area per unit length m2/m for fire casing (AC_Pset_ProfileData.SurfaceAreaPerLength)
 STR_SYSTEM_CLASS_TXT,System Class Txt,TEXT,Instance,"Structural Framing, Structural Columns, Structural Foundations, Structural Rebar, Floors, Project Information",BLE_STRUCTURE,d1e2f3a4-b5c6-4d7e-8f90-1a2b3c4d5e08,Auto-classified structural system (Moment frame / Braced frame / Dual / Wall — concrete/steel) — StructuralSystemClassifier [Phase 188]
 STR_TAG_1_TXT,Tag 1,TEXT,Instance,<ALL>,BLE_STRUCTURE,e51303da-3780-5409-9c41-2b3287b3042f,Structural tag container

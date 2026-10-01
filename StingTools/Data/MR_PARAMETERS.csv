@@ -9,26 +9,26 @@
 # v6.3 | 20260519 | BIM Template mr_parameters (+14: ASS_CST_ currency-neutral (7) + ASS_PMT_ payment cert (4) + ASS_VAR_ variation (3) — Phase 184 / P0.2 + P5 alignment with MR_PARAMETERS.txt)
 # v6.2 | 20260517 | BIM Template mr_parameters — 3017 unique params (auto-aligned with MR_PARAMETERS.txt)
 Revit_Category,Parameter_Name,Parameter_GUID,Data_Type,Group_Name,Binding_Type,Description,Has_Formula,Formula,Input_Parameters,Discipline,User_Modifiable,Hide_When_No_Value
-Generic Models,ASS_CAT_TXT,f8fe813a-44e9-5e47-9109-921171dc53b6,TEXT,ASS_MNG,Type,Ass Cat Txt [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_CAT_TXT,f8fe813a-44e9-5e47-9109-921171dc53b6,TEXT,ASS_MNG,Type,Category name [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_CST_QUANTITY_NR,3c189e63-383c-5011-b7d9-873faed4e6c6,NUMBER,ASS_MNG,Type,Ass Cst Quantity Nr [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_CST_TOTAL_UGX_NR,32347c5d-1605-50ab-9c8c-5dc36c0c1765,CURRENCY,ASS_MNG,Type,Ass Cst Total Ugx Nr [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_CST_UNIT_PRICE_UGX_NR,57d29e0c-b1ef-50e6-9c3d-d58e751c9f49,CURRENCY,ASS_MNG,Type,Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_DESCRIPTION_TXT,3ee68ef4-0cad-505f-a973-8817e9cf5d08,TEXT,ASS_MNG,Type,Ass Description Txt [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_CST_UNIT_PRICE_UGX_NR,57d29e0c-b1ef-50e6-9c3d-d58e751c9f49,CURRENCY,ASS_MNG,Type,Unit cost [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_DESCRIPTION_TXT,3ee68ef4-0cad-505f-a973-8817e9cf5d08,TEXT,ASS_MNG,Type,Element description [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_DESIGN_LTG_LVL_LUX_NR,bfacc484-130a-5d4f-ab93-6980d071f989,NUMBER,ASS_MNG,Type,Ass Design Ltg Lvl Lux Nr [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_DESIGN_OCCUPANCY_INT,65769434-297a-58ea-b9af-7a885f365936,INTEGER,ASS_MNG,Type,Ass Design Occupancy Int [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_ID_TXT,8e35ebf9-4a16-5901-b566-4a5e0edd17aa,TEXT,ASS_MNG,Type,Ass Id Txt [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_LOC_TXT,b7469c27-c80e-5b59-b999-1a99ba620cd1,TEXT,ASS_MNG,Type,Ass Loc Txt [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_MANUFACTURER_TXT,822bb665-a508-5268-b490-28d8546d6300,TEXT,ASS_MNG,Type,Ass Manufacturer Txt [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_MODEL_NR_TXT,305de400-5d2f-54f6-a4ed-acc93f5a1ab2,TEXT,ASS_MNG,Type,Ass Model Nr Txt [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_ROOM_AREA_SQ_M,1514d5cf-3d32-5a68-b5cb-f18d97060e9f,AREA,ASS_MNG,Type,Ass Room Area Sq M [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_ID_TXT,8e35ebf9-4a16-5901-b566-4a5e0edd17aa,TEXT,ASS_MNG,Type,Element mark / ID [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_LOC_TXT,b7469c27-c80e-5b59-b999-1a99ba620cd1,TEXT,ASS_MNG,Type,Location/building code [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_MANUFACTURER_TXT,822bb665-a508-5268-b490-28d8546d6300,TEXT,ASS_MNG,Type,Manufacturer [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_MODEL_NR_TXT,305de400-5d2f-54f6-a4ed-acc93f5a1ab2,TEXT,ASS_MNG,Type,Model number [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_ROOM_AREA_SQ_M,1514d5cf-3d32-5a68-b5cb-f18d97060e9f,AREA,ASS_MNG,Type,Room area (m2) [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_ROOM_FUNCTION_USE_TXT,124f7ab0-bdf4-5740-9c65-22cdac508908,TEXT,ASS_MNG,Type,Ass Room Function Use Txt [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_ROOM_VOLUME_CU_M,bdc645e1-057b-5dd3-a08f-c6fba2b5118e,TEXT,ASS_MNG,Type,Ass Room Volume Cu M [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_SERIAL_NR_TXT,56584938-d8f5-5c70-9ca1-2ac4568e9ff9,TEXT,ASS_MNG,Type,Ass Serial Nr Txt [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_STATUS_TXT,b97665a8-5e34-585b-9674-fbdd83d7637f,TEXT,ASS_MNG,Type,Ass Status Txt [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_SYSTEM_TYPE_TXT,2b3658d9-bfc6-56db-9df5-901337fde0f5,TEXT,ASS_MNG,Type,Ass System Type Txt [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_TAG_1_TXT,1eeb577d-342d-5039-97f1-f1dd8d80c8c4,TEXT,ASS_MNG,Type,Ass Tag 1 Txt [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_TAG_2_TXT,bf6cb687-478f-459a-8c5d-ece073c24831,TEXT,ASS_MNG,Type,Ass Tag 2 Txt [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_TAG_3_TXT,068abd3b-650e-4a7c-ac07-82e556160de0,TEXT,ASS_MNG,Type,Ass Tag 3 Txt [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_ROOM_VOLUME_CU_M,bdc645e1-057b-5dd3-a08f-c6fba2b5118e,TEXT,ASS_MNG,Type,Room volume (m3) [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_SERIAL_NR_TXT,56584938-d8f5-5c70-9ca1-2ac4568e9ff9,TEXT,ASS_MNG,Type,Asset serial number. Maps from Revit ALL_MODEL_SERIAL_NUMBER. Used in COBie Component Section 7F. [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_STATUS_TXT,b97665a8-5e34-585b-9674-fbdd83d7637f,TEXT,ASS_MNG,Type,"Status (EXISTING, NEW, DEMOLISHED, TEMPORARY) [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,ASS_SYSTEM_TYPE_TXT,2b3658d9-bfc6-56db-9df5-901337fde0f5,TEXT,ASS_MNG,Type,System type (CIBSE/Uniclass) [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_TAG_1_TXT,1eeb577d-342d-5039-97f1-f1dd8d80c8c4,TEXT,ASS_MNG,Type,Full 8-segment tag [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_TAG_2_TXT,bf6cb687-478f-459a-8c5d-ece073c24831,TEXT,ASS_MNG,Type,Short ID (DISC-PROD-SEQ) [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_TAG_3_TXT,068abd3b-650e-4a7c-ac07-82e556160de0,TEXT,ASS_MNG,Type,Location (LOC-ZONE-LVL) [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,BLE_CASEWORK_ACCESSIBLE_BOOL,8c2b44a9-cc06-408d-af91-0f14499042c4,YESNO,CST_PROC,Type,Accessible casework compliance [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_CASEWORK_COUNTERTOP_TXT,3592eb3b-308a-42b5-a14c-0b18f19b8d6b,TEXT,CST_PROC,Type,Casework countertop material [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_CASEWORK_HARDWARE_TXT,fe571646-cbb4-496f-95b7-dbff007a5d53,TEXT,CST_PROC,Type,Casework hardware specification [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -36,7 +36,7 @@ Generic Models,BLE_CASEWORK_MATERIAL_TXT,222b02d7-63ab-487b-8d92-2e2f6962dd48,TE
 Generic Models,BLE_CASEWORK_TYPE_TXT,47bc2ee9-61de-4a7d-9a90-f050d45d530d,TEXT,CST_PROC,Type,Casework type classification [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_CEILING_FINISH_TXT,7fc24153-41ea-5f24-b53a-31e8d69ce44f,TEXT,CST_PROC,Type,Ble Ceiling Finish Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_CEILING_GRID_SZ_MM,f639312b-a94a-53de-a653-b97705fd197a,LENGTH,CST_PROC,Type,Ble Ceiling Grid Sz Mm [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_CEILING_HEIGHT_MM,b1eaf7da-66bc-50d7-8261-eba13ac865e6,LENGTH,CST_PROC,Type,Ble Ceiling Height Mm [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_CEILING_HEIGHT_MM,b1eaf7da-66bc-50d7-8261-eba13ac865e6,LENGTH,CST_PROC,Type,Ceiling height (mm) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_CEILING_LIGHT_REFLECTANCE_PCT,711abfdb-7127-56c1-b3f5-7f318171812d,TEXT,CST_PROC,Type,Ble Ceiling Light Reflectance Pct [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_CEILING_MAT_TXT,38f20d97-20e0-5896-a8c5-ac8e20d9beb3,TEXT,CST_PROC,Type,Ble Ceiling Mat Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_CEILING_NOISE_REDUCTION_COEFFICIENT_NRC_NR,9d7fa63d-6e32-508e-9487-30ed356c33dd,NUMBER,CST_PROC,Type,Ble Ceiling Noise Reduction Coefficient Nrc Nr [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -45,15 +45,15 @@ Generic Models,BLE_CEILING_SYSTEM_TXT,aa702475-9c87-54f6-9c71-11f91f22f3b0,TEXT,
 Generic Models,BLE_DOOR_ACOUSTIC_RATING_DB,ef3b906d-a286-590a-8c86-533bfd2268c2,TEXT,CST_PROC,Type,Ble Door Acoustic Rating Db [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_DOOR_CLOSER_REQUIRED_BOOL,92fa4cba-f817-5ef0-8e5e-e9aeafd3135c,YESNO,CST_PROC,Type,Ble Door Closer Required Bool [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_DOOR_HARDWARE_SPECIFICATION_TXT,0c1496c9-bbad-5d9d-90ce-1f9b51624a30,TEXT,CST_PROC,Type,Ble Door Hardware Specification Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_DOOR_HEIGHT_MM,e4519d6e-f603-593f-8262-bbbe441bba02,LENGTH,CST_PROC,Type,Ble Door Height Mm [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_DOOR_HEIGHT_MM,e4519d6e-f603-593f-8262-bbbe441bba02,LENGTH,CST_PROC,Type,Door height (mm) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_DOOR_MAT_TXT,62b05126-9f63-5527-8dd5-27191a89ec54,TEXT,CST_PROC,Type,Ble Door Mat Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_DOOR_OPERATION_TYPE_SWING_SLIDE_FOLD_ROLL_TXT,d009f8bc-c109-5d07-bbdd-e7fb0adb18c7,TEXT,CST_PROC,Type,Ble Door Operation Type Swing Slide Fold Roll Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_DOOR_PANIC_HARDWARE_REQUIRED_BOOL,58472693-b752-5262-bc4c-d3f2e8d533ae,YESNO,CST_PROC,Type,Ble Door Panic Hardware Required Bool [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_DOOR_SECURITY_RATING_GRADE_TXT,6998b63c-2d55-57ac-a8d7-a28f6d3ad4ed,TEXT,CST_PROC,Type,Ble Door Security Rating Grade Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_DOOR_THRESHOLD_TXT,80711d71-6a16-4a57-85f9-cd628ac9e924,TEXT,CST_PROC,Type,Door threshold type and specification [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_DOOR_TYPE_TXT,52fe10d6-2e18-451d-8473-106ce64fd68e,TEXT,CST_PROC,Type,Door type classification (Solid/Glazed/Fire/Acoustic) [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_DOOR_WIDTH_MM,0fc57b7c-5ae3-5ace-a5b2-5ab7a79493a8,LENGTH,CST_PROC,Type,Ble Door Width Mm [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_ELE_AREA_SQ_M,d31ebc0e-6721-5d60-be6b-5bb5e9bb0f3d,AREA,CST_PROC,Type,Ble Ele Area Sq M [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_DOOR_WIDTH_MM,0fc57b7c-5ae3-5ace-a5b2-5ab7a79493a8,LENGTH,CST_PROC,Type,Door width (mm) [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_ELE_AREA_SQ_M,d31ebc0e-6721-5d60-be6b-5bb5e9bb0f3d,AREA,CST_PROC,Type,Element area (m2) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_FINISH_ADHESIVE_WEIGHT_KG,04d8f64c-1464-5e76-a838-73b7d4aefa20,TEXT,CST_PROC,Type,Ble Finish Adhesive Weight Kg [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_FINISH_GROUT_WEIGHT_KG,f98d9acc-a848-5b49-8621-e6ed638618ac,TEXT,CST_PROC,Type,Ble Finish Grout Weight Kg [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_FINISH_PAINT_AREA_SQ_M,c56be489-ef1a-51b4-a178-4b7b6dd23571,TEXT,CST_PROC,Type,Ble Finish Paint Area Sq M [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -66,7 +66,7 @@ Generic Models,BLE_FLR_FINISH_TXT,0d0457b1-3847-5da5-87e9-ac88a720b1c8,TEXT,CST_
 Generic Models,BLE_FLR_LD_CAP_KPA,c9176e37-501e-5f2a-b4b4-0b66a37f88b5,NUMBER,CST_PROC,Type,Ble Flr Ld Cap Kpa [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_FLR_SLIP_RESISTANCE_RATING_NR,8587af48-41e4-551b-b127-47fbfba712da,TEXT,CST_PROC,Type,Ble Flr Slip Resistance Rating Nr [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_FLR_STRUCTURAL_SYSTEM_TXT,6fd7e2d6-1471-58dd-9226-6424a5ca3072,TEXT,CST_PROC,Type,Ble Flr Structural System Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_FLR_THICKNESS_MM,4e849c26-5bfe-5ca2-bb5a-aa39e03e31bb,LENGTH,CST_PROC,Type,Ble Flr Thickness Mm [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_FLR_THICKNESS_MM,4e849c26-5bfe-5ca2-bb5a-aa39e03e31bb,LENGTH,CST_PROC,Type,Floor thickness (mm) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_SLAB_SYSTEM_TXT,51ab0001-5c0d-5eab-9a01-000000000001,TEXT,BLE_ELES,Type,MAT-4 slab system: Solid/Ribbed/Waffle/HollowPot/Maxspan/BeamBlock [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,BLE_SLAB_RIB_WIDTH_MM,51ab0002-5c0d-5eab-9a01-000000000002,TEXT,BLE_ELES,Type,MAT-4 slab rib width (mm) [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,BLE_SLAB_RIB_SPACING_MM,51ab0003-5c0d-5eab-9a01-000000000003,TEXT,BLE_ELES,Type,MAT-4 slab rib spacing centre-to-centre (mm) [ISO 19650-2:2018],False,,,MULTI,1,0
@@ -96,14 +96,14 @@ Generic Models,BLE_ROOF_AREA_SQ_M,9f4db3ce-b9d5-41c1-909c-4dccf65a7b7e,AREA,CST_
 Generic Models,BLE_ROOF_COVERING_MAT_TXT,eb06ec26-b6f5-5f3a-ad96-b8b39b7d8659,TEXT,CST_PROC,Type,Ble Roof Covering Mat Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_ROOF_INS_R_VALUE_M_2K_W,3e3919d0-f25e-59de-83b2-11b60db5b9c5,TEXT,CST_PROC,Type,Ble Roof Ins R Value M 2k W [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT,22ff6f18-d985-5dba-9dcf-fe95cb053aca,TEXT,CST_PROC,Type,Ble Roof Plm Drn System Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_ROOF_SLOPE_DEG,8d51616d-812b-58d6-a3c2-3ef872fc3ed0,NUMBER,CST_PROC,Type,Ble Roof Slope Deg [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_ROOF_SLOPE_DEG,8d51616d-812b-58d6-a3c2-3ef872fc3ed0,NUMBER,CST_PROC,Type,Roof slope (degrees) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_ROOF_SOLAR_REFLECTANCE_INDEX_NR,bd6b9e9b-777a-517c-bde4-597df17f6d94,TEXT,CST_PROC,Type,Ble Roof Solar Reflectance Index Nr [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_ROOF_THICKNESS_MM,5a5c212a-35f2-4f7e-a7f4-fc57e787679f,LENGTH,CST_PROC,Type,Roof construction build-up thickness in mm [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_ROOF_TYPE_TXT,85a719ec-5f20-5541-994f-b588c8491fbe,TEXT,CST_PROC,Type,Ble Roof Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_ROOF_WATERPROOFING_SYSTEM_TXT,ff29c3dc-01cd-5c14-b41e-c1d8fca3cfc9,TEXT,CST_PROC,Type,Ble Roof Waterproofing System Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR,df9197f1-d5c9-4ef0-bec7-052656671371,NUMBER,CST_PROC,Type,Room fire escape capacity in persons [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_ROOM_NAME_TXT,0bf56335-3e98-58cb-81eb-a998c017d657,TEXT,CST_PROC,Type,Ble Room Name Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_ROOM_NUM_TXT,08c45bc2-6903-5a41-b295-9c3111de6882,TEXT,CST_PROC,Type,Ble Room Num Txt [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_ROOM_NAME_TXT,0bf56335-3e98-58cb-81eb-a998c017d657,TEXT,CST_PROC,Type,BLE room name (fallback) [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_ROOM_NUM_TXT,08c45bc2-6903-5a41-b295-9c3111de6882,TEXT,CST_PROC,Type,"The room's OWN number, written onto the Room element. Distinct from ROOM_NUM / ASS_ROOM_NUM_TXT, which is bound <ALL> and records the number of the room an ASSET sits in. Pairs with BLE_ROOM_NAME. [ISO 19650-1:2018]",False,,,MULTI,1,0
 Generic Models,BLE_ROOM_VENTILATION_RATE_LPS,aaa7d06b-881d-447c-b28d-ec2764597319,NUMBER,CST_PROC,Type,Room design ventilation rate in l/s [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_SIGN_ILLUMINATED_BOOL,908be268-188c-405a-9d0b-d8717999da94,YESNO,CST_PROC,Type,Signage is internally illuminated [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_SIGN_TYPE_TXT,c1e98355-30ee-4f2c-ba3d-861bcb840d82,TEXT,CST_PROC,Type,Signage type classification [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -111,7 +111,7 @@ Generic Models,BLE_STAIR_HEADROOM_MM,d1228a5a-c2ca-4018-b02c-1c29a6ffd5bf,LENGTH
 Generic Models,BLE_STRUCT_BEAM_SZ_TXT,7cead505-38f5-57a5-9425-b349170a9ee7,TEXT,CST_PROC,Type,Ble Struct Beam Sz Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_STRUCT_COLUMN_SZ_TXT,7f9e7848-00fe-54f4-be8a-d1b2921c081d,TEXT,CST_PROC,Type,Ble Struct Column Sz Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_STRUCT_CONCRETE_GRADE_TXT,9499fb71-5eab-5b17-9f5b-8741104bd98c,TEXT,CST_PROC,Type,Ble Struct Concrete Grade Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_STRUCT_ELE_TYPE_TXT,e21a2a53-114b-57ba-a655-39c32ce37694,TEXT,CST_PROC,Type,Ble Struct Ele Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_STRUCT_ELE_TYPE_TXT,e21a2a53-114b-57ba-a655-39c32ce37694,TEXT,CST_PROC,Type,Structural element type [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_STRUCT_MAT_TXT,fc01c335-751d-5bf6-8619-b6a7cbe9bceb,TEXT,CST_PROC,Type,Ble Struct Mat Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_STRUCT_REINFORCEMENT_TXT,d59b4268-242b-5e77-a1c7-af165bef45d1,TEXT,CST_PROC,Type,Ble Struct Reinforcement Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_STRUCT_STEEL_GRADE_TXT,fe130bf1-2d9b-58d7-a29a-73a55a87eeb8,TEXT,CST_PROC,Type,Ble Struct Steel Grade Txt [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -119,23 +119,23 @@ Generic Models,BLE_WALL_CORE_MATERIAL_TXT,5fd6fd59-0f76-45ba-b505-aaca6ef8af02,T
 Generic Models,BLE_WALL_CST_METHOD_TXT,8deec0f0-18f1-52ff-8e4f-a0497c244250,TEXT,CST_PROC,Type,Ble Wall Cst Method Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_WALL_FINISH_TXT,7d0dd06c-f0b7-595f-8610-9cb53e4d691e,TEXT,CST_PROC,Type,Ble Wall Finish Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_WALL_FUNCTION_TXT,10966c31-806d-55af-ba50-91e124888e77,TEXT,CST_PROC,Type,Ble Wall Function Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_WALL_HEIGHT_MM,c2dd0f26-f3ed-5490-85aa-f39f19e72b65,TEXT,CST_PROC,Type,Ble Wall Height Mm [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_WALL_HEIGHT_MM,c2dd0f26-f3ed-5490-85aa-f39f19e72b65,TEXT,CST_PROC,Type,Wall height (mm) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_WALL_INSULATION_TXT,32338b6f-32f8-4e41-a1e7-d2ade3c45618,TEXT,CST_PROC,Type,Wall insulation type and specification [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_WALL_LENGTH_MM,fdff76e0-dada-58bc-b94a-ae26b5bb2821,TEXT,CST_PROC,Type,Ble Wall Length Mm [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_WALL_LENGTH_MM,fdff76e0-dada-58bc-b94a-ae26b5bb2821,TEXT,CST_PROC,Type,Wall length (mm) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_WALL_PRIMARY_WALL_MAT_TXT,83fce03a-5dbf-57cf-b9d5-d797969487f9,TEXT,CST_PROC,Type,Ble Wall Primary Wall Mat Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,a1ae48ce-4bb1-5530-ba0b-e0d6ddba76c4,NUMBER,CST_PROC,Type,Ble Wall Sound Transmission Class Rating Nr [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_WALL_THERMAL_TRANSMITTANCE_U_VALUE_W_M_2K_NR,5ee56aa6-f559-578c-9b72-6100c852fda1,TEXT,CST_PROC,Type,Ble Wall Thermal Transmittance U Value W M 2k Nr [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_WALL_THICKNESS_MM,d0c788c3-fd82-50e8-8361-52f0e26cfc40,LENGTH,CST_PROC,Type,Ble Wall Thickness Mm [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_WALL_THICKNESS_MM,d0c788c3-fd82-50e8-8361-52f0e26cfc40,LENGTH,CST_PROC,Type,Wall thickness (mm) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_WALL_WATERPROOF_TXT,9b681221-e642-4285-b5bb-9a6bb2bbe227,TEXT,CST_PROC,Type,Wall waterproofing system type [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_WINDOW_FRAME_MAT_TXT,80c97926-59ac-5e7d-8ce0-236dd786bf9f,TEXT,CST_PROC,Type,Ble Window Frame Mat Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT,4d3d9bf9-9244-599c-88ae-16e0469fa44f,TEXT,CST_PROC,Type,Ble Window Glazing Type Single Double Triple Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_WINDOW_HEIGHT_MM,9e4ae2aa-fb63-55cc-8674-df05f460882f,LENGTH,CST_PROC,Type,Ble Window Height Mm [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_WINDOW_HEIGHT_MM,9e4ae2aa-fb63-55cc-8674-df05f460882f,LENGTH,CST_PROC,Type,Window height (mm) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_WINDOW_OPERATION_TYPE_TXT,ad3d94fe-900b-5662-985c-54e2af3eb0f9,TEXT,CST_PROC,Type,Ble Window Operation Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM,50341648-0677-525e-a2d8-6d8686e9e87e,TEXT,CST_PROC,Type,Ble Window Sill Height From Flr Mm [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM,50341648-0677-525e-a2d8-6d8686e9e87e,TEXT,CST_PROC,Type,Window sill height (mm) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR,f1e3b7f1-ee7b-51e2-8aa3-2039753098fc,NUMBER,CST_PROC,Type,Ble Window Solar Heat Gain Coefficient Nr [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_WINDOW_U_VALUE_W_M_2K_NR,909af979-fe49-5c81-a0f8-db5c1f5e4ee0,NUMBER,CST_PROC,Type,Ble Window U Value W M 2k Nr [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_WINDOW_VISIBLE_LIGHT_TRANSMITTANCE_PCT,21068de7-9b17-5dd0-a477-ec1688fa318a,TEXT,CST_PROC,Type,Ble Window Visible Light Transmittance Pct [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_WINDOW_WIDTH_MM,d7506fd3-c17c-513a-8c82-2a632e55a0a6,LENGTH,CST_PROC,Type,Ble Window Width Mm [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_WINDOW_WIDTH_MM,d7506fd3-c17c-513a-8c82-2a632e55a0a6,LENGTH,CST_PROC,Type,Window width (mm) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_CALC_TILE_M2,834a8478-47fb-402b-b333-3c5ed761c865,TEXT,COM_DAT,Type,Calculated tile area with wastage in square meters [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_CST_LIFECYCLE_UGX_NR,b0853b7d-8b73-5234-a97f-9a33120b432b,TEXT,ASS_MNG,Type,Ass Cst Lifecycle Ugx Nr [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_PMT_CST_TOTAL_CST_UGX_NR,ee737637-24a5-5a56-887c-4cff9ae1f9ea,TEXT,ASS_MNG,Type,Ass Pmt Cst Total Cst Ugx Nr [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -169,34 +169,34 @@ Generic Models,CST_S_REI_WEIGHT_WASTAGE_KG,d9b73a97-fed2-5b86-86ac-0c53f1987157,
 Generic Models,CST_TOTAL_COST_UGX,1d11176f-fb0e-4cdc-a320-b98212e8b3dd,TEXT,COM_DAT,Type,Grand total cost in UGX [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ELC_CBL_AMPACITY_A,4f556c4d-4ae6-5784-9a23-f5787eb9b56e,TEXT,ELC_PWR,Type,Elc Cbl Ampacity A [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_CBL_LENGTH_M,da71ae59-9744-5fe4-ad20-4b0687404e58,TEXT,ELC_PWR,Type,Elc Cbl Length M [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ELC_CBL_SZ_MM,d08c2c5d-577f-5861-b615-b1b427d573a7,TEXT,ELC_PWR,Type,Elc Cbl Sz Mm [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,ELC_CBL_SZ_MM,d08c2c5d-577f-5861-b615-b1b427d573a7,TEXT,ELC_PWR,Type,Assigned cable CSA -- reuses existing Phase 175 param [STING Phase 178],False,,,MULTI,1,0
 Generic Models,CBL_TYPE_TXT,b796eeed-e108-53b5-9bf7-deb0842cdea3,TEXT,ELC_PWR,Type,Elc Cbl Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_CKT_CUR_A,35d7f2c9-39b3-5cf3-867b-020dd1edb24d,NUMBER,ELC_PWR,Type,Elc Ckt Cur A [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_CKT_NR,6ad8ee51-59c2-551d-8b26-ad7194c50ec8,TEXT,ELC_PWR,Type,"Circuit number as Revit shows it, including multi-pole numbers such as 1,3,5 [ISO 19650-1:2018]",False,,,MULTI,1,0
 Generic Models,ELC_CONN_TYPE_TXT,5f76851e-27eb-43b4-b026-d3cd7c408814,TEXT,ELC_PWR,Type,Electrical connector type (Plug/Terminal/Bus/Lug) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_CTR_SZ_TXT,e07efc49-554a-48c1-ba03-ffd28b8abca6,TEXT,ELC_PWR,Type,Cable tray size designation [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_DIV_FCT_NR,f7aed743-08cc-5147-ae86-f7049c7b7f39,TEXT,ELC_PWR,Type,Elc Div Fct Nr [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ELC_IP_RATING_TXT,4529878a-ddd0-5dd1-8c12-caad8b5bd8ed,TEXT,ELC_PWR,Type,Elc Ip Rating Txt [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,ELC_IP_RATING_TXT,4529878a-ddd0-5dd1-8c12-caad8b5bd8ed,TEXT,ELC_PWR,Type,IP rating [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_TAG_7_PARA_COMM_TXT,e0d7b65b-2999-41ac-969b-27bf8db00ee4,TEXT,ELC_PWR,Type,Communication device electrical paragraph container [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ELC_TAG_7_PARA_TIEIN_TXT,e97f6a5b-3275-4f24-845c-bc4ff8b53362,TEXT,ELC_PWR,Type,Electrical tie-in point paragraph container [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ELC_VOLTAGE_V,ff29a613-abb3-45ef-9577-2f311b14074d,NUMBER,ELC_PWR,Type,Device operating voltage in V [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_WIRE_SIZE_TXT,bbfae061-d579-4366-a12e-4de7af3f28a0,TEXT,ELC_PWR,Type,"Wire size designation (2.5mm2, 4mm2, 10mm2) [ISO 19650-1:2018]",False,,,MULTI,1,0
 Generic Models,MNT_HGT_MM,67f74e7b-256f-5611-bd11-1eb958f6e5b4,LENGTH,ELC_PWR,Type,Elc Mnt Hgt Mm [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ELC_PNL_CONNECTED_LOAD_KW,9df4b41b-3c97-5bbd-bce8-4e3ff9c5e0dc,NUMBER,ELC_PWR,Type,Elc Pnl Connected Load Kw [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ELC_PNL_DESIGNATION_NAME_TXT,ea6fc977-0678-5a5c-b1b5-a19e9f3e17e0,TEXT,ELC_PWR,Type,Elc Pnl Designation Name Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ELC_PNL_FED_FROM_PNL_TXT,1a340249-26d2-55ff-b3fe-63d245e170df,TEXT,ELC_PWR,Type,Elc Pnl Fed From Pnl Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ELC_PNL_MAIN_BRK_A,ec3c2a37-6a06-5794-a048-e405c362a8a4,NUMBER,ELC_PWR,Type,Elc Pnl Main Brk A [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ELC_PNL_NUM_OF_WAYS_NR,7f871de1-9153-549f-a19f-290683618f46,NUMBER,ELC_PWR,Type,Elc Pnl Num Of Ways Nr [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,ELC_PNL_CONNECTED_LOAD_KW,9df4b41b-3c97-5bbd-bce8-4e3ff9c5e0dc,NUMBER,ELC_PWR,Type,Panel connected load (kW) [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,ELC_PNL_DESIGNATION_NAME_TXT,ea6fc977-0678-5a5c-b1b5-a19e9f3e17e0,TEXT,ELC_PWR,Type,Panel designation name [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,ELC_PNL_FED_FROM_PNL_TXT,1a340249-26d2-55ff-b3fe-63d245e170df,TEXT,ELC_PWR,Type,Panel fed from [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,ELC_PNL_MAIN_BRK_A,ec3c2a37-6a06-5794-a048-e405c362a8a4,NUMBER,ELC_PWR,Type,Main breaker (A) [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,ELC_PNL_NUM_OF_WAYS_NR,7f871de1-9153-549f-a19f-290683618f46,NUMBER,ELC_PWR,Type,Number of ways [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_PNL_PHS_COUNT_NR,febd6223-1632-599f-991b-cbeb3b8fd979,NUMBER,ELC_PWR,Type,Elc Pnl Phs Count Nr [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ELC_PNL_SHORT_CIRCUIT_RATING_KA,eac6e4e0-593e-521c-a4d8-f6142f0010a5,NUMBER,ELC_PWR,Type,Elc Pnl Short Circuit Rating Ka [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,ELC_PNL_SHORT_CIRCUIT_RATING_KA,eac6e4e0-593e-521c-a4d8-f6142f0010a5,NUMBER,ELC_PWR,Type,Calculated fault current at panel (kA) -- reuses Phase 175 short-circuit param [STING Phase 178],False,,,MULTI,1,0
 Generic Models,ELC_PNL_VLT_V,1080edf4-7df6-5705-9515-0fb674933c1b,NUMBER,ELC_PWR,Type,Elc Pnl Vlt V [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_PWR_KW,1090274a-74b8-5ac4-8eaf-4f36c4b6cb55,NUMBER,ELC_PWR,Type,Elc Pwr Kw [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_SPARE_WAYS_NR,8ff6b7e5-8ec9-58ab-8d92-52d2f189afb6,NUMBER,ELC_PWR,Type,Elc Spare Ways Nr [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ELC_VLT_DROP_PCT,cf27a6c4-4056-543b-876f-ca8747265b83,NUMBER,ELC_PWR,Type,Elc Vlt Drop Pct [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,ELC_VLT_DROP_PCT,cf27a6c4-4056-543b-876f-ca8747265b83,NUMBER,ELC_PWR,Type,Calculated voltage drop % -- reuses existing Phase 175 param [STING Phase 178],False,,,MULTI,1,0
 Generic Models,HVC_CAP_KW,9990d504-d0ac-5537-80cd-a4eb66746e51,NUMBER,HVC_SYSTEMS,Type,Hvc Cap Kw [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,HVC_CAP_TR,993c51e7-135c-56dc-8a81-7fc9aa045ea0,TEXT,HVC_SYSTEMS,Type,Hvc Cap Tr [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,HVC_CONTROL_TYPE_TXT,34d15f62-cb02-5a6b-9cf1-825c6b98c08a,TEXT,HVC_SYSTEMS,Type,Hvc Control Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,HVC_DCT_FLW_CFM,39e255ff-7a42-5d4f-954c-960347ab434e,NUMBER,HVC_SYSTEMS,Type,Hvc Dct Flw Cfm [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,HVC_DCT_FLW_CFM,39e255ff-7a42-5d4f-954c-960347ab434e,NUMBER,HVC_SYSTEMS,Type,Duct flow (CFM) (HVAC_AIRFLOW type) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,HVC_DCT_MAT_TXT,99bb5c8a-e4b4-5f20-ba1c-ae7738effeb0,TEXT,HVC_SYSTEMS,Type,Hvc Dct Mat Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,HVC_DCT_SZ_TXT,5a243373-59ff-45eb-af8d-f547e17b0421,TEXT,HVC_SYSTEMS,Type,"Duct size designation (e.g. 400x200, DN300) [ISO 19650-1:2018]",False,,,MULTI,1,0
 Generic Models,HVC_DCT_TERMINAL_SZ_TXT,081b8c41-91a0-552e-912a-6bd5b3404fc8,TEXT,HVC_SYSTEMS,Type,Hvc Dct Terminal Sz Txt [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -205,7 +205,7 @@ Generic Models,HVC_DUCT_AREA_SQ_M,4ca049cb-8e14-5c8d-bc00-7b5a3c3e9dbb,AREA,HVC_
 Generic Models,HVC_DUCT_CLASS_TXT,a767df19-9d03-51fd-a59b-81dc2037dd94,TEXT,HVC_SYSTEMS,Type,Hvc Duct Class Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,HVC_DUCT_FLOWRATE_M3H,4715ba3e-adf9-526d-b7d8-e8fa5d529097,NUMBER,HVC_SYSTEMS,Type,Hvc Duct Flowrate M3h [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,HVC_DUCT_LINING_TXT,971cd951-7bac-5a58-a887-ab87eecad874,TEXT,HVC_SYSTEMS,Type,Hvc Duct Lining Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,HVC_EFF_RATIO_NR,f9f3d362-50dc-5880-accb-dcf8fff886b1,NUMBER,HVC_SYSTEMS,Type,Hvc Eff Ratio Nr [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,HVC_EFF_RATIO_NR,f9f3d362-50dc-5880-accb-dcf8fff886b1,NUMBER,HVC_SYSTEMS,Type,HVAC equipment COP/efficiency ratio. Maps from RBS_MECH_COP_PARAM. [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,HVC_PIPE_FLOWRATE_LPS,3a9eccc0-aa9a-5602-a509-9bc01ccc771d,TEXT,HVC_SYSTEMS,Type,Hvc Pipe Flowrate Lps [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,HVC_PIPE_PRESSURE_KPA,0772a943-2ff5-5106-b7ac-ec8a48da7e9f,NUMBER,HVC_SYSTEMS,Type,Hvc Pipe Pressure Kpa [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,HVC_PWR_KW,7cdd6e98-8462-5ecf-9223-a830c5c4622b,NUMBER,HVC_SYSTEMS,Type,Hvc Pwr Kw [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -214,9 +214,9 @@ Generic Models,HVC_TAG_7_PARA_TIEIN_TXT,4381a69b-5e61-45c9-8782-18e575a109cd,TEX
 Generic Models,HVC_TERMINAL_FINISH_TXT,5ba3a60c-0497-56c2-9f44-5f2e6f58320b,TEXT,HVC_SYSTEMS,Type,Hvc Terminal Finish Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,HVC_TERMINAL_MAT_TXT,b4b20432-2a18-5392-809e-8768a0c45401,TEXT,HVC_SYSTEMS,Type,Hvc Terminal Mat Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MEP_TYPE_TXT,1b1cd925-5ef5-5ce4-b184-0a1262345292,TEXT,PLM_DRN,Type,Plm Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,HVC_VEL_MPS,e7c4c2ab-a4f8-5c1d-bea0-933630bfae47,NUMBER,HVC_SYSTEMS,Type,Hvc Vel Mps [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,HVC_VEL_MPS,e7c4c2ab-a4f8-5c1d-bea0-933630bfae47,NUMBER,HVC_SYSTEMS,Type,Velocity (m/s) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,HVC_VLT_V,06b47e63-5eae-54ca-91ad-ef47d8aa57be,TEXT,HVC_SYSTEMS,Type,Hvc Vlt V [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,LTG_FIX_LMP_WATTAGE_W,811bfba5-d434-5070-9aee-6779c85a4c21,NUMBER,LTG_CONTROLS,Type,Ltg Fix Lmp Wattage W [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,LTG_FIX_LMP_WATTAGE_W,811bfba5-d434-5070-9aee-6779c85a4c21,NUMBER,LTG_CONTROLS,Type,Lamp wattage (W) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_CAP_CU_M,74e958db-d525-50f5-9982-424f81b051a3,TEXT,PLM_DRN,Type,Plm Cap Cu M [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_DRN_VEL_MPS,f187bab9-9d0e-5fa5-bd02-2b501d41e049,TEXT,PLM_DRN,Type,Plm Drn Vel Mps [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_EQP_CAPACITY_L,bcd863ae-66a3-4a44-8fe3-123ade814e25,TEXT,PLM_DRN,Type,Plumbing equipment storage capacity in litres [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -225,26 +225,26 @@ Generic Models,PLM_HED_M,9048b4fd-9159-5fac-af3b-14004621818c,TEXT,PLM_DRN,Type,
 Generic Models,PLM_HOTWTR_INPUT_PWR_KW,ca5441cb-4979-51d9-951a-9f2ecab4bc6b,TEXT,PLM_DRN,Type,Plm Hotwtr Input Pwr Kw [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_HOTWTR_STORAGE_CAP_GAL_NR,6a4fd2df-a978-5dc5-8ef1-5f79364c525a,TEXT,PLM_DRN,Type,Plm Hotwtr Storage Cap Gal Nr [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_HOTWTR_TEMP_C,7b53b38e-fc83-574e-9197-5bee5a561e34,TEXT,PLM_DRN,Type,Plm Hotwtr Temp C [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PLM_PPE_FLW_LPS,800e6613-f502-52f0-9c12-14ec3e358056,NUMBER,PLM_DRN,Type,Plm Ppe Flw Lps [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PLM_PPE_FLW_LPS,800e6613-f502-52f0-9c12-14ec3e358056,NUMBER,PLM_DRN,Type,Pipe flow (L/s) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_PPE_INS_THK_MM,7b7eb223-a119-5a53-a3ba-5c5e5d553e0b,LENGTH,PLM_DRN,Type,Plm Ppe Ins Thk Mm [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_PPE_INS_TYPE_TXT,3eebb62d-4e9f-507a-8e9a-301a838ab774,TEXT,PLM_DRN,Type,Plm Ppe Ins Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_PPE_JOINT_TYPE_TXT,463fabb0-eda8-5a62-b621-36fb077c9f97,TEXT,PLM_DRN,Type,Plm Ppe Joint Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PLM_PPE_LENGTH_M,dc5e612c-656a-5930-a87a-4a412e2cd119,LENGTH,PLM_DRN,Type,Plm Ppe Length M [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PLM_PPE_LENGTH_M,dc5e612c-656a-5930-a87a-4a412e2cd119,LENGTH,PLM_DRN,Type,Pipe length (m) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_PPE_MAT_TXT,7b08fe47-9d31-5d9a-8982-0e71f44eb6ae,TEXT,PLM_DRN,Type,Plm Ppe Mat Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_PPE_PSR_RATING_BAR,d978df87-87d3-5403-9bbf-e11e4fb4b5cc,NUMBER,PLM_DRN,Type,Plm Ppe Psr Rating Bar [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PLM_PPE_SZ_MM,7280f00f-3961-5c97-bee1-281f3ae98f0e,LENGTH,PLM_DRN,Type,Plm Ppe Sz Mm [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PLM_PPE_SZ_MM,7280f00f-3961-5c97-bee1-281f3ae98f0e,LENGTH,PLM_DRN,Type,Pipe size (mm) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_PSR_KPA,bbf823b4-e2d3-5df8-99a8-4a641f5c8663,NUMBER,PLM_DRN,Type,Plm Psr Kpa [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_PWR_KW,659b6aaf-5538-56d0-82a2-7ae197499070,TEXT,PLM_DRN,Type,Plm Pwr Kw [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_TAG_7_PARA_TIEIN_TXT,34a8524b-d77e-4314-b3e3-ddd3147c88a4,TEXT,PLM_DRN,Type,Plumbing tie-in point paragraph container [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,PLM_VEL_MPS,d85554af-6914-563d-a8f2-0cef71e09f2d,NUMBER,PLM_DRN,Type,Plm Vel Mps [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PLM_VEL_MPS,d85554af-6914-563d-a8f2-0cef71e09f2d,NUMBER,PLM_DRN,Type,Pipe velocity (m/s) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_VLV_ACTUATION_TYPE_TXT,b4712e8b-8be7-512f-9ca4-3ea6e665095b,TEXT,PLM_DRN,Type,Plm Vlv Actuation Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_VLV_BODY_MAT_TXT,6c4c030a-0f07-563a-88f7-6f65c08dcd59,TEXT,PLM_DRN,Type,Plm Vlv Body Mat Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_VLV_CV_NR,69f69261-043b-5c7c-916e-769dc7e1b9d9,NUMBER,PLM_DRN,Type,Plm Vlv Cv Nr [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_VLV_END_CONNECTION_TXT,91eddd10-93a4-55bd-ad71-ca0f79c0b9fd,TEXT,PLM_DRN,Type,Plm Vlv End Connection Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_VLV_PSR_CLASS_TXT,d3fa455d-9505-59c5-9386-c5610eb4ed7e,TEXT,PLM_DRN,Type,Plm Vlv Psr Class Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ASS_TAG_4_TXT,9432c6e4-8912-4a0b-bf04-2ee1cf3afadf,TEXT,ASS_MNG,Type,Ass Tag 3 Txt [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_TAG_5_TXT,c875d795-d764-4a8b-826a-2677635b15b9,TEXT,ASS_MNG,Type,Ass Tag 3 Txt [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_TAG_6_TXT,6fcfc27b-a42d-4f54-92ad-66c875f9be38,TEXT,ASS_MNG,Type,Ass Tag 3 Txt [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_TAG_4_TXT,9432c6e4-8912-4a0b-bf04-2ee1cf3afadf,TEXT,ASS_MNG,Type,System (SYS-FUNC) [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_TAG_5_TXT,c875d795-d764-4a8b-826a-2677635b15b9,TEXT,ASS_MNG,Type,Multi-line top -- DISC-LOC-ZONE-LVL (top line of a 2-line tag family layout: place TAG_5 above TAG_6) [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_TAG_6_TXT,6fcfc27b-a42d-4f54-92ad-66c875f9be38,TEXT,ASS_MNG,Type,Multi-line bottom -- SYS-FUNC-PROD-SEQ (bottom line of a 2-line tag family layout: place below TAG_5) [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,HVC_EQP_TAG_01_TXT,62f66802-8bd6-4861-aad0-f23e5b1905d2,TEXT,HVC_SYSTEMS,Type,HVC_EQP_TAG,False,,,MULTI,1,0
 Generic Models,HVC_EQP_TAG_02_TXT,c3974615-09ac-46ee-8c69-589df04a35c0,TEXT,HVC_SYSTEMS,Type,HVC_EQP_TAG 2,False,,,MULTI,1,0
 Generic Models,HVC_EQP_TAG_03_TXT,59605dc9-0029-4704-8dff-cf3bd25b749d,TEXT,HVC_SYSTEMS,Type,HVC_EQP_TAG 3,False,,,MULTI,1,0
@@ -258,10 +258,10 @@ Generic Models,LTG_FIX_TAG_02_TXT,7783ce57-766b-4903-8e9f-bde24b706b42,TEXT,LTG_
 Generic Models,PLM_EQP_TAG_01_TXT,e4f6bae0-bc3b-42f3-a3c9-ef31a23a80d0,TEXT,PLM_DRN,Type,Plm eqp tag,False,,,MULTI,1,0
 Generic Models,PLM_EQP_TAG_02_TXT,4a31aa91-9511-4fa4-8024-632f64b6a2ae,TEXT,PLM_DRN,Type,Plm eqp tag,False,,,MULTI,1,0
 Generic Models,FLS_DEV_TAG_01_TXT,c611d904-3f4f-45c6-81e6-11f3cc64759d,TEXT,FLS_LIFE_SFTY,Type,Fls Sfty Dev tag,False,,,MULTI,1,0
-Generic Models,ASS_INST_DETAIL_NUM_TXT,73f74429-76da-4ae8-ae90-66884bad8a06,TEXT,ASS_MNG,Type,Inst Detail Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ASS_FUNC_TXT,1ddff9a8-6e66-4a93-88fe-f3b94fbd5710,TEXT,ASS_MNG,Type,Spare parameter 1 for ASS_MNG group,False,,,MULTI,1,0
-Generic Models,ASS_SEQ_NUM_TXT,bbe1cd55-247b-48bd-94ba-a08031f06d5b,TEXT,ASS_MNG,Type,Spare parameter 2 for ASS_MNG group,False,,,MULTI,1,0
-Generic Models,MNT_TYPE_TXT,9358b203-900a-52c5-9e80-3a4d67dc5c51,TEXT,LTG_CONTROLS,Type,Ltg Mnt Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,ASS_INST_DETAIL_NUM_TXT,73f74429-76da-4ae8-ae90-66884bad8a06,TEXT,ASS_MNG,Type,Installation detail number [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,ASS_FUNC_TXT,1ddff9a8-6e66-4a93-88fe-f3b94fbd5710,TEXT,ASS_MNG,Type,Function code (CIBSE/Uniclass),False,,,MULTI,1,0
+Generic Models,ASS_SEQ_NUM_TXT,bbe1cd55-247b-48bd-94ba-a08031f06d5b,TEXT,ASS_MNG,Type,4-digit sequence number,False,,,MULTI,1,0
+Generic Models,MNT_TYPE_TXT,9358b203-900a-52c5-9e80-3a4d67dc5c51,TEXT,LTG_CONTROLS,Type,Maintenance type [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,LTG_EMRG_TYPE_TXT,9c1aacc1-141d-5fa3-815f-65e638b2e55a,TEXT,LTG_CONTROLS,Type,Ltg Emrg Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_EQP_TAG_01_TXT,d9441c7a-025c-4034-a7da-dc960df4a57c,TEXT,ELC_PWR,Type,"Elec equip power supply tag: voltage, phases, main breaker, fault level [ISO 19650-1:2018]",False,,,MULTI,1,0
 Generic Models,ELC_EQP_TAG_02_TXT,64805f01-8548-44c5-8091-ffcf04d35d7d,TEXT,ELC_PWR,Type,"Elec equip load tag: connected load kW, IP rating, upstream panel [ISO 19650-1:2018]",False,,,MULTI,1,0
@@ -310,7 +310,7 @@ Generic Models,CST_S_EAR_EXCAVATION_DEPTH_M,1950c401-9793-5b13-84c6-2444b7270a2d
 Generic Models,FIN_CEIL_TAG_TXT,cfbedb01-9783-403d-a273-2f2e4e215907,TEXT,BLE_ELES,Type,"Ceiling finish schedule tag: finish, system, NRC, grid size [ISO 19650-1:2018]",False,,,MULTI,1,0
 Generic Models,BLE_APP-CUT-FG-PATTERN,aea63902-5e4f-5022-bf17-e9f8c87ca01f,TEXT,CST_PROC,Type,Ble App-cut-fg-pattern [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_FINISH_TILE_SZ_TXT,b40d4302-bf83-52e9-8196-d2d33512bca0,TEXT,CST_PROC,Type,Ble Finish Tile Sz Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_RAMP_WIDTH_MM,2d201a03-f8c9-5ba5-acbc-37d9452cf3a7,LENGTH,CST_PROC,Type,Ble Ramp Width Mm [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_RAMP_WIDTH_MM,2d201a03-f8c9-5ba5-acbc-37d9452cf3a7,LENGTH,CST_PROC,Type,Ramp width (mm) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,VT_AMBIENT_OCCLUSION_BOOL,ae6e8503-c335-4a4e-9e9e-b1f24aed6e6c,YESNO,TPL_TRACKING,Type,Ambient occlusion enabled [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,WS_DESCRIPTION_TXT,aad10304-92fe-424a-acb0-5699134837f9,TEXT,TPL_TRACKING,Type,Workset description [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,PLM_DRN_SPARE_02_TXT,0ad71604-733e-4566-acfd-1c4ef9628711,TEXT,PLM_DRN,Type,Spare parameter 2 for PLM_DRN group,False,,,MULTI,1,0
@@ -318,7 +318,7 @@ Generic Models,BLE_MAT_L2_THK_MM,61ec2504-76fe-5eb2-a642-0e0674c16a24,TEXT,CST_P
 Generic Models,BLE_MAT_CATEGORY_TXT,baa96504-505d-5c7e-976a-ce8fb8f5f93d,TEXT,CST_PROC,Type,Ble Mat Category Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CP_STYLE_TXT,bd30ce04-7273-4a90-80f2-45d95529cade,TEXT,TPL_TRACKING,Type,Style category [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,VT_TEMPLATE_NAME_TXT,0411de04-abf2-4d80-862c-068ac46a593c,TEXT,TPL_TRACKING,Type,View template name [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ASS_PRODCT_COD_TXT,082a2a05-3387-5501-b355-51dd45e23e9f,TEXT,ASS_MNG,Type,Ass Prodct Cod Txt [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_PRODCT_COD_TXT,082a2a05-3387-5501-b355-51dd45e23e9f,TEXT,ASS_MNG,Type,Product code [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_CST_INSTALL_UGX_NR,01fcf005-60b1-5886-b52f-015cc7598787,TEXT,ASS_MNG,Type,Ass Cst Install Ugx Nr [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,PLM_ACC_CONNECTION_SZ_NR,75ca3206-aa70-5fe0-85b3-90cd4bf3d798,NUMBER,PLM_DRN,Type,Plm Acc Connection Sz Nr [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_UNIT_PRICE_SAND_UGX,d5f55c06-5782-43c1-b8d6-47ac44a03f29,TEXT,COM_DAT,Type,Unit price per cubic meter sand in UGX [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -349,7 +349,7 @@ Generic Models,ASS_TIEIN_IFC_REF_TXT,06a09689-3d8a-4b24-8483-37959f648f89,TEXT,A
 Generic Models,ASS_TIEIN_PHASE_TXT,e98813a4-3ca9-4f70-bc7b-c4ac37b088e0,TEXT,ASS_MNG,Type,Tie-in construction phase [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_TIEIN_STATUS_TXT,1b76c524-7911-4829-bd55-5a1bdbfa2f6b,TEXT,ASS_MNG,Type,Tie-in status: OPEN / CONNECTED / DEFERRED [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_TIEIN_TAG_1_TXT,e169cb1f-3f9e-4897-8312-7d06c1cb2ee5,TEXT,ASS_MNG,Type,Tie-in connected-to asset primary tag [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_ZONE_TXT,dc0d940f-e4ce-5e73-a0a7-fc7094148c84,TEXT,ASS_MNG,Type,Ass Zone Txt [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_ZONE_TXT,dc0d940f-e4ce-5e73-a0a7-fc7094148c84,TEXT,ASS_MNG,Type,"Zone code (Z01-Z04, ZZ, XX) [ISO 19650-3:2020]",False,,,MULTI,1,0
 Generic Models,BLE_WALL_TYPE_CLASSIFICATION_TXT,123bc70f-d9f7-5d1e-818b-aea8222786fa,TEXT,CST_PROC,Type,Ble Wall Type Classification Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PER_THERM_R_VALUE_M2K_W,b1c30510-64ad-5de7-a201-043bddb89459,NUMBER,PER_SUST,Type,Per Therm R Value M2k W [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_DRN_PPE_SLOPE_PCT,57074b10-28fd-5cea-93ca-da43df5b630d,TEXT,PLM_DRN,Type,Plm Drn Ppe Slope Pct [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -380,7 +380,7 @@ Generic Models,PER_SUST_ENERGY_RATING_TXT,c7f29916-b823-5704-93e6-d46673e7b95c,T
 Generic Models,LTG_CLR_RENDERING_INDEX_NR,43980f17-492a-5b6d-99cb-525e58f769cf,NUMBER,LTG_CONTROLS,Type,Ltg Clr Rendering Index Nr [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_STR_BODY_MAT_TXT,a44f3317-8596-584b-a3ac-af11fe00b9d3,TEXT,PLM_DRN,Type,Plm Str Body Mat Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,VT_LAST_MODIFIED_TXT,5ddaca17-fca1-4139-864e-625b18da5607,TEXT,TPL_TRACKING,Type,Last modification date [ISO 19650-2:2018],False,,,MULTI,1,0
-Generic Models,BLE_STAIR_GOING_MM,3cb19d18-6500-5dc5-b461-d03a276b645f,LENGTH,CST_PROC,Type,Ble Stair Going Mm [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_STAIR_GOING_MM,3cb19d18-6500-5dc5-b461-d03a276b645f,LENGTH,CST_PROC,Type,Stair tread depth (mm) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MAT_COST_USD,2dc13319-9225-58b5-9904-d9dc5455dcb0,TEXT,MAT_INFO,Type,Mat Cost Usd [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,OS_CATEGORY_TXT,23866d19-46aa-4aa1-b971-c799b11f2e54,TEXT,TPL_TRACKING,Type,Object style category [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,FIN_FLR_TAG_TXT,a2b19e19-d4ad-44b4-97d4-8e80dc981228,TEXT,BLE_ELES,Type,"Floor finish schedule tag: finish, thickness, slip resistance, material [ISO 19650-1:2018]",False,,,MULTI,1,0
@@ -426,7 +426,7 @@ Generic Models,LS_STATUS_TXT,c416f32a-59da-493c-9a94-cc6cc238153f,TEXT,TPL_TRACK
 Generic Models,PH_NUMBER_INT,a9b92c2b-d5a5-47ab-a3a1-9cec4e1f4c31,INTEGER,TPL_TRACKING,Type,Phase sequence number [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,HVC_TERMINAL_PATTERN_TXT,c22dc02b-885d-51a6-a02b-10e8b225d871,TEXT,HVC_SYSTEMS,Type,Hvc Terminal Pattern Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_TOTAL_SAND_COST,d090e92b-0946-4c30-a1cc-f03d1fd653c7,TEXT,COM_DAT,Type,Total sand cost in UGX [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_DEPARTMENT_ASSIGNMENT_TXT,f6d2f12b-d9af-5383-86c3-a3c3c937083d,TEXT,ASS_MNG,Type,Ass Department Assignment Txt [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_DEPARTMENT_ASSIGNMENT_TXT,f6d2f12b-d9af-5383-86c3-a3c3c937083d,TEXT,ASS_MNG,Type,Department assignment [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,BLE_LOAD_BEARING_ELE_BOOL,c030212c-74eb-5f11-9bf2-7fa34fac598f,YESNO,CST_PROC,Type,Ble Load Bearing Ele Bool [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ASS_CST_ANNUAL_MAINTENANCE_UGX_NR,7523cd2c-274a-51bd-aa48-38df40b8f075,TEXT,ASS_MNG,Type,Ass Cst Annual Maintenance Ugx Nr [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,CST_S_MAS_BRICK_WASTAGE_NR,660e172d-222e-5d2c-9a2c-3cad7c377970,TEXT,COM_DAT,Type,Cst S Mas Brick Wastage Nr [ISO 19650-2:2018],False,,,MULTI,1,0
@@ -455,7 +455,7 @@ Generic Models,PLM_DRN_CLEANOUT_LOCS_TXT,9508b135-39c0-5e8e-9347-7a9112227605,TE
 Generic Models,TS_STATUS_TXT,1c92cd35-b5ad-4d5c-8954-9aa37cd116a3,TEXT,TPL_TRACKING,Type,Text style status [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,VT_VIEW_TYPE_TXT,8dd2e735-f00f-45cd-8ff5-f339e352efab,TEXT,TPL_TRACKING,Type,"View type (FloorPlan, Section, etc.) [ISO 19650-1:2018]",False,,,MULTI,1,0
 Generic Models,PLM_DRN_SPARE_01_TXT,c10aea36-f75a-4c42-bb72-d4f104b3a92a,TEXT,PLM_DRN,Type,Spare parameter 1 for PLM_DRN group,False,,,MULTI,1,0
-Generic Models,BLE_STAIR_WIDTH_MM,dcaea437-8a54-5727-8011-81e5713d7054,LENGTH,CST_PROC,Type,Ble Stair Width Mm [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_STAIR_WIDTH_MM,dcaea437-8a54-5727-8011-81e5713d7054,LENGTH,CST_PROC,Type,Stair width (mm) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_CEILING_ACCESS_PNLS_INCLUDED_TXT,3655d737-59ed-593e-9bee-1ef10b133134,TEXT,CST_PROC,Type,Ble Ceiling Access Pnls Included Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_FACADE_CLR_TXT,4ce1ef37-3598-5dff-9e22-04ded38acbce,TEXT,CST_PROC,Type,Ble Facade Clr Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,RGL_UNBS_STD_TXT,dfdf1538-8ba3-539f-8e61-d29cff172b4a,TEXT,RGL_CMPL,Type,Rgl Unbs Std Txt [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -475,13 +475,13 @@ Generic Models,HVC_DCT_EQUIVALENT_DIAMETER_IN,e28e8a3d-b7e2-5247-85c3-a6b72b1d4a
 Generic Models,CP_USE_CASE_TXT,d70b503e-5ef9-4a7f-9c72-9ce3f71b4280,TEXT,TPL_TRACKING,Type,Color use case [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_SUP_PAYMENT_TERMS_TXT,77a24d3f-2222-55eb-9aeb-7a3bd14fee2f,TEXT,COM_DAT,Type,Cst Sup Payment Terms Txt [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,CST_S_EAR_EXCAVATION_METHOD_TXT,771de03f-7648-5e19-a3d2-204c4e4782fb,TEXT,COM_DAT,Type,Cst S Ear Excavation Method Txt [ISO 19650-2:2018],False,,,MULTI,1,0
-Generic Models,ELC_VLT_PRIMARY_RATING_V,af785641-08c5-5f2b-91b9-40ea678f25c5,NUMBER,ELC_PWR,Type,Elc Vlt Primary Rating V [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,ELC_VLT_PRIMARY_RATING_V,af785641-08c5-5f2b-91b9-40ea678f25c5,NUMBER,ELC_PWR,Type,Panel voltage rating (V) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_EAR_FILL_MAT_TXT,1e6cf542-be6d-5f69-9ed0-533e07fdc5a2,TEXT,COM_DAT,Type,Cst S Ear Fill Mat Txt [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,CST_S_FRM_STRIPPING_TIME_DAYS,ba8f1343-fb16-52ae-9a78-a978b0617888,TEXT,COM_DAT,Type,Cst S Frm Stripping Time Days [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,CST_TOTAL_PLASTER_COST,53630844-8d0e-405c-87ba-6b6aef5552c8,TEXT,COM_DAT,Type,Total plaster cost in UGX [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,CST_UNIT_PRICE_FASTENER_UGX,90e38244-96bb-48ec-aa10-6c9a6b23aa9c,TEXT,COM_DAT,Type,Unit price per fastener in UGX [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,VT_PHASE_FILTER_TXT,bd85bc44-68ea-4481-b0e0-9f8004fcaf0b,TEXT,TPL_TRACKING,Type,Phase filter applied [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_STAIR_RISE_MM,0dcbfb44-1130-51b2-bea9-832d4ee087f7,LENGTH,CST_PROC,Type,Ble Stair Rise Mm [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_STAIR_RISE_MM,0dcbfb44-1130-51b2-bea9-832d4ee087f7,LENGTH,CST_PROC,Type,Stair riser height (mm) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,DS_TYPE_TXT,88647645-8e89-45ba-b6bd-e44fd4f4a70d,TEXT,TPL_TRACKING,Type,Dimension type [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MAT_PERF_TAG_2_TXT,28487745-251e-4555-bf56-b1d06c933cc5,TEXT,MAT_INFO,Type,"Acoustic performance tag: STC, IIC, NRC [ISO 19650-1:2018]",False,,,MULTI,1,0
 Generic Models,BLE_FLR_LVL_NR,d794c645-b8c7-5465-82d3-2cd1a64a061c,TEXT,CST_PROC,Type,Ble Flr Lvl Nr [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -504,7 +504,7 @@ Generic Models,OS_PROJECTION_WEIGHT_INT,b8452a4d-ed19-40b9-81cf-818cfe97ea07,INT
 Generic Models,ASS_PMT_CST_UNIT_RATE_UGX_NR,2095964d-ab08-5261-8397-41a5a0fbba6f,TEXT,ASS_MNG,Type,Ass Pmt Cst Unit Rate Ugx Nr [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,BLE_STAIR_BALUSTRADE_TYPE_TXT,576bda4d-9284-5ac7-bfe9-2a45a70780aa,TEXT,BLE_STRUCTURE,Type,Hvc Stair Balustrade Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_FRM_BEAM_AREA_SQ_M,8b2cf94d-fba4-58f3-ad0c-ffb4e5c204f0,TEXT,COM_DAT,Type,Cst S Frm Beam Area Sq M [ISO 19650-2:2018],False,,,MULTI,1,0
-Generic Models,ELC_CKT_PHASE_COUNT_NR,9a3d204e-5cc8-5e7a-8199-174d407c0210,NUMBER,ELC_PWR,Type,Elc Ckt Phase Count Nr [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,ELC_CKT_PHASE_COUNT_NR,9a3d204e-5cc8-5e7a-8199-174d407c0210,NUMBER,ELC_PWR,Type,Phase count [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,FLT_CATEGORIES_TXT,2e8bcf4e-6c4e-4a2f-9574-fff2ed2f12e1,TEXT,TPL_TRACKING,Type,Categories included in filter [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PROP_ACOUSTIC_ABS,cc5ae04e-b64b-5d57-9030-22f14dfff3a0,TEXT,PROP_PHYSICAL,Type,Prop Acoustic Abs [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PRJ_ADDRESS_TXT,f549fe4e-cba1-582b-ad45-a07df6e006f5,TEXT,PRJ_INFORMATION,Type,Prj Address Txt [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -531,7 +531,7 @@ Generic Models,BLE_STRUCT_FOUNDATION_TYPE_TXT,d6705b58-9a98-5a20-98e8-3fe13dfb04
 Generic Models,SYS_APPLICABLE_STANDARDS_TXT,ffea8a58-370e-4783-a55b-32e5c8da41e8,TEXT,TPL_TRACKING,Type,Applicable standards [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PRJ_TB_CHECKED_BY_TXT,052af358-d13d-5e2e-aaf2-9a7e58d18371,TEXT,PRJ_INFORMATION,Type,Name or initials of person who checked the drawing [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_APP-SURFACE_PATTERN,ba316859-84b2-5bfa-b93f-a0144d43b482,TEXT,CST_PROC,Type,Ble App-surface Pattern [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,d173e059-7b9e-54ca-83fc-2bef567411cb,NUMBER,FLS_LIFE_SFTY,Type,Fls Prot Fls Resistance Rating Minutes Min [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,d173e059-7b9e-54ca-83fc-2bef567411cb,NUMBER,FLS_LIFE_SFTY,Type,Fire resistance rating (min) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_CON_CURING_DAYS_NR,a64ca95a-acf1-57f1-a531-4e6790fb4d31,TEXT,COM_DAT,Type,Cst S Con Curing Days Nr [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,MAT_DISCIPLINE,80a2b25a-3312-520c-911f-ad8c1d5f760b,TEXT,MAT_INFO,Type,Mat Discipline [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_MAT_L2_FUNC_TXT,d3677a5b-1ddf-54ef-ad6d-b081034e22e8,TEXT,CST_PROC,Type,Ble Mat L2 Func Txt [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -556,7 +556,7 @@ Generic Models,PLM_GSK_SZ_DIMENSION_TXT,4329f660-cac8-5a60-8e39-57c1ef38aea5,TEX
 Generic Models,PRJ_TB_DATE_CHECKED_TXT,85f04e61-409b-5fae-bd4f-e4414e9d69b5,TEXT,PRJ_INFORMATION,Type,Date drawing was checked (DD-Mon-YYYY) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_STR_MESH_SZ_MICRON_TXT,78ff5c61-0d2b-5344-9fd7-561befe01575,TEXT,PLM_DRN,Type,Plm Str Mesh Sz Micron Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_APP-CUT_PATTERN,af228161-0fa7-5d33-8e17-dae0514484d5,TEXT,CST_PROC,Type,Ble App-cut Pattern [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_RAMP_SLOPE_PCT,d0e7a861-94a5-5014-b190-7d3d5a58a5b7,NUMBER,CST_PROC,Type,Ble Ramp Slope Pct [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_RAMP_SLOPE_PCT,d0e7a861-94a5-5014-b190-7d3d5a58a5b7,NUMBER,CST_PROC,Type,Ramp slope (%) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MAT_LAYER_1_FUNCTION,0359c961-29ed-5f4b-b3e6-a7dc55c23665,TEXT,MAT_INFO,Type,Mat Layer 1 Function [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_FRM_SLAB_AREA_SQ_M,f4ee0063-aedf-541d-9e98-9e9751fe17b0,TEXT,COM_DAT,Type,Cst S Frm Slab Area Sq M [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,ELC_PWR_CONNECTED_LOAD_KW,5d0e4463-a9c8-5df2-82bc-703c62395bd9,TEXT,ELC_PWR,Type,Elc Pwr Connected Load Kw [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -597,7 +597,7 @@ Generic Models,CST_CALC_PURLINS_M,6d5c8f6f-66df-41a9-96fa-e9df5776f656,TEXT,COM_
 Generic Models,CST_S_MAS_BRICK_TYPE_TXT,806d0970-cc92-514b-b4fa-f3116ab5805d,TEXT,COM_DAT,Type,Cst S Mas Brick Type Txt [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,LTG_CLR_TEMP_K,daa25770-4068-52d4-a3d4-e8d04d6b1e3c,NUMBER,LTG_CONTROLS,Type,Ltg Clr Temp K [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MAT_LAYER_3_THICKNESS_MM,0319ac70-dfa2-5e93-b765-aa9ea543bf0f,TEXT,MAT_INFO,Type,Mat Layer 3 Thickness Mm [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ELC_CKT_PWR_KW,af31c470-7148-5135-b18d-7fe4eb536de5,TEXT,ELC_PWR,Type,Elc Ckt Pwr Kw [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,ELC_CKT_PWR_KW,af31c470-7148-5135-b18d-7fe4eb536de5,TEXT,ELC_PWR,Type,Circuit power (kW) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_EXP_JOINT_MAT_TXT,297dc670-2fa3-53e3-861f-af646ba2e82e,TEXT,PLM_DRN,Type,Plm Exp Joint Mat Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_APP-COLOR,4d711271-3fea-5c1d-9f60-140130758df9,TEXT,CST_PROC,Type,Ble App-color [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,FLT_LINE_WEIGHT_INT,fdd1c371-8d83-406f-a06b-b8ceef510a0a,INTEGER,TPL_TRACKING,Type,Override line weight [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -677,7 +677,7 @@ Generic Models,PRJ_TB_DISCIPLINE_TXT,edbf1392-5aea-505b-8b05-7a6432b0c3e1,TEXT,P
 Generic Models,COMP_MAT_TAG_1_TXT,58757592-bbc4-4cfd-8228-c89c89bb0d4a,TEXT,MAT_INFO,Type,"Standards compliance tag: code, standard, QA cert, UNBS reference [ISO 19650-1:2018]",False,,,MULTI,1,0
 Generic Models,CST_SUP_PREFERRED_SUPPLIER_TXT,8cc5d092-e1a1-53e6-b0ae-4e0c39800abc,TEXT,COM_DAT,Type,Cst Sup Preferred Supplier Txt [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,RGL_ACCESS_CMPL_STD_TXT,e6683a93-d0ea-578d-b670-4aad290f2681,TEXT,RGL_CMPL,Type,Rgl Access Cmpl Std Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PRJ_GRID_REF_TXT,6d1b5293-8685-59e6-b4c0-798aec064283,TEXT,PRJ_INFORMATION,Type,Prj Grid Ref Txt [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PRJ_GRID_REF_TXT,6d1b5293-8685-59e6-b4c0-798aec064283,TEXT,PRJ_INFORMATION,Type,Grid reference [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PER_ENVIRONMENTAL_TERMITE_PROT_BOOL,d2d10f94-a398-5220-ba62-2fc99f741f91,YESNO,PER_SUST,Type,Per Environmental Termite Prot Bool [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_CALC_LENGTH_M,b4cc4094-367a-4354-aa6b-c48b55a16c79,LENGTH,COM_DAT,Type,Calculated length in meters [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ELC_CBL_DERATING_FCT_NR,c6d3b094-3690-5fb0-846b-72abf8a784ab,TEXT,ELC_PWR,Type,Elc Cbl Derating Fct Nr [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -699,7 +699,7 @@ Generic Models,RGL_UMEME_APPROVAL_BOOL,c357089b-c15d-52d5-bdaf-5fc20fd4a2fc,YESN
 Generic Models,PROP_SOUND_RED_DB,0e0af49b-5fd9-51bb-8273-cb04161067de,TEXT,PROP_PHYSICAL,Type,Prop Sound Red Db [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_DRN_FITTING_CONNECTION_TYPE_TXT,79ac469c-1c30-5b5d-b46e-c85d9d11dbfb,TEXT,PLM_DRN,Type,Plm Drn Fitting Connection Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,USAGE_TXT,c7aa8b9c-53be-4b40-9dc8-3ca723a4a720,TEXT,TPL_TRACKING,Type,Dimension style usage [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,CST_FIX_LUMEN_OUTPUT_LM,91bdce9c-49bf-56b9-b058-3e0892f457cb,NUMBER,COM_DAT,Type,Cst Fix Lumen Output Lm [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,CST_FIX_LUMEN_OUTPUT_LM,91bdce9c-49bf-56b9-b058-3e0892f457cb,NUMBER,COM_DAT,Type,Lumen output (lm) [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,PLM_DRN_FITTING_ACCESS_PROVISION_TXT,d950d89c-1129-5772-a674-355cd9ec281f,TEXT,PLM_DRN,Type,Plm Drn Fitting Access Provision Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_PPE_NOMINAL_SZ_INCH_NR,f1c79a9d-17d3-5390-8437-c936024f9dbc,TEXT,PLM_DRN,Type,Plm Ppe Nominal Sz Inch Nr [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,FLS_SFTY_DEV_LOOP_02_TXT,c195d69d-8c91-4230-a47b-65715a82c8f2,TEXT,FLS_LIFE_SFTY,Type,Fls Sfty Dev tag,False,,,MULTI,1,0
@@ -707,7 +707,7 @@ Generic Models,PLM_EXJ_ANGULAR_MOVEMENT_DEG,f882da9d-6563-5765-971f-1c2400262bad
 Generic Models,PROP_SPECIFIC_HEAT_J_KGK,a495e29d-48f0-53a6-90f9-f51e283454e0,TEXT,PROP_PHYSICAL,Type,Prop Specific Heat J Kgk [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_WINDOW_MOSQUITO_SCREEN_INCLUDED_TXT,1ae1279e-2471-5cd5-be3a-ed5a6e2ccd3f,TEXT,CST_PROC,Type,Ble Window Mosquito Screen Included Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_CBL_COND_SZ_SQ_MM,9b26b39e-c900-580a-b4dd-126be741a922,TEXT,ELC_PWR,Type,Elc Cbl Cond Sz Sq Mm [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ASS_EQUIPMENT_TAG_TXT,2cebbb9e-70f2-550a-8a85-80cb1aa550d7,TEXT,ASS_MNG,Type,Ass Equipment Tag Txt [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_EQUIPMENT_TAG_TXT,2cebbb9e-70f2-550a-8a85-80cb1aa550d7,TEXT,ASS_MNG,Type,Equipment tag [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,FLT_RULES_TXT,681c249f-8e04-45b4-8409-b38f62e7a5de,TEXT,TPL_TRACKING,Type,Filter rule definitions [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_REI_SPACING_MM,4fcf77a1-6444-5c57-8fff-214e76f9b70e,TEXT,COM_DAT,Type,Cst S Rei Spacing Mm [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,BLE_ROOF_OVERHANG_MM,2aaca9a1-9c20-54b3-88f9-ac8e9f7766f2,TEXT,CST_PROC,Type,Ble Roof Overhang Mm [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -723,7 +723,7 @@ Generic Models,PER_THERM_SOLAR_ABSORPTANCE_NR,e931bda5-2342-59fd-9a6e-d7da7c5d47
 Generic Models,FLS_PROT_SPRINKLER_HED_TYPE_TXT,2365d6a5-e39b-5b67-8e32-82d5cf7dd88e,TEXT,FLS_LIFE_SFTY,Type,Fls Prot Sprinkler Hed Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,VT_PURPOSE_TXT,271004a6-2d40-402d-bfe7-f52c18e1be90,TEXT,TPL_TRACKING,Type,Template purpose description [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,COLOR_G_INT,d0ef28a6-2856-44a7-a755-45e4fc061c78,INTEGER,TPL_TRACKING,Type,Palette color green [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PRJ_COMMENTS_TXT,6e4b8ba6-b6e5-53e9-a0b5-1f6c65f3b764,TEXT,PRJ_INFORMATION,Type,Prj Comments Txt [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PRJ_COMMENTS_TXT,6e4b8ba6-b6e5-53e9-a0b5-1f6c65f3b764,TEXT,PRJ_INFORMATION,Type,Project/instance comments [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ASS_PMT_QTY_ORDERED_NR,b3ec8ea6-760c-5d7b-b3fd-2a90aeb08566,TEXT,ASS_MNG,Type,Ass Pmt Qty Ordered Nr [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,CP_PALETTE_NAME_TXT,cc38b0a6-f0e5-4a77-bcb1-80323b8b7322,TEXT,TPL_TRACKING,Type,Color palette name [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PRJ_TB_REVISION_DESCRIPTION_TXT,6b2509a7-354d-54a5-8c9f-a8423e445f31,TEXT,PRJ_INFORMATION,Type,Brief description of what changed in the current revision [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -741,7 +741,7 @@ Generic Models,FIN_WALL_TAG_TXT,456cd8aa-e875-458c-b778-7abbe2f0563d,TEXT,BLE_EL
 Generic Models,FLS_LIFE_SFTY_SPARE_02_TXT,072adaaa-d926-4050-ac0a-92b292d9e8d8,TEXT,FLS_LIFE_SFTY,Type,Spare parameter 2 for FLS_LIFE_SFTY group,False,,,MULTI,1,0
 Generic Models,BLE_APP-CUT-BG-PATTERN,263205ab-ecb0-5c04-b72e-a061a597fd61,TEXT,CST_PROC,Type,Ble App-cut-bg-pattern [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,SPARE_PARAM_01_TXT,7c5113ab-747f-483e-b0e0-2e95b7ac19a8,TEXT,TPL_TRACKING,Type,Spare parameter 01 for future use [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ASS_LVL_COD_TXT,b1e51fab-fa88-50df-8b2f-bcdbe48e7c78,TEXT,ASS_MNG,Type,Ass Lvl Cod Txt [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_LVL_COD_TXT,b1e51fab-fa88-50df-8b2f-bcdbe48e7c78,TEXT,ASS_MNG,Type,"Level code (L01, GF, B1, RF, XX) [ISO 19650-3:2020]",False,,,MULTI,1,0
 Generic Models,PLM_SPT_LD_CAP_KG,3b0d81ab-15d5-55ec-a7ed-8e00a15f8642,TEXT,PLM_DRN,Type,Plm Spt Ld Cap Kg [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ASS_SKIRTING_TYPE_TXT,e15fa9ab-ec13-5055-a863-e50364ebb142,TEXT,ASS_MNG,Type,Ass Skirting Type Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,HVC_DCT_PROPERTY_TXT,ff2cf4ab-256d-5c2b-b593-cb658cc581f7,TEXT,HVC_SYSTEMS,Type,Hvc Dct Property Txt [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -780,7 +780,7 @@ Generic Models,PER_ENVIRONMENTAL_CORROSION_PROT_TXT,fa98e5b5-94f4-5e0c-ad84-706f
 Generic Models,OS_PATTERN_TXT,125330b6-7976-4bf6-9935-2310e3f53b3a,TEXT,TPL_TRACKING,Type,Object style pattern [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_APP-SURFACE-BG-COLOR,fc99a1b6-b1b1-5e71-93fb-78d20293c6ea,TEXT,CST_PROC,Type,Ble App-surface-bg-color [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,RGL_ACCESS_REFUGE_AREA_TXT,884ee4b6-ab9b-5abb-92d6-3f46cfe291e9,TEXT,RGL_CMPL,Type,Rgl Access Refuge Area Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ASS_INST_DATE_TXT,0d021db7-c85a-5df7-82e3-6a2fd48eb619,TEXT,ASS_MNG,Type,Ass Inst Date Txt [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_INST_DATE_TXT,0d021db7-c85a-5df7-82e3-6a2fd48eb619,TEXT,ASS_MNG,Type,DEPRECATED -- use ASS_INSTALLATION_DATE_TXT. Auto-generated stub retained because the GUID may be bound in existing models; do not write to it. [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,CST_UNIT_PRICE_PRIMER_UGX,3e752ab7-7a0f-4564-8931-c2fc456343cf,TEXT,COM_DAT,Type,Unit price per liter primer in UGX [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,PLM_DRN_VNT_TERMINAL_HEIGHT_FT,64a030b7-5e50-5175-a885-5935e46c619f,TEXT,PLM_DRN,Type,Plm Drn Vnt Terminal Height Ft [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ASS_PMT_CST_LABOUR_CST_UGX_NR,5188a0b7-bdc3-5aa4-85a9-b986c53e4bea,TEXT,ASS_MNG,Type,Ass Pmt Cst Labour Cst Ugx Nr [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -834,7 +834,7 @@ Generic Models,FLS_LIFE_SFTY_SPARE_01_TXT,938cfdc8-a30d-49c8-9aed-7c7693dc18eb,T
 Generic Models,MAT_CATEGORY,4cd946c9-17f7-5d6c-8593-07e1fe37d933,TEXT,MAT_INFO,Type,Mat Category [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,SYS_TEMPERATURE_NR,05045ac9-c5c4-4e4c-b597-2606b962b2a9,NUMBER,TPL_TRACKING,Type,System design temperature [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_EAR_DISPOSAL_VOLUME_CU_M,f6a7b8c9-d0e1-2345-fabc-6789012345f6,TEXT,CST_PROC,Type,Excavation disposal volume in cubic meters [ISO 19650-2:2018],False,,,MULTI,1,0
-Generic Models,ELC_CKT_VLT_V,b1bf20ca-7ff0-51c0-8a21-55eb9e18fe7f,TEXT,ELC_PWR,Type,Elc Ckt Vlt V [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,ELC_CKT_VLT_V,b1bf20ca-7ff0-51c0-8a21-55eb9e18fe7f,TEXT,ELC_PWR,Type,Circuit voltage (V) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_REI_LENGTH_M,a522c4ca-d18b-52ef-8be1-58fefdc80055,TEXT,COM_DAT,Type,Cst S Rei Length M [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,BLE_FACADE_FIX_SYSTEM_TXT,7cc034cb-8dec-53dc-8b8b-4f6539a6e386,TEXT,CST_PROC,Type,Ble Facade Fix System Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_STRUCT_SLAB_THICKNESS_MM,dcc854cb-001b-5b36-9597-17fcdfb80e8e,TEXT,CST_PROC,Type,Ble Struct Slab Thickness Mm [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -872,7 +872,7 @@ Generic Models,PROP_FIRE_RATING,e9f9cfd6-e086-5eff-93a3-97eb552693a1,TEXT,PROP_P
 Generic Models,SYS_PRESSURE_NR,811a5bd7-c79f-4a97-95cc-32164c8ba420,NUMBER,TPL_TRACKING,Type,System design pressure [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_TOTAL_MATERIAL_COST,502fb8d7-f4ee-4711-8f35-b6d16917cc39,TEXT,COM_DAT,Type,Total material cost in UGX [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,VT_DATE_CREATED_TXT,5f97c1d7-f4ad-457a-9eac-591585cfc627,TEXT,TPL_TRACKING,Type,Date template created [ISO 19650-2:2018],False,,,MULTI,1,0
-Generic Models,ASS_DISCIPLINE_COD_TXT,8c7dcfd7-f922-52d0-b859-81cae8d17dc0,TEXT,ASS_MNG,Type,Ass Discipline Cod Txt [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_DISCIPLINE_COD_TXT,8c7dcfd7-f922-52d0-b859-81cae8d17dc0,TEXT,ASS_MNG,Type,"Discipline code (M, E, P, A, S, FP, LV, G) [ISO 19650-3:2020]",False,,,MULTI,1,0
 Generic Models,PRJ_TB_TOTAL_NO_SHEETS_TXT,e534fdd7-7c80-5a60-ba13-ff7715184000,TEXT,PRJ_INFORMATION,Type,Total number of sheets in this drawing package or issue [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,RGL_QA_CERTIFICATION_TXT,b9116cd8-9a6c-54c3-a40f-4a3fa4ea877d,TEXT,RGL_CMPL,Type,Rgl Qa Certification Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BI_BOTTOM_COLOR_TXT,2d3dc9d8-acef-4f31-ad5a-498f428483da,TEXT,TPL_TRACKING,Type,Bottom gradient color RGB [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -983,9 +983,9 @@ Generic Models,COM_TAG_7_PARA_BMS_TXT,10c0be4c-8534-5a16-85a5-2c2c5335e6bf,TEXT,
 Generic Models,ICT_TAG_7_PARA_DATA_TXT,a5ee1f80-17ac-5088-a4bb-bd72bcb56cf8,TEXT,COM_DAT,Type,Data/telephone outlet paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,NCL_TAG_7_PARA_NURSECALL_TXT,62c6c1c6-e901-5b2d-b61e-71e3ed9c9f1d,TEXT,COM_DAT,Type,Nurse call paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,SEC_TAG_7_PARA_SECURITY_TXT,d10b0b0c-12d1-55b8-9d48-feda6544696a,TEXT,COM_DAT,Type,Security device paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ASS_PROJECT_COD_TXT,24bc19e4-8ec6-4d4c-b457-5e14a1f42e58,TEXT,STINGTags_ISO19650,Type,,False,,,MULTI,1,0
-Generic Models,ASS_ORIGINATOR_COD_TXT,87dc564e-8542-497d-a36f-ee335fd32bd4,TEXT,STINGTags_ISO19650,Type,,False,,,MULTI,1,0
-Generic Models,ASS_VOLUME_COD_TXT,4f51f371-c2b1-43f5-9dea-da797442c1fb,TEXT,STINGTags_ISO19650,Type,,False,,,MULTI,1,0
+Generic Models,ASS_PROJECT_COD_TXT,24bc19e4-8ec6-4d4c-b457-5e14a1f42e58,TEXT,STINGTags_ISO19650,Type,ISO 19650 project code (GROUP 17),False,,,MULTI,1,0
+Generic Models,ASS_ORIGINATOR_COD_TXT,87dc564e-8542-497d-a36f-ee335fd32bd4,TEXT,STINGTags_ISO19650,Type,ISO 19650 originator code (GROUP 17),False,,,MULTI,1,0
+Generic Models,ASS_VOLUME_COD_TXT,4f51f371-c2b1-43f5-9dea-da797442c1fb,TEXT,STINGTags_ISO19650,Type,ISO 19650 volume/zone code (GROUP 17),False,,,MULTI,1,0
 Generic Models,ASS_REV_COD_TXT,83b2139d-67bb-48db-a50f-32140c0dc753,TEXT,STINGTags_ISO19650,Type,ISO 19650 revision code token in the tag container system (GROUP 17). Written by the tag pipeline. See also ASS_REV_TXT (GROUP 1) for the display revision label.,False,,,MULTI,1,0
 Generic Models,TAG_PARA_STATE_1_BOOL,e26e01ef-33d8-5a57-9ab7-fa30faa4ceff,YESNO,STINGTags_ISO19650,Type,Compact mode (tier 1 only) [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,TAG_PARA_STATE_2_BOOL,b1080057-9890-5a0c-959a-46fb8847c766,YESNO,STINGTags_ISO19650,Type,Standard mode (tiers 1+2) [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -1217,49 +1217,49 @@ Generic Models,BLE_CEIL_GRID_MM,657e25ee-0798-5066-907f-2461b7231222,TEXT,BLE_EL
 Generic Models,BLE_DOOR_OPERATION_TYPE_TXT,bff64a93-fef7-5ade-b444-0d92a8a98a95,TEXT,BLE_ELES,Type,Ble Door Operation Type [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_FLR_TYPE_TXT,37dc819e-5a08-5a78-97ef-d3cf70cf7ecc,TEXT,BLE_ELES,Type,Ble Flr Type [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_ROOF_PRIMARY_MAT_TXT,5e1b2f62-c810-5971-9c1d-0121faa787de,TEXT,BLE_ELES,Type,Ble Roof Primary Mat [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_TAG_7_PARA_CURTAIN_MULLIONS_TXT,4901dfc6-6fb5-51c8-a0d3-48cb63058de4,TEXT,BLE_ELES,Type,Curtain Mullions paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,BLE_TAG_7_PARA_CURTAIN_PANELS_TXT,78c8d5b2-e11b-5848-baec-b3aecc3d568f,TEXT,BLE_ELES,Type,Curtain Panels paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,BLE_TAG_7_PARA_CURTAIN_MULLIONS_TXT,4901dfc6-6fb5-51c8-a0d3-48cb63058de4,TEXT,BLE_ELES,Type,Curtain wall mullion paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,BLE_TAG_7_PARA_CURTAIN_PANELS_TXT,78c8d5b2-e11b-5848-baec-b3aecc3d568f,TEXT,BLE_ELES,Type,Curtain panels paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,BLE_TAG_7_PARA_FASCIA_TXT,c1db2a4f-2882-524a-8dd7-a60070cc05f2,TEXT,BLE_ELES,Type,Fascia paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,BLE_TAG_7_PARA_GUTTER_TXT,caf49275-8298-5829-8f74-c86126d9b8c5,TEXT,BLE_ELES,Type,Gutter paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,BLE_TAG_7_PARA_HANDRAILS_TXT,86424e9d-7648-5dca-816a-6806bc75ffc2,TEXT,BLE_ELES,Type,Handrails paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,BLE_TAG_7_PARA_RAILINGS_TXT,0946e049-f33f-5178-a946-3dbcecd79e45,TEXT,BLE_ELES,Type,Railings paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,BLE_TAG_7_PARA_ROOF_SOFFITS_TXT,108a5a68-f892-59b3-91f2-cccd742cf37e,TEXT,BLE_ELES,Type,Roof Soffits paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,BLE_TAG_7_PARA_SLAB_EDGES_TXT,e9d72eb5-3d2d-5e67-b1d3-1b9aeb3cf30b,TEXT,BLE_ELES,Type,Slab Edges paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,BLE_TAG_7_PARA_STAIR_LANDINGS_TXT,db503223-4793-5a9c-930f-a4a12d8c8cbb,TEXT,BLE_ELES,Type,Stair Landings paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,BLE_TAG_7_PARA_STAIR_RUNS_TXT,331ab10b-cbf2-525b-b177-24a0a82d198e,TEXT,BLE_ELES,Type,Stair Runs paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,BLE_TAG_7_PARA_STAIR_SUPPORTS_TXT,68c2d05e-ad97-5fc5-ba54-3fb6f47efa09,TEXT,BLE_ELES,Type,Stair Supports paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,BLE_TAG_7_PARA_TOP_RAILS_TXT,ed3da683-d461-5eed-b703-59d92e0cd2da,TEXT,BLE_ELES,Type,Top Rails paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,BLE_TAG_7_PARA_WALL_SWEEPS_TXT,d96f4951-1828-57f9-9405-be1e74b8c3d2,TEXT,BLE_ELES,Type,Wall Sweeps paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,BLE_TAG_7_PARA_ROOF_SOFFITS_TXT,108a5a68-f892-59b3-91f2-cccd742cf37e,TEXT,BLE_ELES,Type,Roof soffits paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,BLE_TAG_7_PARA_SLAB_EDGES_TXT,e9d72eb5-3d2d-5e67-b1d3-1b9aeb3cf30b,TEXT,BLE_ELES,Type,Slab edges paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,BLE_TAG_7_PARA_STAIR_LANDINGS_TXT,db503223-4793-5a9c-930f-a4a12d8c8cbb,TEXT,BLE_ELES,Type,Stair landings paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,BLE_TAG_7_PARA_STAIR_RUNS_TXT,331ab10b-cbf2-525b-b177-24a0a82d198e,TEXT,BLE_ELES,Type,Stair runs paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,BLE_TAG_7_PARA_STAIR_SUPPORTS_TXT,68c2d05e-ad97-5fc5-ba54-3fb6f47efa09,TEXT,BLE_ELES,Type,Stair supports paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,BLE_TAG_7_PARA_TOP_RAILS_TXT,ed3da683-d461-5eed-b703-59d92e0cd2da,TEXT,BLE_ELES,Type,Top rails paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,BLE_TAG_7_PARA_WALL_SWEEPS_TXT,d96f4951-1828-57f9-9405-be1e74b8c3d2,TEXT,BLE_ELES,Type,Wall sweeps paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ELC_CBL_DEST_TXT,acb412db-a6d9-5e3a-8905-47ae8e69cbf0,TEXT,ELC_PWR,Type,Elc Cbl Dest [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_CBL_SOURCE_TXT,38ed7ba8-207c-5aee-a9d9-c84c87203d36,TEXT,ELC_PWR,Type,Elc Cbl Source [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_PNL_IP_RATING_TXT,82a4b44c-5d41-5e8f-b9e8-58384cba5158,TEXT,ELC_PWR,Type,Elc Pnl Ip Rating [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_PNL_SHORT_CIRCUIT_KA,a372001a-40f2-5db4-817a-d18d8e701774,TEXT,ELC_PWR,Type,Elc Pnl Short Circuit Ka [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_PNL_SPARE_WAYS_NR,6988649a-80e1-5cd5-b6de-52206c4d526d,TEXT,ELC_PWR,Type,Elc Pnl Spare Ways [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ELC_TAG_7_PARA_ELC_CONNECTORS_TXT,cf72798b-2ef1-5f50-85cf-314a29ea967d,TEXT,ELC_PWR,Type,Elc Connectors paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT,2e2894ee-37eb-552b-aa61-92fc3b3d562d,TEXT,ELC_PWR,Type,Fab Containment paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,FLS_TAG_7_PARA_FIRE_PROT_TXT,85b3a45a-fa22-5301-a4ed-f53617b6d214,TEXT,FLS_LIFE_SFTY,Type,Fire Prot paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ELC_TAG_7_PARA_ELC_CONNECTORS_TXT,cf72798b-2ef1-5f50-85cf-314a29ea967d,TEXT,ELC_PWR,Type,Electrical connector paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT,2e2894ee-37eb-552b-aa61-92fc3b3d562d,TEXT,ELC_PWR,Type,Fabrication containment paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,FLS_TAG_7_PARA_FIRE_PROT_TXT,85b3a45a-fa22-5301-a4ed-f53617b6d214,TEXT,FLS_LIFE_SFTY,Type,Fire protection paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,HVC_BMS_CONTROL_TYPE_TXT,140ba599-f964-5c1e-a71e-f134d2a16238,TEXT,HVC_SYSTEMS,Type,Hvc Bms Control Type [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,HVC_INSULATION_TXT,b936e8cc-b45b-5c81-bbc9-0c562f5cdbd3,TEXT,HVC_SYSTEMS,Type,Hvc Insulation [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,HVC_TAG_7_PARA_ANAL_DUCTS_TXT,db9572ae-e4ee-58dd-8a77-66d045ca57a5,TEXT,HVC_SYSTEMS,Type,Anal Ducts paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,HVC_TAG_7_PARA_DUCT_INSULATION_TXT,8b48923f-96ea-5b9f-b49f-ef5c54833a74,TEXT,HVC_SYSTEMS,Type,Duct Insulation paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,HVC_TAG_7_PARA_DUCT_LINING_TXT,166add3f-f25f-54ab-b9f3-7df0400c050f,TEXT,HVC_SYSTEMS,Type,Duct Lining paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT,5bc63337-8783-55d6-9d1b-8746824dc314,TEXT,HVC_SYSTEMS,Type,Fab Dct Stiffeners paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,HVC_TAG_7_PARA_FAB_DUCTWORK_TXT,606bb249-0311-5e9d-b26d-e8600d5cd067,TEXT,HVC_SYSTEMS,Type,Fab Ductwork paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT,2d8f2ed6-3e4b-53c7-b63f-fbd8ac9fc07a,TEXT,HVC_SYSTEMS,Type,Mech Ctrl Dev paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT,284d4834-f700-5e7c-87d1-271c0e943e84,TEXT,HVC_SYSTEMS,Type,Mech Equip Sets paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,ICT_TAG_7_PARA_AV_DEV_TXT,2b072ef2-21e1-5be8-9221-e71c2665ed49,TEXT,COM_DAT,Type,Av Dev paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,MED_TAG_7_PARA_MED_EQUIP_TXT,d7036940-1cbb-538d-aa9b-b98c19575f7b,TEXT,COM_DAT,Type,Med Equip paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,HVC_TAG_7_PARA_DUCT_INSULATION_TXT,8b48923f-96ea-5b9f-b49f-ef5c54833a74,TEXT,HVC_SYSTEMS,Type,Duct insulation paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,HVC_TAG_7_PARA_DUCT_LINING_TXT,166add3f-f25f-54ab-b9f3-7df0400c050f,TEXT,HVC_SYSTEMS,Type,Duct lining paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT,5bc63337-8783-55d6-9d1b-8746824dc314,TEXT,HVC_SYSTEMS,Type,Fabrication ductwork stiffeners paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,HVC_TAG_7_PARA_FAB_DUCTWORK_TXT,606bb249-0311-5e9d-b26d-e8600d5cd067,TEXT,HVC_SYSTEMS,Type,Fabrication ductwork paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT,2d8f2ed6-3e4b-53c7-b63f-fbd8ac9fc07a,TEXT,HVC_SYSTEMS,Type,Mechanical control device paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT,284d4834-f700-5e7c-87d1-271c0e943e84,TEXT,HVC_SYSTEMS,Type,Mechanical equipment set paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ICT_TAG_7_PARA_AV_DEV_TXT,2b072ef2-21e1-5be8-9221-e71c2665ed49,TEXT,COM_DAT,Type,Audio visual device paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,MED_TAG_7_PARA_MED_EQUIP_TXT,d7036940-1cbb-538d-aa9b-b98c19575f7b,TEXT,COM_DAT,Type,Medical equipment paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,INS_MATERIAL_TXT,e1f5a60f-3773-468a-bce2-fe52e76befcb,TEXT,HVC_SYSTEMS,Type,Insulation material type (PIR/Mineral Wool/Foam/XPS) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MEC_CTRL_FUNCTION_TXT,fb78bf18-024e-4fe6-a117-c04e0d63ed58,TEXT,HVC_SYSTEMS,Type,Mechanical control device function [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MEC_CTRL_SIGNAL_TXT,d5b2a4a6-bce1-44c4-a6c4-d9cb3a5074c7,TEXT,HVC_SYSTEMS,Type,Mechanical control signal type (Pneumatic/DDC/Electric) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MEC_SET_CAPACITY_KW,b557693f-01a1-45bd-91fc-788c1a589a0e,TEXT,HVC_SYSTEMS,Type,Mechanical equipment set capacity in kW [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MEP_TAG_7_PARA_ANCILLARY_TXT,9b88b580-3cc1-5d10-933c-07e6022d66a2,TEXT,HVC_SYSTEMS,Type,Ancillary paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,MEP_TAG_7_PARA_FAB_HANGERS_TXT,dc61115b-a02a-5e7c-9970-ebe31bd46960,TEXT,HVC_SYSTEMS,Type,Fab Hangers paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,MEP_TAG_7_PARA_FAB_HANGERS_TXT,dc61115b-a02a-5e7c-9970-ebe31bd46960,TEXT,HVC_SYSTEMS,Type,Fabrication hangers paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,PLM_INSULATION_TXT,c8d5b053-79ff-5b7e-9870-7b877b3b4069,TEXT,PLM_DRN,Type,Plm Insulation [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_TAG_7_PARA_ANAL_PIPES_TXT,52e0804c-453d-5001-ba9b-6a45be3659fc,TEXT,PLM_DRN,Type,Anal Pipes paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,PLM_TAG_7_PARA_FAB_PIPEWORK_TXT,5a9b300a-faae-55ee-a790-5be1eaddd34d,TEXT,PLM_DRN,Type,Fab Pipework paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,PLM_TAG_7_PARA_PIPE_INSULATION_TXT,35d10048-af1c-564f-872d-88189e0a0626,TEXT,PLM_DRN,Type,Pipe Insulation paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,PLM_TAG_7_PARA_PLM_EQUIP_TXT,8a00649c-4e5c-5f2c-a324-e23dac1ed7a1,TEXT,PLM_DRN,Type,Plm Equip paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,PLM_TAG_7_PARA_FAB_PIPEWORK_TXT,5a9b300a-faae-55ee-a790-5be1eaddd34d,TEXT,PLM_DRN,Type,Fabrication pipework paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,PLM_TAG_7_PARA_PIPE_INSULATION_TXT,35d10048-af1c-564f-872d-88189e0a0626,TEXT,PLM_DRN,Type,Pipe insulation paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,PLM_TAG_7_PARA_PLM_EQUIP_TXT,8a00649c-4e5c-5f2c-a324-e23dac1ed7a1,TEXT,PLM_DRN,Type,Plumbing equipment paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,PROP_TAG_7_PARA_MATERIALS_TXT,48784b06-aa65-5de4-b63d-0e7d646505c7,TEXT,PROP_PHYSICAL,Type,Materials paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,STR_TAG_7_PARA_ANAL_LINKS_TXT,03104508-f49b-5d14-869a-a99844e734e3,TEXT,BLE_STRUCTURE,Type,Anal Links paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,STR_TAG_7_PARA_ANAL_MEMBERS_TXT,f9e543cf-9fa9-5353-9ee2-93ab8e0368be,TEXT,BLE_STRUCTURE,Type,Anal Members paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -1582,8 +1582,8 @@ Generic Models,ASS_TAG_MODIFIED_DT,b8d4f2a3-c5e6-4f7b-a09c-2d3e4f5a6b7c,TEXT,ASS
 Generic Models,ASS_TAG_MODIFIED_BY_TXT,c1f4d6b8-2a3e-4d5b-9c6f-7a8b9c0d1e2f,TEXT,ASS_MNG,Type,Ass Tag Modified By [ISO 19650],False,,,MULTI,1,0
 Generic Models,ASS_TAG_PREV_TXT,a7c3e1f2-b4d5-4e6a-9f8b-1c2d3e4f5a6b,TEXT,ASS_MNG,Type,Ass Tag Prev [ISO 19650],False,,,MULTI,1,0
 Generic Models,ASS_LAST_TOKEN_HASH_TXT,d3a5b1c4-7e9f-4a2c-8b6d-1e3f4a5b6c7d,TEXT,ASS_MNG,Type,Ass Last Token Hash [ISO 19650],False,,,MULTI,1,0
-Generic Models,ASS_TIEIN_REF_TXT,40e9482b-e3d2-5b7d-81cf-61d68303613d,TEXT,ASS_MNG,Type,Ass Tiein Ref [ISO 19650],False,,,MULTI,1,0
-Generic Models,ASS_TIEIN_SIZE_TXT,5bc65c4e-492c-5e7f-b892-b9c14b58d20a,TEXT,ASS_MNG,Type,Ass Tiein Size [ISO 19650],False,,,MULTI,1,0
+Generic Models,ASS_TIEIN_REF_TXT,40e9482b-e3d2-5b7d-81cf-61d68303613d,TEXT,ASS_MNG,Type,Tie-in point reference code (e.g. TI-M-HWS-001). Assembled by STING from DISC+SYS+SEQ. [ISO 19650],False,,,MULTI,1,0
+Generic Models,ASS_TIEIN_SIZE_TXT,5bc65c4e-492c-5e7f-b892-b9c14b58d20a,TEXT,ASS_MNG,Type,"Size of pipe/duct/conduit at the tie-in point (e.g. DN50, 400x250, 32mm EMT). Auto-read from PLM_PPE_SZ_MM or HVC_DCT_SZ_TXT. [ISO 19650]",False,,,MULTI,1,0
 Generic Models,ASS_TOKEN_LOCK_TXT,c9e5a3b4-d6f7-4a8c-b10d-3e4f5a6b7c8d,TEXT,ASS_MNG,Type,Ass Token Lock [ISO 19650],False,,,MULTI,1,0
 Generic Models,ASS_TAG_SCHEME_TXT,2c8224df-92e0-567b-a9df-c8cd1e4402a3,TEXT,ASS_MNG,Type,"Ass Tag Scheme [project grammar rendering, ISO 19650]",False,,,MULTI,1,0
 Generic Models,ASS_LOD_VERIFIED_TXT,60440963-a414-5667-88f4-d12082344c4d,TEXT,ASS_MNG,Type,Ass Lod Verified [milestone id passed at LOD],False,,,MULTI,1,0
@@ -1595,8 +1595,8 @@ Lighting Fixtures,LTG_HOIST_MOTOR_TXT,aabcfa8d-62bb-55bc-8cf2-d84e365a75a5,TEXT,
 Lighting Fixtures,LTG_HOIST_DROP_MM,c110503a-c776-5c6e-8298-24adf24d1fd0,TEXT,LTG_CONTROLS,Type,Ltg Hoist Drop Mm [A1 §5],False,,,MULTI,1,0
 Generic Models,ASS_WEIGHT_KG_NR,c9c4a01f-cf9b-5557-bd1b-747b04d9d5fa,NUMBER,ASS_MNG,Type,DEPRECATED - use ASS_WEIGHT_KG (NUMBER); legacy TEXT duplicate. No code consumers; canonical numeric weight is ASS_WEIGHT_KG (Fabrication SpoolWeight/AssemblyGrouper/ParamRegistry).,False,,,MULTI,1,0
 Generic Models,COM_C_PANEL_TXT,d2828a98-abba-5a71-825c-e8b1c6355fe9,TEXT,COM_DAT,Type,Com C Panel [ISO 19650],False,,,MULTI,1,0
-Generic Models,COM_HANDOVER_STATUS_TXT,c7283cb7-804f-6024-edfc-bd3f2085facc,TEXT,COM_DAT,Type,Com Handover Status [ISO 19650],False,,,MULTI,1,0
-Generic Models,COM_TEST_CERT_REF_TXT,a380bb76-6058-906b-bf3c-0c82930bfc32,TEXT,COM_DAT,Type,Com Test Cert Ref [ISO 19650],False,,,MULTI,1,0
+Generic Models,COM_HANDOVER_STATUS_TXT,c7283cb7-804f-6024-edfc-bd3f2085facc,TEXT,COM_DAT,Type,Handover/practical completion status [ISO 19650],False,,,MULTI,1,0
+Generic Models,COM_TEST_CERT_REF_TXT,a380bb76-6058-906b-bf3c-0c82930bfc32,TEXT,COM_DAT,Type,Test certificate reference number [ISO 19650],False,,,MULTI,1,0
 Generic Models,ICT_CAT_RATING_TXT,3c04d5a6-e4d1-5ed8-8e72-8246bb484680,TEXT,COM_DAT,Type,Ict Cat Rating [ISO 19650],False,,,MULTI,1,0
 Generic Models,NCL_DEV_TYPE_TXT,fe44039b-0bff-5357-9553-9fb057a3806d,TEXT,COM_DAT,Type,Ncl Dev Type [ISO 19650],False,,,MULTI,1,0
 Generic Models,SEC_DEV_COVERAGE_TXT,f4bc288f-3cb3-515f-9ac9-1bc54e8f7b3c,TEXT,COM_DAT,Type,Sec Dev Coverage [ISO 19650],False,,,MULTI,1,0
@@ -1606,11 +1606,11 @@ Generic Models,ELC_CTR_HEIGHT_MM,412b505d-c485-5a40-9700-ee737279cc69,TEXT,ELC_P
 Generic Models,ELC_TAG_7_PARA_CIRC_TXT,d44883db-4f85-5f9b-a5ca-0611014e55e6,TEXT,ELC_PWR,Type,Electrical TAG7 paragraph container for circ,False,,,MULTI,1,0
 Generic Models,HVC_NOISE_LEVEL_DB,f2b8f847-0c39-5446-a23a-8fb679437e70,NUMBER,HVC_SYSTEMS,Type,Hvc Noise Level Db [ISO 19650],False,,,MULTI,1,0
 Generic Models,HVC_THROW_M,f5c0c3e9-1b5c-5ec8-be38-06306373214c,TEXT,HVC_SYSTEMS,Type,Hvc Throw M [ISO 19650],False,,,MULTI,1,0
-Generic Models,MEP_CONNECTOR_COUNT_NR,aa37f8cd-757f-655b-6557-33ac70e4d01c,TEXT,HVC_SYSTEMS,Type,Mep Connector Count [ISO 19650],False,,,MULTI,1,0
-Generic Models,MEP_DOWNSTREAM_ELEMENT_TXT,da914397-556f-7f68-fa85-96c4b5f6d47e,TEXT,HVC_SYSTEMS,Type,Mep Downstream Element [ISO 19650],False,,,MULTI,1,0
-Generic Models,MEP_SYSTEM_ABBREVIATION_TXT,611ded5d-9a8a-5c9e-037b-d904e4e9c082,TEXT,HVC_SYSTEMS,Type,Mep System Abbreviation [ISO 19650],False,,,MULTI,1,0
-Generic Models,MEP_SYSTEM_NAME_TXT,3bcf2b8b-642f-e555-3ec5-63f673479b3b,TEXT,HVC_SYSTEMS,Type,Mep System Name [ISO 19650],False,,,MULTI,1,0
-Generic Models,MEP_UPSTREAM_ELEMENT_TXT,895da2e2-1bf2-c45c-e8ee-221af3666d58,TEXT,HVC_SYSTEMS,Type,Mep Upstream Element [ISO 19650],False,,,MULTI,1,0
+Generic Models,MEP_CONNECTOR_COUNT_NR,aa37f8cd-757f-655b-6557-33ac70e4d01c,TEXT,HVC_SYSTEMS,Type,Number of active connectors on element [ISO 19650],False,,,MULTI,1,0
+Generic Models,MEP_DOWNSTREAM_ELEMENT_TXT,da914397-556f-7f68-fa85-96c4b5f6d47e,TEXT,HVC_SYSTEMS,Type,Downstream connected element (served element) [ISO 19650],False,,,MULTI,1,0
+Generic Models,MEP_SYSTEM_ABBREVIATION_TXT,611ded5d-9a8a-5c9e-037b-d904e4e9c082,TEXT,HVC_SYSTEMS,Type,MEP system abbreviation code [ISO 19650],False,,,MULTI,1,0
+Generic Models,MEP_SYSTEM_NAME_TXT,3bcf2b8b-642f-e555-3ec5-63f673479b3b,TEXT,HVC_SYSTEMS,Type,Connected MEP system name(s) [ISO 19650],False,,,MULTI,1,0
+Generic Models,MEP_UPSTREAM_ELEMENT_TXT,895da2e2-1bf2-c45c-e8ee-221af3666d58,TEXT,HVC_SYSTEMS,Type,Upstream connected element (supply source) [ISO 19650],False,,,MULTI,1,0
 Generic Models,PLM_CONN_TYPE_TXT,031a21d0-5359-542f-a493-6d4617562d78,TEXT,PLM_DRN,Type,Plm Conn Type [ISO 19650],False,,,MULTI,1,0
 Generic Models,PLM_FIXTURE_LOAD_UNIT_NR,6e3095ab-dfc3-59ff-8382-f4ae04d6cc4b,TEXT,PLM_DRN,Type,Plm Fixture Load Unit [ISO 19650],False,,,MULTI,1,0
 Generic Models,PLM_PIPE_GRADIENT_PCT,c26bfb4c-6885-57c0-896a-31469af91a01,TEXT,PLM_DRN,Type,Plm Pipe Gradient Pct [ISO 19650],False,,,MULTI,1,0
@@ -1620,15 +1620,15 @@ Generic Models,LTG_DIMMABLE_TXT,0a71371e-1884-5a6a-9afb-e422d056be8d,TEXT,LTG_CO
 Generic Models,LTG_EMERGENCY_TXT,d1a76aa5-ecf8-5f39-a537-c1c3af4ae276,TEXT,LTG_CONTROLS,Type,Ltg Emergency [ISO 19650],False,,,MULTI,1,0
 Generic Models,FLS_SFTY_ADDR_TXT,b7116554-077a-5dd0-92f4-388801aedba6,TEXT,FLS_LIFE_SFTY,Type,Fls Sfty Addr [ISO 19650],False,,,MULTI,1,0
 Generic Models,FLS_SFTY_LOOP_NR_TXT,4bd955a4-d9bd-51b9-b484-a56195438d13,TEXT,FLS_LIFE_SFTY,Type,Fls Sfty Loop [ISO 19650],False,,,MULTI,1,0
-Generic Models,MNT_ACCESS_REQUIREMENTS_TXT,88ccb178-34ab-ede3-1279-b3eb7e0545c1,TEXT,PER_SUST,Type,Mnt Access Requirements [ISO 19650],False,,,MULTI,1,0
-Generic Models,MNT_FREQUENCY_TXT,6b13cb44-d7fa-418d-27c4-ccc16bd05188,TEXT,PER_SUST,Type,Mnt Frequency [ISO 19650],False,,,MULTI,1,0
-Generic Models,MNT_LAST_SERVICE_DATE_TXT,340e26d1-c299-2940-ee8e-3322267c0a97,TEXT,PER_SUST,Type,Mnt Last Service Date [ISO 19650],False,,,MULTI,1,0
-Generic Models,MNT_SPARE_PARTS_TXT,90b280e2-b414-545a-2db9-f011a3130677,TEXT,PER_SUST,Type,Mnt Spare Parts [ISO 19650],False,,,MULTI,1,0
+Generic Models,MNT_ACCESS_REQUIREMENTS_TXT,88ccb178-34ab-ede3-1279-b3eb7e0545c1,TEXT,PER_SUST,Type,"Maintenance access requirements (height, clearance, tools) [ISO 19650]",False,,,MULTI,1,0
+Generic Models,MNT_FREQUENCY_TXT,6b13cb44-d7fa-418d-27c4-ccc16bd05188,TEXT,PER_SUST,Type,Maintenance frequency (DAILY/WEEKLY/MONTHLY/QUARTERLY/ANNUAL) [ISO 19650],False,,,MULTI,1,0
+Generic Models,MNT_LAST_SERVICE_DATE_TXT,340e26d1-c299-2940-ee8e-3322267c0a97,TEXT,PER_SUST,Type,Last service/inspection date [ISO 19650],False,,,MULTI,1,0
+Generic Models,MNT_SPARE_PARTS_TXT,90b280e2-b414-545a-2db9-f011a3130677,TEXT,PER_SUST,Type,Required spare parts for maintenance [ISO 19650],False,,,MULTI,1,0
 Generic Models,PER_CONDENSATION_RISK_BOOL,c07000e1-8ba7-59d2-8016-d15aea970d4b,YESNO,PER_SUST,Type,Per Condensation Risk [ISO 19650],False,,,MULTI,1,0
-Generic Models,PER_EXPECTED_LIFE_YEARS,9502f071-2b22-50ef-11d6-daddba4cc3f1,NUMBER,PER_SUST,Type,Per Expected Life Years [ISO 19650],False,,,MULTI,1,0
+Generic Models,PER_EXPECTED_LIFE_YEARS,9502f071-2b22-50ef-11d6-daddba4cc3f1,NUMBER,PER_SUST,Type,Expected service life in years (for lifecycle costing) [ISO 19650],False,,,MULTI,1,0
 Generic Models,PER_FIRE_RATING_HR,204f0610-4f8b-5eab-9af2-8a7dbee3962e,NUMBER,PER_SUST,Type,Per Fire Rating Hr [ISO 19650],False,,,MULTI,1,0
-Generic Models,PER_RECYCLABILITY_PCT,6cfbec62-d60b-a0ef-4954-0e5cc4789aa5,NUMBER,PER_SUST,Type,Per Recyclability Pct [ISO 19650],False,,,MULTI,1,0
-Generic Models,PER_REPLACEMENT_COST_UGX,b89f39a7-54ec-e344-a786-445af1f3b3d0,CURRENCY,PER_SUST,Type,Per Replacement Cost Ugx [ISO 19650],False,,,MULTI,1,0
+Generic Models,PER_RECYCLABILITY_PCT,6cfbec62-d60b-a0ef-4954-0e5cc4789aa5,NUMBER,PER_SUST,Type,Material recyclability percentage [ISO 19650],False,,,MULTI,1,0
+Generic Models,PER_REPLACEMENT_COST_UGX,b89f39a7-54ec-e344-a786-445af1f3b3d0,CURRENCY,PER_SUST,Type,Replacement cost (UGX) for lifecycle analysis [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_CASEWORK_FINISH_TXT,6732cab3-765e-5123-b19f-b88152500842,TEXT,BLE_ELES,Type,Ble Casework Finish [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_CASEWORK_MAT_TXT,bac9b9f1-8533-50c4-92e2-81850c632059,TEXT,BLE_ELES,Type,Ble Casework Mat [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_CEILING_ACOUSTIC_NRC_NR,aadb7e34-7c2b-5fd9-81f4-f808cc6c3680,TEXT,BLE_ELES,Type,Ble Ceiling Acousticc [ISO 19650],False,,,MULTI,1,0
@@ -1658,10 +1658,10 @@ Generic Models,BLE_STRUCT_SPAN_MM,6fc47034-f4a3-5af5-a88b-317b5149912c,LENGTH,BL
 Generic Models,BLE_STRUCT_WATERPROOFING_TXT,02326eda-b65b-5a28-b9c4-ccb8ffb8bea1,TEXT,BLE_ELES,Type,Ble Struct Waterproofing [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_WINDOW_SHGC_NR,2076ba01-9a86-5747-8a97-4f0eff7c05df,TEXT,BLE_ELES,Type,Ble Window Shgc [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_WINDOW_VLT_NR,08630c62-dec2-5e29-8c5d-7b3de605862a,TEXT,BLE_ELES,Type,Ble Window Vlt [ISO 19650],False,,,MULTI,1,0
-Generic Models,RGL_ACCESSIBILITY_STATUS_TXT,13649513-c638-a34c-d650-786ca388102a,TEXT,RGL_CMPL,Type,Rgl Accessibility Status [ISO 19650],False,,,MULTI,1,0
-Generic Models,RGL_BUILDING_CODE_REF_TXT,a79dad8a-dc36-e227-e96a-2f26fc162ca3,TEXT,RGL_CMPL,Type,Rgl Building Code Ref [ISO 19650],False,,,MULTI,1,0
-Generic Models,RGL_ENVIRONMENTAL_CERT_TXT,414f9c89-42c8-03f7-99be-67f56230de0a,TEXT,RGL_CMPL,Type,Rgl Environmental Cert [ISO 19650],False,,,MULTI,1,0
-Generic Models,STR_ANALYTICAL_MODEL_TXT,b7a84859-b5b1-10b2-7306-3c220ecd8ae7,TEXT,BLE_STRUCTURE,Type,Str Analytical Model [ISO 19650],False,,,MULTI,1,0
+Generic Models,RGL_ACCESSIBILITY_STATUS_TXT,13649513-c638-a34c-d650-786ca388102a,TEXT,RGL_CMPL,Type,Accessibility compliance status (COMPLIANT/NON-COMPLIANT/N-A) [ISO 19650],False,,,MULTI,1,0
+Generic Models,RGL_BUILDING_CODE_REF_TXT,a79dad8a-dc36-e227-e96a-2f26fc162ca3,TEXT,RGL_CMPL,Type,Applicable building code clause reference [ISO 19650],False,,,MULTI,1,0
+Generic Models,RGL_ENVIRONMENTAL_CERT_TXT,414f9c89-42c8-03f7-99be-67f56230de0a,TEXT,RGL_CMPL,Type,Environmental certification reference (EDGE/LEED/BREEAM) [ISO 19650],False,,,MULTI,1,0
+Generic Models,STR_ANALYTICAL_MODEL_TXT,b7a84859-b5b1-10b2-7306-3c220ecd8ae7,TEXT,BLE_STRUCTURE,Type,Analytical model status and type [ISO 19650],False,,,MULTI,1,0
 Generic Models,STR_AREA_LOAD_KN_M2,8c367e7c-cb16-55eb-af05-470fa7e0c0ef,TEXT,BLE_STRUCTURE,Type,Str Area Load Kn M2 [ISO 19650],False,,,MULTI,1,0
 Generic Models,STR_BEAM_CAMBER_MM,4b990b3c-dff5-5068-9e66-dd830f2cf6aa,TEXT,BLE_STRUCTURE,Type,Str Beam Camber Mm [ISO 19650],False,,,MULTI,1,0
 Generic Models,STR_BEAM_CONNECTION_TYPE_TXT,09512d80-0baf-58bb-ad98-0adf3fac7b16,TEXT,BLE_STRUCTURE,Type,Str Beam Connection Type [ISO 19650],False,,,MULTI,1,0
@@ -1695,7 +1695,7 @@ Generic Models,STR_CONN_TYPE_TXT,382494de-cd8b-5987-8ca6-120832d3da92,TEXT,BLE_S
 Generic Models,STR_CONN_WELD_TYPE_TXT,0dc726b1-4fec-531a-b4b0-34722af4dba4,TEXT,BLE_STRUCTURE,Type,Str Conn Weld Type [ISO 19650],False,,,MULTI,1,0
 Generic Models,STR_FDN_BEARING_KN_M2,3a80d431-470e-5b14-9b6e-d0bee72acc32,NUMBER,BLE_STRUCTURE,Type,Str Fdn Bearing Kn M2 [ISO 19650],False,,,MULTI,1,0
 Generic Models,STR_FDN_COVER_MM,d38c58f7-86a5-5aa4-81a7-4f305f0e00a1,LENGTH,BLE_STRUCTURE,Type,Str Fdn Cover Mm [ISO 19650],False,,,MULTI,1,0
-Generic Models,STR_FDN_DEPTH_MM,c27c1b03-a0c9-5b9f-8d83-878ee9f6c7d9,LENGTH,BLE_STRUCTURE,Type,Str Fdn Depth Mm [ISO 19650],False,,,MULTI,1,0
+Generic Models,STR_FDN_DEPTH_MM,c27c1b03-a0c9-5b9f-8d83-878ee9f6c7d9,LENGTH,BLE_STRUCTURE,Type,Foundation depth in mm. Maps from INSTANCE_ELEVATION_PARAM. [ISO 19650],False,,,MULTI,1,0
 Generic Models,STR_FDN_EXPOSURE_CLASS_TXT,617ec04c-cb91-5738-9159-50155fc13e37,TEXT,BLE_STRUCTURE,Type,Str Fdn Exposure Class [ISO 19650],False,,,MULTI,1,0
 Generic Models,STR_FDN_MATERIAL_TXT,34904a0f-b1b7-532c-a33c-839bf60f90a5,TEXT,BLE_STRUCTURE,Type,Str Fdn Material [ISO 19650],False,,,MULTI,1,0
 Generic Models,STR_FDN_PILE_TYPE_TXT,86a48ffb-a9e2-5b39-8d73-d04ccb626f0c,TEXT,BLE_STRUCTURE,Type,Str Fdn Pile Type [ISO 19650],False,,,MULTI,1,0
@@ -1720,7 +1720,7 @@ Generic Models,STR_SLAB_LOAD_KN_M2,b0baa21f-3ed2-59ee-b217-02ad6d2be4b3,TEXT,BLE
 Generic Models,STR_SLAB_MESH_TXT,f3607fd1-918c-5879-a100-a29a99861d67,TEXT,BLE_STRUCTURE,Type,Str Slab Mesh [ISO 19650],False,,,MULTI,1,0
 Generic Models,STR_SLAB_REBAR_TXT,50cc82d7-46d1-54e8-9431-d7c7c04e8896,TEXT,BLE_STRUCTURE,Type,Str Slab Rebar [ISO 19650],False,,,MULTI,1,0
 Generic Models,STR_SLAB_TYPE_TXT,101ae552-0df9-5cd3-94ac-ad82d566fc17,TEXT,BLE_STRUCTURE,Type,Str Slab Type [ISO 19650],False,,,MULTI,1,0
-Generic Models,STR_STRUCTURAL_USAGE_TXT,1cb89cd0-62f0-5fd8-0099-eeff65ad1621,TEXT,BLE_STRUCTURE,Type,Str Structural Usage [ISO 19650],False,,,MULTI,1,0
+Generic Models,STR_STRUCTURAL_USAGE_TXT,1cb89cd0-62f0-5fd8-0099-eeff65ad1621,TEXT,BLE_STRUCTURE,Type,"Structural usage (beam, column, brace, other) [ISO 19650]",False,,,MULTI,1,0
 Generic Models,STR_TAG_7_PARA_ANLYT_TXT,3cbb945a-6689-5c12-9dd4-f615bcd1e992,TEXT,BLE_STRUCTURE,Type,Structural TAG7 paragraph container for anlyt,False,,,MULTI,1,0
 Generic Models,STR_TAG_7_PARA_BRACE_TXT,953a1b8c-c997-550d-b855-c0bab6af0976,TEXT,BLE_STRUCTURE,Type,Structural TAG7 paragraph container for brace,False,,,MULTI,1,0
 Generic Models,STR_TAG_7_PARA_CONN_TXT,009e8fcf-4981-524b-8124-169d4a7301dd,TEXT,BLE_STRUCTURE,Type,Structural TAG7 paragraph container for conn,False,,,MULTI,1,0
@@ -2130,42 +2130,42 @@ Generic Models,PER_SUST_SOLAR_GAIN_W,d9240497-3f4c-5604-a92e-23dd6033d4c4,TEXT,P
 Generic Models,PLM_DRN_TRAP_EFFECTIVE_SEAL_MM,95fab87d-5702-5e71-bdff-8f573d99eae0,TEXT,HVC_SYSTEMS,Type,Drain trap effective seal depth mm [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,PLM_PPE_VELOCITY_CALC_MPS,0dc2c254-ded2-57d1-bbfa-a724be0fe0b7,TEXT,HVC_SYSTEMS,Type,Pipe velocity calculated m/s [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,TAG_2.5NOM_RED_BOOL,0f518bf8-00b9-4884-b4c1-250000000004,YESNO,STINGTags_ISO19650,Type,Tag 2.5Nom Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2NOM_RED_BOOL,287b72c2-7315-4cd5-82c1-200000000004,YESNO,STINGTags_ISO19650,Type,Tag 2Nom Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2NOM_GREEN_BOOL,3442cc7f-3299-4be8-87c1-200000000003,YESNO,STINGTags_ISO19650,Type,Tag 2Nom Green [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2NOM_RED_BOOL,287b72c2-7315-4cd5-82c1-200000000004,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, normal, red [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2NOM_GREEN_BOOL,3442cc7f-3299-4be8-87c1-200000000003,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, normal, green [ISO 19650-3:2020]",False,,,MULTI,1,0
 Generic Models,TAG_2.5BOLD_RED_BOOL,3ed66197-7fc2-43cd-93c1-250000000008,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bold Red [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,TAG_2.5BOLD_GREEN_BOOL,4c3c0bea-ec9d-41a8-9cc1-250000000007,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bold Green [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,TAG_2.5BOLD_BLUE_BOOL,6e9e2d50-47b2-4e50-8cc1-250000000006,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bold Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2NOM_BLACK_BOOL,71eaf35e-4f69-417c-90c1-200000000001,YESNO,STINGTags_ISO19650,Type,Tag 2Nom Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLD_BLACK_BOOL,784a1790-6fca-4d73-acc1-200000000005,YESNO,STINGTags_ISO19650,Type,Tag 2Bold Black [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2NOM_BLACK_BOOL,71eaf35e-4f69-417c-90c1-200000000001,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, normal, black [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2BOLD_BLACK_BOOL,784a1790-6fca-4d73-acc1-200000000005,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, bold, black [ISO 19650-3:2020]",False,,,MULTI,1,0
 Generic Models,TAG_2.5NOM_GREEN_BOOL,84f3a73d-6432-479a-bcc1-250000000003,YESNO,STINGTags_ISO19650,Type,Tag 2.5Nom Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLD_RED_BOOL,9b53e6c5-9a96-4883-81c1-200000000008,YESNO,STINGTags_ISO19650,Type,Tag 2Bold Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLD_BLUE_BOOL,a64c0b1d-b40b-4f6a-b1c1-200000000006,YESNO,STINGTags_ISO19650,Type,Tag 2Bold Blue [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2BOLD_RED_BOOL,9b53e6c5-9a96-4883-81c1-200000000008,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, bold, red [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2BOLD_BLUE_BOOL,a64c0b1d-b40b-4f6a-b1c1-200000000006,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, bold, blue [ISO 19650-3:2020]",False,,,MULTI,1,0
 Generic Models,TAG_2.5BOLD_BLACK_BOOL,bbc94dd6-592e-4a71-8cc1-250000000005,YESNO,STINGTags_ISO19650,Type,Tag 2.5Bold Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLD_GREEN_BOOL,c34be0e6-3e38-4293-a1c1-200000000007,YESNO,STINGTags_ISO19650,Type,Tag 2Bold Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2ITALIC_BLACK_BOOL,d5a1b2c3-1001-4e01-a1c1-200000000009,YESNO,STINGTags_ISO19650,Type,Tag 2Italic Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2ITALIC_BLUE_BOOL,d5a1b2c3-1002-4e01-a1c1-200000000010,YESNO,STINGTags_ISO19650,Type,Tag 2Italic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2ITALIC_GREEN_BOOL,d5a1b2c3-1003-4e01-a1c1-200000000011,YESNO,STINGTags_ISO19650,Type,Tag 2Italic Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2ITALIC_RED_BOOL,d5a1b2c3-1004-4e01-a1c1-200000000012,YESNO,STINGTags_ISO19650,Type,Tag 2Italic Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLDITALIC_BLACK_BOOL,d5a1b2c3-2013-4e01-a1c1-200000000013,YESNO,STINGTags_ISO19650,Type,Tag 2Bolditalic Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLDITALIC_BLUE_BOOL,d5a1b2c3-2014-4e01-a1c1-200000000014,YESNO,STINGTags_ISO19650,Type,Tag 2Bolditalic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLDITALIC_GREEN_BOOL,d5a1b2c3-2015-4e01-a1c1-200000000015,YESNO,STINGTags_ISO19650,Type,Tag 2Bolditalic Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLDITALIC_RED_BOOL,d5a1b2c3-2016-4e01-a1c1-200000000016,YESNO,STINGTags_ISO19650,Type,Tag 2Bolditalic Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLDITALIC_ORANGE_BOOL,d5a1b2c3-2017-4e01-a1c1-200000000017,YESNO,STINGTags_ISO19650,Type,Tag 2Bolditalic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLDITALIC_PURPLE_BOOL,d5a1b2c3-2018-4e01-a1c1-200000000018,YESNO,STINGTags_ISO19650,Type,Tag 2Bolditalic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLDITALIC_GREY_BOOL,d5a1b2c3-2019-4e01-a1c1-200000000019,YESNO,STINGTags_ISO19650,Type,Tag 2Bolditalic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLDITALIC_WHITE_BOOL,d5a1b2c3-2020-4e01-a1c1-200000000020,YESNO,STINGTags_ISO19650,Type,Tag 2Bolditalic White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2NOM_ORANGE_BOOL,d5a1b2c3-2021-4e01-a1c1-200000000021,YESNO,STINGTags_ISO19650,Type,Tag 2Nom Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2NOM_PURPLE_BOOL,d5a1b2c3-2022-4e01-a1c1-200000000022,YESNO,STINGTags_ISO19650,Type,Tag 2Nom Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2NOM_GREY_BOOL,d5a1b2c3-2023-4e01-a1c1-200000000023,YESNO,STINGTags_ISO19650,Type,Tag 2Nom Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2NOM_WHITE_BOOL,d5a1b2c3-2024-4e01-a1c1-200000000024,YESNO,STINGTags_ISO19650,Type,Tag 2Nom White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLD_ORANGE_BOOL,d5a1b2c3-2025-4e01-a1c1-200000000025,YESNO,STINGTags_ISO19650,Type,Tag 2Bold Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLD_PURPLE_BOOL,d5a1b2c3-2026-4e01-a1c1-200000000026,YESNO,STINGTags_ISO19650,Type,Tag 2Bold Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLD_GREY_BOOL,d5a1b2c3-2027-4e01-a1c1-200000000027,YESNO,STINGTags_ISO19650,Type,Tag 2Bold Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2BOLD_WHITE_BOOL,d5a1b2c3-2028-4e01-a1c1-200000000028,YESNO,STINGTags_ISO19650,Type,Tag 2Bold White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2ITALIC_ORANGE_BOOL,d5a1b2c3-2029-4e01-a1c1-200000000029,YESNO,STINGTags_ISO19650,Type,Tag 2Italic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2ITALIC_PURPLE_BOOL,d5a1b2c3-2030-4e01-a1c1-200000000030,YESNO,STINGTags_ISO19650,Type,Tag 2Italic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2ITALIC_GREY_BOOL,d5a1b2c3-2031-4e01-a1c1-200000000031,YESNO,STINGTags_ISO19650,Type,Tag 2Italic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2ITALIC_WHITE_BOOL,d5a1b2c3-2032-4e01-a1c1-200000000032,YESNO,STINGTags_ISO19650,Type,Tag 2Italic White [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2BOLD_GREEN_BOOL,c34be0e6-3e38-4293-a1c1-200000000007,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, bold, green [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2ITALIC_BLACK_BOOL,d5a1b2c3-1001-4e01-a1c1-200000000009,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, italic, black [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2ITALIC_BLUE_BOOL,d5a1b2c3-1002-4e01-a1c1-200000000010,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, italic, blue [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2ITALIC_GREEN_BOOL,d5a1b2c3-1003-4e01-a1c1-200000000011,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, italic, green [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2ITALIC_RED_BOOL,d5a1b2c3-1004-4e01-a1c1-200000000012,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, italic, red [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2BOLDITALIC_BLACK_BOOL,d5a1b2c3-2013-4e01-a1c1-200000000013,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, bold-italic, black [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2BOLDITALIC_BLUE_BOOL,d5a1b2c3-2014-4e01-a1c1-200000000014,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, bold-italic, blue [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2BOLDITALIC_GREEN_BOOL,d5a1b2c3-2015-4e01-a1c1-200000000015,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, bold-italic, green [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2BOLDITALIC_RED_BOOL,d5a1b2c3-2016-4e01-a1c1-200000000016,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, bold-italic, red [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2BOLDITALIC_ORANGE_BOOL,d5a1b2c3-2017-4e01-a1c1-200000000017,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, bold-italic, orange [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2BOLDITALIC_PURPLE_BOOL,d5a1b2c3-2018-4e01-a1c1-200000000018,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, bold-italic, purple [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2BOLDITALIC_GREY_BOOL,d5a1b2c3-2019-4e01-a1c1-200000000019,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, bold-italic, grey [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2BOLDITALIC_WHITE_BOOL,d5a1b2c3-2020-4e01-a1c1-200000000020,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, bold-italic, white [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2NOM_ORANGE_BOOL,d5a1b2c3-2021-4e01-a1c1-200000000021,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, normal, orange [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2NOM_PURPLE_BOOL,d5a1b2c3-2022-4e01-a1c1-200000000022,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, normal, purple [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2NOM_GREY_BOOL,d5a1b2c3-2023-4e01-a1c1-200000000023,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, normal, grey [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2NOM_WHITE_BOOL,d5a1b2c3-2024-4e01-a1c1-200000000024,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, normal, white [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2BOLD_ORANGE_BOOL,d5a1b2c3-2025-4e01-a1c1-200000000025,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, bold, orange [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2BOLD_PURPLE_BOOL,d5a1b2c3-2026-4e01-a1c1-200000000026,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, bold, purple [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2BOLD_GREY_BOOL,d5a1b2c3-2027-4e01-a1c1-200000000027,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, bold, grey [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2BOLD_WHITE_BOOL,d5a1b2c3-2028-4e01-a1c1-200000000028,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, bold, white [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2ITALIC_ORANGE_BOOL,d5a1b2c3-2029-4e01-a1c1-200000000029,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, italic, orange [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2ITALIC_PURPLE_BOOL,d5a1b2c3-2030-4e01-a1c1-200000000030,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, italic, purple [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2ITALIC_GREY_BOOL,d5a1b2c3-2031-4e01-a1c1-200000000031,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, italic, grey [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_2ITALIC_WHITE_BOOL,d5a1b2c3-2032-4e01-a1c1-200000000032,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, italic, white [ISO 19650-3:2020]",False,,,MULTI,1,0
 Generic Models,TAG_2.5ITALIC_BLACK_BOOL,d5a1b2c3-2501-4e01-a1c1-250000000009,YESNO,STINGTags_ISO19650,Type,Tag 2.5Italic Black [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,TAG_2.5ITALIC_BLUE_BOOL,d5a1b2c3-2502-4e01-a1c1-250000000010,YESNO,STINGTags_ISO19650,Type,Tag 2.5Italic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,TAG_2.5ITALIC_GREEN_BOOL,d5a1b2c3-2503-4e01-a1c1-250000000011,YESNO,STINGTags_ISO19650,Type,Tag 2.5Italic Green [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -2190,38 +2190,38 @@ Generic Models,TAG_2.5ITALIC_ORANGE_BOOL,d5a1b2c3-2541-4e01-a1c1-250000000041,YE
 Generic Models,TAG_2.5ITALIC_PURPLE_BOOL,d5a1b2c3-2542-4e01-a1c1-250000000042,YESNO,STINGTags_ISO19650,Type,Tag 2.5Italic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,TAG_2.5ITALIC_GREY_BOOL,d5a1b2c3-2543-4e01-a1c1-250000000043,YESNO,STINGTags_ISO19650,Type,Tag 2.5Italic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,TAG_2.5ITALIC_WHITE_BOOL,d5a1b2c3-2544-4e01-a1c1-250000000044,YESNO,STINGTags_ISO19650,Type,Tag 2.5Italic White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3NOM_BLACK_BOOL,d5a1b2c3-3001-4e01-a1c1-300000000001,YESNO,STINGTags_ISO19650,Type,Tag 3Nom Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3NOM_BLUE_BOOL,d5a1b2c3-3002-4e01-a1c1-300000000002,YESNO,STINGTags_ISO19650,Type,Tag 3Nom Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3NOM_GREEN_BOOL,d5a1b2c3-3003-4e01-a1c1-300000000003,YESNO,STINGTags_ISO19650,Type,Tag 3Nom Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3NOM_RED_BOOL,d5a1b2c3-3004-4e01-a1c1-300000000004,YESNO,STINGTags_ISO19650,Type,Tag 3Nom Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLD_BLACK_BOOL,d5a1b2c3-3005-4e01-a1c1-300000000005,YESNO,STINGTags_ISO19650,Type,Tag 3Bold Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLD_BLUE_BOOL,d5a1b2c3-3006-4e01-a1c1-300000000006,YESNO,STINGTags_ISO19650,Type,Tag 3Bold Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLD_GREEN_BOOL,d5a1b2c3-3007-4e01-a1c1-300000000007,YESNO,STINGTags_ISO19650,Type,Tag 3Bold Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLD_RED_BOOL,d5a1b2c3-3008-4e01-a1c1-300000000008,YESNO,STINGTags_ISO19650,Type,Tag 3Bold Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3ITALIC_BLACK_BOOL,d5a1b2c3-3009-4e01-a1c1-300000000009,YESNO,STINGTags_ISO19650,Type,Tag 3Italic Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3ITALIC_BLUE_BOOL,d5a1b2c3-3010-4e01-a1c1-300000000010,YESNO,STINGTags_ISO19650,Type,Tag 3Italic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3ITALIC_GREEN_BOOL,d5a1b2c3-3011-4e01-a1c1-300000000011,YESNO,STINGTags_ISO19650,Type,Tag 3Italic Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3ITALIC_RED_BOOL,d5a1b2c3-3012-4e01-a1c1-300000000012,YESNO,STINGTags_ISO19650,Type,Tag 3Italic Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLDITALIC_BLACK_BOOL,d5a1b2c3-3013-4e01-a1c1-300000000013,YESNO,STINGTags_ISO19650,Type,Tag 3Bolditalic Black [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLDITALIC_BLUE_BOOL,d5a1b2c3-3014-4e01-a1c1-300000000014,YESNO,STINGTags_ISO19650,Type,Tag 3Bolditalic Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLDITALIC_GREEN_BOOL,d5a1b2c3-3015-4e01-a1c1-300000000015,YESNO,STINGTags_ISO19650,Type,Tag 3Bolditalic Green [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLDITALIC_RED_BOOL,d5a1b2c3-3016-4e01-a1c1-300000000016,YESNO,STINGTags_ISO19650,Type,Tag 3Bolditalic Red [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLDITALIC_ORANGE_BOOL,d5a1b2c3-3017-4e01-a1c1-300000000017,YESNO,STINGTags_ISO19650,Type,Tag 3Bolditalic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLDITALIC_PURPLE_BOOL,d5a1b2c3-3018-4e01-a1c1-300000000018,YESNO,STINGTags_ISO19650,Type,Tag 3Bolditalic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLDITALIC_GREY_BOOL,d5a1b2c3-3019-4e01-a1c1-300000000019,YESNO,STINGTags_ISO19650,Type,Tag 3Bolditalic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLDITALIC_WHITE_BOOL,d5a1b2c3-3020-4e01-a1c1-300000000020,YESNO,STINGTags_ISO19650,Type,Tag 3Bolditalic White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3NOM_ORANGE_BOOL,d5a1b2c3-3033-4e01-a1c1-300000000033,YESNO,STINGTags_ISO19650,Type,Tag 3Nom Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3NOM_PURPLE_BOOL,d5a1b2c3-3034-4e01-a1c1-300000000034,YESNO,STINGTags_ISO19650,Type,Tag 3Nom Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3NOM_GREY_BOOL,d5a1b2c3-3035-4e01-a1c1-300000000035,YESNO,STINGTags_ISO19650,Type,Tag 3Nom Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3NOM_WHITE_BOOL,d5a1b2c3-3036-4e01-a1c1-300000000036,YESNO,STINGTags_ISO19650,Type,Tag 3Nom White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLD_ORANGE_BOOL,d5a1b2c3-3037-4e01-a1c1-300000000037,YESNO,STINGTags_ISO19650,Type,Tag 3Bold Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLD_PURPLE_BOOL,d5a1b2c3-3038-4e01-a1c1-300000000038,YESNO,STINGTags_ISO19650,Type,Tag 3Bold Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLD_GREY_BOOL,d5a1b2c3-3039-4e01-a1c1-300000000039,YESNO,STINGTags_ISO19650,Type,Tag 3Bold Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3BOLD_WHITE_BOOL,d5a1b2c3-3040-4e01-a1c1-300000000040,YESNO,STINGTags_ISO19650,Type,Tag 3Bold White [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3ITALIC_ORANGE_BOOL,d5a1b2c3-3041-4e01-a1c1-300000000041,YESNO,STINGTags_ISO19650,Type,Tag 3Italic Orange [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3ITALIC_PURPLE_BOOL,d5a1b2c3-3042-4e01-a1c1-300000000042,YESNO,STINGTags_ISO19650,Type,Tag 3Italic Purple [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3ITALIC_GREY_BOOL,d5a1b2c3-3043-4e01-a1c1-300000000043,YESNO,STINGTags_ISO19650,Type,Tag 3Italic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_3ITALIC_WHITE_BOOL,d5a1b2c3-3044-4e01-a1c1-300000000044,YESNO,STINGTags_ISO19650,Type,Tag 3Italic White [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_3NOM_BLACK_BOOL,d5a1b2c3-3001-4e01-a1c1-300000000001,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, normal, black [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3NOM_BLUE_BOOL,d5a1b2c3-3002-4e01-a1c1-300000000002,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, normal, blue [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3NOM_GREEN_BOOL,d5a1b2c3-3003-4e01-a1c1-300000000003,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, normal, green [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3NOM_RED_BOOL,d5a1b2c3-3004-4e01-a1c1-300000000004,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, normal, red [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3BOLD_BLACK_BOOL,d5a1b2c3-3005-4e01-a1c1-300000000005,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, bold, black [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3BOLD_BLUE_BOOL,d5a1b2c3-3006-4e01-a1c1-300000000006,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, bold, blue [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3BOLD_GREEN_BOOL,d5a1b2c3-3007-4e01-a1c1-300000000007,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, bold, green [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3BOLD_RED_BOOL,d5a1b2c3-3008-4e01-a1c1-300000000008,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, bold, red [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3ITALIC_BLACK_BOOL,d5a1b2c3-3009-4e01-a1c1-300000000009,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, italic, black [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3ITALIC_BLUE_BOOL,d5a1b2c3-3010-4e01-a1c1-300000000010,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, italic, blue [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3ITALIC_GREEN_BOOL,d5a1b2c3-3011-4e01-a1c1-300000000011,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, italic, green [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3ITALIC_RED_BOOL,d5a1b2c3-3012-4e01-a1c1-300000000012,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, italic, red [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3BOLDITALIC_BLACK_BOOL,d5a1b2c3-3013-4e01-a1c1-300000000013,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, bold-italic, black [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3BOLDITALIC_BLUE_BOOL,d5a1b2c3-3014-4e01-a1c1-300000000014,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, bold-italic, blue [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3BOLDITALIC_GREEN_BOOL,d5a1b2c3-3015-4e01-a1c1-300000000015,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, bold-italic, green [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3BOLDITALIC_RED_BOOL,d5a1b2c3-3016-4e01-a1c1-300000000016,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, bold-italic, red [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3BOLDITALIC_ORANGE_BOOL,d5a1b2c3-3017-4e01-a1c1-300000000017,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, bold-italic, orange [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3BOLDITALIC_PURPLE_BOOL,d5a1b2c3-3018-4e01-a1c1-300000000018,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, bold-italic, purple [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3BOLDITALIC_GREY_BOOL,d5a1b2c3-3019-4e01-a1c1-300000000019,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, bold-italic, grey [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3BOLDITALIC_WHITE_BOOL,d5a1b2c3-3020-4e01-a1c1-300000000020,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, bold-italic, white [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3NOM_ORANGE_BOOL,d5a1b2c3-3033-4e01-a1c1-300000000033,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, normal, orange [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3NOM_PURPLE_BOOL,d5a1b2c3-3034-4e01-a1c1-300000000034,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, normal, purple [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3NOM_GREY_BOOL,d5a1b2c3-3035-4e01-a1c1-300000000035,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, normal, grey [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3NOM_WHITE_BOOL,d5a1b2c3-3036-4e01-a1c1-300000000036,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, normal, white [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3BOLD_ORANGE_BOOL,d5a1b2c3-3037-4e01-a1c1-300000000037,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, bold, orange [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3BOLD_PURPLE_BOOL,d5a1b2c3-3038-4e01-a1c1-300000000038,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, bold, purple [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3BOLD_GREY_BOOL,d5a1b2c3-3039-4e01-a1c1-300000000039,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, bold, grey [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3BOLD_WHITE_BOOL,d5a1b2c3-3040-4e01-a1c1-300000000040,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, bold, white [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3ITALIC_ORANGE_BOOL,d5a1b2c3-3041-4e01-a1c1-300000000041,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, italic, orange [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3ITALIC_PURPLE_BOOL,d5a1b2c3-3042-4e01-a1c1-300000000042,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, italic, purple [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3ITALIC_GREY_BOOL,d5a1b2c3-3043-4e01-a1c1-300000000043,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, italic, grey [ISO 19650-3:2020]",False,,,MULTI,1,0
+Generic Models,TAG_3ITALIC_WHITE_BOOL,d5a1b2c3-3044-4e01-a1c1-300000000044,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 3, italic, white [ISO 19650-3:2020]",False,,,MULTI,1,0
 Generic Models,TAG_3.5NOM_BLACK_BOOL,d5a1b2c3-3501-4e01-a1c1-350000000001,YESNO,STINGTags_ISO19650,Type,Tag 3.5Nom Black [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,TAG_3.5NOM_BLUE_BOOL,d5a1b2c3-3502-4e01-a1c1-350000000002,YESNO,STINGTags_ISO19650,Type,Tag 3.5Nom Blue [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,TAG_3.5NOM_GREEN_BOOL,d5a1b2c3-3503-4e01-a1c1-350000000003,YESNO,STINGTags_ISO19650,Type,Tag 3.5Nom Green [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -2255,7 +2255,7 @@ Generic Models,TAG_3.5ITALIC_PURPLE_BOOL,d5a1b2c3-3542-4e01-a1c1-350000000042,YE
 Generic Models,TAG_3.5ITALIC_GREY_BOOL,d5a1b2c3-3543-4e01-a1c1-350000000043,YESNO,STINGTags_ISO19650,Type,Tag 3.5Italic Grey [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,TAG_3.5ITALIC_WHITE_BOOL,d5a1b2c3-3544-4e01-a1c1-350000000044,YESNO,STINGTags_ISO19650,Type,Tag 3.5Italic White [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,TAG_2.5NOM_BLUE_BOOL,d7e853cb-be05-4297-9cc1-250000000002,YESNO,STINGTags_ISO19650,Type,Tag 2.5Nom Blue [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_2NOM_BLUE_BOOL,e749764b-f2e7-4892-87c1-200000000002,YESNO,STINGTags_ISO19650,Type,Tag 2Nom Blue [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_2NOM_BLUE_BOOL,e749764b-f2e7-4892-87c1-200000000002,YESNO,STINGTags_ISO19650,Type,"Tag text visibility: size 2, normal, blue [ISO 19650-3:2020]",False,,,MULTI,1,0
 Generic Models,TAG_2.5NOM_BLACK_BOOL,f0b8fa91-eea9-4d7c-a3c1-250000000001,YESNO,STINGTags_ISO19650,Type,Tag 2.5Nom Black [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,PER_ACOUSTIC_WALL_STC,1def90dc-f6db-5299-b10c-75c3fbeb0d17,TEXT,PER_SUST,Type,Wall Sound Transmission Class rating,False,,,MULTI,1,0
 Generic Models,STR_RBR_COVER_MM,d6861fcc-af97-5962-a444-60018149503c,TEXT,BLE_STRUCTURE,Type,Reinforcement bar cover in mm,False,,,MULTI,1,0
