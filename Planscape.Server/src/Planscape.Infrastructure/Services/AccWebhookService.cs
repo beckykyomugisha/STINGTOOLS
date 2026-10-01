@@ -534,7 +534,7 @@ public class AccWebhookService
                 if (post.IsSuccessStatusCode) return ("POST /webhooks/v1/tokens (created)", null);
                 postCode = (int)post.StatusCode;
                 if (post.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-                    return (null, $"APS refused to set the webhook secret (POST tokens HTTP {postCode}) — the grant needs data:read data:write.");
+                    return (null, $"APS refused to set the webhook secret (POST tokens HTTP {postCode}) — the grant needs data:read data:write, and data:create to create hooks — reconnect ACC if it was connected before 2026-10-01.");
             }
             using var put = await ApsRetry.SendAsync(http, () => Request(HttpMethod.Put, root + "/@me", accessToken, region, body), true, _logger, ct);
             if (put.IsSuccessStatusCode)

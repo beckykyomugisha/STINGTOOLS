@@ -1100,6 +1100,30 @@ public partial class AccServerIntegrationTests
         else Assert.Equal(403, Assert.IsType<ObjectResult>(disc).StatusCode);
     }
 
+    // AUT-6: creating a webhook needs data:create; the default grant now carries it.
+    [Fact]
+    public async Task The_default_ACC_grant_asks_for_data_create_so_webhooks_can_be_created()
+    {
+        var fx = new Fx();
+        await fx.SeedAsync();
+        var uid = await AddMemberAsync(fx, "Manager");
+        var cfg = new ConfigurationBuilder().AddConfiguration(fx.Config)
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Acc:ClientId"] = "cid" }).Build();
+        using var db = fx.Db();
+        var ctl = new AccOAuthController(db, new Factory(fx.Http), cfg,
+            NewState(new EphemeralDataProtectionProvider(), new TestReplayGuard()), NullLogger<AccOAuthController>.Instance)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = User(fx.TenantId, uid) } },
+        };
+        var r = await ctl.Start(fx.ProjectId, default);
+        var url = (string)JObject.FromObject(Assert.IsType<OkObjectResult>(r).Value!)["authorizeUrl"]!;
+        var scope = Uri.UnescapeDataString(url.Split("scope=")[1].Split('&')[0]).Split(' ');
+        Assert.Contains("data:read", scope);
+        Assert.Contains("data:write", scope);
+        Assert.Contains("data:create", scope);
+        Assert.Equal(AccOAuthController.DefaultScopes.Split(' ').OrderBy(s => s), scope.OrderBy(s => s));
+    }
+
     [Fact]
     public void Write_capability_expression_agrees_with_in_memory_form()
     {

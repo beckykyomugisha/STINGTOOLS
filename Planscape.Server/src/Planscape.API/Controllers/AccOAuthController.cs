@@ -65,12 +65,23 @@ public class AccOAuthController : ControllerBase
         return null;
     }
 
+    /// <summary>
+    /// AUT-6: the default grant. <c>data:create</c> was missing, and APS requires it to CREATE a
+    /// webhook ("data:read ... which all Webhooks requests require, and the data:create scope,
+    /// which creating a webhook requires" - Creating a Webhook (Forma Reviews) / (Forma Issues),
+    /// read 2026-10-01), so POST acc/webhooks/subscribe could not create its hooks on a default
+    /// grant. A connection made before this change keeps its old scopes until it is reconnected:
+    /// a refresh cannot widen a grant (the refresh scope must be the same or a subset).
+    /// <c>Acc:Scopes</c> still overrides.
+    /// </summary>
+    public const string DefaultScopes = "data:read data:write data:create";
+
     [HttpGet("start")]
     public async Task<ActionResult> Start([FromQuery] Guid projectId, CancellationToken ct)
     {
         var clientId = _config["Acc:ClientId"];
         var callback = _config["Acc:CallbackUrl"];
-        var scopes   = _config["Acc:Scopes"] ?? "data:read data:write";
+        var scopes   = string.IsNullOrWhiteSpace(_config["Acc:Scopes"]) ? DefaultScopes : _config["Acc:Scopes"]!;
         if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(callback))
             return StatusCode(503, new { error = "acc_not_configured", message = "Acc:ClientId and Acc:CallbackUrl must be set." });
 
