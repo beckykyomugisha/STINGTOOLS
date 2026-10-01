@@ -26494,3 +26494,32 @@ defects in temp copies of real files and fails if any goes uncaught. Full record
 Build 0/0; `run_ci_gates.py --quick` 50/50; all 16 unit-test projects green. Nothing was
 run in Revit: 16 checks are listed under NEEDS REVIT CHECK in the worklog. Open items:
 ROADMAP DSCH-1..22.
+
+#### Completed (Data-schema open items DSCH-1..23 implemented — branch `claude/data-schema-drift-validators-a30f10`, 2026-10-01)
+
+The items the data-schema PR had recorded were worked rather than left open. Detail and
+the per-item table: `docs/WORKLOG_DATA_SCHEMAS.md` → *Implementing the open DSCH items*.
+
+- **One owner per value.** Electrical (aluminium factor, MCB/MCCB breaker lists, AIC
+  margin, LPS risk/Cd/SPD, arc-flash PPE categories, carbon hours), plumbing (supply
+  velocity / pressure drop, drainage minimum gradient, Manning n by material, TMV limits,
+  pressure-regime `standard`, healthcare specialist defaults) and BIM/config (one project BEP
+  path, tag placement default, family-library source, seed swap candidates, brand fonts,
+  `projectTypePresets`) now read their data files. Where data and a code constant disagree on
+  an engineering value, the code value is kept and the difference logged (DSCH-25).
+- **Pricing.** The Cost File Browser's override prices (DSCH-1); a project rate card outranks
+  the corporate CSV (priority 93, DSCH-23); both material libraries carry
+  `MAT_COST_UNIT_OF_MEASURE`, and a library rate in another unit is refused (DSCH-16).
+- **Separation** distinguishes a crossing (two horizontal runs, perpendicular, intersecting in
+  plan) from parallel and vertical runs — `Core/Routing/SeparationGeometry`, Revit-free, tested
+  over every shipped pair (DSCH-22).
+- **Reading data.** `Core/NumberText` parses machine text invariant-first at ~96 sites;
+  `Core/CsvTable` reads single-table CSVs by column name, and the positional readers of
+  pinned CSVs were converted (DSCH-2).
+- **Gates.** Dual-owner (5 formula rows C# also computes, deleted), QS NRM2 review harness and
+  declared-but-uncalled (8 min → 2 s, named baseline) now run in CI. The hand-written JSON
+  Schemas, two dead data files and three orphans (moved to `docs/reference/`) are gone; KUT's
+  `project_config.json` ships where readers look, and the old location is forbidden.
+
+Not run in Revit: seven checks under *NEEDS REVIT CHECK (open-items batch)*. Open:
+ROADMAP DSCH-24..27.

@@ -303,3 +303,64 @@ data-only edits there change no future project. Kept, because they protect every
 project: the auto-tagger accepting a disc filter written as a JSON array, the warning for
 an unknown `SEQ_SCHEME`, and the corrected rate-priority comment. The rate-card ranking
 lesson is ROADMAP DSCH-23. NEEDS REVIT CHECK 16 (Kibale pricing) is withdrawn.
+
+## Implementing the open DSCH items (2026-10-01)
+
+At the owner's request ("fix/implement everything still open"), the items this PR had
+recorded in ROADMAP were worked rather than left open. Three parallel worktree batches
+(electrical, plumbing/MEP, BIM/config) were merged into this branch; the rest was done here.
+
+### Closed
+
+| Item | What changed |
+|---|---|
+| DSCH-1 | `BOQCostManager.ResolveCostRatesPath(doc)`: the Cost File Browser's per-project override prices, else `TagConfig.CostRatesFileName`. Every pricing caller with a `Document` passes it. |
+| DSCH-2 | `Core/CsvTable` — one header-name reader; the positional readers of pinned single-table CSVs were converted (see below). |
+| DSCH-3 | 4-field TAG7 rows are family-only by design: one Info line, no G-6 warning. A comment line in the CSV says so. |
+| DSCH-4 | The three non-existent `RGL_*_APPROVAL_TXT` inputs removed; registry `alsoAllowed` removed. |
+| DSCH-5 | `STRUCTURAL_EXCEL_TEMPLATE.csv` and `STING_EXTERNAL_FORMATS.json` deleted. |
+| DSCH-6 | Five formula rows whose result C# computes were deleted (C# is the owner); dual-owner baseline `0 34 5` → `0 34 1`; check gated. |
+| DSCH-7 | QS NRM2 harness runs on a blanked working copy; gated. |
+| DSCH-8 | `Data/Schemas/*.schema.json` removed; `tools/data_schemas.json` is the schema. |
+| DSCH-9 | `Core/NumberText` — invariant first, then current culture, `NumberStyles.Float` — at ~96 machine-text sites; `InvariantNumber` folded into it. |
+| DSCH-10 | `PersistPresetName` merges and writes atomically. |
+| DSCH-11 | `projectTypePresets` read as an advisory. |
+| DSCH-12 | Declared-but-uncalled gate: one tokenised pass (8 min → 2 s), no prefix false hits, named baseline (53); gated. |
+| DSCH-13 | Seed candidates are written as `seeds[].candidates`, where the swapper reads. |
+| DSCH-14 | Wire tables, AIC margin, BS 88 Zs, demand "Other" rule, carbon hours, supply limits, drainage gradient, Manning n, pressure-regime `standard`, design-wind flag — read from data (residue below). |
+| DSCH-15 | Dead files deleted or moved to `docs/reference/`; specialist healthcare, TMV and arc-flash PPE data wired. |
+| DSCH-16 | `MAT_COST_UNIT_OF_MEASURE` added to both material libraries (723/815, 343/464 filled); a library rate in a different unit is refused, not priced. |
+| DSCH-17 | One BEP path (`CoordStores.Bep`); the corporate file is never overwritten; Man 01 and the readiness item read the project's BEP. |
+| DSCH-18 | Tag placement default read; family library source configurable; IFC pset reader binds both spellings; monthly climate latitude from the design-day site. |
+| DSCH-19 | KUT's `project_config.json` ships beside the model; `*/_BIM_COORD/project_config.json` is now a registry-forbidden path. |
+| DSCH-20 | Brand fonts read. |
+| DSCH-21 | ArchiCAD mappings target existing parameters; the GUID row removed. |
+| DSCH-22 | `Core/Routing/SeparationGeometry` (Revit-free, 9 tests): a crossing is two horizontal runs, perpendicular in plan, whose plan segments intersect; only then do crossing rules govern. Drops are never crossings, so the reverted attempt's failure cannot recur. |
+| DSCH-23 | `ProjectRateCardProvider` priority 93 — a project card outranks the corporate CSV without a policy file. |
+
+### Decisions
+
+- **Where data and a code constant disagreed on an engineering value, the code value was
+  kept and the disagreement logged**, not silently resolved: NEC breaker sizes above 400 A,
+  arc-flash PPE colours, TMV bath limit (code 46 °C, data 44 °C), USP 797/800 pressure
+  differential (code 2.5 Pa, data 5 Pa). Each needs an engineer's call — ROADMAP DSCH-25.
+- **Deliberate value changes**, each traceable to the data file the standard is quoted from:
+  DN150 minimum gradient 0.5 % → 0.67 %; Manning n per material; Nairobi monthly latitude
+  sign; projects without a BEP now fail BREEAM Man 01 (they used to pass on the corporate file).
+- **Zero rates** (old DSCH-19 second half) were NOT changed: `UnitRate <= 0` means "no rate"
+  in the registry chain, `BOQCostManager` and `CostStamp`. A deliberate zero needs a chain-wide
+  "priced at nil" outcome — ROADMAP DSCH-26.
+- **DSCH-2 scope**: multi-section files (TAG_CONFIG packs, BOQ_TEMPLATE) and the two
+  deliberately naive readers (`CsiMasterFormat`, `MaterialProdOverrideRules`) stay positional.
+
+### NEEDS REVIT CHECK (open-items batch)
+
+1. A project with no BEP: BREEAM Man 01 and the readiness item now fail; a project BEP passes.
+2. Cost File Browser: pick a file, run BOQ Export — prices come from the picked file.
+3. BOQ Export with library rates: a material whose unit disagrees with the item is refused
+   (listed as a miss), not priced.
+4. Drainage sizing on a DN150 run at 0.5 %: now flagged; Manning n per material changes velocities.
+5. Separation check: a power tray crossing a data tray at 60 mm passes (crossing rule 50 mm);
+   the same pair running parallel at 60 mm still fails.
+6. Arc-flash labels: PPE category text from data; colours unchanged.
+7. Load shared parameters on a clean project after the DSCH-2 conversion: still 3,018 / 374 / 0.
