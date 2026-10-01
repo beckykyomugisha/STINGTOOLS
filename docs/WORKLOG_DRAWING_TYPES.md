@@ -164,6 +164,24 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-108 | DrawingProducer PrimeBatchScope ~156/231 | Low | A nested scope resets the outer batch's caches, including the sheet-claim table | fix/dt-review4 | In progress |
 | DTW-109 | PanelDoorDiagramCommand ~225 | Low | Drafting view named by board name; a rename orphans the old view | Merged | Done |
 | DTW-110 | BatchProduceCommands ~991-1004 | Low | Exterior job loop uses placed/legacy snapshots taken once | fix/dt-review4 | In progress |
+| DTW-111 | PipeNetworkGraph.ClassifyStacks ~705 | High | Every vertical drop is a stack: fake stacks, and fixtures behind tails never counted | fix/dt-plumb2 | In progress |
+| DTW-112 | DwgFixtureBridge ~287 | Med-High | No idempotency: a re-run places everything twice | fix/dt-r5 | In progress |
+| DTW-113 | SeedEnsurer ~128 / DwgFixtureBridge ~403 | Med | Any loaded family marks a category served, so the seed is never built and the bridge skips the category | fix/dt-r5 | In progress |
+| DTW-114 | DrawingProducer refresh ~481 | Med | Re-runs never tag or dimension elements added since; no command re-annotates produced views | After fix/dt-review4 | Queued |
+| DTW-115 | LinkLevelMapper ~26 | Med | 3 mm at-or-below tolerance maps an MEP SSL level to the storey below | fix/dt-r5 | In progress |
+| DTW-116 | IsoLevelCode.BuildMap ~56 | Med | Coincident levels each take a number and shift ISO codes | fix/dt-r5 | In progress |
+| DTW-117 | DrawingTokenContext ~71 | Med | Multi-building ISO: {vol} never carries the building | fix/dt-r5 | In progress |
+| DTW-118 | DrawingRenumberCommand ~236 | Med | Renumber reads the stamp's level name, not its id: wrong ISO level after a rename | fix/dt-r5 | In progress |
+| DTW-119 | Drainage/Supply schematic views | Med-Low | A new view every run, orphans accumulate | fix/dt-plumb2 | In progress |
+| DTW-120 | Drainage/Supply layout | Med-Low | True-Z / per-element columns overflow the sheet on large models | fix/dt-plumb2 | In progress |
+| DTW-121 | DrainageSchematicGenerator labels | Low-Med | Labels collide with neighbouring stacks and levels | fix/dt-plumb2 | In progress |
+| DTW-122 | BatchProduceCommands.LevelHasModel ~236 | Low-Med | Skip-empty-levels ignores links for non-MEP plans | After fix/dt-review4 | Queued |
+| DTW-123 | Doctor | Low | Views and sheets of deleted boxes and levels are never reported | fix/dt-r5 | In progress |
+| DTW-124 | PlumbingVisualisationCommands ~117/742, DwgFixtureBridge ~357 | Low | Commit status ignored | fix/dt-plumb2 + fix/dt-r5 | In progress |
+| DTW-125 | ViewStylePackApplier ~625 | Low | Material-class filter cache never invalidated | fix/dt-r5 | In progress |
+| DTW-126 | MergeRecoveryStubs ~520 | Low | Index miss not revalidated | fix/dt-r5 | In progress |
+| DTW-127 | ViewStylePackApplier ~549 | Low | Link overrides matched on the instance name | fix/dt-r5 | In progress |
+| DTW-128 | SupplySchematicGenerator ~197/~109 | Low | DN printed twice per pipe; rank-3 source not marked assumed | fix/dt-plumb2 | In progress |
 
 ## Decisions
 

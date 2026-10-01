@@ -18,6 +18,24 @@ still open. Rows leave this table when their fix is merged; the worklog keeps th
 | DTW-107 | Unguarded RollBack can abort a whole scope-box run | Code review of the loop's merged work | In progress (`fix/dt-review4`) |
 | DTW-108 | Nested batch scope resets the outer batch's caches | Code review of the loop's merged work | In progress (`fix/dt-review4`) |
 | DTW-110 | Exterior job loop uses stale placed/adopted snapshots | Code review of the loop's merged work | In progress (`fix/dt-review4`) |
+| DTW-111 | Every vertical drop is a stack: fake stacks, and fixtures behind tails never counted | `PipeNetworkGraph.ClassifyStacks ~705` | In progress (`fix/dt-plumb2`) |
+| DTW-112 | No idempotency: a re-run places everything twice | `DwgFixtureBridge ~287` | In progress (`fix/dt-r5`) |
+| DTW-113 | Any loaded family marks a category served, so the seed is never built and the bridge skips the category | `SeedEnsurer ~128 / DwgFixtureBridge ~403` | In progress (`fix/dt-r5`) |
+| DTW-114 | Re-runs never tag or dimension elements added since; no command re-annotates produced views | `DrawingProducer refresh ~481` | Queued: After fix/dt-review4 |
+| DTW-115 | 3 mm at-or-below tolerance maps an MEP SSL level to the storey below | `LinkLevelMapper ~26` | In progress (`fix/dt-r5`) |
+| DTW-116 | Coincident levels each take a number and shift ISO codes | `IsoLevelCode.BuildMap ~56` | In progress (`fix/dt-r5`) |
+| DTW-117 | Multi-building ISO: {vol} never carries the building | `DrawingTokenContext ~71` | In progress (`fix/dt-r5`) |
+| DTW-118 | Renumber reads the stamp's level name, not its id: wrong ISO level after a rename | `DrawingRenumberCommand ~236` | In progress (`fix/dt-r5`) |
+| DTW-119 | A new view every run, orphans accumulate | `Drainage/Supply schematic views` | In progress (`fix/dt-plumb2`) |
+| DTW-120 | True-Z / per-element columns overflow the sheet on large models | `Drainage/Supply layout` | In progress (`fix/dt-plumb2`) |
+| DTW-121 | Labels collide with neighbouring stacks and levels | `DrainageSchematicGenerator labels` | In progress (`fix/dt-plumb2`) |
+| DTW-122 | Skip-empty-levels ignores links for non-MEP plans | `BatchProduceCommands.LevelHasModel ~236` | Queued: After fix/dt-review4 |
+| DTW-123 | Views and sheets of deleted boxes and levels are never reported | `Doctor` | In progress (`fix/dt-r5`) |
+| DTW-124 | Commit status ignored | `PlumbingVisualisationCommands ~117/742, DwgFixtureBridge ~357` | In progress (`fix/dt-plumb2 + fix/dt-r5`) |
+| DTW-125 | Material-class filter cache never invalidated | `ViewStylePackApplier ~625` | In progress (`fix/dt-r5`) |
+| DTW-126 | Index miss not revalidated | `MergeRecoveryStubs ~520` | In progress (`fix/dt-r5`) |
+| DTW-127 | Link overrides matched on the instance name | `ViewStylePackApplier ~549` | In progress (`fix/dt-r5`) |
+| DTW-128 | DN printed twice per pipe; rank-3 source not marked assumed | `SupplySchematicGenerator ~197/~109` | In progress (`fix/dt-plumb2`) |
 
 ## Tag family library — missing families (2026-09-30)
 
