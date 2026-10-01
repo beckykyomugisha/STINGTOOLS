@@ -50,9 +50,10 @@ moves on its own: the narrow baseline stays at zero.
 INSTANCE (baseline tools/declared_uncalled_instance_baseline.txt, DSCH-46b):
   public / internal INSTANCE methods anywhere in StingTools/ with the wide name
   prefixes. Two sources of false positives are handled, not baselined:
-    - an override, or a member of a type whose base list names an interface the
-      plugin does not declare (Revit's IDirectContext3DServer, WPF's ICommand ...)
-      - the host calls those, by contract;
+    - an override, or a host-contract member (HOST_CONTRACT_NAMES: GetVendorId,
+      CanExecute, GetUpdaterId ...) of a type whose base list names an interface
+      the plugin does not declare - the host calls those, by contract. Only those
+      names: an IDisposable class keeps every other member in scope;
     - a method used as a method group (`.Where(IsExcluded)`, `+= OnX`) or named in
       XAML - so ANY use of the name counts, not only `Name(`.
 FIELDS (baseline tools/declared_unread_fields_baseline.txt, DSCH-46b):
@@ -140,6 +141,20 @@ FIELD_DECL = re.compile(
 # A type declaration and its base list, for the external-interface skip.
 TYPE_DECL = re.compile(r'^\s*(?:[\w\s]*\s)?(?:class|struct|record)\s+\w+(?:<[^>]*>)?\s*(?::\s*(?P<bases>[^{/]*))?')
 INTERFACE_DECL = re.compile(r'\binterface\s+(?P<name>I[A-Z]\w*)')
+
+# Members of host interfaces (Revit, WPF, .NET) that carry the wide name prefixes.
+# Implementing an external interface does NOT exempt a type's other members - a
+# class that is IDisposable keeps every other method in scope - only these names.
+HOST_CONTRACT_NAMES = {
+    # Autodesk.Revit.DB.DirectContext3D.IDirectContext3DServer / IExternalServer
+    "GetServerId", "GetVendorId", "GetName", "GetDescription", "GetServiceId",
+    "GetApplicationId", "GetSourceId", "CanExecute", "GetBoundingBox",
+    # IUpdater, IExternalEventHandler, IExternalCommandAvailability
+    "GetUpdaterId", "GetUpdaterName", "GetAdditionalInformation", "GetChangePriority",
+    "IsCommandAvailable",
+    # INotifyDataErrorInfo, ISerializable, IXmlSerializable
+    "GetErrors", "GetObjectData", "GetSchema",
+}
 
 IDENT = re.compile(r'\b([A-Za-z_]\w*)\b(\s*\()?')
 
@@ -234,9 +249,9 @@ def declared_interfaces(sources):
 
 
 def external_interface_members(decl_re, sources, own_interfaces):
-    """Names declared (by decl_re) inside a type whose base list names an
-    interface the plugin does not declare - Revit / WPF / .NET call those by
-    contract. The enclosing type is the nearest type declaration above, which
+    """Host-contract names (HOST_CONTRACT_NAMES) declared inside a type whose base
+    list names an interface the plugin does not declare - Revit / WPF / .NET call
+    those by contract. The enclosing type is the nearest type declaration above, which
     is right except after a nested type; that can only HIDE a member, never
     report one falsely."""
     skip = set()
@@ -251,7 +266,7 @@ def external_interface_members(decl_re, sources, own_interfaces):
                 continue
             if external:
                 m = decl_re.match(line)
-                if m:
+                if m and m.group("name") in HOST_CONTRACT_NAMES:
                     skip.add(m.group("name"))
     return skip
 
@@ -400,6 +415,11 @@ def self_test():
         "    {\n",
         "        public string GetVendorId() => \"x\";\n",
         "    }\n",
+        "    public sealed class Client : IDisposable\n",
+        "    {\n",
+        "        public string GetDeadAsync() => \"x\";\n",
+        "        public void Dispose() { }\n",
+        "    }\n",
         "    public interface IOwn { bool IsOwn(); }\n",
         "    public class Impl : IOwn\n",
         "    {\n",
@@ -426,6 +446,8 @@ def self_test():
         failures.append("a member of a type implementing an external interface was scanned")
     if "IsUsedAsGroup" in dead_inst:
         failures.append("a method used as a method group was reported uncalled")
+    if "GetDeadAsync" not in dead_inst:
+        failures.append("implementing IDisposable hid every other member of the type")
     if "IsDead" not in dead_inst:
         failures.append("an uncalled instance method was not reported")
     if "IsOwn" not in d:
@@ -441,7 +463,7 @@ def self_test():
         for f in failures:
             print("  [FAIL] " + f)
         return 1
-    print("OK - self-test: all 6 marker cases, all 12 wide-scope cases and all 8 instance/field cases behave")
+    print("OK - self-test: all 6 marker cases, all 12 wide-scope cases and all 9 instance/field cases behave")
     return 0
 
 
