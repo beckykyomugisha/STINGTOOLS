@@ -56,7 +56,7 @@ namespace StingTools.Core.Drawing
         /// </exception>
         public static int Next(Document doc, string drawingTypeId, string packageId, string discipline, string vol)
             => NextForBucket(doc, BucketKey(drawingTypeId, packageId, discipline, vol),
-                () => SeedFromExistingSheets(doc, drawingTypeId, packageId));
+                () => SeedFromExistingSheets(doc, drawingTypeId, packageId, discipline, vol));
 
         /// <summary>
         /// <see cref="Next"/> against an explicit bucket key. The key is chosen by
@@ -98,12 +98,12 @@ namespace StingTools.Core.Drawing
             {
                 var buckets = ReadAll(doc);
                 if (!buckets.TryGetValue(key, out lastUsed))
-                    lastUsed = SeedFromExistingSheets(doc, drawingTypeId, packageId);
+                    lastUsed = SeedFromExistingSheets(doc, drawingTypeId, packageId, discipline, vol);
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"SheetSequenceStore.Peek: read failed ({ex.Message}); seeding from live sheets.");
-                lastUsed = SeedFromExistingSheets(doc, drawingTypeId, packageId);
+                lastUsed = SeedFromExistingSheets(doc, drawingTypeId, packageId, discipline, vol);
             }
             return lastUsed + 1;
         }
@@ -320,7 +320,12 @@ namespace StingTools.Core.Drawing
         // First-run fallback. A project that's been numbering sheets for years
         // before Phase 169 has no stored counter; seed from the highest
         // existing sequence in the bucket so the next call doesn't collide.
-        private static int SeedFromExistingSheets(Document doc, string drawingTypeId, string packageId)
+        // DTW-162: the bucket is (type, package, discipline, vol); the seed
+        // matched type and package only, so a new level started after the
+        // highest sequence on every level — a gap on first use. Sheets are now
+        // also matched on discipline and vol (SheetSequenceSeed.MatchesBucket).
+        private static int SeedFromExistingSheets(Document doc, string drawingTypeId, string packageId,
+            string discipline, string vol)
         {
             try
             {
@@ -334,7 +339,9 @@ namespace StingTools.Core.Drawing
                         drawingTypeId ?? "", StringComparison.OrdinalIgnoreCase))
                     .Where(s => string.Equals(
                         StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "",
-                        packageId ?? "", StringComparison.Ordinal));
+                        packageId ?? "", StringComparison.Ordinal))
+                    .Where(s => SheetSequenceSeed.MatchesBucket(s.SheetNumber,
+                        StingTools.Core.ParameterHelpers.GetString(s, ParamRegistry.SHT_DISC), discipline, vol));
                 foreach (var s in sheets)
                 {
                     var seq = SheetNumberEngine.ExtractTrailingSequence(s.SheetNumber);

@@ -227,6 +227,7 @@
          Resolve(). Load() needs StingToolsApp.FindDataFile (TestHelpers shim). -->
     <Compile Include="..\StingTools\Core\Drawing\TitleBlockSpec.cs" Link="Core\Drawing\TitleBlockSpec.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SlotFitScale.cs" Link="Core\Drawing\SlotFitScale.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SheetSequenceSeed.cs" Link="Core\Drawing\SheetSequenceSeed.cs" />
     <!-- The annotation rule-kind vocabulary + the sheet-number policy + the
          style-pack routing predicate. All three are Revit-free on purpose, so
          the gates that keep the shipped JSON and the runner in agreement can
