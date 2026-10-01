@@ -135,7 +135,7 @@ catalogues, AEC filters, view style packs, title blocks, tag schemes, LOD matrix
 owner standards, material schedule tables, KUT / Kibale overlays). Registry:
 193 full schemas, 214 structural-only, 225 non-data.
 
-Note: commit `587481694` (MEP symbol engine) also carries the pump-catalogue rename,
+Note: commit `5cade5b5f` (MEP symbol engine) also carries the pump-catalogue rename,
 which was already staged; history was not rewritten to split it.
 
 ### NEEDS REVIT CHECK (rounds 2–3)
