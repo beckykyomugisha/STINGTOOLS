@@ -305,6 +305,34 @@ namespace StingTools.Acc.Tests
             Assert.Empty(o.HeldKeys(AccIssueImport.ClashEscalationOrigin));
         }
 
+        // F1: a pull whose clashes have no document names has no signatures; recording it as a
+        // complete, empty pull released every "closed in ACC" hold and re-escalated them all.
+        [Theory]
+        [InlineData(false, 0, true)]
+        [InlineData(true, 0, false)]     // truncated
+        [InlineData(false, 3, false)]    // live clashes with no key: presence unknown
+        [InlineData(true, 3, false)]
+        public void Only_an_untruncated_fully_keyed_pull_is_complete_evidence(bool truncated, int unkeyed, bool expected)
+        {
+            bool ok = AccClashPresence.IsCompleteEvidence(truncated, unkeyed, out string why);
+            Assert.Equal(expected, ok);
+            Assert.Equal(expected, why == null);
+            if (unkeyed > 0 && !truncated) Assert.Contains("no document names", why);
+        }
+
+        [Fact]
+        public void An_unkeyed_pull_is_not_recorded_so_a_held_clash_stays_held()
+        {
+            // The scenario end to end, on the Revit-free parts: a hold exists, a pull arrives
+            // with only unkeyed clashes. It is not complete evidence, so nothing is recorded
+            // and Present() still contains the held clash from the last complete pull.
+            var p = new AccClashPresence();
+            p.Record("set-1", "Arch+MEP", new[] { "held|sig" }, T0);
+            bool complete = AccClashPresence.IsCompleteEvidence(truncated: false, liveWithoutSignature: 2, out _);
+            if (complete) p.Record("set-1", "Arch+MEP", new string[0], T0.AddDays(1));
+            Assert.Contains("held|sig", p.Present());
+        }
+
         [Fact]
         public void Clash_presence_is_tri_state_and_unions_model_sets()
         {

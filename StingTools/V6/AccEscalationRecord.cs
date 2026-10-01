@@ -274,6 +274,31 @@ namespace StingTools.V6
             catch (Exception ex) { error = $"{FileName} could not be read: {ex.Message}"; return null; }
         }
 
+        /// <summary>
+        /// F1: may this pull be recorded as complete evidence of which clashes exist? Only when
+        /// it was not truncated AND every clash that could still be live has a signature. A
+        /// clash ACC gave no document names for has no key, so a pull of them proves nothing
+        /// about any held clash; recording it as an empty complete pull released every hold.
+        /// <paramref name="liveWithoutSignature"/> counts clashes not positively excluded by
+        /// status that lack a signature.
+        /// </summary>
+        public static bool IsCompleteEvidence(bool truncated, int liveWithoutSignature, out string reason)
+        {
+            reason = null;
+            if (truncated)
+            {
+                reason = "Clash pull was truncated, so it was not recorded as complete: no 'closed in ACC' hold was released.";
+                return false;
+            }
+            if (liveWithoutSignature > 0)
+            {
+                reason = $"{liveWithoutSignature} clash(es) had no document names, so this pull cannot show which clashes are gone: " +
+                         "it was not recorded as complete and no 'closed in ACC' hold was released.";
+                return false;
+            }
+            return true;
+        }
+
         /// <summary>Replace one model set's snapshot with a complete pull's active signatures.</summary>
         public void Record(string modelSetId, string modelSetName, IEnumerable<string> activeSignatures, DateTime nowUtc)
         {

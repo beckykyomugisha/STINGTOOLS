@@ -254,8 +254,14 @@ namespace StingTools.Core.Clash
             // E1: record which clashes this COMPLETE pull saw (a truncated one proves nothing is
             // gone), release holds whose clash has gone, then refuse to re-raise the rest: an
             // escalation closed or voided in ACC while the clash still exists is not new work.
+            // F1: a clash with no signature may be a held one, so its presence cannot be ruled
+            // out. Only a clash ACC positively marks excluded is known not to be live.
+            int liveWithoutSignature = scoredAll.Count(sc =>
+                !(byId.TryGetValue(sc.ClashId, out var lrec) && lrec != null && excluded.Contains((lrec.Status ?? "").Trim())) &&
+                string.IsNullOrEmpty(SignatureFor(sc, byId)));
+            bool completeEvidence = AccClashPresence.IsCompleteEvidence(clashResult.Truncated, liveWithoutSignature, out string notCompleteWhy);
             string presenceLine = RecordPresence(doc, chosen, candidates.Select(sc => SignatureFor(sc, byId)),
-                complete: !clashResult.Truncated, origins: origins);
+                complete: completeEvidence, origins: origins, notCompleteReason: notCompleteWhy);
             if (!string.IsNullOrEmpty(presenceLine)) report.AppendLine(presenceLine);
             var held = origins.HeldKeys(AccIssueImport.ClashEscalationOrigin);
             int heldStillClashing = candidates.Count(sc => held.Contains(SignatureFor(sc, byId)));
@@ -668,10 +674,11 @@ namespace StingTools.Core.Clash
         /// set. An incomplete pull records nothing and releases nothing. Returns a report line
         /// (or null). <paramref name="origins"/> is loaded here when null.</summary>
         internal static string RecordPresence(Document doc, AccModelSet set, IEnumerable<string> activeSignatures,
-            bool complete, AccIssueOrigins origins)
+            bool complete, AccIssueOrigins origins, string notCompleteReason = null)
         {
             if (!complete)
-                return "Clash pull was truncated, so it was not recorded as complete: no 'closed in ACC' hold was released.";
+                return notCompleteReason ??
+                       "Clash pull was truncated, so it was not recorded as complete: no 'closed in ACC' hold was released.";
             string path = PresencePath(doc);
             var presence = AccClashPresence.Load(path, out string err);
             if (presence == null)
