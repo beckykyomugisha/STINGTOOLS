@@ -363,12 +363,8 @@ namespace StingTools.Core.Drawing
                     var projWeight = rule.ProjectionLineWeight ?? defaults?.ProjWeight;
                     ApplyWeight(projWeight, w => ogs.SetProjectionLineWeight(w),
                         rule.FilterName, "projectionLineWeight", r);
-                    var projLp = rule.ProjectionLinePattern ?? defaults?.ProjLinePattern;
-                    if (!string.IsNullOrEmpty(projLp))
-                    {
-                        var pid = ResolveLinePattern(doc, projLp);
-                        if (pid != ElementId.InvalidElementId) ogs.SetProjectionLinePatternId(pid);
-                    }
+                    ApplyLinePattern(doc, rule.ProjectionLinePattern ?? defaults?.ProjLinePattern,
+                        id => ogs.SetProjectionLinePatternId(id), rule.FilterName, r);
 
                     // Cut line
                     var cutColor = rule.CutLineColor ?? defaults?.CutColor;
@@ -376,64 +372,25 @@ namespace StingTools.Core.Drawing
                     var cutWeight = rule.CutLineWeight ?? defaults?.CutWeight;
                     ApplyWeight(cutWeight, w => ogs.SetCutLineWeight(w),
                         rule.FilterName, "cutLineWeight", r);
-                    var cutLp = rule.CutLinePattern ?? defaults?.CutLinePattern;
-                    if (!string.IsNullOrEmpty(cutLp))
-                    {
-                        var pid = ResolveLinePattern(doc, cutLp);
-                        if (pid != ElementId.InvalidElementId) ogs.SetCutLinePatternId(pid);
-                    }
+                    ApplyLinePattern(doc, rule.CutLinePattern ?? defaults?.CutLinePattern,
+                        id => ogs.SetCutLinePatternId(id), rule.FilterName, r);
 
-                    // Surface foreground / background patterns
-                    var sfgColor = rule.SurfaceFgColor ?? defaults?.SurfFgColor;
-                    if (!string.IsNullOrEmpty(sfgColor)) ogs.SetSurfaceForegroundPatternColor(HexColor(sfgColor));
-                    var sfgPattern = rule.SurfaceFgPattern ?? defaults?.SurfFgPattern;
-                    if (!string.IsNullOrEmpty(sfgPattern))
-                    {
-                        var fid = ResolveFillPattern(doc, sfgPattern);
-                        if (fid != ElementId.InvalidElementId)
-                        {
-                            ogs.SetSurfaceForegroundPatternId(fid);
-                            SafeWrite.Try(() => ogs.SetSurfaceForegroundPatternVisible(true), "ViewStylePack.Pattern", "surface fg pattern on", r?.Warnings);
-                        }
-                    }
-                    var sbgColor = rule.SurfaceBgColor ?? defaults?.SurfBgColor;
-                    if (!string.IsNullOrEmpty(sbgColor)) ogs.SetSurfaceBackgroundPatternColor(HexColor(sbgColor));
-                    var sbgPattern = rule.SurfaceBgPattern ?? defaults?.SurfBgPattern;
-                    if (!string.IsNullOrEmpty(sbgPattern))
-                    {
-                        var fid = ResolveFillPattern(doc, sbgPattern);
-                        if (fid != ElementId.InvalidElementId)
-                        {
-                            ogs.SetSurfaceBackgroundPatternId(fid);
-                            SafeWrite.Try(() => ogs.SetSurfaceBackgroundPatternVisible(true), "ViewStylePack.Pattern", "surface bg pattern on", r?.Warnings);
-                        }
-                    }
-
-                    // Cut foreground / background patterns (fire-rated walls etc.)
-                    var cfgColor = rule.CutFgColor ?? defaults?.CutFgColor;
-                    if (!string.IsNullOrEmpty(cfgColor)) ogs.SetCutForegroundPatternColor(HexColor(cfgColor));
-                    var cfgPattern = rule.CutFgPattern ?? defaults?.CutFgPattern;
-                    if (!string.IsNullOrEmpty(cfgPattern))
-                    {
-                        var fid = ResolveFillPattern(doc, cfgPattern);
-                        if (fid != ElementId.InvalidElementId)
-                        {
-                            ogs.SetCutForegroundPatternId(fid);
-                            SafeWrite.Try(() => ogs.SetCutForegroundPatternVisible(true), "ViewStylePack.Pattern", "cut fg pattern on", r?.Warnings);
-                        }
-                    }
-                    var cbgColor = rule.CutBgColor ?? defaults?.CutBgColor;
-                    if (!string.IsNullOrEmpty(cbgColor)) ogs.SetCutBackgroundPatternColor(HexColor(cbgColor));
-                    var cbgPattern = rule.CutBgPattern ?? defaults?.CutBgPattern;
-                    if (!string.IsNullOrEmpty(cbgPattern))
-                    {
-                        var fid = ResolveFillPattern(doc, cbgPattern);
-                        if (fid != ElementId.InvalidElementId)
-                        {
-                            ogs.SetCutBackgroundPatternId(fid);
-                            SafeWrite.Try(() => ogs.SetCutBackgroundPatternVisible(true), "ViewStylePack.Pattern", "cut bg pattern on", r?.Warnings);
-                        }
-                    }
+                    // Surface / cut, foreground / background fills. DTW-165: a colour
+                    // with no pattern draws nothing in Revit, so a stated colour with
+                    // no stated pattern means solid fill; a pattern that does not
+                    // resolve is reported once per name.
+                    ApplyFill(doc, rule.SurfaceFgColor ?? defaults?.SurfFgColor, rule.SurfaceFgPattern ?? defaults?.SurfFgPattern,
+                        c => ogs.SetSurfaceForegroundPatternColor(c), id => ogs.SetSurfaceForegroundPatternId(id),
+                        () => ogs.SetSurfaceForegroundPatternVisible(true), rule.FilterName, "surface foreground", r);
+                    ApplyFill(doc, rule.SurfaceBgColor ?? defaults?.SurfBgColor, rule.SurfaceBgPattern ?? defaults?.SurfBgPattern,
+                        c => ogs.SetSurfaceBackgroundPatternColor(c), id => ogs.SetSurfaceBackgroundPatternId(id),
+                        () => ogs.SetSurfaceBackgroundPatternVisible(true), rule.FilterName, "surface background", r);
+                    ApplyFill(doc, rule.CutFgColor ?? defaults?.CutFgColor, rule.CutFgPattern ?? defaults?.CutFgPattern,
+                        c => ogs.SetCutForegroundPatternColor(c), id => ogs.SetCutForegroundPatternId(id),
+                        () => ogs.SetCutForegroundPatternVisible(true), rule.FilterName, "cut foreground", r);
+                    ApplyFill(doc, rule.CutBgColor ?? defaults?.CutBgColor, rule.CutBgPattern ?? defaults?.CutBgPattern,
+                        c => ogs.SetCutBackgroundPatternColor(c), id => ogs.SetCutBackgroundPatternId(id),
+                        () => ogs.SetCutBackgroundPatternVisible(true), rule.FilterName, "cut background", r);
 
                     // Transparency
                     var transp = rule.Transparency ?? defaults?.Transparency;
@@ -818,23 +775,65 @@ namespace StingTools.Core.Drawing
         private static ElementId ResolveLinePattern(Document doc, string name)
         {
             if (string.IsNullOrWhiteSpace(name)) return ElementId.InvalidElementId;
-            if (name.Equals("Solid", StringComparison.OrdinalIgnoreCase))
+            var trimmed = name.Trim().Trim('<', '>').Trim();
+            if (trimmed.Equals("Solid", StringComparison.OrdinalIgnoreCase))
                 return LinePatternElement.GetSolidPatternId();
             return new FilteredElementCollector(doc)
                 .OfClass(typeof(LinePatternElement))
                 .Cast<LinePatternElement>()
-                .FirstOrDefault(lp => string.Equals(lp.Name, name, StringComparison.OrdinalIgnoreCase))
+                .FirstOrDefault(lp => string.Equals(lp.Name, name.Trim(), StringComparison.OrdinalIgnoreCase))
                 ?.Id ?? ElementId.InvalidElementId;
         }
 
-        private static ElementId ResolveFillPatternId(Document doc, string name)
+        // DTW-165: pattern misses used to be skipped without a word. Each missing
+        // name is reported once per document per session — once is enough to act
+        // on, and a batch would otherwise repeat it per filter per view.
+        private static readonly HashSet<string> _patternMissReported = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private static void ReportPatternMissOnce(Document doc, string kind, string name, string subject, PackApplyResult r)
         {
-            if (string.IsNullOrWhiteSpace(name)) return ElementId.InvalidElementId;
-            return new FilteredElementCollector(doc)
-                .OfClass(typeof(FillPatternElement))
-                .Cast<FillPatternElement>()
-                .FirstOrDefault(fp => string.Equals(fp.Name, name, StringComparison.OrdinalIgnoreCase))
-                ?.Id ?? ElementId.InvalidElementId;
+            string key = (doc?.PathName ?? doc?.Title ?? "_") + "|" + kind + "|" + name;
+            lock (_patternMissReported) { if (!_patternMissReported.Add(key)) return; }
+            string hint = kind == "fill"
+                ? " Run Create Fill Patterns (STING - … patterns) or load a pattern of that name."
+                : " Load a line pattern of that name.";
+            r?.Warnings.Add($"{subject}: {kind} pattern '{name}' is not in this project — not applied (reported once).{hint}");
+            StingLog.Warn($"ViewStylePackApplier: {kind} pattern '{name}' not found ({subject}).");
+        }
+
+        /// <summary>Resolve and set a line pattern; a miss is reported once.</summary>
+        internal static void ApplyLinePattern(Document doc, string name, Action<ElementId> setter, string subject, PackApplyResult r)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return;
+            var pid = ResolveLinePattern(doc, name);
+            if (pid == ElementId.InvalidElementId) { ReportPatternMissOnce(doc, "line", name, subject, r); return; }
+            try { setter(pid); }
+            catch (Exception ex) { r?.Warnings.Add($"{subject}: line pattern '{name}' rejected by Revit ({ex.Message})."); }
+        }
+
+        /// <summary>
+        /// Set one fill slot (colour + pattern + visible). A colour with no pattern
+        /// means solid (<see cref="FillPatternNames.EffectivePattern"/>).
+        /// </summary>
+        internal static void ApplyFill(Document doc, string color, string pattern,
+            Action<Autodesk.Revit.DB.Color> setColor, Action<ElementId> setPattern, Action setVisible,
+            string subject, string slot, PackApplyResult r)
+        {
+            if (!string.IsNullOrEmpty(color))
+            {
+                try { setColor(HexColor(color)); }
+                catch (Exception ex) { r?.Warnings.Add($"{subject}: {slot} colour '{color}' rejected ({ex.Message})."); }
+            }
+            var effective = FillPatternNames.EffectivePattern(pattern, color);
+            if (string.IsNullOrEmpty(effective)) return;
+            var fid = ResolveFillPattern(doc, effective);
+            if (fid == ElementId.InvalidElementId) { ReportPatternMissOnce(doc, "fill", effective, subject, r); return; }
+            try
+            {
+                setPattern(fid);
+                SafeWrite.Try(setVisible, "ViewStylePack.Pattern", $"{slot} pattern on", r?.Warnings);
+            }
+            catch (Exception ex) { r?.Warnings.Add($"{subject}: {slot} pattern '{effective}' rejected by Revit ({ex.Message})."); }
         }
 
         private static Autodesk.Revit.DB.Color HexColor(string hex)
