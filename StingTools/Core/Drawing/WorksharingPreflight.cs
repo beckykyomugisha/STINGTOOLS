@@ -104,7 +104,7 @@ namespace StingTools.Core.Drawing
 
         /// <summary>
         /// DTW-224: the style elements producing <paramref name="dt"/> can edit — the
-        /// resolved pack's managed templates (STING:{packId}:{ViewType}) for the view types
+        /// resolved pack's managed templates (ManagedTemplateNames) for the view types
         /// the item makes or reuses, and the pack's filters that exist in the model (named
         /// filters and, DTW-227, its byMaterialClass filters). Resolved
         /// read-only; added to <paramref name="ids"/> and remembered as style elements, which
@@ -126,11 +126,10 @@ namespace StingTools.Core.Drawing
                     if (_managedTemplates == null)
                         _managedTemplates = ManagedTemplateSyncer.GetAllManagedTemplates(_doc)
                             .Select(id => (Name: _doc.GetElement(id)?.Name ?? "", Id: id)).ToList();
-                    string prefix = "STING:" + pack.Id + ":";
+                    // DT-R11-F: canonical "STING MANAGED - {pack} - {vt}" or legacy "STING:{pack}:{vt}".
                     foreach (var (name, id) in _managedTemplates)
                     {
-                        if (!name.StartsWith(prefix, StringComparison.Ordinal)) continue;
-                        string vt = name.Substring(prefix.Length);
+                        if (!ManagedTemplateNames.BelongsToPack(name, pack.Id, out var vt)) continue;
                         if (wanted != null && !wanted.Contains(vt) && !reusedViewTypes.Contains(vt)) continue;
                         if (ids.Add(id)) _styleIds.Add(id);
                     }

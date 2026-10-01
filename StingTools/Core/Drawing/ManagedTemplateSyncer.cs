@@ -2,7 +2,8 @@ using StingTools.Core;
 // StingTools — Drawing Template Manager · Phase 137
 //
 // ManagedTemplateSyncer mints (or updates) a per-pack-per-viewtype
-// view template named "STING:{packId}:{ViewType}" so that when a
+// view template named "STING MANAGED - {packId} - {ViewType}" (ManagedTemplateNames;
+// DT-R11-F — the earlier "STING:{packId}:{ViewType}" was refused by Revit) so that when a
 // ViewStylePack runs in managed mode every view assigned to the
 // template stays in sync with pack edits.
 //
@@ -220,15 +221,14 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        /// <summary>
+        /// DT-R11-F: the Revit-legal managed template name
+        /// ("STING MANAGED - {packId} - {ViewType}"). Build / parse / recognition live
+        /// in <see cref="ManagedTemplateNames"/>; the legacy "STING:…" form is still
+        /// recognised wherever a template is looked up or swept.
+        /// </summary>
         internal static string GetManagedTemplateName(string packId, ViewType vt)
-            => $"STING:{packId}:{vt}";
-
-        // GAP-O: a managed template's name is exactly STING:{packId}:{ViewType}
-        // — three colon-separated segments. Match the structure to avoid
-        // sweeping up unrelated user templates like "STING:my-favourite".
-        private static readonly System.Text.RegularExpressions.Regex _managedNameRegex
-            = new System.Text.RegularExpressions.Regex(@"^STING:[A-Za-z0-9_\-\.]+:[A-Za-z][A-Za-z0-9]+$",
-                System.Text.RegularExpressions.RegexOptions.Compiled);
+            => ManagedTemplateNames.Build(packId, vt.ToString());
 
         public static List<ElementId> GetAllManagedTemplates(Document doc)
         {
@@ -237,7 +237,7 @@ namespace StingTools.Core.Drawing
             foreach (var v in new FilteredElementCollector(doc)
                 .OfClass(typeof(View))
                 .Cast<View>()
-                .Where(v => v.IsTemplate && _managedNameRegex.IsMatch(v.Name ?? string.Empty)))
+                .Where(v => v.IsTemplate && ManagedTemplateNames.IsManagedTemplateName(v.Name)))
             {
                 // GAP-O: belt-and-braces — the stamp must also parse as a
                 // managed-pack stamp ("pack=…|cs=…" / legacy "pack:…;cs=…").
@@ -399,14 +399,38 @@ namespace StingTools.Core.Drawing
                 }
             }
 
+            if (!ManagedTemplateNames.IsValidPackId(pack.Id))
+            {
+                result.Warnings.Add(
+                    $"Style pack id '{pack.Id}' cannot name a managed view template (allowed: A-Z a-z 0-9 _ . -) — "
+                    + "no managed template minted. Rename the pack id in the project override.");
+                return ElementId.InvalidElementId;
+            }
             var templateName = GetManagedTemplateName(pack.Id, viewType);
 
-            // 2. Find existing
-            View existing = new FilteredElementCollector(doc)
-                .OfClass(typeof(View))
-                .Cast<View>()
-                .FirstOrDefault(t => t.IsTemplate &&
-                    string.Equals(t.Name, templateName, StringComparison.Ordinal));
+            // 2. Find existing — under the canonical name, or a template a model
+            // still holds under the legacy "STING:…" form (DT-R11-F). A legacy one is
+            // renamed to the canonical name so there is one identity from here on.
+            View existing = null;
+            foreach (var candidate in ManagedTemplateNames.Candidates(templateName))
+            {
+                existing = new FilteredElementCollector(doc)
+                    .OfClass(typeof(View))
+                    .Cast<View>()
+                    .FirstOrDefault(t => t.IsTemplate &&
+                        string.Equals(t.Name, candidate, StringComparison.OrdinalIgnoreCase));
+                if (existing != null) break;
+            }
+            if (existing != null && !string.Equals(existing.Name, templateName, StringComparison.Ordinal))
+            {
+                string oldName = existing.Name;
+                try { existing.Name = templateName; }
+                catch (Exception ex)
+                {
+                    StingTools.Core.StingLog.Warn(
+                        $"ManagedTemplateSyncer: managed template '{oldName}' kept its name — could not rename to '{templateName}': {ex.Message}");
+                }
+            }
 
             if (existing != null)
             {

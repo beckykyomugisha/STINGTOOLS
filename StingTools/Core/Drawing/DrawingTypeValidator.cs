@@ -1172,13 +1172,14 @@ namespace StingTools.Core.Drawing
         private static bool HasViewTemplate(Document doc, string name)
         {
             var snapVt = SnapshotFor(doc);
-            if (snapVt != null) return snapVt.ViewTemplates.Contains(name ?? "");
+            // DT-R11-F: a managed name is satisfied by its canonical or legacy form.
+            if (snapVt != null) return ManagedTemplateNames.Candidates(name).Any(c => snapVt.ViewTemplates.Contains(c));
             try
             {
                 var col = new FilteredElementCollector(doc).OfClass(typeof(View));
                 foreach (var el in col)
                     if (el is View v && v.IsTemplate
-                        && string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase))
+                        && ManagedTemplateNames.Matches(v.Name, name))
                         return true;
             }
             catch { /* ignore */ }
