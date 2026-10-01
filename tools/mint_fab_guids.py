@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Regenerate the 46 UUIDv5 GUIDs used by StingTools/Core/Fabrication/
-FabricationParamsV4.cs and StingTools/Data/Parameters/STING_PARAMS_V4.txt.
+Regenerate the UUIDv5 GUIDs of the v4 fabrication parameters in
+StingTools/Data/Parameters/STING_PARAMS_V4.txt. (FabricationParamsV4.cs holds the
+names only; its unread *_GUID copies were deleted in DSCH-46b.)
 
 All v4 fabrication / LPS / cost parameters hash their shared-parameter
 name under a single fixed namespace:
