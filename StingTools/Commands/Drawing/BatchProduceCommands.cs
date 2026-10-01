@@ -1096,22 +1096,27 @@ namespace StingTools.Commands.Drawing
             }
             if (faces.Count == 0) return "No face ticked — nothing to produce.";
 
-            // Views stamped by an earlier build or by the Setup Wizard, by their raw tag.
-            var legacy = new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>()
-                .Where(v => !v.IsTemplate && v.ViewType == ViewType.Elevation)
-                .Select(v => (View: v, Type: DrawingTypeStamper.Read(v),
-                              Tag: ParameterHelpers.GetString(v, ParamRegistry.STING_VIEW_CONTEXT_TAG) ?? ""))
-                .Where(x => ExteriorElevationTags.IsLegacy(x.Tag))
-                .ToList();
+            // Views stamped by an earlier build or by the Setup Wizard, by their raw tag;
             // DTW-80: the producer-stamped exterior views, and which views are on a sheet.
-            var elevViews = new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>()
-                .Where(v => !v.IsTemplate && v.ViewType == ViewType.Elevation)
-                .Select(v => (View: v, Type: DrawingTypeStamper.Read(v),
-                              Tag: ParameterHelpers.GetString(v, ParamRegistry.STING_VIEW_CONTEXT_TAG) ?? ""))
-                .Where(x => x.Tag.IndexOf(ExteriorElevationTags.Combined, StringComparison.Ordinal) >= 0)
-                .ToList();
-            var placed = new HashSet<long>(new FilteredElementCollector(doc).OfClass(typeof(Viewport))
-                .Cast<Viewport>().Select(vp => vp.ViewId.Value));
+            // DTW-110: re-read after every job. A job adopts legacy and per-face views
+            // (re-stamping them) and places views on sheets, so a snapshot taken once let
+            // a later job adopt a view an earlier one had already put on a sheet, or adopt
+            // a legacy view twice.
+            List<(View View, string Type, string Tag)> legacy = null, elevViews = null;
+            HashSet<long> placed = null;
+            void Snapshot()
+            {
+                var all = new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>()
+                    .Where(v => !v.IsTemplate && v.ViewType == ViewType.Elevation)
+                    .Select(v => (View: v, Type: DrawingTypeStamper.Read(v),
+                                  Tag: ParameterHelpers.GetString(v, ParamRegistry.STING_VIEW_CONTEXT_TAG) ?? ""))
+                    .ToList();
+                legacy = all.Where(x => ExteriorElevationTags.IsLegacy(x.Tag)).ToList();
+                elevViews = all.Where(x => x.Tag.IndexOf(ExteriorElevationTags.Combined, StringComparison.Ordinal) >= 0).ToList();
+                placed = new HashSet<long>(new FilteredElementCollector(doc).OfClass(typeof(Viewport))
+                    .Cast<Viewport>().Select(vp => vp.ViewId.Value));
+            }
+            Snapshot();
 
             using (var tg = new TransactionGroup(doc, "STING Exterior Elevations"))
             {
@@ -1211,6 +1216,8 @@ namespace StingTools.Commands.Drawing
                                 if (t.GetStatus() == TransactionStatus.Started) t.RollBack();
                             }
                         }
+                        try { Snapshot(); }   // DTW-110
+                        catch (Exception ex) { StingLog.Warn($"ProduceExteriorElevations snapshot after {job.Tag}: {ex.Message}"); }
                     }
                 }
                 tg.Assimilate();
