@@ -712,6 +712,21 @@ public class AccSyncService
 
             var decision = AccIssueUpdatePlan.Plan(prev, issue.Title, issue.Description, issue.Status,
                 lastStatus.TryGetValue(accId, out var st) ? st : null);
+            if (decision.Body["status"] != null)
+            {
+                // F4: the guard above used the previous sweep's read-back, which can be a sweep
+                // old (or absent). A status is only sent against ACC's status as it is NOW; if
+                // that cannot be read, the status is withheld and re-tried next sweep.
+                var (nowStatuses, nowErr) = await ReadBackStatusesAsync(http, conn, new List<string> { accId }, region, ct);
+                if (nowStatuses != null && nowStatuses.TryGetValue(accId, out var accNow))
+                    decision = AccIssueUpdatePlan.Plan(prev, issue.Title, issue.Description, issue.Status, accNow);
+                else
+                {
+                    decision = AccIssueUpdatePlan.WithoutStatus(decision, prev);
+                    failures.Add($"{issue.IssueCode} (update): status not sent - ACC's current status could not be read" +
+                                 (nowErr != null ? $" ({nowErr})" : " (ACC did not return the issue)"));
+                }
+            }
             if (decision.StatusWithheld) diverged++;
             if (decision.Body.Count == 0)
             {
@@ -1237,6 +1252,15 @@ public static class AccIssueUpdatePlan
     }
 
     public sealed record Decision(JObject Body, bool StatusWithheld, Snapshot Next);
+
+    /// <summary>F4: the same decision with its status taken out (ACC's current status is
+    /// unknown). The status stays at what was last pushed, so the next sweep tries again.</summary>
+    public static Decision WithoutStatus(Decision d, Snapshot previous)
+    {
+        var body = (JObject)d.Body.DeepClone();
+        body.Remove("status");
+        return new Decision(body, true, d.Next with { Status = previous.Status });
+    }
 
     /// <summary>
     /// E2: send only what changed in Planscape since <paramref name="previous"/> was pushed.

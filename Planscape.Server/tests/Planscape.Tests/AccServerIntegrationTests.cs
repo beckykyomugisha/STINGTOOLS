@@ -409,6 +409,75 @@ public partial class AccServerIntegrationTests
         Assert.Equal(0, r.Diverged);
     }
 
+    /// <summary>Wraps the ACC stub so every id read-back reports <paramref name="status"/>
+    /// (or fails when null).</summary>
+    private static void ReadBackAs(Handler h, string? status)
+    {
+        var inner = h.Respond;
+        h.Respond = (req, x) =>
+        {
+            var url = Uri.UnescapeDataString(req.RequestUri!.ToString());
+            if (req.Method == HttpMethod.Get && url.Contains("filter[id]="))
+            {
+                if (status == null) return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+                var ids = url.Substring(url.IndexOf("filter[id]=") + 11).Split('&')[0].Split(',');
+                var results = ids.Select(id => new { id, status }).ToArray();
+                return Json(HttpStatusCode.OK, new { pagination = new { limit = 100, offset = 0, totalResults = results.Length }, results });
+            }
+            return inner(req, x);
+        };
+    }
+
+    // F4: the status guard used the PREVIOUS sweep's read-back. ACC moving the issue since
+    // then was invisible, and the PATCH overwrote the assignee's change.
+    [Fact]
+    public async Task A_status_is_judged_against_ACC_now_not_the_last_sweep()
+    {
+        var fx = new Fx();
+        await fx.SeedAsync(openIssues: 1);
+        StubAcc(fx.Http, okPosts: 10);
+        ReadBackAs(fx.Http, "open");                        // last sweep: ACC as pushed
+        using (var db = fx.Db()) await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+        using (var db = fx.Db())
+        {
+            var i = await db.Issues.SingleAsync();
+            i.Status = "CLOSED"; i.UpdatedAt = DateTime.UtcNow.AddMinutes(5);
+            await db.SaveChangesAsync();
+        }
+        ReadBackAs(fx.Http, "in_progress");                 // ...but the assignee has started it since
+        fx.Http.Calls.Clear();
+        AccSyncService.AccSyncReport r;
+        using (var db = fx.Db()) r = await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+
+        Assert.DoesNotContain(fx.Http.Calls, c => c.Method == HttpMethod.Patch);
+        Assert.Equal(1, r.Diverged);
+    }
+
+    [Fact]
+    public async Task When_ACC_cannot_be_read_now_the_status_is_withheld_and_said()
+    {
+        var fx = new Fx();
+        await fx.SeedAsync(openIssues: 1);
+        StubAcc(fx.Http, okPosts: 10);
+        ReadBackAs(fx.Http, "open");
+        using (var db = fx.Db()) await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+        using (var db = fx.Db())
+        {
+            var i = await db.Issues.SingleAsync();
+            i.Status = "CLOSED"; i.Title = "Retitled"; i.UpdatedAt = DateTime.UtcNow.AddMinutes(5);
+            await db.SaveChangesAsync();
+        }
+        ReadBackAs(fx.Http, null);                          // the read fails
+        fx.Http.Calls.Clear();
+        AccSyncService.AccSyncReport r;
+        using (var db = fx.Db()) r = await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+
+        var body = JObject.Parse(Assert.Single(fx.Http.Calls, c => c.Method == HttpMethod.Patch).Body!);
+        Assert.Null(body["status"]);                        // never sent blind
+        Assert.Equal("Retitled", (string?)body["title"]);   // the rest still goes
+        Assert.Contains(r.Failures!, f => f.Contains("status not sent"));
+    }
+
     [Fact]
     public async Task A_legacy_mapping_gets_a_baseline_not_a_mass_patch()
     {
