@@ -116,7 +116,10 @@ namespace StingTools.Core.Drawing
             {
                 var s = ordered[i];
                 int seq = StingTools.Core.ParameterHelpers.GetInt(s, DrawingTypeStamper.PARAM_SHEET_SEQUENCE, i + 1);
-                string filename = SanitizeFilename($"{seq:D3}_{s.SheetNumber}_{s.Name}");
+                // The Export Centre's stem (ISO identifier + suitability + revision) behind
+                // the package order, so a P02 package does not overwrite P01 (DTW-139).
+                string filename = SanitizeFilename(
+                    $"{seq:D3}_{StingTools.Docs.ExportCenterEngine.DefaultSheetFileStem(doc, s)}");
                 try
                 {
                     // Shared single-sheet routine (Combine = true, produced file found and

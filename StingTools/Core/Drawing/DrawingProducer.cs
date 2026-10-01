@@ -178,8 +178,10 @@ namespace StingTools.Core.Drawing
             // DTW-108: a batch opened inside another on the same document (the Setup
             // Wizard inside an outer batch) keeps the outer batch's caches — including the
             // STACK-1 sheet claims — rather than wiping them on entry and again on exit.
+            // DTW-142: one on ANOTHER document sets the outer caches aside (they come back
+            // when it ends) instead of priming over them.
             var depth = _scopeDepth ?? (_scopeDepth = new BatchScopeDepth());
-            if (!depth.Enter(doc == null ? null : CacheDocKey(doc))) return;
+            if (!depth.Enter(doc == null ? null : CacheDocKey(doc), CaptureCaches)) return;
             ResetCachesCore();
             if (doc == null) return;
             _cacheDocKey = CacheDocKey(doc);
@@ -261,8 +263,56 @@ namespace StingTools.Core.Drawing
         public static void ResetBatchCaches()
         {
             var depth = _scopeDepth ?? (_scopeDepth = new BatchScopeDepth());
-            if (!depth.Exit()) return;
+            if (!depth.Exit(out object outer)) return;
             ResetCachesCore();
+            if (outer is CacheSnapshot snap) RestoreCaches(snap);   // DTW-142
+        }
+
+        /// <summary>DTW-142: the per-batch caches of an outer batch, set aside while a
+        /// nested batch on another document runs.</summary>
+        private sealed class CacheSnapshot
+        {
+            public Dictionary<long, string> SheetCtxClaims;
+            public Dictionary<string, ElementId> ExistingViewCache, ExistingSheetCache;
+            public BatchNameLedger ExistingViewNames, SheetNumberCache;
+            public Dictionary<string, BuiltInCategory> CategoryByName;
+            public Dictionary<string, int> PackageSheetCount;
+            public string CacheDocKey, IsoLevelMapDocKey;
+            public HashSet<long> RefreshedViews;
+            public Dictionary<string, string> IsoLevelMap;
+        }
+
+        private static object CaptureCaches() => new CacheSnapshot
+        {
+            SheetCtxClaims     = _sheetCtxClaims,
+            ExistingViewCache  = _existingViewCache,
+            ExistingViewNames  = _existingViewNames,
+            CategoryByName     = _categoryByName,
+            ExistingSheetCache = _existingSheetCache,
+            PackageSheetCount  = _packageSheetCount,
+            SheetNumberCache   = _sheetNumberCache,
+            CacheDocKey        = _cacheDocKey,
+            RefreshedViews     = _refreshedViews,
+            IsoLevelMap        = _isoLevelMap,
+            IsoLevelMapDocKey  = _isoLevelMapDocKey,
+        };
+
+        private static void RestoreCaches(CacheSnapshot s)
+        {
+            _sheetCtxClaims     = s.SheetCtxClaims;
+            _existingViewCache  = s.ExistingViewCache;
+            _existingViewNames  = s.ExistingViewNames;
+            _categoryByName     = s.CategoryByName;
+            _existingSheetCache = s.ExistingSheetCache;
+            _packageSheetCount  = s.PackageSheetCount;
+            _sheetNumberCache   = s.SheetNumberCache;
+            _cacheDocKey        = s.CacheDocKey;
+            _refreshedViews     = s.RefreshedViews;
+            _isoLevelMap        = s.IsoLevelMap;
+            _isoLevelMapDocKey  = s.IsoLevelMapDocKey;
+            // The symbol index revalidates against the document on every Apply; reopening
+            // the batch keeps it for the rest of the outer run.
+            AnnotationRunner.BeginSymbolBatch();
         }
 
         private static void ResetCachesCore()

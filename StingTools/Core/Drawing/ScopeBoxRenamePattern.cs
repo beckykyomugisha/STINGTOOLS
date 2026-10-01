@@ -71,10 +71,8 @@ namespace StingTools.Core.Drawing
                     if (!ScopeBoxNames.TryParseZone(name, out _, out var zr)) return zr;
                     break;
                 case ScopeBoxKind.Building:
-                    var loc = name.Substring(ScopeBoxNames.LocPrefix.Length).Trim();
-                    if (!ScopeBoxNames.IsValidSegment(loc))
-                        return "name has the STING-LOC:: prefix but does not match STING-LOC::<loc> "
-                             + "(one code; allowed chars: A-Z 0-9 . _ -)";
+                    // DTW-143: the LOC parser, the rule tagging and the planner read by.
+                    if (!ScopeBoxNames.TryParseLoc(name, out _, out var lr)) return lr ?? ScopeBoxNames.LocPatternReason;
                     break;
                 case ScopeBoxKind.Area:
                     return "STING-AREA:: boxes are made by the Scope Box Planner (Create boxes), which records them in its plan; a renamed box is in no plan and would never be produced from";

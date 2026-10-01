@@ -181,6 +181,8 @@ namespace StingTools.Core.Drawing
             var list = new List<Element>();
             try
             {
+                ScopeBoxPlanFile plan = null;
+                bool planLoaded = false;
                 foreach (var el in new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
                     .WhereElementIsNotElementType())
@@ -191,26 +193,60 @@ namespace StingTools.Core.Drawing
                     // every area plan inside it.
                     if (!MatchLineGeometry.IsMatchLineBox(el.Name)) continue;
 
-                    // Optional discipline filter — match against the scope-
-                    // box name prefix (e.g. arch- / struct- / mep-) which
-                    // is the convention from the Week 5 scope-box auto-binder.
+                    // Optional discipline filter. DTW-143: names are read through the
+                    // ScopeBoxNames parsers (one rule), not a Split on "::" — and area
+                    // boxes, which the Split never matched, are filtered by the
+                    // disciplines their size class lists in the saved plan.
                     if (!string.IsNullOrEmpty(disciplineFilter))
                     {
-                        var name = el.Name ?? "";
-                        if (name.IndexOf("STING::", StringComparison.OrdinalIgnoreCase) >= 0)
+                        if (!planLoaded)
                         {
-                            // Look at the drawing-type id for discipline prefix
-                            var parts = name.Split(new[] { "::" }, StringSplitOptions.None);
-                            if (parts.Length >= 2 &&
-                                !parts[1].StartsWith(disciplineFilter, StringComparison.OrdinalIgnoreCase))
-                                continue;
+                            plan = ScopeBoxPlannerService.LoadPlan(doc, out var planErr);
+                            if (planErr != null) StingLog.Warn($"CollectScopeBoxes: {planErr}");
+                            planLoaded = true;
                         }
+                        if (!PassesDisciplineFilter(el.Name, disciplineFilter, plan)) continue;
                     }
                     list.Add(el);
                 }
             }
             catch (Exception ex) { StingLog.Warn($"CollectScopeBoxes: {ex.Message}"); }
             return list;
+        }
+
+        /// <summary>
+        /// DTW-143: whether a box survives the match-line discipline filter. STING::&lt;type&gt;
+        /// boxes match on the drawing-type id's prefix (arch- / struct- / mep-, the binder
+        /// convention); a malformed STING:: name matches nothing. Area boxes match when their
+        /// size class in the saved plan lists the filter's discipline; an area box the plan
+        /// does not know is kept (nothing says which discipline it serves). Plain boxes are
+        /// not narrowed.
+        /// </summary>
+        private static bool PassesDisciplineFilter(string name, string filter, ScopeBoxPlanFile plan)
+        {
+            switch (ScopeBoxNames.Classify(name))
+            {
+                case ScopeBoxKind.DrawingType:
+                    return ScopeBoxNames.TryParseDrawingType(name, out var dtId, out _, out _, out _)
+                        && dtId.StartsWith(filter, StringComparison.OrdinalIgnoreCase);
+                case ScopeBoxKind.Area:
+                {
+                    if (!ScopeBoxNames.TryParseArea(name, out _, out _, out _)) return false;
+                    var entry = plan?.Boxes?.FirstOrDefault(b => string.Equals(b.Name?.Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase));
+                    var cls = entry == null ? null : plan.Classes?.FirstOrDefault(c => c.Key == entry.ClassKey);
+                    var types = cls?.DrawingTypes ?? new List<string>();
+                    var discs = cls?.Disciplines ?? new List<string>();
+                    if (types.Count == 0 && discs.Count == 0) return true;
+                    // Same rule as a STING:: box (type-id prefix), or the class's discipline code.
+                    string f = filter.Trim();
+                    string want = DisciplineFromTypeId(f) ?? f;
+                    return types.Any(t => t != null && t.StartsWith(f, StringComparison.OrdinalIgnoreCase))
+                        || discs.Any(d => string.Equals(d, want, StringComparison.OrdinalIgnoreCase)
+                                       || string.Equals(d, f, StringComparison.OrdinalIgnoreCase));
+                }
+                default:
+                    return true;
+            }
         }
 
         // ── Adjacency detection ──────────────────────────────────────────
@@ -888,18 +924,26 @@ namespace StingTools.Core.Drawing
         private static string ExtractDisciplineCode(string scopeBoxName)
         {
             if (string.IsNullOrEmpty(scopeBoxName)) return null;
-            // Strip the STING:: prefix if present (Week 5 binder convention).
-            var work = scopeBoxName;
-            const string p = "STING::";
-            if (work.StartsWith(p, StringComparison.OrdinalIgnoreCase))
-                work = work.Substring(p.Length);
-            // Drawing-type id starts the segment after the prefix.
-            int sep = work.IndexOf("::", StringComparison.Ordinal);
-            if (sep > 0) work = work.Substring(0, sep);
-            // Common drawing-type id prefixes: arch- / struct- / mep- /
-            // elec- / plumb- / fp- / pres- / clar- / coord- / fab- ...
-            // Map them to ISO 19650 single-letter discipline codes that
-            // the colour map expects.
+            // DTW-143: the drawing-type id comes from ScopeBoxNames' parser (one rule).
+            // Any other STING kind (area, zone, ...) carries no drawing type to read a
+            // discipline from; a plain box keeps the old reading of its whole name.
+            switch (ScopeBoxNames.Classify(scopeBoxName))
+            {
+                case ScopeBoxKind.DrawingType:
+                    return ScopeBoxNames.TryParseDrawingType(scopeBoxName, out var dtId, out _, out _, out _)
+                        ? DisciplineFromTypeId(dtId) : null;
+                case ScopeBoxKind.Plain:
+                    return DisciplineFromTypeId(scopeBoxName.Trim());
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>Common drawing-type id prefixes (arch- / struct- / mep- / elec- /
+        /// plumb- / fp- ...) mapped to the ISO 19650 discipline codes the colour map uses.</summary>
+        private static string DisciplineFromTypeId(string work)
+        {
+            if (string.IsNullOrEmpty(work)) return null;
             string lower = work.ToLowerInvariant();
             if (lower.StartsWith("arch")  || lower.StartsWith("a-")) return "A";
             if (lower.StartsWith("struct")|| lower.StartsWith("s-")) return "S";
