@@ -88,6 +88,14 @@ jobs:
       - name: No new declared-but-uncalled member (wide scope)
         run: python3 tools/validate_declared_but_uncalled.py --wide
 
+      # DSCH-46b: instance methods and unread const / static readonly fields, each
+      # under its own ratchet (the 253 + 62 unread *_GUID constants were this shape).
+      - name: No new declared-but-uncalled instance method
+        run: python3 tools/validate_declared_but_uncalled.py --instance
+
+      - name: No new declared-but-unread field
+        run: python3 tools/validate_declared_but_uncalled.py --fields
+
       # DSCH-27: test-oracle markers are verified, not trusted; prove the check fires.
       - name: Declared-but-uncalled marker check can fail
         run: python3 tools/validate_declared_but_uncalled.py --self-test

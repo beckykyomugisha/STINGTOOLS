@@ -364,6 +364,7 @@ namespace StingTools.Core.Plumbing
     {
         private readonly HashSet<(int Row, int Col)> _taken = new HashSet<(int, int)>();
 
+        // D1: test-oracle - StingTools.Tags.Tests/SchematicLayoutMathTests.cs
         public bool IsOccupied(int row, int col) => _taken.Contains((row, col));
 
         public int Claim(int row, int preferredCol)

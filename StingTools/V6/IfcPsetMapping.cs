@@ -70,6 +70,7 @@ namespace StingTools.V6
             return false;
         }
 
+        // D1: test-oracle - StingTools.Tags.Tests/IfcPsetMappingTests.cs
         /// <summary>Import: the STING value for an IFC value (the inverse of the
         /// value_map). An IFC value the map does not list (e.g. OTHER / NOTKNOWN /
         /// UNSET for Status) returns false with a reason.</summary>
