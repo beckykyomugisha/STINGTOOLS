@@ -7,17 +7,17 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 
 ## Resume here
 
-1. Merge the running fix branches one at a time into `fix/drawing-review`, re-running build,
-   tests and `tools/run_ci_gates.py --quick` after each: `fix/dt-qa` (DTW-2..19),
-   `fix/dt-producers` (DTW-20..31, 40..54), `fix/dt-ui` (DTW-32..38), `fix/dt-bindings`
-   (DTW-55..59).
-2. After `fix/dt-qa` merges, fix the queued JSON items DTW-60..62 and 65..72 on
-   `STING_DRAWING_TYPES.json` (re-stamp checksums). After `fix/dt-producers` merges, fix
-   DTW-63. Then update guide §C7 with the preset params from `fix/review-headless`
-   (params table in its commit 20f2782c6) once `fix/dt-ui` has merged, since it edits the
-   guide.
-3. PR #1021 is open (draft). When all branches are merged and CI is green: mark it ready, merge it, and redeploy. The live plugin is `C:\Dev\STING_KUT_LIVE`, owned by
-   the ACC session: merge `main` into `claude/kut-combined-acc-tags`, or ask that session to.
+1. Merge `fix/dt-review4` (DTW-103, 105..108, 110) into `fix/drawing-review` when its agent
+   reports. Then re-run build, tests, `tools/run_ci_gates.py --quick` and the checksum check,
+   update this file and ROADMAP, and push. PR #1021 is a draft.
+2. Next research pass, round 5. Not yet reviewed in depth: placement (`Core/Placement/**`), the
+   plumbing schematic code merged this loop, `MergeRecoveryStubs` filter indexes,
+   `PresetStepInputs`, and linked-level handling in `DrawingProducer`. Then edge cases:
+   multi-building, re-runs after model edits, and both sheet-number policies end to end.
+3. When nothing high or medium is open: mark PR #1021 ready, merge it once CI is green, and
+   redeploy. The live plugin is `C:\Dev\STING_KUT_LIVE`, owned by the ACC session on
+   `claude/kut-combined-acc-tags`: merge `main` into that branch, or ask that session to, and
+   run its `deploy.bat`. Never deploy a build without its work.
 
 ## State (2026-10-01)
 
@@ -152,18 +152,18 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-96 | DocAutomationExtCommands.cs:478 | Low | BatchCreateSheets / DocumentationPackage bypass SheetNumbering and the policy; unstamped | Merged (fix/dt-batchsheets) | Done |
 | DTW-97 | DrawingProducer apply options | Low | Type far clip never applied (opt-in had no caller) | Wired on new views without CustomBounds | Done |
 | DTW-98 | DrawingProducer placement | Low | STING_AUTO_PLACED_BOOL writes to viewports never land | Extensible Storage via MarkAutoPlaced | Done |
-| DTW-99 | WORKFLOW_MEPDrawingProduction / per-level producer | Med | no_production_boxes suppresses all per-level MEP plans when any STING:: box exists; should skip only covered (type, level) pairs | fix/dt-followups2 (+ review: count only parsed MEP-bound boxes; Failed not Cancelled / composer null guard) | In progress |
-| DTW-100 | ShopDrawingComposer | Low-Med | ISO spool {lvl} from ASS_LVL_COD_TXT, not the producer's ISO level code | fix/dt-followups2 (+ review: count only parsed MEP-bound boxes; Failed not Cancelled / composer null guard) | In progress |
-| DTW-101 | ElementDimensioner.RunColumnToGrid | Low-Med | Column-to-grid uses host grids only | fix/dt-followups2 | In progress |
+| DTW-99 | WORKFLOW_MEPDrawingProduction / per-level producer | Med | no_production_boxes suppresses all per-level MEP plans when any STING:: box exists; should skip only covered (type, level) pairs | Merged | Done |
+| DTW-100 | ShopDrawingComposer | Low-Med | ISO spool {lvl} from ASS_LVL_COD_TXT, not the producer's ISO level code | Merged | Done |
+| DTW-101 | ElementDimensioner.RunColumnToGrid | Low-Med | Column-to-grid uses host grids only | Merged | Done |
 | DTW-102 | AnnotationRunner MEP dimension passes | Low | Linked MEP runs are reported, not dimensioned | Accepted limit: dimensioning through a link needs link references on pipe geometry, unverified off-Revit | Open |
-| DTW-103 | DrawingProducer.FindExistingSheet ~1314/1340 | Med | Legacy name-only sheet stamp accepted with no level check (the view lookup has one), so after a level rename and reuse the new plan lands on the old level's sheet | Queued after fix/dt-followups2 | Queued |
-| DTW-104 | SheetPlacementBridge.ResolveDrawableForFamily ~357 | Med | A failed title-block spec load is cached for the session | Queued | Queued |
-| DTW-105 | DrawingProducer.BuildIsoLevelMap ~2377 | Low-Med | ISO sheet level ignores project-declared level codes (spatial_codes.json), unlike tags, boxes and project-pattern sheets | Queued | Queued |
-| DTW-106 | ProjectSetupCommand ~1850 vs BatchProduceCommands ~849 | Low | Wizard grid sections carry no package id, so a second, empty sheet is minted when DOCS uses a package | Queued | Queued |
-| DTW-107 | BatchProduceCommands ~666 | Low | Unguarded RollBack in a catch can abort the whole TransactionGroup | Queued after fix/dt-followups2 | Queued |
-| DTW-108 | DrawingProducer PrimeBatchScope ~156/231 | Low | A nested scope resets the outer batch's caches, including the sheet-claim table | Queued | Queued |
-| DTW-109 | PanelDoorDiagramCommand ~225 | Low | Drafting view named by board name; a rename orphans the old view | Queued | Queued |
-| DTW-110 | BatchProduceCommands ~991-1004 | Low | Exterior job loop uses placed/legacy snapshots taken once | Queued after fix/dt-followups2 | Queued |
+| DTW-103 | DrawingProducer.FindExistingSheet ~1314/1340 | Med | Legacy name-only sheet stamp accepted with no level check (the view lookup has one), so after a level rename and reuse the new plan lands on the old level's sheet | fix/dt-review4 | In progress |
+| DTW-104 | SheetPlacementBridge.ResolveDrawableForFamily ~357 | Med | A failed title-block spec load is cached for the session | Merged | Done |
+| DTW-105 | DrawingProducer.BuildIsoLevelMap ~2377 | Low-Med | ISO sheet level ignores project-declared level codes (spatial_codes.json), unlike tags, boxes and project-pattern sheets | fix/dt-review4 | In progress |
+| DTW-106 | ProjectSetupCommand ~1850 vs BatchProduceCommands ~849 | Low | Wizard grid sections carry no package id, so a second, empty sheet is minted when DOCS uses a package | fix/dt-review4 | In progress |
+| DTW-107 | BatchProduceCommands ~666 | Low | Unguarded RollBack in a catch can abort the whole TransactionGroup | fix/dt-review4 | In progress |
+| DTW-108 | DrawingProducer PrimeBatchScope ~156/231 | Low | A nested scope resets the outer batch's caches, including the sheet-claim table | fix/dt-review4 | In progress |
+| DTW-109 | PanelDoorDiagramCommand ~225 | Low | Drafting view named by board name; a rename orphans the old view | Merged | Done |
+| DTW-110 | BatchProduceCommands ~991-1004 | Low | Exterior job loop uses placed/legacy snapshots taken once | fix/dt-review4 | In progress |
 
 ## Decisions
 

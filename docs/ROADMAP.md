@@ -11,10 +11,13 @@ still open. Rows leave this table when their fix is merged; the worklog keeps th
 | Id | Gap | Evidence | Fix |
 |---|---|---|---|
 | DTW-82 | Nothing merged in this loop has been run in Revit | Worklog "NEEDS REVIT CHECK" | Run the listed checks. Whether Revit accepts shared parameters on Lines (DTW-56) decides whether match-line keys move to Extensible Storage |
-| DTW-99 | no_production_boxes suppresses all per-level MEP plans when any STING:: box exists; should skip only covered (type, level) pairs | `WORKFLOW_MEPDrawingProduction / per-level producer` | fix/dt-followups2 |
-| DTW-100 | ISO spool {lvl} from ASS_LVL_COD_TXT, not the producer's ISO level code | `ShopDrawingComposer` | fix/dt-followups2 |
-| DTW-101 | Column-to-grid uses host grids only | `ElementDimensioner.RunColumnToGrid` | fix/dt-followups2 |
 | DTW-102 | Linked MEP runs are reported, not dimensioned | `AnnotationRunner MEP dimension passes` | Accepted limit: dimensioning through a link needs link references on pipe geometry, unverified off-Revit |
+| DTW-103 | Legacy sheet stamp matched with no level check | Code review of the loop's merged work | In progress (`fix/dt-review4`) |
+| DTW-105 | ISO sheet level ignores declared project level codes | Code review of the loop's merged work | In progress (`fix/dt-review4`) |
+| DTW-106 | Package difference mints a second, empty sheet for a reused view | Code review of the loop's merged work | In progress (`fix/dt-review4`) |
+| DTW-107 | Unguarded RollBack can abort a whole scope-box run | Code review of the loop's merged work | In progress (`fix/dt-review4`) |
+| DTW-108 | Nested batch scope resets the outer batch's caches | Code review of the loop's merged work | In progress (`fix/dt-review4`) |
+| DTW-110 | Exterior job loop uses stale placed/adopted snapshots | Code review of the loop's merged work | In progress (`fix/dt-review4`) |
 
 ## Tag family library — missing families (2026-09-30)
 
