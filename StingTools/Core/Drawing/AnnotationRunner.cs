@@ -682,39 +682,17 @@ namespace StingTools.Core.Drawing
                 .WhereElementIsNotElementType()
                 .Cast<Grid>()
                 .ToList();
-            if (grids.Count < 2) return;
 
-            // A-4: split by orientation. Every grid used to go into ONE
-            // ReferenceArray with a dimension line running between the end
-            // points of the first and last grid in COLLECTOR order — arbitrary
-            // in both direction and position. A dimension can only measure
-            // mutually parallel references, so on any project with orthogonal
-            // grids (i.e. essentially all of them) NewDimension threw and the
-            // per-view catch swallowed it: grid auto-dimensioning never once
-            // succeeded on a real model.
-            //
-            // Each parallel set now gets its own chain, on a line PERPENDICULAR
-            // to that set — which is the only orientation that can measure the
-            // spacing between them — placed just outside the grid extent.
-            var eastWest = new List<Grid>();   // run along X; spaced along Y
-            var northSouth = new List<Grid>(); // run along Y; spaced along X
-            double zPlane = 0; bool haveZ = false;
-            double xMin = double.MaxValue, xMax = double.MinValue;
-            double yMin = double.MaxValue, yMax = double.MinValue;
-
+            var lines = new List<(Line Line, Reference Ref)>();
+            int arcs = 0;
             foreach (var g in grids)
             {
-                var line = g.Curve as Line;
-                if (line == null) continue;    // arc grids cannot join a linear chain
-                var d = line.Direction;
-                var a = line.GetEndPoint(0);
-                var b = line.GetEndPoint(1);
-                if (!haveZ) { zPlane = a.Z; haveZ = true; }
-                xMin = Math.Min(xMin, Math.Min(a.X, b.X)); xMax = Math.Max(xMax, Math.Max(a.X, b.X));
-                yMin = Math.Min(yMin, Math.Min(a.Y, b.Y)); yMax = Math.Max(yMax, Math.Max(a.Y, b.Y));
-                if (RunsEastWest(d.X, d.Y)) eastWest.Add(g); else northSouth.Add(g);
+                if (!(g.Curve is Line line)) { arcs++; continue; }   // arc grids cannot join a linear chain
+                lines.Add((line, new Reference(g)));
             }
-            if (!haveZ) return;
+            if (arcs > 0 && lines.Count >= 2)
+                stats.Warnings.Add($"Grid dim: {arcs} arc grid(s) cannot join a linear chain — left out.");
+            if (lines.Count < 2) return;
 
             // B1: honour the pack's dimensionStrategy. This was a declared
             // rule-pack field with no consumer — GridDimensioner read it but
@@ -733,89 +711,56 @@ namespace StingTools.Core.Drawing
             if (dimStyleId == ElementId.InvalidElementId)
                 dimStyleId = ResolveDimensionStyleId(doc, pack.DimensionStyle);
 
-            double marginFt = 10.0;   // ~3 m clear of the grid extent
-
-            // East-west grids are stacked along Y, so their chain runs along Y,
-            // offset beyond the eastern extent.
-            PlaceGridChain(doc, view, eastWest, dimStyleId, stats, "east-west",
-                positionOf: g => ((Line)g.Curve).Origin.Y,
-                pointAt: (pos, off) => new XYZ(xMax + off, pos, zPlane),
-                marginFt: marginFt);
-
-            // North-south grids are stacked along X, so their chain runs along
-            // X, offset beyond the northern extent.
-            PlaceGridChain(doc, view, northSouth, dimStyleId, stats, "north-south",
-                positionOf: g => ((Line)g.Curve).Origin.X,
-                pointAt: (pos, off) => new XYZ(pos, yMax + off, zPlane),
-                marginFt: marginFt);
+            PlaceGridChains(doc, view, lines, dimStyleId, stats);
         }
 
         /// <summary>
-        /// Orientation test for a grid line: true when the curve runs
-        /// predominantly along model X (an "east-west" grid on plan), which
-        /// means the set is spaced along Y and must be dimensioned by a chain
-        /// running along Y.
-        /// Revit-free so the classification is testable; ties (|dx| == |dy|,
-        /// a 45-degree grid) resolve to east-west deterministically rather
-        /// than by collector order.
+        /// One chain per set of parallel grids. A-4 split the grids by world axis
+        /// (a dimension can only measure mutually parallel references); DTW-86
+        /// groups them by their own direction instead, measures each grid ACROSS
+        /// its set (dot with the set's normal) and runs the line along that normal
+        /// — so a rotated building is dimensioned rather than reported as
+        /// "coincident" from equal world-Y origins. Geometry: GridChainGeometry.
         /// </summary>
-        internal static bool RunsEastWest(double dirX, double dirY)
-            => Math.Abs(dirX) >= Math.Abs(dirY);
-
-        /// <summary>
-        /// Span of a parallel grid set along its spacing axis, widened by a
-        /// margin. Returns false when there are fewer than two DISTINCT
-        /// positions — coincident grids cannot be dimensioned and produced a
-        /// zero-length dimension line.
-        /// Revit-free so the degenerate cases are testable.
-        /// </summary>
-        internal static bool TryGridSpan(IReadOnlyList<double> positions, double marginFt,
-            out double lo, out double hi)
+        private static void PlaceGridChains(Document doc, View view, List<(Line Line, Reference Ref)> lines,
+            ElementId dimStyleId, AnnotationRunStats stats)
         {
-            lo = hi = 0;
-            if (positions == null || positions.Count < 2) return false;
-            double mn = double.MaxValue, mx = double.MinValue;
-            foreach (var p in positions) { if (p < mn) mn = p; if (p > mx) mx = p; }
-            if (mx - mn < 1e-6) return false;
-            lo = mn - marginFt;
-            hi = mx + marginFt;
-            return true;
-        }
-
-        private static void PlaceGridChain(Document doc, View view, List<Grid> set,
-            ElementId dimStyleId, AnnotationRunStats stats, string label,
-            Func<Grid, double> positionOf, Func<double, double, XYZ> pointAt, double marginFt)
-        {
-            if (set == null || set.Count < 2) return;
-            try
+            const double marginFt = 10.0;   // ~3 m clear of the grid extent
+            double zPlane = lines[0].Line.GetEndPoint(0).Z;
+            var segs = lines.Select((t, i) =>
             {
-                var positions = set.Select(positionOf).ToList();
-                if (!TryGridSpan(positions, marginFt, out double lo, out double hi))
-                {
-                    stats.Warnings.Add($"Grid dim ({label}): grids are coincident — no chain placed.");
-                    return;
-                }
+                var a = t.Line.GetEndPoint(0); var b = t.Line.GetEndPoint(1);
+                return new GridSeg(i, a.X, a.Y, b.X, b.Y);
+            }).ToList();
 
-                var refs = new ReferenceArray();
-                foreach (var g in set)
+            foreach (var plan in GridChainGeometry.Plan(segs, marginFt))
+            {
+                if (!plan.Placeable)
                 {
-                    try { refs.Append(new Reference(g)); }
-                    catch (Exception ex) { StingLog.Warn($"Grid ref {g.Id}: {ex.Message}"); }
+                    if (plan.Reason == "grids are coincident")
+                        stats.Warnings.Add($"Grid dim ({plan.Label}): grids are coincident — no chain placed.");
+                    continue;
                 }
-                if (refs.Size < 2) return;
+                try
+                {
+                    var refs = new ReferenceArray();
+                    foreach (int i in plan.Members) refs.Append(lines[i].Ref);
+                    if (refs.Size < 2) continue;
 
-                var dimLine = Line.CreateBound(pointAt(lo, marginFt), pointAt(hi, marginFt));
-                var dim = (dimStyleId == null || dimStyleId == ElementId.InvalidElementId)
-                    ? doc.Create.NewDimension(view, dimLine, refs)
-                    : doc.Create.NewDimension(view, dimLine, refs, (DimensionType)doc.GetElement(dimStyleId));
-                if (dim != null)
-                {
-                    stats.DimsCreated++;
-                    Storage.StingAnnotationProvenanceSchema.Stamp(dim, AnnotationProvenance.DimGridChain,
-                        AnnotationProvenance.Key(view.UniqueId, label));
+                    var dimLine = Line.CreateBound(new XYZ(plan.LineX0, plan.LineY0, zPlane),
+                                                   new XYZ(plan.LineX1, plan.LineY1, zPlane));
+                    var dim = (dimStyleId == null || dimStyleId == ElementId.InvalidElementId)
+                        ? doc.Create.NewDimension(view, dimLine, refs)
+                        : doc.Create.NewDimension(view, dimLine, refs, (DimensionType)doc.GetElement(dimStyleId));
+                    if (dim != null)
+                    {
+                        stats.DimsCreated++;
+                        Storage.StingAnnotationProvenanceSchema.Stamp(dim, AnnotationProvenance.DimGridChain,
+                            AnnotationProvenance.Key(view.UniqueId, plan.Label));
+                    }
                 }
+                catch (Exception ex) { stats.Warnings.Add($"Grid dim ({plan.Label}): {ex.Message}"); }
             }
-            catch (Exception ex) { stats.Warnings.Add($"Grid dim ({label}): {ex.Message}"); }
         }
 
         /// <summary>
