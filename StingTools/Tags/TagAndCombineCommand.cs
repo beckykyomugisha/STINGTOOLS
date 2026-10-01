@@ -198,12 +198,18 @@ namespace StingTools.Tags
                         totalProcessed++;
 
                         // Full pipeline: populate → map → formulas → tag → containers → TAG7 → grid.
-                        // Collision mode defaults to AutoIncrement but respects the project-level
-                        // DEFAULT_COLLISION_MODE key in project_config.json.
+                        // No dialog asks the user for a collision mode here, so it resolves per
+                        // element (TAGACC-25): DISCIPLINE_PROFILES[DISC].CollisionMode, else the
+                        // project-wide DEFAULT_COLLISION_MODE, else AutoIncrement. DISC is the
+                        // element's stored token, else the one its category maps to.
+                        string elDisc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                        if (string.IsNullOrWhiteSpace(elDisc))
+                            elDisc = TagConfig.DiscMap != null && TagConfig.DiscMap.TryGetValue(catName, out string catDisc)
+                                ? catDisc : null;
                         bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
                             tagIndex, seqCounters, formulas, gridLines,
                             overwrite: true, skipComplete: false,
-                            collisionMode: TagConfig.DefaultCollisionMode, stats: stats);
+                            collisionMode: TagConfig.ResolveCollisionMode(null, elDisc), stats: stats);
                         if (!pipelineOk) errors++;
                     }
                     catch (Exception ex)
