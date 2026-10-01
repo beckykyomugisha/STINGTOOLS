@@ -65,6 +65,7 @@
     <Compile Include="..\StingTools\Core\UnitValueText.cs" Link="Core\UnitValueText.cs" />
     <Compile Include="..\StingTools\Core\CoordLogFormat.cs" Link="Core\CoordLogFormat.cs" />
     <Compile Include="..\StingTools\Core\ConfigFileMerge.cs" Link="Core\ConfigFileMerge.cs" />
+    <Compile Include="..\StingTools\Core\ProximityRule.cs" Link="Core\ProximityRule.cs" />
     <!-- Why a family refuses to load into a project. Revit-free half only: the
          collectors that read a FamilyManager and a Document live in
          Tags/SharedParamPreflight.cs. The comparison is here because every

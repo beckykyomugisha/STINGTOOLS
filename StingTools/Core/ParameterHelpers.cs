@@ -3393,16 +3393,13 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"BuildSpatialCandidateCache: {ex.Message}"); }
         }
 
-        /// <summary>TAGACC-11: vertical tolerance for "same floor" when either element has no level (about 1.5 m).</summary>
-        private const double SameFloorToleranceFt = 5.0;
 
         /// <summary>
         /// TAGACC-11: true when every value <paramref name="tokens"/> would copy from
-        /// <paramref name="neighbour"/> was derived for it rather than defaulted. LOC must
-        /// not come from "Default", "ProjectInfo" or "Proximity"; ZONE not from "Default" or
-        /// "Proximity"; SYS / FUNC not from the category or discipline fallback (detection
-        /// layer 6 or 7). An element tagged before sources were recorded (blank source,
-        /// layer 0) is accepted, as before.
+        /// <paramref name="neighbour"/> was derived for it rather than defaulted. The rules
+        /// are <see cref="ProximityRule"/> (TAGACC-21): LOC / ZONE only from a High-band
+        /// source of <see cref="TokenConfidenceBands"/>, SYS / FUNC not from detection layer
+        /// 6 or 7; a blank source or layer 0 (tagged before sources were recorded) is accepted.
         /// </summary>
         private static bool NeighbourValuesAreDerived(Element neighbour, string[] tokens)
         {
@@ -3411,17 +3408,17 @@ namespace StingTools.Core
                 if (t == ParamRegistry.LOC)
                 {
                     string src = ParameterHelpers.GetString(neighbour, ParamRegistry.LOC_SOURCE);
-                    if (src == "Default" || src == "ProjectInfo" || src == "Proximity") return false;
+                    if (!ProximityRule.LocIsCopyable(src)) return false;
                 }
                 else if (t == ParamRegistry.ZONE)
                 {
                     string src = ParameterHelpers.GetString(neighbour, ParamRegistry.ZONE_SOURCE);
-                    if (src == "Default" || src == "Proximity") return false;
+                    if (!ProximityRule.ZoneIsCopyable(src)) return false;
                 }
                 else if (t == ParamRegistry.SYS || t == ParamRegistry.FUNC)
                 {
                     int layer = ParameterHelpers.GetInt(neighbour, ParamRegistry.SYS_DETECT_LAYER, 0);
-                    if (layer >= 6) return false;
+                    if (!ProximityRule.SysIsCopyable(layer)) return false;
                 }
             }
             return true;
@@ -3477,8 +3474,9 @@ namespace StingTools.Core
                     if (cand == null) return false;
                     ElementId cl = cand.LevelId;
                     bool cHasLevel = cl != null && cl != ElementId.InvalidElementId;
-                    if (elHasLevel && cHasLevel) { if (cl != elLevel) return false; }
-                    else if (Math.Abs(cPoint.Z - point.Z) > SameFloorToleranceFt) return false;
+                    if (!ProximityRule.SameFloor(elHasLevel ? elLevel.Value : 0,
+                                                 cHasLevel ? cl.Value : 0,
+                                                 cPoint.Z - point.Z)) return false;
                     return NeighbourValuesAreDerived(cand, tokensToCopy);
                 }
 
