@@ -169,9 +169,10 @@ namespace StingTools.Commands.TagStudio
             string[] wanted = { ParamRegistry.GATE_DATA_STATUS, ParamRegistry.GATE_QA_STATUS,
                                 ParamRegistry.GATE_DATA_MSG, ParamRegistry.GATE_QA_MSG };
             var defs = new List<ExternalDefinition>();
+            var defIndex = StingTools.Tags.SharedParamDefinitionIndex.Build(defFile);
             foreach (string name in wanted)
             {
-                var ext = FindSharedDefinition(defFile, name);
+                var ext = StingTools.Tags.SharedParamDefinitionIndex.Find(defIndex, name);
                 if (ext != null) defs.Add(ext);
                 else StingLog.Warn($"EnsureGateParamsBound: '{name}' not in MR_PARAMETERS.txt");
             }
@@ -201,13 +202,5 @@ namespace StingTools.Commands.TagStudio
             }
         }
 
-        private static ExternalDefinition FindSharedDefinition(DefinitionFile defFile, string name)
-        {
-            if (defFile == null || string.IsNullOrEmpty(name)) return null;
-            foreach (DefinitionGroup g in defFile.Groups)
-                foreach (Definition d in g.Definitions)
-                    if (d.Name == name && d is ExternalDefinition ext) return ext;
-            return null;
-        }
     }
 }
