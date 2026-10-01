@@ -26,6 +26,20 @@ CALLERS, which is the question that actually matters.
   python3 tools/validate_declared_but_uncalled.py            # gate against baseline
   python3 tools/validate_declared_but_uncalled.py --report   # full listing
   python3 tools/validate_declared_but_uncalled.py --write-baseline
+  python3 tools/validate_declared_but_uncalled.py --self-test   # prove the marker check fires
+
+TEST ORACLES (DSCH-27)
+----------------------
+Some predicates exist so a test can hold shipped data to a rule (IsGeneric,
+IsRequested, IsCanonical ...). Production never calls them, by design. Mark one
+in the comment block directly above its declaration (above a /// doc is fine):
+
+    // D1: test-oracle - StingTools.Tags.Tests/ProdResolverSourceTotalityTests.cs
+
+The marker is checked, not trusted: the named test file must exist and call the
+member, and the member must still have no production caller. A stale marker
+fails the gate. Counting test projects as callers instead would hide predicates
+that are tested but never used by the product - the defect this gate exists for.
 
 RATCHET, like the readership gate: the count may fall, never rise.
 """
@@ -68,10 +82,88 @@ def cs_files(root):
                 yield os.path.join(dirpath, fn)
 
 
+# A reviewed exemption: "// D1: test-oracle - <repo-relative test file>".
+MARKER = re.compile(r'^\s*//\s*D1:\s*test-oracle\s*[-–—]+\s*(?P<file>\S+\.cs)\s*$')
+
+
+def marker_above(lines, idx):
+    """The test file named by a D1 marker in the comment / attribute block directly
+    above line index idx (0-based), or None."""
+    j = idx - 1
+    while j >= 0:
+        m = MARKER.match(lines[j])
+        if m:
+            return m.group("file")
+        s = lines[j].strip()
+        if s.startswith("//") or s.startswith("["):
+            j -= 1
+            continue
+        return None
+    return None
+
+
+def check_marker(name, is_meth, test_rel, prod_callers, read_text):
+    """None when the marker is valid, else why it is stale."""
+    if prod_callers > 0:
+        return f"has {prod_callers} production caller(s) - remove the marker"
+    text = read_text(test_rel)
+    if text is None:
+        return f"names {test_rel}, which does not exist"
+    pat = re.compile(r'\b' + re.escape(name) + (r'\s*\(' if is_meth else r'\b'))
+    code = "\n".join(l for l in text.splitlines() if not l.lstrip().startswith("//"))
+    if not pat.search(code):
+        return f"names {test_rel}, which does not use it"
+    return None
+
+
+def _read_repo(rel):
+    try:
+        with open(os.path.join(REPO, rel), encoding="utf-8", errors="replace") as fh:
+            return fh.read()
+    except OSError:
+        return None
+
+
+def self_test():
+    """Prove the marker check can fail - a gate that cannot fail reports green forever."""
+    files = {
+        "T/OracleTests.cs": 'class X { void T() { Assert.True(Foo.IsThing("a")); } }',
+        "T/Other.cs": "// Foo.IsThing(\"a\") mentioned only in a comment\nclass Y { }",
+    }
+    rd = files.get
+    decl = ["    // D1: test-oracle - T/OracleTests.cs\n",
+            "    /// <summary>doc</summary>\n",
+            "    public static bool IsThing(string s) => true;\n"]
+    failures = []
+    if marker_above(decl, 2) != "T/OracleTests.cs":
+        failures.append("a marker above a /// doc block was not found")
+    if marker_above(["    int x;\n", decl[2]], 1) is not None:
+        failures.append("a marker was found where there is none")
+    if check_marker("IsThing", True, "T/OracleTests.cs", 0, rd) is not None:
+        failures.append("a valid marker was rejected")
+    if check_marker("IsThing", True, "T/Missing.cs", 0, rd) is None:
+        failures.append("a marker naming a missing test file was accepted")
+    if check_marker("IsThing", True, "T/Other.cs", 0, rd) is None:
+        failures.append("a marker naming a test that only mentions it in a comment was accepted")
+    if check_marker("IsThing", True, "T/OracleTests.cs", 2, rd) is None:
+        failures.append("a marker on a member with production callers was accepted")
+    if failures:
+        print("SELF-TEST FAILED:")
+        for f in failures:
+            print("  [FAIL] " + f)
+        return 1
+    print("OK - self-test: all 6 marker cases behave")
+    return 0
+
+
 def main():
+    if "--self-test" in sys.argv:
+        return self_test()
+
     # 1. Collect candidate declarations in Core.
     declared = {}   # name -> (relpath, lineno)
     is_method = {}  # name -> True for a method, False for a property/field
+    markers = {}    # name -> test file named by a D1 test-oracle marker
     for full in cs_files(CORE):
         rel = os.path.relpath(full, REPO).replace("\\", "/")
         try:
@@ -87,6 +179,9 @@ def main():
                 continue
             declared[name] = (rel, i)
             is_method[name] = m.group("kind") == "("
+            test_rel = marker_above(lines, i - 1)
+            if test_rel:
+                markers[name] = test_rel
 
     # 2. Count uses across the WHOLE plugin in ONE tokenised pass (DSCH-12). The
     #    old loop ran every declaration's regex over every line - ~3e8 searches,
@@ -114,15 +209,34 @@ def main():
                 seen.add(name)
                 callers[name] += 1
 
-    uncalled = sorted(n for n in declared if callers[n] == 0)
+    # 3. Reviewed test oracles leave the count only while the marker is still true.
+    stale, oracles = [], set()
+    for name, test_rel in sorted(markers.items()):
+        why = check_marker(name, is_method[name], test_rel, callers[name], _read_repo)
+        if why:
+            stale.append((name, why))
+        else:
+            oracles.add(name)
+
+    uncalled = sorted(n for n in declared if callers[n] == 0 and n not in oracles)
 
     print("=" * 72)
     print("Declared-but-uncalled gate (D.1)")
     print("=" * 72)
     print(f"  public static map/predicate declarations in Core : {len(declared)}")
     print(f"  with ZERO callers anywhere in the plugin         : {len(uncalled)}")
+    print(f"  reviewed test oracles (D1 marker, verified)      : {len(oracles)}")
+    if stale:
+        print("\nFAIL: stale D1 test-oracle marker(s):")
+        for name, why in stale:
+            rel, ln = declared[name]
+            print(f"  {name:34} {rel}:{ln} - {why}")
+        return 1
 
     if "--report" in sys.argv:
+        for n in sorted(oracles):
+            rel, ln = declared[n]
+            print(f"  oracle: {n:34} {rel}:{ln} <- {markers[n]}")
         print("\n--- UNCALLED ---")
         for n in uncalled:
             rel, ln = declared[n]

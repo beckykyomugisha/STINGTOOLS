@@ -76,6 +76,7 @@ namespace StingTools.Core.Drawing
             return LinkedPrefix + linkInstanceUniqueId + LinkedSep + linkedElementUniqueId;
         }
 
+        // D1: test-oracle - StingTools.Tags.Tests/AnnotationProvenanceTests.cs
         /// <summary>True when <paramref name="host"/> was built by <see cref="LinkedHost"/>.</summary>
         public static bool IsLinkedHost(string host) => TryParseLinkedHost(host, out _, out _);
 

@@ -58,6 +58,7 @@ namespace StingTools.Core
             return false;
         }
 
+        // D1: test-oracle - StingTools.Tags.Tests/TagTokenIntegrityTests.cs
         /// <summary>Strict/compliance reading: unknown OR assumed.</summary>
         public static bool HasPlaceholderOrAssumed(string tag, string separator)
             => HasStructuralPlaceholder(tag, separator) || ContainsSegment(tag, separator, AssumedValues);
