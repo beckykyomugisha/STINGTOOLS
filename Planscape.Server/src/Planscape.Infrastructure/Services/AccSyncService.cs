@@ -1122,6 +1122,12 @@ public class AccSyncService
     /// Merge a client-supplied ConfigJson over the stored one, keeping every
     /// <see cref="ServerOwnedConfigKeys"/> value from the stored copy. Returns null
     /// + error when the incoming value is not a JSON object.
+    ///
+    /// H-2: a MERGE, as PlatformController's comment always said - a top-level key the client
+    /// sends replaces the stored one; a key it omits is KEPT; a key sent as <c>null</c> is
+    /// removed. It used to replace the whole object, so turning SSA on with
+    /// <c>{"accAuthMode":"ssa"}</c> silently dropped the hub, region and issue subtype, and any
+    /// later PUT that left accAuthMode out silently turned SSA off.
     /// </summary>
     public static (string? merged, string? error) MergeClientConfig(string? stored, string incoming)
     {
@@ -1135,6 +1141,15 @@ public class AccSyncService
 
         foreach (var k in ServerOwnedConfigKeys) inc.Remove(k);
 
+        if (inc[Aps.ApsSsa.ModeKey] is JToken modeTok && modeTok.Type != JTokenType.Null)
+        {
+            string mode = ((string?)modeTok ?? "").Trim().ToLowerInvariant();
+            if (mode != Aps.ApsSsa.ModeSsa && mode != "oauth" && mode.Length != 0)
+                return (null, $"{Aps.ApsSsa.ModeKey} must be \"ssa\" or \"oauth\" (or null to remove it), not \"{(string?)modeTok}\".");
+            inc[Aps.ApsSsa.ModeKey] = mode;
+        }
+
+        var result = new JObject();
         if (!string.IsNullOrWhiteSpace(stored))
         {
             JObject? existing;
@@ -1145,10 +1160,14 @@ public class AccSyncService
             // next sync would re-push every issue — refuse instead.
             if (existing == null)
                 return (null, "The stored ConfigJson is unreadable; it may hold the ACC issue map. Repair it server-side before replacing it.");
-            foreach (var k in ServerOwnedConfigKeys)
-                if (existing[k] != null) inc[k] = existing[k]!.DeepClone();
+            result = (JObject)existing.DeepClone();
         }
-        return (inc.ToString(Newtonsoft.Json.Formatting.None), null);
+        foreach (var p in inc.Properties())
+        {
+            if (p.Value.Type == JTokenType.Null) result.Remove(p.Name);   // explicit null removes
+            else result[p.Name] = p.Value.DeepClone();
+        }
+        return (result.ToString(Newtonsoft.Json.Formatting.None), null);
     }
 
     /// <summary>The ACC Issues status for a create: a known Planscape status, else "open".</summary>

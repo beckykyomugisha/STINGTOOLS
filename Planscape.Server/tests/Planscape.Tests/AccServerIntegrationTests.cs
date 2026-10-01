@@ -747,6 +747,33 @@ public partial class AccServerIntegrationTests
         Assert.NotNull(e2);
     }
 
+    // H-2: the PUT used to REPLACE the whole object, so turning SSA on dropped the hub, region and
+    // subtype, and a later PUT without accAuthMode silently turned SSA off.
+    [Fact]
+    public void Client_config_PUT_merges_keys_and_null_removes_one()
+    {
+        var stored = "{\"accHubId\":\"b.hub\",\"accRegion\":\"EMEA\",\"accIssueSubtypeId\":\"sub-1\",\"accIssueMap\":{\"i1\":\"acc-1\"}}";
+        var (m, err) = AccSyncService.MergeClientConfig(stored, "{\"accAuthMode\":\" SSA \"}");
+        Assert.Null(err);
+        var j = JObject.Parse(m!);
+        Assert.Equal("ssa", (string?)j["accAuthMode"]);                   // trimmed, normalised
+        Assert.Equal("b.hub", (string?)j["accHubId"]);                    // kept
+        Assert.Equal("EMEA", (string?)j["accRegion"]);
+        Assert.Equal("sub-1", (string?)j["accIssueSubtypeId"]);
+        Assert.Equal("acc-1", (string?)j["accIssueMap"]!["i1"]);
+
+        var (m2, _) = AccSyncService.MergeClientConfig(m, "{\"accIssueSubtypeId\":\"sub-2\"}");
+        Assert.Equal("ssa", (string?)JObject.Parse(m2!)["accAuthMode"]);   // a later PUT does not turn SSA off
+
+        var (m3, _) = AccSyncService.MergeClientConfig(m2, "{\"accAuthMode\":null}");
+        Assert.Null(JObject.Parse(m3!)["accAuthMode"]);                    // explicit null removes
+        Assert.Equal("b.hub", (string?)JObject.Parse(m3!)["accHubId"]);
+
+        var (bad, badErr) = AccSyncService.MergeClientConfig(stored, "{\"accAuthMode\":\"robot\"}");
+        Assert.Null(bad);
+        Assert.Contains("accAuthMode", badErr);
+    }
+
     // ── 3 / 4: rotating refresh token ───────────────────────────────────────
 
     private static void StubToken(Handler h, Func<string, HttpResponseMessage> onRefresh)

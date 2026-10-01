@@ -54,7 +54,7 @@ public static class ApsSsa
     public static bool IsSsa(PlatformConnection c)
     {
         if (string.IsNullOrWhiteSpace(c?.ConfigJson)) return false;
-        try { return string.Equals((string?)JObject.Parse(c.ConfigJson)[ModeKey], ModeSsa, StringComparison.OrdinalIgnoreCase); }
+        try { return string.Equals(((string?)JObject.Parse(c.ConfigJson)[ModeKey])?.Trim(), ModeSsa, StringComparison.OrdinalIgnoreCase); }
         catch (Newtonsoft.Json.JsonException) { return false; }
     }
 
