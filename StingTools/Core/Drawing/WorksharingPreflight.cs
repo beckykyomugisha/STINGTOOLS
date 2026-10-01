@@ -158,20 +158,37 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
-        /// DTW-194: can the sheet-number counters — Extensible Storage on Project
-        /// Information — be written for the whole run? Checks ownership and that the
-        /// element is up to date, and borrows it. Null when they can (always, for a model
-        /// that is not workshared). Asked once, before the first item: a run that cannot
-        /// write them would number every new sheet from a guess, or roll back every item.
+        /// DTW-220: the run-level note when new sheet numbers cannot be reserved (the
+        /// counters are Extensible Storage on Project Information, owned by a colleague or
+        /// changed in central), or null when they can. Status is only READ — Project
+        /// Information is not borrowed here. A run whose items all reuse their sheets never
+        /// writes the counters, so borrowing up front blocked colleagues until sync for
+        /// nothing. The write that reserves a number edits Project Information inside the
+        /// item's transaction, and Revit borrows it at that moment (CheckoutElements cannot
+        /// run inside a transaction); DrawingProducer refuses an item needing a new number
+        /// first, through SheetSequenceStore.WriteBlockReason. Status that cannot be read is
+        /// logged and treated as writable: the per-item check and the write remain the arbiters.
         /// </summary>
-        internal string CheckSheetCounters()
+        internal string SheetCountersNote()
         {
             if (!_active) return null;
-            ElementId pi = null;
-            try { pi = _doc.ProjectInformation?.Id; }
-            catch (Exception ex) { StingLog.Warn($"WorksharingPreflight counters: {ex.Message}"); }
-            if (pi == null || pi == ElementId.InvalidElementId) return null;
-            return Check(new[] { pi });
+            try
+            {
+                var pi = _doc.ProjectInformation?.Id;
+                if (pi == null || pi == ElementId.InvalidElementId) return null;
+                var status = WorksharingUtils.GetCheckoutStatus(_doc, pi, out string owner);
+                string other = status == CheckoutStatus.OwnedByOtherUser
+                    ? (string.IsNullOrWhiteSpace(owner) ? "another user" : owner)
+                    : null;
+                var updates = WorksharingUtils.GetModelUpdatesStatus(_doc, pi);
+                bool stale = updates == ModelUpdatesStatus.UpdatedInCentral || updates == ModelUpdatesStatus.DeletedInCentral;
+                return ProductionEdgeDecisions.CountersNote(true, other, stale);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"WorksharingPreflight counters: {ex.Message} — not pre-checked; each new sheet is checked when it is numbered.");
+                return null;
+            }
         }
 
         /// <summary>Both checks for one item: null when it may run.</summary>

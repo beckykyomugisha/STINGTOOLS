@@ -1300,7 +1300,6 @@ namespace StingTools.Commands.Drawing
 
                     foreach (var job in jobs)
                     {
-                        if (runner.Stopped) break;   // DTW-194: the counters cannot be written
                         var ctx = new DrawingContext
                         {
                             Tag = job.Tag, PackageId = packageId, OwnerLevel = host,
@@ -1371,7 +1370,6 @@ namespace StingTools.Commands.Drawing
                     }
                 }
                 tg.Assimilate();
-                if (runner.BlockedLine != null) warnings.Insert(0, runner.BlockedLine);   // DTW-194
             }
             return null;
         }

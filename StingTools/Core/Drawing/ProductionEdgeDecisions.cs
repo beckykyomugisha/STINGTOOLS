@@ -17,15 +17,40 @@ namespace StingTools.Core.Drawing
     {
         // ── DTW-194: the sheet-number counters ─────────────────────────
 
+        // ── DTW-220: the run-level gate notes, it never stops the run ──
+        //
+        // The run used to borrow Project Information before its first item and stop when a
+        // colleague held it — even a re-run where every item reuses its sheet and no number
+        // is ever reserved — and then kept Project Information borrowed until sync,
+        // blocking the next colleague. A new sheet number is checked where it is needed
+        // (DrawingProducer, SheetSequenceStore.WriteBlockReason), so the run-level gate
+        // only says, once, that items needing a new sheet will be refused.
+
+        internal enum CountersGate { Proceed, NoteNewSheetsSkipped }
+
         /// <summary>
-        /// The line a production run stops with when the sheet-number counters (Extensible
-        /// Storage on Project Information) cannot be written. Numbering from a guess instead
-        /// gave two users the same numbers, so nothing is produced.
+        /// What the run does about the sheet-number counters, from their status read
+        /// without borrowing: <paramref name="ownerIfOther"/> is the colleague holding
+        /// Project Information (null when free or mine); <paramref name="outOfDate"/> when it
+        /// changed in central since the last reload. Never stops the run.
         /// </summary>
-        internal static string CountersBlockedLine(string reason)
-            => "Run stopped before any drawing was produced: the sheet-number counters on Project Information "
-             + $"cannot be written — {(string.IsNullOrWhiteSpace(reason) ? "reason unknown" : reason.Trim())}. "
-             + "Sheets are never numbered from a guess; fix this and run again.";
+        internal static CountersGate SheetCountersGate(bool workshared, string ownerIfOther, bool outOfDate)
+            => workshared && (!string.IsNullOrWhiteSpace(ownerIfOther) || outOfDate)
+                ? CountersGate.NoteNewSheetsSkipped
+                : CountersGate.Proceed;
+
+        /// <summary>The run-level note when new sheet numbers cannot be reserved; null when they can.</summary>
+        internal static string CountersNote(bool workshared, string ownerIfOther, bool outOfDate)
+        {
+            if (SheetCountersGate(workshared, ownerIfOther, outOfDate) == CountersGate.Proceed) return null;
+            var why = new List<string>();
+            if (!string.IsNullOrWhiteSpace(ownerIfOther))
+                why.Add($"Project Information is owned by {ownerIfOther.Trim()} — ask them to synchronise and relinquish");
+            if (outOfDate)
+                why.Add("Project Information has changed in the central model — reload latest");
+            return "New sheet numbers cannot be reserved: " + string.Join("; ", why) + ". "
+                 + "Items that reuse their existing sheet are produced; items needing a new sheet will be skipped.";
+        }
 
         /// <summary>The per-item failure when a sheet cannot be numbered.</summary>
         internal static string SheetNotNumberedLine(string drawingTypeId, string reason)
