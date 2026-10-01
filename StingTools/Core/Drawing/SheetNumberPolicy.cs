@@ -233,6 +233,23 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
+        /// DTW-100: {lvl} for a fabrication spool sheet numbered by <paramref name="pattern"/>.
+        /// An ISO-shaped pattern takes the ISO 19650 code of the assembly's level
+        /// (<paramref name="levelName"/>) through <see cref="LevelToken"/> — the code
+        /// DrawingProducer gives the same level (DTW-43), so a spool sheet and a produced
+        /// sheet share numbers and ISO counter buckets instead of using two codes for one
+        /// level. Any other pattern, or an assembly whose level could not be found, keeps
+        /// the assembly's ASS_LVL_COD_TXT (<paramref name="assemblyLevelCode"/>), as before.
+        /// </summary>
+        public static string SpoolLevelToken(string pattern, string assemblyLevelCode, string levelName,
+            IDictionary<string, string> isoCodesByName)
+        {
+            if (string.IsNullOrWhiteSpace(levelName) || !IsAlreadyIso(pattern)) return assemblyLevelCode;
+            var code = LevelToken(pattern, levelName, isoCodesByName);
+            return string.IsNullOrWhiteSpace(code) ? assemblyLevelCode : code;
+        }
+
+        /// <summary>
         /// DTW-79: {lvl} for re-stamping the title block of a sheet that already
         /// exists (Heal, Migrate, drift). Production puts the ISO level code in
         /// {lvl} when its number pattern is ISO-shaped (DTW-43), so a heal that put
