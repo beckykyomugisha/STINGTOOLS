@@ -57,6 +57,41 @@ namespace StingTools.Core.Drawing
             return string.IsNullOrEmpty(part) ? hostUniqueId : hostUniqueId + Sep + part;
         }
 
+        private const string LinkedPrefix = "link:";
+        private const char LinkedSep = '/';
+
+        /// <summary>
+        /// DTW-102: the host part of a key for an annotation of an element in a linked
+        /// model — the link instance's UniqueId and the linked element's UniqueId. The
+        /// same element seen in the host, or through a second instance of the same link,
+        /// is a different host, so a re-run recognises exactly its own linked dimensions.
+        /// </summary>
+        public static string LinkedHost(string linkInstanceUniqueId, string linkedElementUniqueId)
+        {
+            if (string.IsNullOrWhiteSpace(linkInstanceUniqueId) || string.IsNullOrWhiteSpace(linkedElementUniqueId))
+                throw new ArgumentException("A linked provenance host needs the link instance's and the linked element's UniqueIds.");
+            foreach (var p in new[] { linkInstanceUniqueId, linkedElementUniqueId })
+                if (p.IndexOf(Sep) >= 0 || p.IndexOf(LinkedSep) >= 0)
+                    throw new ArgumentException($"Linked provenance host parts may not contain '{Sep}' or '{LinkedSep}'.");
+            return LinkedPrefix + linkInstanceUniqueId + LinkedSep + linkedElementUniqueId;
+        }
+
+        /// <summary>True when <paramref name="host"/> was built by <see cref="LinkedHost"/>.</summary>
+        public static bool IsLinkedHost(string host) => TryParseLinkedHost(host, out _, out _);
+
+        /// <summary>The link instance and linked element UniqueIds a linked host was built from.</summary>
+        public static bool TryParseLinkedHost(string host, out string linkInstanceUniqueId, out string linkedElementUniqueId)
+        {
+            linkInstanceUniqueId = linkedElementUniqueId = null;
+            if (string.IsNullOrEmpty(host) || !host.StartsWith(LinkedPrefix, StringComparison.Ordinal)) return false;
+            var rest = host.Substring(LinkedPrefix.Length);
+            int i = rest.IndexOf(LinkedSep);
+            if (i <= 0 || i >= rest.Length - 1) return false;
+            linkInstanceUniqueId = rest.Substring(0, i);
+            linkedElementUniqueId = rest.Substring(i + 1);
+            return true;
+        }
+
         /// <summary>The host UniqueId a key was built from.</summary>
         public static string HostOf(string key)
         {

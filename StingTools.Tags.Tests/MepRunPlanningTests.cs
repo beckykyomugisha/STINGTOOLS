@@ -98,5 +98,40 @@ namespace StingTools.Tags.Tests
             Assert.Single(MepRunPlanning.ChainStops(new[] { 4.0, 4.0, 4.0 }));
             Assert.Empty(MepRunPlanning.ChainStops(new double[0]));
         }
+
+        // ── DTW-102: a linked line whose references Revit will not carry through the link ──
+
+        [Fact]
+        public void A_linked_line_that_loses_its_stops_to_link_references_is_a_fallback_not_too_short()
+        {
+            Assert.Equal(MepLineOutcome.Dimension, MepRunPlanning.LineOutcome(positions: 3, keptWithRefs: 3));
+            // A position without a link reference would leave a fitting out of the chain:
+            // a chain that silently skips a fitting is not placed.
+            Assert.Equal(MepLineOutcome.LinkReferencesRefused, MepRunPlanning.LineOutcome(3, 2));
+            // Enough points on the line, too few once the link refused references.
+            Assert.Equal(MepLineOutcome.LinkReferencesRefused, MepRunPlanning.LineOutcome(3, 1));
+            Assert.Equal(MepLineOutcome.LinkReferencesRefused, MepRunPlanning.LineOutcome(2, 0));
+            // Too few points to begin with: the geometry's fault, not the link's.
+            Assert.Equal(MepLineOutcome.TooShort, MepRunPlanning.LineOutcome(1, 1));
+            Assert.Equal(MepLineOutcome.TooShort, MepRunPlanning.LineOutcome(0, 0));
+        }
+
+        [Fact]
+        public void The_linked_run_report_counts_every_line_not_dimensioned()
+        {
+            var t = new LinkedMepTally();
+            Assert.Null(t.Warning("MEP chain dim"));          // nothing linked: nothing said
+            t.Placed(); t.Placed();
+            Assert.Null(t.Warning("MEP chain dim"));          // all placed: the count is logged, not warned
+            t.RefRefused("Link 'M': pipe 12 end reference");
+            t.DimRefused("Link 'M': NewDimension: invalid reference");
+            t.RefRefused("Link 'M': pipe 13");
+            var w = t.Warning("MEP chain dim");
+            Assert.Contains("2 linked", w);
+            Assert.Contains("3 linked", w);
+            Assert.Contains("pipe 12 end reference", w);
+            Assert.Equal(2, t.DimensionedCount);
+            Assert.Equal(3, t.NotDimensionedCount);
+        }
     }
 }

@@ -334,6 +334,8 @@
     <!-- Production commands' inputs inside a workflow preset. The Produce commands call this same file. -->
     <Compile Include="..\StingTools\Core\Drawing\HeadlessProductionInputs.cs" Link="Core\Drawing\HeadlessProductionInputs.cs" />
     <Compile Include="..\StingTools\Core\Drawing\DrawingTypeActions.cs" Link="Core\Drawing\DrawingTypeActions.cs" />
+    <!-- DTW-82: the Drawing Self-Test's rows, CSV and binding-list mirror of tools/drawing_binding_contract.json. -->
+    <Compile Include="..\StingTools\Core\Drawing\DrawingSelfTestModel.cs" Link="Core\Drawing\DrawingSelfTestModel.cs" />
     <!-- Production gaps: the per-discipline plan routing (wizard / HVAC per-level / Produce & Export),
          wizard scope-box renames, temporary template bases, placing an engine-made view on its
          type's sheet, crop recovery from the context tag, panel sheet-placement mode, and the

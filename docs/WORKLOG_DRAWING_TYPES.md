@@ -7,15 +7,17 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 
 ## Resume here
 
-Round 9 is merged on `fix/drawing-review-3` (DTW-215..227). Open: DTW-82 (in-Revit checks),
-DTW-102 (linked MEP runs reported, not dimensioned), DTW-228 (low).
+Every code item is closed (DTW-1..228). One item is left: DTW-82, the in-Revit verification.
+It is now runnable: DOCS → DRAWING TYPES → **Self-Test** runs the automatable checks on the open
+model and rolls everything back (PASS / FAIL / SKIP / INFO plus a CSV under the Validation route).
+`docs/DRAWING_REVIT_TEST_SCRIPT.md` covers the manual rest (P1 first).
 
-1. Merge the round-9 PR once CI is green; ask the ACC session to merge main and redeploy (it needs
-   the user's approval for deploy.bat).
-2. The in-Revit checks are the real gate now. Rounds 8 and 9 found few new defects outside seams;
-   the next value comes from running NEEDS REVIT CHECK, especially worksharing, managed V/G and
-   bindings.
-3. After the Revit checks: fix DTW-228 and anything they turn up; then round 10.
+1. Get the build live. The ACC session redeploys STING_KUT_LIVE after its user approves.
+2. Run Self-Test on a real project and work through the P1 script. The INFO rows answer the open
+   design questions: Lines bindability (DTW-56), filterable phase params (DTW-166), the
+   STRUCTURAL_MATERIAL_TYPE category (DTW-164), the template scale parameter (DTW-170), and crop
+   collection (DTW-172).
+3. Log each FAIL as a new DTW row and fix it; then round 10.
 
 ## State (2026-10-01)
 
@@ -134,7 +136,7 @@ DTW-102 (linked MEP runs reported, not dimensioned), DTW-228 (low).
 | DTW-79 | DrawingTokenContext.BuildForExistingSheet | Med | Heal fills {lvl} with the level name under the ISO policy, disagreeing with the number | Merged | Done |
 | DTW-80 | ProjectSetupCommand elevations | Med | Wizard looks for the raw exterior::face:: tag; the producer re-stamps it as Exterior-<Face> | Merged | Done |
 | DTW-81 | DrawingProducer.AdoptView | Med | Reported adoption even when the stamp failed; cache failure left a stale index | 08fe22fc9 | Done |
-| DTW-82 | Whole loop | High | Nothing merged in this loop has been run in Revit | Run the NEEDS REVIT CHECK list | Open (needs Revit) |
+| DTW-82 | Whole loop | High | Nothing merged in this loop has been run in Revit | Self-Test command (DOCS > DRAWING TYPES > Self-Test) + docs/DRAWING_REVIT_TEST_SCRIPT.md | Ready to run in Revit |
 | DTW-83 | AnnotationRunner.cs:356 / TagCategory | High | Room/space/area rules use IndependentTag, so each throws or duplicates; existing room tags unseen | Merged | Done |
 | DTW-84 | MEPDimensioner.cs:152 | Med | Chains never cross fittings; witness lines parallel to their references; no idempotency | Merged | Done |
 | DTW-85 | AnnotationRunner / MEPDimensioner collectors | Med | Host-only: linked MEP and linked grids get no annotation, silently | Merged | Done |
@@ -154,7 +156,7 @@ DTW-102 (linked MEP runs reported, not dimensioned), DTW-228 (low).
 | DTW-99 | WORKFLOW_MEPDrawingProduction / per-level producer | Med | no_production_boxes suppresses all per-level MEP plans when any STING:: box exists; should skip only covered (type, level) pairs | Merged | Done |
 | DTW-100 | ShopDrawingComposer | Low-Med | ISO spool {lvl} from ASS_LVL_COD_TXT, not the producer's ISO level code | Merged | Done |
 | DTW-101 | ElementDimensioner.RunColumnToGrid | Low-Med | Column-to-grid uses host grids only | Merged | Done |
-| DTW-102 | AnnotationRunner MEP dimension passes | Low | Linked MEP runs are reported, not dimensioned | Accepted limit: dimensioning through a link needs link references on pipe geometry, unverified off-Revit | Open |
+| DTW-102 | AnnotationRunner MEP dimension passes | Low | Linked MEP runs are reported, not dimensioned | Merged (fix/dt-r10-a) | Done |
 | DTW-103 | DrawingProducer.FindExistingSheet ~1314/1340 | Med | Legacy name-only sheet stamp accepted with no level check (the view lookup has one), so after a level rename and reuse the new plan lands on the old level's sheet | Merged | Done |
 | DTW-104 | SheetPlacementBridge.ResolveDrawableForFamily ~357 | Med | A failed title-block spec load is cached for the session | Merged | Done |
 | DTW-105 | DrawingProducer.BuildIsoLevelMap ~2377 | Low-Med | ISO sheet level ignores project-declared level codes (spatial_codes.json), unlike tags, boxes and project-pattern sheets | Merged | Done |
@@ -280,7 +282,7 @@ DTW-102 (linked MEP runs reported, not dimensioned), DTW-228 (low).
 | DTW-225 | DrawingProducer.CreateSheet numbering | Low-Med | New sheets on long digit-ending levels take the new ShortLevel shape while existing sheets use the legacy one | Merged | Done |
 | DTW-226 | ManagedTemplateSyncer vs MEP system filters | Low | Does a pack re-sync keep the system filters MEP coordination added to the template? | Merged | Done |
 | DTW-227 | WorksharingPreflight material-class filters | Low | Not pre-checked | Merged | Done |
-| DTW-228 | ViewStylePackApplier.ApplyFilterEnabled | Low | A pack with filterEnabled=false disables every filter on a view with no managed template, including MEP system filters | Disable only the pack's own filters | Open |
+| DTW-228 | ViewStylePackApplier.ApplyFilterEnabled | Low | A pack with filterEnabled=false disables every filter on a view with no managed template, including MEP system filters | Merged (fix/dt-r10-a) | Done |
 
 ## Decisions
 
