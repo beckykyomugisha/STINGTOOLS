@@ -867,6 +867,44 @@ run against a live tenant yet (ROADMAP ACC-HARD-1).
 - **Not verified**: not run against a live ACC container or in Revit. `AccIssue` carries no due
   date, display id or updated-at yet (TODO in `AccIssueImportRecord`); ACC assignees are stored
   as ACC ids, not names. Nothing is pushed back to ACC.
+#### Completed (TAGFAM-8 content manifest lists every shipped tag family, 2026-10-01)
+
+- `Data/TagFamilies` held 210 `.rfa` files; `STING_CONTENT_MANIFEST.json` listed 206. The four TAGFAM-3
+  families (Fire Door, Accessible Door, Room Finish, Fire Compartment) had no entry, so `ContentManifest`'s
+  checksum verification never covered them. Added with discipline `A` (their config declaration) and the
+  family name as `category`, as the other variant families do — a `Doors` / `Rooms` category would let a
+  category lookup return a specialist tag instead of the base Door / Room tag. The coverage note now says
+  what the list is.
+- **Gate** `ContentManifestLibraryTests`: every `.rfa` is listed, every entry ships, every checksum matches,
+  and the keys read are the ones `ContentManifest` binds. Against main's manifest it names the four missing
+  files. Changing a family on purpose now means re-stamping it with
+  `tools/restamp_content_manifest.py --apply` — the tool's own rule (re-stamping is a deliberate step).
+
+#### Completed (TAGFAM-6 shared-parameter lookup indexed once per family, 2026-10-01)
+
+- `TagFamilyCreatorCommand.AddSharedParameters` found each of ~199 parameters by walking every group and
+  definition of the shared-parameter file through the Revit API (~3,300 definitions, so ~650k reads per
+  family), after a separate pass that only counted them. It now walks the file once, building a
+  name → `ExternalDefinition` index (first match by exact name, as before) while counting, and the
+  private `FindSharedDefinition` is removed. Behaviour is unchanged; the speed-up is **not measured** —
+  the 5-minutes-per-family figure from the 2026-09-30 run needs re-timing in Revit (worklog NEEDS REVIT
+  CHECK). Build 0 errors / 0 warnings; `StingTools.Tags.Tests` all passing.
+#### Completed (TAGFAM-5 arrowheads resolved in the family document, 2026-10-01)
+
+- **The bug.** `MigrateTagFamiliesCommand` and `PropagateUniversalTagCommand` (clone and master priming)
+  built `TagTypeVariantWriter.BuildArrowheadLookup(doc)` once from the PROJECT and passed it into
+  `CreateStandardVariants`, which sets `LEADER_ARROWHEAD` on the FAMILY document's types. ElementIds are
+  per-document, so a project id either named some other element in the family (wrong arrowhead, or a
+  throw caught and logged per type) or nothing. `TagFamilyCreatorCommand` already resolved them in the
+  family document.
+- **The fix.** All three call sites pass `BuildArrowheadLookup(famDoc)` / `(mfd)`; the project-level lookup
+  and the parameters that threaded it are gone, so it cannot be passed again. A family that has no
+  matching arrowhead type now logs "arrowhead '…' not present" — copying arrowhead types into a family is
+  not done here.
+- **Test** `ArrowheadLookupDocumentTests`: every `TagTypeVariantWriter.CreateStandardVariants` call (4)
+  resolves the lookup inline and never from `doc`; fails against main's Migrate. `StingTools.Tags.Tests`
+  4,626 passing; build 0 errors / 0 warnings. **Not run in Revit.**
+
 #### Completed (TAGACC-19 saving tag settings keeps the rest of project_config.json, 2026-10-01)
 
 - **The bug.** `project_config.json` is shared: besides the tag maps it carries `SEQ_SCHEME`,
