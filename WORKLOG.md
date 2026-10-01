@@ -3,9 +3,9 @@
 Standing task (2026-10-01): unattended loop — resume → research → record → fix → verify → commit → merge → update ROADMAP/WORKLOG → repeat. Priority: (1) ACC integration, (2) everything ACC touches, (3) rest of the codebase.
 
 ## Resume here
-1. QUEUED USER TASK (2026-10-01): ACC/APS automation research and implementation. Write docs/ACC_AUTOMATION_RESEARCH_2026-10.md; build the no-input items first, then config slots with REPLACE_WITH_ values, then one batched scope change. Report the ids/settings checklist in chat. No deploy.bat, no Revit.
-2. After that: ACC-LOCK-1 (cross-process lock on the shared ACC state files), then the speculative round-5 items (offset paging before a NOT_FOUND untrack; comment-key time zones).
-3. Then area 2/3: tagging, drawing production and MEP.
+1. ACC automation follow-ups (docs/ACC_AUTOMATION_RESEARCH_2026-10.md, ROADMAP ACC-AUT-8..14): first ACC-AUT-9 (issue attribute mappings) and ACC-AUT-8 (folder permission pre-flight). Read each response schema on the APS reference page before coding.
+2. ACC-LOCK-1 (cross-process lock on the shared ACC state files); then ACC-PAGE-1 / ACC-CMT-1.
+3. Redeploy KUT live only when the user asks (the queued task said no deploy.bat). Main #1036-#1041 is now in the integration branch.
 
 ## Branches
 - **Integration branch:** `claude/acc-work-review-gaps-7e2ac7` (worktree `.claude/worktrees/acc-work-review-gaps-7e2ac7`). Not pushed.
@@ -133,6 +133,10 @@ Seam audit (2026-10-01):
 - **A5** (686930e8a) — "Not set up" and "uploadUnattended not set" return Cancelled → failOnError step reads as skip; header/playbook say no KUT workflow uploads
 
 ## NEEDS MANUAL CHECK
+- **ACC automation (AUT-5..7):** see docs/ACC_AUTOMATION_RESEARCH_2026-10.md §6.
+  1. Reconnect server ACC to gain `data:create`. Subscribe should then create 5 hooks.
+  2. Close a review in ACC; clients should get `acc.review.closed`.
+  3. SSA setup end to end: env vars + `accAuthMode` ssa, then sync. Confirm the robot is the issue creator.
 - **C1 recovery on KUT:** look in `_data/coord` (the `_BIM_COORD` alias) for `transmittals.json.corrupt.*` and `deliverables.json.corrupt.*`. If any exist, the old gate quarantined them: merge their rows back into the live array, and keep the newer rows on any id clash.
 - **C6 PDF byte-stability:** export one sheet twice from the Export Centre with no change, then compare SHA-256 (`certutil -hashfile x.pdf SHA256`). If they differ, re-exports land as HELD (reported, not failing), and a normalised hash can be added.
 - **Revision/issue workflow (R1-R14):** in Revit, on a copy: (1) break a sheet stamp and run the KUT fortnightly preset; step 1 fails, and steps 6/7 show BLOCKED with nothing uploaded. (2) Run with no clouds; step 2 fails with 'no sheet carries a cloud'. (3) Lock a title block (PRJ_TB_LOCK) with a stale revision; Leak Chk lists it as LOCKED, and the preset passes step 1. (4) Supersede a deliverable whose PDF+DWG went up through the Export Centre; both are archived and the ledger shows retiredUtc. (5) The BIM > Revision Management buttons 'Per-Sheet #' and 'Leak Chk' run.
@@ -226,3 +230,6 @@ Seam audit (2026-10-01):
 - **F2:** the proposal stays PENDING on a partial apply rather than gaining a new state. Every existing reader already handles pending, and the targets already applied are recorded on the proposal, so a retry cannot apply twice. The first code chosen sticks, so a retry never asks again or mixes codes.
 - **F4:** a fresh single-id GET is made only when a status is about to be sent, so a normal sweep costs nothing extra. If the read fails, the title/description still go and the status waits.
 - **F5:** staleness is measured against the newest pull, not the clock, so a project that has not pulled for a month keeps its holds.
+- **AUT-5:** subscribe only to `review.closed-1.0` by default. The close is when a decision exists, and `review.created-1.0` would only add noise (it is configurable via `Autodesk:WebhookEvents:autodesk.construction.reviews`). Receiving it is a notice, never an automatic CDE change: ACC review approval cannot be read reliably from the event payload alone.
+- **AUT-6:** one batched scope change, on the server only (`data:create`). The plugin already had it. `account:write` was not added: nothing built needs it, and adding it would force everyone to sign in again for no benefit.
+- **AUT-7:** SSA lives on the server, not in the plugin. The private key then sits in one secret store, not on every workstation. It is opt-in per connection, and a half configuration is refused by name; there is never a silent fall-back to the refresh-token path.
