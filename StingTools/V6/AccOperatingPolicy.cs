@@ -344,6 +344,40 @@ namespace StingTools.V6
         /// suitability and revision then reach ACC nowhere. Self-check warns on it.</summary>
         public bool SevenFieldWithoutAttributes => SevenFieldNaming && !DocsAttributes;
 
+        /// <summary>P5: settings whose values identify things INSIDE one ACC project (container,
+        /// model set, issue type, folders, review workflow). Kept across a project switch they
+        /// sent clash pulls, issues and uploads to the previous project.</summary>
+        public static readonly IReadOnlyList<string> ProjectScopedKeys = new[]
+        {
+            "coordContainerId", "coordModelSetId", "coordModelSetName", "issueTypeId", "issueSubtypeId",
+            "folderUrn", "cdeFolders", "startAccReviewOnPublish",
+        };
+
+        /// <summary>
+        /// P5: what to change in the settings file when its ACC project changes to
+        /// <paramref name="newProjectId"/>: each project-scoped key present maps to null (remove).
+        /// <c>lifecycleGapEscalation</c> keeps its <c>maxCount</c> (the opt-in) and loses only its
+        /// issue type ids. Empty when the project is unchanged or none was set before.
+        /// </summary>
+        public static Dictionary<string, JToken> ProjectChangeEdits(JObject existing, string newProjectId)
+        {
+            var edits = new Dictionary<string, JToken>(StringComparer.Ordinal);
+            if (existing == null) return edits;
+            string oldId = AccIds.ForAcc((string)existing["projectId"] ?? "");
+            string newId = AccIds.ForAcc(newProjectId ?? "");
+            if (oldId.Length == 0 || string.Equals(oldId, newId, StringComparison.OrdinalIgnoreCase)) return edits;
+            foreach (var k in ProjectScopedKeys)
+                if (existing[k] != null) edits[k] = JValue.CreateNull();
+            if (existing["lifecycleGapEscalation"] is JObject lg && (lg["issueTypeId"] != null || lg["issueSubtypeId"] != null))
+            {
+                var kept = (JObject)lg.DeepClone();
+                kept.Remove("issueTypeId");
+                kept.Remove("issueSubtypeId");
+                edits["lifecycleGapEscalation"] = kept;
+            }
+            return edits;
+        }
+
         /// <summary>Due date for an escalated clash issue, in days from today; null = none.</summary>
         public int? EscalateDueDays { get; private set; }
 

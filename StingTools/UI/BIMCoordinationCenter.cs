@@ -5756,6 +5756,11 @@ namespace StingTools.UI
                     var chosen = found.Value.FirstOrDefault(p => p.ToString() == pick);
                     if (chosen == null) { ShowStatus("That project could not be matched — nothing was changed."); return; }
 
+                    // P5: a DIFFERENT project must not inherit the previous project's container,
+                    // issue type or upload folder - the boxes would be saved back below.
+                    bool switching = projectIdBox.Text.Trim().Length > 0 &&
+                        !string.Equals(V6.AccIds.ForAcc(projectIdBox.Text), V6.AccIds.ForAcc(chosen.Id), StringComparison.OrdinalIgnoreCase);
+                    if (switching) { coordIdBox.Text = ""; issueTypeBox.Text = ""; folderUrnBox.Text = ""; }
                     projectIdBox.Text = chosen.Id;
                     var save = Gather();
                     // After an await: the project write goes through the API context (OnApi),
@@ -5765,13 +5770,16 @@ namespace StingTools.UI
                         if (!okScope) return;   // SaveAcc already reported it
                         OnApi(d =>
                         {
-                            bool ok = Core.Clash.AccProjectSettingsFile.SaveDiscoveredProject(d, chosen.Id, chosen.HubId, chosen.Region, out string hubErr);
-                            return (ok, hubErr);
+                            bool ok = Core.Clash.AccProjectSettingsFile.SaveDiscoveredProject(d, chosen.Id, chosen.HubId, chosen.Region,
+                                out string hubErr, out var cleared);
+                            return (ok, ok && cleared.Count > 0 ? "CLEARED:" + string.Join(", ", cleared) : hubErr);
                         }, (ok, hubErr) =>
                         {
+                            bool clearedSome = ok && hubErr != null && hubErr.StartsWith("CLEARED:", StringComparison.Ordinal);
                             ShowStatus($"ACC project set to {chosen.Name} [{chosen.Id}], hub {chosen.HubName}" +
                                        (string.IsNullOrEmpty(chosen.Region) ? "" : $", region {chosen.Region}") +
                                        (ok ? "" : $" (hub/region NOT saved: {hubErr})") +
+                                       (clearedSome ? $". The previous project's {hubErr.Substring(8)} were cleared - set them for this project" : "") +
                                        ". Set Coord Container ID only if Model Coordination uses a different container.");
                             ShowPlatformDetail("ACC");
                         });

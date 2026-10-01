@@ -20,6 +20,7 @@
 // to fix a typo they can fix themselves.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -112,10 +113,40 @@ namespace StingTools.Core.Clash
         /// <summary>Record the project's ACC location as discovery found it: the project id AND
         /// its hub (needed to resolve top folders) and, when known, the hosting region.</summary>
         internal static bool SaveDiscoveredProject(Document doc, string projectId, string hubId, string region, out string error)
-            => SaveKeys(doc, out error,
-                ("projectId", projectId ?? string.Empty),
-                ("hubId", hubId ?? string.Empty),
-                ("region", AccIds.NormaliseRegion(region)));
+            => SaveDiscoveredProject(doc, projectId, hubId, region, out error, out _);
+
+        /// <summary>P5: switching to a DIFFERENT ACC project also clears the previous project's
+        /// container, model set, issue type, folders and review workflow
+        /// (<see cref="AccOperatingPolicy.ProjectChangeEdits"/>); <paramref name="cleared"/> names them.</summary>
+        internal static bool SaveDiscoveredProject(Document doc, string projectId, string hubId, string region,
+            out string error, out List<string> cleared)
+        {
+            cleared = new List<string>();
+            JObject existing = null;
+            string path = PathFor(doc);
+            try
+            {
+                if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                {
+                    string text = File.ReadAllText(path);
+                    if (!string.IsNullOrWhiteSpace(text)) existing = JObject.Parse(text);
+                }
+            }
+            catch (Exception ex)
+            {
+                // SaveTokens refuses to overwrite an unparsable file and says so; nothing else to do here.
+                StingLog.Warn("ACC settings: could not read the current file before a project switch: " + ex.Message);
+            }
+            var edits = AccOperatingPolicy.ProjectChangeEdits(existing, projectId);
+            var pairs = new List<(string, JToken)>
+            {
+                ("projectId", string.IsNullOrEmpty(projectId) ? JValue.CreateNull() : new JValue(projectId)),
+                ("hubId", string.IsNullOrEmpty(hubId) ? JValue.CreateNull() : new JValue(hubId)),
+                ("region", string.IsNullOrEmpty(AccIds.NormaliseRegion(region)) ? JValue.CreateNull() : new JValue(AccIds.NormaliseRegion(region))),
+            };
+            foreach (var kv in edits) { pairs.Add((kv.Key, kv.Value)); cleared.Add(kv.Key); }
+            return SaveTokens(doc, out error, pairs.ToArray());
+        }
 
         /// <summary>Record the project's default upload folder (empty clears it).</summary>
         internal static bool SaveFolderUrn(Document doc, string folderUrn, out string error)
