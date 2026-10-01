@@ -94,6 +94,17 @@ namespace StingTools.Commands.Plumbing
 
                 opts.SystemNameFilter = systemFilter;
 
+                // DTW-120: fit the drawing to the slot of the sheet it goes on.
+                if (StingTools.Core.Drawing.SchematicViewFactory.TryGetSlotPaperSize(ctx.Doc,
+                        StingTools.Core.Drawing.DrawingRouteRequests.DrainageSchematic,
+                        out double slotW, out double slotH, out int typeScale, out string slotNote))
+                {
+                    opts.SlotWidthMm = slotW;
+                    opts.SlotHeightMm = slotH;
+                }
+                else StingLog.Warn($"PlumbDrainageSchematicCommand: no slot size ({slotNote}) — drawn without a fit check.");
+                if (typeScale > 0) opts.MinScale = typeScale;
+
                 // ── Generate ───────────────────────────────────────────────
                 SchematicResult schResult = null;
 
@@ -155,6 +166,7 @@ namespace StingTools.Commands.Plumbing
                 var sb = new StringBuilder();
                 sb.AppendLine($"Drainage schematic created successfully.");
                 sb.AppendLine($"  {sheetLine}");
+                sb.AppendLine($"  Scale                : 1:{schResult.Scale}");
                 sb.AppendLine($"  Stacks drawn         : {schResult.NodesDrawn}");
                 sb.AppendLine($"  Branches drawn       : {schResult.BranchesDrawn}");
                 sb.AppendLine($"  Vents drawn          : {schResult.VentsDrawn}");
@@ -729,6 +741,17 @@ namespace StingTools.Commands.Plumbing
                 ShowAccessorySymbols = true
             };
 
+            // DTW-120: fit the drawing to the slot of the sheet it goes on.
+            if (StingTools.Core.Drawing.SchematicViewFactory.TryGetSlotPaperSize(doc,
+                    StingTools.Core.Drawing.DrawingRouteRequests.DcwSchematic,
+                    out double slotW, out double slotH, out int typeScale, out string slotNote))
+            {
+                opts.SlotWidthMm = slotW;
+                opts.SlotHeightMm = slotH;
+            }
+            else StingLog.Warn($"PlumbSupplySchematic: no slot size ({slotNote}) — drawn without a fit check.");
+            if (typeScale > 0) opts.MinScale = typeScale;
+
             SupplySchematicResult result;
             try
             {
@@ -777,6 +800,7 @@ namespace StingTools.Commands.Plumbing
             panel.AddSection("SOURCE").Text(string.IsNullOrEmpty(result.SourceDescription) ? "—" : result.SourceDescription);
             panel.AddSection("SHEET").Text(sheetLine);
             panel.AddSection("SUMMARY")
+                 .Metric("Scale",             $"1:{result.Scale}")
                  .Metric("Pipes drawn",       result.PipesDrawn.ToString())
                  .Metric("Accessories drawn", result.AccessoriesDrawn.ToString())
                  .Metric("Fixtures drawn",    result.FixturesDrawn.ToString());

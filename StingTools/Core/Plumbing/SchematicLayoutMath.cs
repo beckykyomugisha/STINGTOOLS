@@ -378,4 +378,212 @@ namespace StingTools.Core.Plumbing
             }
         }
     }
+
+    /// <summary>A run of pass-through pipe and fittings between two nodes worth drawing.</summary>
+    public sealed class ChainSegment
+    {
+        public long From { get; set; }
+        public long To { get; set; }
+        /// <summary>The nodes passed through, in order from <see cref="From"/>.</summary>
+        public List<long> Through { get; } = new List<long>();
+    }
+
+    /// <summary>Outcome of fitting a schematic to its sheet slot.</summary>
+    public sealed class SchematicFitResult
+    {
+        public int Scale { get; set; }
+        /// <summary>False when no scale fits the slot (the drawing is larger than the slot).</summary>
+        public bool Fits { get; set; }
+        /// <summary>False when the slot size could not be read; the scale is then the minimum.</summary>
+        public bool SlotKnown { get; set; }
+        public double WidthMm { get; set; }
+        public double HeightMm { get; set; }
+        public double SlotWidthMm { get; set; }
+        public double SlotHeightMm { get; set; }
+
+        /// <summary>One line for the report, or null when it fits.</summary>
+        public string Problem()
+        {
+            if (!SlotKnown) return $"The sheet slot size could not be read; drawn at 1:{Scale} without a fit check.";
+            if (Fits) return null;
+            return $"The schematic ({WidthMm:F0} × {HeightMm:F0} mm at 1:{Scale}) is larger than its sheet slot "
+                 + $"({SlotWidthMm:F0} × {SlotHeightMm:F0} mm) at any scale that keeps its labels readable — "
+                 + "it overflows the sheet. Draw it per system (Named system…) to split it.";
+        }
+    }
+
+    /// <summary>
+    /// DTW-120: layout rules that keep a plumbing schematic on its sheet. The drainage
+    /// riser used true elevation at a pinned 1:50, so more than 7–8 storeys or ~19
+    /// stacks overflowed the A1 slot; the supply schematic gave every element its own
+    /// 20 mm column. Floors are now storey rows at a fixed pitch, columns a fixed pitch,
+    /// runs of pass-through pipe collapse to one line, and the scale is the smallest
+    /// that fits the drawing type's slot.
+    /// </summary>
+    public static class SchematicFit
+    {
+        public static readonly int[] StandardScales = { 1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000 };
+
+        /// <summary>
+        /// Position of elevation <paramref name="z"/> in storeys: level i is row i, a
+        /// height between two levels interpolates between their rows, and beyond the
+        /// first / last level the adjacent storey's height carries on. With fewer than two
+        /// distinct levels <paramref name="fallbackStoreyFt"/> stands in for the storey
+        /// height (a display spacing only — no level is named from it).
+        /// </summary>
+        public static double StoreyRow(IReadOnlyList<double> sortedElevations, double z, double fallbackStoreyFt)
+        {
+            if (fallbackStoreyFt <= 0) fallbackStoreyFt = 1;
+            var e = new List<double>();
+            if (sortedElevations != null)
+                foreach (var v in sortedElevations)
+                    if (!double.IsNaN(v) && (e.Count == 0 || v - e[e.Count - 1] > 1e-3)) e.Add(v);
+            if (e.Count == 0) return z / fallbackStoreyFt;
+            if (e.Count == 1) return (z - e[0]) / fallbackStoreyFt;
+            if (z <= e[0]) return (z - e[0]) / (e[1] - e[0]);
+            int last = e.Count - 1;
+            if (z >= e[last]) return last + (z - e[last]) / (e[last] - e[last - 1]);
+            for (int i = 0; i < last; i++)
+                if (z <= e[i + 1]) return i + (z - e[i]) / (e[i + 1] - e[i]);
+            return last;
+        }
+
+        /// <summary>
+        /// The smallest standard scale, not below <paramref name="minScale"/>, at which the
+        /// paper extent fits the slot. When none fits, the scale that comes closest (the
+        /// smallest scale at the least overflow) with <c>Fits = false</c>. A slot of
+        /// unknown size (≤ 0) gives <paramref name="minScale"/> with <c>SlotKnown = false</c>.
+        /// </summary>
+        public static SchematicFitResult ChooseScale(Func<int, (double W, double H)> paperExtentMm,
+            double slotWidthMm, double slotHeightMm, int minScale, int maxScale = 1000)
+        {
+            if (minScale <= 0) minScale = 1;
+            var candidates = new List<int> { minScale };
+            candidates.AddRange(StandardScales.Where(s => s > minScale && s <= Math.Max(minScale, maxScale)));
+
+            if (paperExtentMm == null || slotWidthMm <= 0 || slotHeightMm <= 0)
+            {
+                var ext0 = paperExtentMm?.Invoke(minScale) ?? (0, 0);
+                return new SchematicFitResult { Scale = minScale, Fits = true, SlotKnown = false,
+                    WidthMm = ext0.W, HeightMm = ext0.H, SlotWidthMm = slotWidthMm, SlotHeightMm = slotHeightMm };
+            }
+
+            SchematicFitResult best = null;
+            double bestRatio = double.MaxValue;
+            foreach (int s in candidates)
+            {
+                var ext = paperExtentMm(s);
+                var r = new SchematicFitResult { Scale = s, SlotKnown = true, WidthMm = ext.W, HeightMm = ext.H,
+                    SlotWidthMm = slotWidthMm, SlotHeightMm = slotHeightMm };
+                if (ext.W <= slotWidthMm && ext.H <= slotHeightMm) { r.Fits = true; return r; }
+                double ratio = Math.Max(ext.W / slotWidthMm, ext.H / slotHeightMm);
+                if (ratio < bestRatio - 1e-9) { bestRatio = ratio; best = r; }
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// Printed width of <paramref name="text"/> (its longest line), paper mm, for a
+        /// text type of <paramref name="heightMm"/> and width factor. An estimate: 0.7 ×
+        /// height per character covers capitals and digits in the usual sans fonts.
+        /// </summary>
+        public static double EstimateTextWidthMm(string text, double heightMm, double widthFactor = 1.0)
+        {
+            if (string.IsNullOrEmpty(text) || heightMm <= 0) return 0;
+            if (widthFactor <= 0) widthFactor = 1.0;
+            int longest = text.Replace("\r", "").Split('\n').Max(l => l.Length);
+            return longest * heightMm * 0.7 * widthFactor;
+        }
+
+        /// <summary>Printed height of <paramref name="text"/>, paper mm (lines × 1.5 × height).</summary>
+        public static double EstimateTextHeightMm(string text, double heightMm)
+        {
+            if (string.IsNullOrEmpty(text) || heightMm <= 0) return 0;
+            int lines = text.Replace("\r", "").Split('\n').Length;
+            return lines * heightMm * 1.5;
+        }
+
+        /// <summary>
+        /// The network reachable from <paramref name="start"/>, with every run of
+        /// pass-through nodes (those <paramref name="keep"/> rejects) collapsed into one
+        /// segment between kept nodes. <paramref name="start"/> is always kept. Each
+        /// segment is reported once.
+        /// </summary>
+        public static List<ChainSegment> CollapseChains(long start,
+            Func<long, IEnumerable<long>> neighbours, Func<long, bool> keep, int limit = 200000)
+        {
+            var segs = new List<ChainSegment>();
+            if (neighbours == null) return segs;
+            bool Keep(long id) => id == start || keep == null || keep(id);
+            IEnumerable<long> Nbrs(long id) => (neighbours(id) ?? Enumerable.Empty<long>()).Distinct().Where(n => n != id);
+
+            var done = new HashSet<(long, long)>();   // (kept node, first step) already walked
+            var queued = new HashSet<long> { start };
+            var queue = new Queue<long>();
+            queue.Enqueue(start);
+            int steps = 0;
+            while (queue.Count > 0 && steps < limit)
+            {
+                long u = queue.Dequeue();
+                foreach (var v in Nbrs(u))
+                {
+                    if (!done.Add((u, v))) continue;
+                    var seg = new ChainSegment { From = u };
+                    long prev = u, cur = v;
+                    var inWalk = new HashSet<long> { u };
+                    while (!Keep(cur) && steps++ < limit)
+                    {
+                        if (!inWalk.Add(cur)) break;          // a loop of pass-through nodes
+                        seg.Through.Add(cur);
+                        long p = prev;
+                        var next = Nbrs(cur).Where(n => n != p).ToList();
+                        if (next.Count == 0) break;           // dead end (should be kept; guard)
+                        prev = cur;
+                        cur = next[0];
+                    }
+                    if (seg.Through.Count > 0 && seg.Through[seg.Through.Count - 1] == cur) seg.Through.RemoveAt(seg.Through.Count - 1);
+                    seg.To = cur;
+                    // The same run walked from its other end is not reported again.
+                    done.Add((cur, seg.Through.Count > 0 ? seg.Through[seg.Through.Count - 1] : u));
+                    if (seg.To != seg.From) segs.Add(seg);
+                    if (Keep(cur) && queued.Add(cur)) queue.Enqueue(cur);
+                }
+            }
+            return segs;
+        }
+
+        /// <summary>
+        /// (row, column) of every node the segments reach from <paramref name="start"/>:
+        /// row from <paramref name="rowOf"/>, column the parent's (a single child) or fanned
+        /// out around it; no two nodes share a cell.
+        /// </summary>
+        public static Dictionary<long, (int Row, int Col)> LayoutTree(long start,
+            IEnumerable<ChainSegment> segments, Func<long, int> rowOf)
+        {
+            var adj = new Dictionary<long, List<long>>();
+            void Link(long a, long b)
+            {
+                if (!adj.TryGetValue(a, out var l)) adj[a] = l = new List<long>();
+                if (!l.Contains(b)) l.Add(b);
+            }
+            foreach (var s in segments ?? Enumerable.Empty<ChainSegment>()) { Link(s.From, s.To); Link(s.To, s.From); }
+
+            var cells = new Dictionary<long, (int Row, int Col)>();
+            var grid = new SchematicCellGrid();
+            var queue = new Queue<(long Id, int PrefCol)>();
+            queue.Enqueue((start, 0));
+            while (queue.Count > 0)
+            {
+                var (id, pref) = queue.Dequeue();
+                if (cells.ContainsKey(id)) continue;
+                int row = rowOf != null ? rowOf(id) : 0;
+                int col = grid.Claim(row, pref);
+                cells[id] = (row, col);
+                var kids = adj.TryGetValue(id, out var l) ? l.Where(k => !cells.ContainsKey(k)).ToList() : new List<long>();
+                for (int i = 0; i < kids.Count; i++)
+                    queue.Enqueue((kids[i], kids.Count == 1 ? col : col + i - kids.Count / 2));
+            }
+            return cells;
+        }
+    }
 }

@@ -14,8 +14,10 @@
 // command rolls the transaction back and reports why.
 //
 // All drafting-view coordinates are in feet (Revit internal units). The vertical
-// axis is real elevation (above the lowest Level shown); glyph sizes and text
-// offsets are paper millimetres × view scale.
+// axis is storeys: each Level is a row at a fixed pitch, and a height between two
+// Levels sits proportionally between their rows (DTW-120). The view scale is the
+// smallest that fits the drawing type's slot; glyph sizes and text offsets are
+// paper millimetres × that scale.
 
 using System;
 using System.Collections.Generic;
@@ -76,6 +78,8 @@ namespace StingTools.Core.Plumbing
         public int          LevelsLabelled       = 0;
         public int          LinesDrawn           = 0;
         public int          AnnotationsPlaced    = 0;
+        /// <summary>Scale the view was drawn at (chosen to fit its sheet slot).</summary>
+        public int          Scale                = 0;
         public List<string> Warnings             = new List<string>();
     }
 
@@ -95,10 +99,18 @@ namespace StingTools.Core.Plumbing
         /// pipe in the model (cold water, heating …) was drawn as drainage stacks.
         /// </summary>
         public PipeSystemType[] Classifications = { PipeSystemType.Sanitary, PipeSystemType.Vent };
-        /// <summary>Horizontal spacing between adjacent stacks in the schematic (model mm).</summary>
+        /// <summary>Spacing between adjacent stacks (model mm; never under 30 mm on paper).</summary>
         public double StackSpacingMm     = 2000.0;
-        /// <summary>Unused since floors come from the document's Levels; kept for callers.</summary>
+        /// <summary>
+        /// Drawn height of one storey (model mm; never under 16 mm on paper). Floors are
+        /// the document's Levels, drawn as rows this far apart whatever their real height.
+        /// </summary>
         public double LevelHeightMm      = 3000.0;
+        /// <summary>Paper size of the sheet slot the view goes in (0 = unknown: no fit check).</summary>
+        public double SlotWidthMm;
+        public double SlotHeightMm;
+        /// <summary>Smallest scale the view may take (the drawing type's own scale).</summary>
+        public int    MinScale           = 50;
         public bool   ShowVents          = true;
         public bool   ShowFixtureSymbols = true;
         public bool   ShowDnLabels       = true;
@@ -151,6 +163,14 @@ namespace StingTools.Core.Plumbing
         // Segments within this plan distance are one stack.
         private const double StackPlanToleranceFt = 150 * MmToFt;
         private const double LevelToleranceFt     = 50 * MmToFt;
+        // DTW-120 layout limits, paper mm: below these the labels stop being readable,
+        // so a larger scale no longer helps and the overflow is reported instead.
+        private const double MinStoreyPaperMm   = 16;
+        private const double MinColumnPaperMm   = 30;
+        private const double LevelLabelColumnMm = 25;
+        private const double RightMarginMm      = 30;
+        private const double HeadMarginMm       = 20;
+        private const double FootMarginMm       = 5;
 
         // ── Main entry ────────────────────────────────────────────────────────
 
@@ -221,12 +241,35 @@ namespace StingTools.Core.Plumbing
                     return result;
                 }
 
+                // Vertical datum: the lowest Level any stack passes, else the lowest stack foot.
+                double globalZMin = layouts.Min(l => Math.Min(l.ZMin, l.Vent?.ZMin ?? l.ZMin));
+                double globalZMax = layouts.Max(l => Math.Max(l.ZMax, l.Vent?.ZMax ?? l.ZMax));
+                var spannedLevels = SchematicLayoutMath.LevelsSpanning(levelElevs, globalZMin, globalZMax, LevelToleranceFt);
+                double baseZ = spannedLevels.Count > 0 ? Math.Min(levelElevs[spannedLevels[0]], globalZMin) : globalZMin;
+
+                // DTW-120: floors are storey rows at a fixed pitch, not true elevation, and
+                // the scale is the smallest that fits the drawing type's slot. At a pinned
+                // 1:50 with true Z, more than 7–8 storeys or ~19 stacks ran off the A1 sheet.
+                double fallbackStoreyFt = Math.Max(1.0, opts.LevelHeightMm) * MmToFt;
+                double Row(double z) => SchematicFit.StoreyRow(levelElevs, z, fallbackStoreyFt);
+                double baseRow = Row(baseZ);
+                double rowSpan = Math.Max(0.0, Row(globalZMax) - baseRow);
+                int stackCount = layouts.Count;
+                double StoreyPaper(int s) => Math.Max(opts.LevelHeightMm / s, MinStoreyPaperMm);
+                double ColumnPaper(int s) => Math.Max(opts.StackSpacingMm / s, MinColumnPaperMm);
+                var fit = SchematicFit.ChooseScale(
+                    s => (LevelLabelColumnMm + (stackCount - 1) * ColumnPaper(s) + RightMarginMm,
+                          rowSpan * StoreyPaper(s) + HeadMarginMm + FootMarginMm),
+                    opts.SlotWidthMm, opts.SlotHeightMm, opts.MinScale > 0 ? opts.MinScale : 50);
+                result.Scale = fit.Scale;
+                if (fit.Problem() is string fitProblem) result.Warnings.Add(fitProblem);
+
                 // 3. Drafting view ─────────────────────────────────────────────
                 // DTW-119: one view per name, reused and cleared on a re-run (its sheet
                 // placement survives). A new view every run ("… (2)", "… (3)") left the
                 // previous run's view orphaned once the sheet took the new one.
                 var view = StingTools.Core.Drawing.SchematicViewFactory.CreateOrReplace(
-                    doc, ViewName(opts), out string viewError, 50);
+                    doc, ViewName(opts), out string viewError, fit.Scale);
                 if (view == null)
                 {
                     result.Warnings.Add(viewError ?? "The drainage schematic view could not be made.");
@@ -234,10 +277,13 @@ namespace StingTools.Core.Plumbing
                 }
 
                 result.ViewId = view.Id;
+                // Glyphs and offsets are paper mm × the view's real scale, so they print at
+                // their paper size whatever scale the fit chose.
                 int scale = view.Scale;
                 double P(double paperMm) => SchematicLayoutMath.PaperMmToModelFt(paperMm, scale);
 
-                double stackSpacingFt = Math.Max(opts.StackSpacingMm * MmToFt, P(30));
+                double stackSpacingFt = P(ColumnPaper(scale));
+                double storeyPitchFt  = P(StoreyPaper(scale));
 
                 var textTypeNormal = FindClosestTextType(doc, TextSizeNormal);
                 var textTypeSmall  = FindClosestTextType(doc, TextSizeSmall);
@@ -246,12 +292,7 @@ namespace StingTools.Core.Plumbing
 
                 var lineStyles = GetLineStyleIds(doc);
 
-                // Vertical datum: the lowest Level any stack passes, else the lowest stack foot.
-                double globalZMin = layouts.Min(l => l.ZMin);
-                double globalZMax = layouts.Max(l => Math.Max(l.ZMax, l.Vent?.ZMax ?? l.ZMax));
-                var spannedLevels = SchematicLayoutMath.LevelsSpanning(levelElevs, globalZMin, globalZMax, LevelToleranceFt);
-                double baseZ = spannedLevels.Count > 0 ? Math.Min(levelElevs[spannedLevels[0]], globalZMin) : globalZMin;
-                double Y(double z) => z - baseZ;
+                double Y(double z) => (Row(z) - baseRow) * storeyPitchFt;
 
                 if (levels.Count == 0)
                     result.Warnings.Add("The document has no Levels — floor lines were not drawn.");
@@ -433,7 +474,26 @@ namespace StingTools.Core.Plumbing
 
         // ── Levels ────────────────────────────────────────────────────────────
 
-        private static List<(string Name, double Elevation)> CollectLevels(Document doc)
+        /// <summary>
+        /// Printed height (mm) and width factor of a text type, for sizing label offsets;
+        /// <paramref name="fallbackMm"/> and 1.0 when the type cannot be read.
+        /// </summary>
+        internal static (double HeightMm, double WidthFactor) TextMetrics(TextNoteType t, double fallbackMm)
+        {
+            double h = fallbackMm, wf = 1.0;
+            if (t == null) return (h, wf);
+            try
+            {
+                double sizeFt = t.get_Parameter(BuiltInParameter.TEXT_SIZE)?.AsDouble() ?? 0;
+                if (sizeFt > 0) h = sizeFt * 304.8;
+                double w = t.get_Parameter(BuiltInParameter.TEXT_WIDTH_SCALE)?.AsDouble() ?? 0;
+                if (w > 0) wf = w;
+            }
+            catch (Exception ex) { StingLog.Warn($"TextMetrics '{t.Name}': {ex.Message}"); }
+            return (h, wf);
+        }
+
+        internal static List<(string Name, double Elevation)> CollectLevels(Document doc)
         {
             try
             {

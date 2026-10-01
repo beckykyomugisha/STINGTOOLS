@@ -4,6 +4,8 @@
 // Walks the supply branch of the PipeNetwork, lays out the index leg vertically
 // (inlet at bottom, fixtures at top), draws the network plus PRV / water-meter
 // / pump / fixture symbols and labels each pipe with DN + accumulated kPa.
+// Runs of pass-through pipe collapse to one line, floors are storey rows at a
+// fixed pitch, and the scale is the smallest that fits the sheet slot (DTW-120).
 //
 // All drafting-view coordinates are in feet (Revit internal units).
 // 1 mm = 1/304.8 ft.
@@ -28,10 +30,15 @@ namespace StingTools.Core.Plumbing
         /// lowest equipment node drew whatever network it touched — drainage included.
         /// </summary>
         public PipeSystemType[] Classifications { get; set; } = { PipeSystemType.DomesticColdWater };
-        /// <summary>Horizontal spacing between adjacent branches (mm).</summary>
+        /// <summary>Spacing between adjacent columns (model mm; never narrower than the widest label).</summary>
         public double BranchSpacingMm  { get; set; } = 1000.0;
-        /// <summary>Vertical spacing per level (mm).</summary>
+        /// <summary>Drawn height of one storey (model mm); floors are drawn this far apart whatever their real height.</summary>
         public double LevelHeightMm    { get; set; } = 3000.0;
+        /// <summary>Paper size of the sheet slot the view goes in (0 = unknown: no fit check).</summary>
+        public double SlotWidthMm      { get; set; }
+        public double SlotHeightMm     { get; set; }
+        /// <summary>Smallest scale the view may take.</summary>
+        public int    MinScale         { get; set; } = 50;
         public bool   ShowDnLabels     { get; set; } = true;
         public bool   ShowPressureLabels { get; set; } = true;
         public bool   ShowAccessorySymbols { get; set; } = true;
@@ -57,6 +64,8 @@ namespace StingTools.Core.Plumbing
         public int          AccessoriesDrawn  { get; set; }
         public int          FixturesDrawn     { get; set; }
         public string       DxfPath           { get; set; }
+        /// <summary>Scale the view was drawn at (chosen to fit its sheet slot).</summary>
+        public int          Scale             { get; set; }
         /// <summary>What the network was laid out from (e.g. "water meter 12345").</summary>
         public string       SourceDescription { get; set; } = "";
         /// <summary>True when no meter / tank / pump / equipment was found and the lowest node was used.</summary>
@@ -160,9 +169,67 @@ namespace StingTools.Core.Plumbing
                 }
             }
 
-            // 4. Drafting view — DTW-119: reused and cleared on a re-run, never "… (2)".
+            // 4. Layout (DTW-120) — before the view, so its scale can be chosen to fit.
+            //    Runs of pass-through pipe and fittings collapse to one line between the
+            //    nodes worth drawing (source, branch points, ends, fixtures, valves …);
+            //    rows are storeys at a fixed pitch, not true elevation. Every element used
+            //    to take its own 20 mm column, so a horizontal run spread across the sheet.
+            var symbols = new Dictionary<long, string>();
+            string Sym(PipeNode n)
+            {
+                if (n == null) return null;
+                if (!symbols.TryGetValue(n.Id.Value, out var s)) symbols[n.Id.Value] = s = NodeSymbol(doc, n);
+                return s;
+            }
+            var levelElevs = DrainageSchematicGenerator.CollectLevels(doc).Select(l => l.Elevation).ToList();
+            var layout = LayoutNetwork(net, inlet, levelElevs, opts, Sym);
+
+            var textType = DrainageSchematicGenerator.FindClosestTextType(doc, 2.5);
+            var (textMm, widthFactor) = DrainageSchematicGenerator.TextMetrics(textType, 2.5);
+
+            // Every label the drawing will carry, to size the columns and rows by.
+            var nodeLabels = new Dictionary<long, string>();
+            var segLabels = new Dictionary<ChainSegment, string>();
+            if (opts.ShowDnLabels)
+            {
+                foreach (var id in layout.Cells.Keys)
+                {
+                    if (!net.ById.TryGetValue(id, out var n)) continue;
+                    string sym = Sym(n);
+                    if (string.IsNullOrEmpty(sym)) continue;
+                    string lbl = NodeLabel(n, sym, showPressure, result.SourceAssumed);
+                    if (!string.IsNullOrEmpty(lbl)) nodeLabels[id] = lbl;
+                }
+                var labelledPipes = new HashSet<long>();
+                foreach (var seg in layout.Segments)
+                {
+                    string lbl = SegmentLabel(net, seg, labelledPipes, showPressure, result.SourceAssumed);
+                    if (!string.IsNullOrEmpty(lbl)) segLabels[seg] = lbl;
+                }
+            }
+            var allLabels = nodeLabels.Values.Concat(segLabels.Values).ToList();
+            double labelW = allLabels.Count == 0 ? 0 : allLabels.Max(l => SchematicFit.EstimateTextWidthMm(l, textMm, widthFactor));
+            double labelH = allLabels.Count == 0 ? textMm * 1.5 : allLabels.Max(l => SchematicFit.EstimateTextHeightMm(l, textMm));
+
+            int minRow = layout.Cells.Count > 0 ? layout.Cells.Values.Min(c => c.Row) : 0;
+            int maxRow = layout.Cells.Count > 0 ? layout.Cells.Values.Max(c => c.Row) : 0;
+            int minCol = layout.Cells.Count > 0 ? layout.Cells.Values.Min(c => c.Col) : 0;
+            int maxCol = layout.Cells.Count > 0 ? layout.Cells.Values.Max(c => c.Col) : 0;
+            // A column is never narrower than the widest label beside it, and a sub-row
+            // never shorter than the tallest label, so labels in neighbouring cells do not
+            // overlap; only the nominal spacing shrinks with scale.
+            double ColumnPaper(int s) => Math.Max(opts.BranchSpacingMm / s, labelW + LabelOffsetMm + 2);
+            double StoreyPaper(int s) => Math.Max(opts.LevelHeightMm / s, Math.Max(MinStoreyPaperMm, SubRowsPerStorey * (labelH + 1)));
+            var fit = SchematicFit.ChooseScale(
+                s => ((maxCol - minCol + 1) * ColumnPaper(s),
+                      (maxRow - minRow) / (double)SubRowsPerStorey * StoreyPaper(s) + labelH + 5),
+                opts.SlotWidthMm, opts.SlotHeightMm, opts.MinScale > 0 ? opts.MinScale : 50);
+            result.Scale = fit.Scale;
+            if (fit.Problem() is string fitProblem) result.Warnings.Add(fitProblem);
+
+            // 5. Drafting view — DTW-119: reused and cleared on a re-run, never "… (2)".
             var view = StingTools.Core.Drawing.SchematicViewFactory.CreateOrReplace(
-                doc, ViewName(opts), out string viewError, 50);
+                doc, ViewName(opts), out string viewError, fit.Scale);
             if (view == null)
             {
                 result.Warnings.Add(viewError ?? "The supply schematic view could not be made.");
@@ -170,14 +237,14 @@ namespace StingTools.Core.Plumbing
             }
             result.ViewId = view.Id;
 
+            // Paper mm × the view's real scale: glyphs print at their paper size.
             int scale = view.Scale;
             double P(double paperMm) => SchematicLayoutMath.PaperMmToModelFt(paperMm, scale);
+            double colFt = P(ColumnPaper(scale));
+            double subRowFt = P(StoreyPaper(scale)) / SubRowsPerStorey;
+            var coords = layout.Cells.ToDictionary(kv => kv.Key,
+                kv => new XYZ((kv.Value.Col - minCol) * colFt, (kv.Value.Row - minRow) * subRowFt, 0));
 
-            // 5. Layout: vertical position from real elevation (snapped to a row),
-            //    side branches fanning out left/right; no two nodes share a cell.
-            var coords = LayoutNetwork(net, inlet, opts, P(5));
-
-            var textType = DrainageSchematicGenerator.FindClosestTextType(doc, 2.5);
             var (solidId, dashedId) = GetLineStyleIds(doc);
 
             // Build the symbol-family cache once per generation. Maps each
@@ -186,43 +253,45 @@ namespace StingTools.Core.Plumbing
             // fall through to the geometric glyph fallback below.
             var symbolMap = ResolveSymbolFamilies(doc);
 
-            // 6. Draw edges. DTW-128: a pipe is two edges (one per end), and each edge
-            //    used to print the pipe's DN — every pipe was labelled twice. The label
-            //    is now placed once per pipe, at the pipe's own node where it has one.
-            var labelledPipes = new HashSet<long>();
-            foreach (var edge in net.Edges)
+            // 6. Draw the runs: straight, or an L (along the parent's row, then up or
+            //    down the child's column). DTW-128: each pipe's DN is labelled once.
+            var drawnPipes = new HashSet<long>();
+            foreach (var seg in layout.Segments)
             {
-                if (edge.From == null || edge.To == null) continue;
-                if (!coords.TryGetValue(edge.From.Id.Value, out var p0)) continue;
-                if (!coords.TryGetValue(edge.To.Id.Value,   out var p1)) continue;
+                if (!coords.TryGetValue(seg.From, out var p0)) continue;
+                if (!coords.TryGetValue(seg.To,   out var p1)) continue;
+                net.ById.TryGetValue(seg.From, out var fromNode);
 
-                bool isReturn = (edge.From.SystemName ?? "").IndexOf("RETURN", StringComparison.OrdinalIgnoreCase) >= 0
-                              || (edge.From.SystemName ?? "").IndexOf("RECIRC", StringComparison.OrdinalIgnoreCase) >= 0;
-                if (!TryDrawDetailLine(doc, view, p0, p1, isReturn ? dashedId : solidId, result))
-                    continue;
-                result.PipesDrawn++;
+                bool isReturn = (fromNode?.SystemName ?? "").IndexOf("RETURN", StringComparison.OrdinalIgnoreCase) >= 0
+                              || (fromNode?.SystemName ?? "").IndexOf("RECIRC", StringComparison.OrdinalIgnoreCase) >= 0;
+                var style = isReturn ? dashedId : solidId;
+                bool drawn;
+                var corner = new XYZ(p1.X, p0.Y, 0);
+                if (Math.Abs(p0.X - p1.X) < 1e-9 || Math.Abs(p0.Y - p1.Y) < 1e-9)
+                    drawn = TryDrawDetailLine(doc, view, p0, p1, style, result);
+                else
+                    drawn = TryDrawDetailLine(doc, view, p0, corner, style, result)
+                          & TryDrawDetailLine(doc, view, corner, p1, style, result);
+                if (!drawn) continue;
+                foreach (var id in new[] { seg.From }.Concat(seg.Through).Concat(new[] { seg.To }))
+                    if (net.ById.TryGetValue(id, out var n) && n.IsPipeElement) drawnPipes.Add(id);
 
-                long pipeKey = edge.PipeId?.Value ?? -1;
-                if (opts.ShowDnLabels && edge.DnMm > 0 && pipeKey > 0 && labelledPipes.Add(pipeKey))
+                if (segLabels.TryGetValue(seg, out var lbl))
                 {
-                    XYZ at = coords.TryGetValue(pipeKey, out var pipeAt)
-                        ? new XYZ(pipeAt.X + P(2), pipeAt.Y, 0)
-                        : new XYZ((p0.X + p1.X) / 2.0 + P(2), (p0.Y + p1.Y) / 2.0, 0);
-                    var pipeNode = net.ById.TryGetValue(pipeKey, out var pn) ? pn : edge.To;
-                    string label = $"DN{(int)Math.Round(edge.DnMm)}";
-                    string kpa = showPressure
-                        ? SchematicLayoutMath.PressureLabel(pipeNode.PressureKpa, true, result.SourceAssumed) : null;
-                    if (kpa != null) label += "\n" + kpa;
-                    TryPlaceTextNote(doc, view, at, label,
-                        textType?.Id ?? ElementId.InvalidElementId, result);
+                    XYZ at = Math.Abs(p0.Y - p1.Y) > 1e-9
+                        ? new XYZ(p1.X + P(2), (p0.Y + p1.Y) / 2.0 + P(labelH / 2), 0)   // beside the vertical leg
+                        : new XYZ((p0.X + p1.X) / 2.0, p0.Y + P(labelH + 1), 0);         // above the horizontal run
+                    TryPlaceTextNote(doc, view, at, lbl, textType?.Id ?? ElementId.InvalidElementId, result);
                 }
             }
+            result.PipesDrawn = drawnPipes.Count;
 
             // 7. Draw node markers (fixtures, PRVs, meters, pumps)
-            foreach (var node in net.Nodes)
+            foreach (var kv in coords)
             {
-                if (!coords.TryGetValue(node.Id.Value, out var p)) continue;
-                string sym = NodeSymbol(doc, node);
+                if (!net.ById.TryGetValue(kv.Key, out var node)) continue;
+                var p = kv.Value;
+                string sym = Sym(node);
                 if (string.IsNullOrEmpty(sym)) continue;
 
                 if (opts.ShowAccessorySymbols)
@@ -241,14 +310,10 @@ namespace StingTools.Core.Plumbing
                     else             result.AccessoriesDrawn++;
                 }
 
-                if (opts.ShowDnLabels)
-                {
-                    string lbl = NodeLabel(node, sym, showPressure, result.SourceAssumed);
-                    if (!string.IsNullOrEmpty(lbl))
-                        TryPlaceTextNote(doc, view,
-                            new XYZ(p.X + P(4), p.Y, 0), lbl,
-                            textType?.Id ?? ElementId.InvalidElementId, result);
-                }
+                if (nodeLabels.TryGetValue(kv.Key, out var lbl))
+                    TryPlaceTextNote(doc, view,
+                        new XYZ(p.X + P(LabelOffsetMm), p.Y + P(labelH / 2), 0), lbl,
+                        textType?.Id ?? ElementId.InvalidElementId, result);
             }
 
             // 8. DXF export (optional)
@@ -285,51 +350,75 @@ namespace StingTools.Core.Plumbing
 
         // ── Layout ────────────────────────────────────────────────────────────
 
-        private static Dictionary<long, XYZ> LayoutNetwork(
-            PipeNetwork net, PipeNode inlet, SupplySchematicOptions opts, double rowStepFt)
+        // Rows per storey: a node sits at the nearest quarter storey above its level.
+        private const int    SubRowsPerStorey = 4;
+        private const double MinStoreyPaperMm = 16;
+        private const double LabelOffsetMm    = 4;
+
+        private sealed class SupplyLayout
         {
-            var coords = new Dictionary<long, XYZ>();
-            double dx = opts.BranchSpacingMm * MmToFt;
-            double dy = opts.LevelHeightMm   * MmToFt;
-            if (rowStepFt <= 0) rowStepFt = 1.0;
-            int hopRows = Math.Max(1, (int)Math.Round(dy / rowStepFt));
-            double z0 = inlet.Position?.Z ?? 0;
-
-            // BFS from the source. Row = the node's real elevation above the source,
-            // snapped to rowStepFt (LevelHeightMm per hop only for a node with no
-            // position); column = the parent's, fanned out for siblings. Every
-            // (row, col) is claimed once, so nodes of different parents never overlap.
-            var grid    = new SchematicCellGrid();
-            var visited = new HashSet<long>();
-            var queue   = new Queue<(PipeNode node, int parentRow, int col)>();
-            queue.Enqueue((inlet, 0, 0));
-
-            while (queue.Count > 0)
-            {
-                var (node, parentRow, prefCol) = queue.Dequeue();
-                if (!visited.Add(node.Id.Value)) continue;
-
-                int row = node.Position != null
-                    ? (int)Math.Round((node.Position.Z - z0) / rowStepFt)
-                    : parentRow + (node == inlet ? 0 : hopRows);
-                int col = grid.Claim(row, prefCol);
-                coords[node.Id.Value] = new XYZ(col * dx, row * rowStepFt, 0);
-
-                var children = node.Upstream.Concat(node.Downstream)
-                    .Select(e => e.From == node ? e.To : e.From)
-                    .Where(n => n != null && !visited.Contains(n.Id.Value))
-                    .Distinct()
-                    .ToList();
-
-                for (int i = 0; i < children.Count; i++)
-                {
-                    int childCol = children.Count == 1 ? col : col + i - children.Count / 2;
-                    queue.Enqueue((children[i], row, childCol));
-                }
-            }
-            return coords;
+            public Dictionary<long, (int Row, int Col)> Cells = new Dictionary<long, (int Row, int Col)>();
+            public List<ChainSegment> Segments = new List<ChainSegment>();
         }
 
+        /// <summary>
+        /// Cells of the nodes worth drawing — the source, branch points and ends, and
+        /// anything with a symbol — and the runs between them. A node with exactly two
+        /// neighbours and no symbol (a pipe, a coupling, an elbow) is passed through.
+        /// </summary>
+        private static SupplyLayout LayoutNetwork(PipeNetwork net, PipeNode inlet,
+            IReadOnlyList<double> levelElevs, SupplySchematicOptions opts, Func<PipeNode, string> sym)
+        {
+            var layout = new SupplyLayout();
+            IEnumerable<long> Nbrs(long id)
+            {
+                if (!net.ById.TryGetValue(id, out var n)) yield break;
+                foreach (var e in n.Upstream)   if (e.From != null) yield return e.From.Id.Value;
+                foreach (var e in n.Downstream) if (e.To   != null) yield return e.To.Id.Value;
+            }
+            bool Keep(long id)
+            {
+                if (!net.ById.TryGetValue(id, out var n)) return true;
+                return Nbrs(id).Distinct().Count() != 2 || !string.IsNullOrEmpty(sym(n));
+            }
+
+            long start = inlet.Id.Value;
+            layout.Segments = SchematicFit.CollapseChains(start, Nbrs, Keep);
+
+            double z0 = inlet.Position?.Z ?? 0;
+            double fallbackStoreyFt = Math.Max(1.0, opts.LevelHeightMm) * MmToFt;
+            int RowOf(long id)
+            {
+                double z = net.ById.TryGetValue(id, out var n) && n.Position != null ? n.Position.Z : z0;
+                return (int)Math.Round(SchematicFit.StoreyRow(levelElevs, z, fallbackStoreyFt) * SubRowsPerStorey);
+            }
+            layout.Cells = SchematicFit.LayoutTree(start, layout.Segments, RowOf);
+            return layout;
+        }
+
+        /// <summary>
+        /// DN label of a run: its pipes' DNs in order (each once), and the pressure at the
+        /// pipe nearest its far end. Null when every pipe in it was already labelled.
+        /// </summary>
+        private static string SegmentLabel(PipeNetwork net, ChainSegment seg, HashSet<long> labelledPipes,
+            bool showPressure, bool sourceAssumed)
+        {
+            var pipes = new[] { seg.From }.Concat(seg.Through).Concat(new[] { seg.To })
+                .Select(id => net.ById.TryGetValue(id, out var n) ? n : null)
+                .Where(n => n != null && n.IsPipeElement && n.DnMm > 0)
+                .ToList();
+            var fresh = pipes.Where(n => labelledPipes.Add(n.Id.Value)).ToList();
+            if (fresh.Count == 0) return null;
+            var dns = new List<int>();
+            foreach (var n in fresh)
+            {
+                int dn = (int)Math.Round(n.DnMm);
+                if (dns.Count == 0 || dns[dns.Count - 1] != dn) dns.Add(dn);
+            }
+            string label = "DN" + string.Join("/", dns);
+            string kpa = showPressure ? SchematicLayoutMath.PressureLabel(fresh[fresh.Count - 1].PressureKpa, true, sourceAssumed) : null;
+            return kpa != null ? label + "\n" + kpa : label;
+        }
         // ── Node classification + symbol mapping ──────────────────────────────
 
         private static string NodeSymbol(Document doc, PipeNode node)
