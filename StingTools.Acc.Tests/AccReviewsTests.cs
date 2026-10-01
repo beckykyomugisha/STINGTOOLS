@@ -394,6 +394,50 @@ namespace StingTools.Acc.Tests
             Assert.Equal("Fire strategy missing", p.Comment);
         }
 
+        // F2: an Accept that applied some targets and not others used to mark the proposal
+        // Accepted, so the refused target never received the decision.
+        [Fact]
+        public void APartialAccept_StaysPending_AndTheRetryCompletesIt_WithTheSameCode()
+        {
+            var p = new AccReviewProposal { Key = "v|r", Kind = AccProposalKind.Approve, ProposedSuitability = "",
+                                            DeliverableKey = "D1", RegisterDocId = "R1" };
+            var first = AccReviewProposals.Settle(p, new[] { AccProposalTarget.Deliverable }, failedNow: 1, code: "A1");
+            Assert.Equal(AccApplyOutcome.Partial, first);
+            Assert.True(p.IsPending);
+            Assert.Equal(new[] { AccProposalTarget.Deliverable }, p.AppliedTargets);
+            Assert.Equal("A1", p.PartialCode);                               // a retry reuses it, never re-asks
+
+            var second = AccReviewProposals.Settle(p, new[] { AccProposalTarget.Register }, failedNow: 0, code: "A2");
+            Assert.Equal(AccApplyOutcome.Complete, second);
+            Assert.Equal("A1", p.PartialCode);                               // the first code stands
+            Assert.Equal(2, p.AppliedTargets.Count);
+        }
+
+        [Fact]
+        public void NothingApplied_IsNotPartial_AndAFullApplyIsComplete()
+        {
+            var p = new AccReviewProposal { Key = "v|r", Kind = AccProposalKind.Approve, TransmittalId = "T1" };
+            Assert.Equal(AccApplyOutcome.NothingApplied, AccReviewProposals.Settle(p, new string[0], failedNow: 1, code: "A1"));
+            Assert.Empty(p.AppliedTargets);
+            Assert.Equal("", p.PartialCode);
+            Assert.Equal(AccApplyOutcome.Complete,
+                AccReviewProposals.Settle(p, new[] { AccProposalTarget.Transmittal }, failedNow: 0, code: "A1"));
+            Assert.Equal(AccApplyOutcome.NothingApplied, AccReviewProposals.Settle(null, null, 0, null));
+        }
+
+        [Fact]
+        public void APartlyAppliedProposal_RoundTripsThroughTheQueueFile()
+        {
+            var p = new AccReviewProposal { Key = "v|r", Kind = AccProposalKind.Approve, DeliverableKey = "D1", RegisterDocId = "R1" };
+            AccReviewProposals.Settle(p, new[] { AccProposalTarget.Deliverable }, 1, "A1");
+            var back = Newtonsoft.Json.JsonConvert.DeserializeObject<AccReviewProposal>(Newtonsoft.Json.JsonConvert.SerializeObject(p));
+            Assert.Equal(new[] { AccProposalTarget.Deliverable }, back.AppliedTargets);
+            Assert.Equal("A1", back.PartialCode);
+            // An older queue file has neither key: nothing applied, nothing assumed.
+            var old = Newtonsoft.Json.JsonConvert.DeserializeObject<AccReviewProposal>("{\"key\":\"v|r\",\"state\":\"Pending\"}");
+            Assert.Empty(old.AppliedTargets);
+        }
+
         [Fact]
         public void Merge_DedupesByVersionAndReview_AndNeverResurrectsADecision()
         {

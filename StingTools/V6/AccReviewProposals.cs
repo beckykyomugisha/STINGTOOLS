@@ -38,6 +38,17 @@ namespace StingTools.V6
         public const string Reject = "REJECT";
     }
 
+    /// <summary>F2: the result of one Accept attempt (see <see cref="AccReviewProposals.Settle"/>).</summary>
+    public enum AccApplyOutcome { NothingApplied, Partial, Complete }
+
+    /// <summary>F2: target names recorded in <see cref="AccReviewProposal.AppliedTargets"/>.</summary>
+    public static class AccProposalTarget
+    {
+        public const string Deliverable = "deliverable";
+        public const string Transmittal = "transmittal";
+        public const string Register = "register";
+    }
+
     public static class AccProposalState
     {
         public const string Pending = "PENDING";
@@ -84,6 +95,12 @@ namespace StingTools.V6
         /// <summary>The code actually applied (may differ from the proposal: a person chose it).</summary>
         [JsonProperty("appliedSuitability")] public string AppliedSuitability { get; set; } = string.Empty;
         [JsonProperty("decisionNote")] public string DecisionNote { get; set; } = string.Empty;
+        /// <summary>F2: the targets an Accept has already applied ("deliverable", "transmittal",
+        /// "register"). A proposal stays pending until every target has applied; a retry skips
+        /// these, so nothing is applied twice.</summary>
+        [JsonProperty("appliedTargets")] public List<string> AppliedTargets { get; set; } = new List<string>();
+        /// <summary>F2: the code those targets were given, so a retry applies the same one.</summary>
+        [JsonProperty("partialCode")] public string PartialCode { get; set; } = string.Empty;
 
         [JsonIgnore] public bool IsPending => string.Equals(State, AccProposalState.Pending, StringComparison.Ordinal);
         [JsonIgnore] public bool HasTarget =>
@@ -335,6 +352,21 @@ namespace StingTools.V6
         }
 
         /// <summary>Record a person's decision. Only a pending proposal can be decided.</summary>
+        /// <summary>F2: fold one Accept attempt into the proposal. Complete only when nothing
+        /// failed and something has been applied (now or earlier); Partial when some targets
+        /// applied and others did not - the proposal stays pending and the next Accept retries
+        /// only the rest; NothingApplied otherwise.</summary>
+        public static AccApplyOutcome Settle(AccReviewProposal p, IEnumerable<string> appliedNow, int failedNow, string code)
+        {
+            if (p == null) return AccApplyOutcome.NothingApplied;
+            p.AppliedTargets ??= new List<string>();
+            foreach (var t in appliedNow ?? Enumerable.Empty<string>())
+                if (!string.IsNullOrEmpty(t) && !p.AppliedTargets.Contains(t, StringComparer.Ordinal)) p.AppliedTargets.Add(t);
+            if (p.AppliedTargets.Count > 0 && string.IsNullOrEmpty(p.PartialCode)) p.PartialCode = code ?? string.Empty;
+            if (p.AppliedTargets.Count == 0) return AccApplyOutcome.NothingApplied;
+            return failedNow == 0 ? AccApplyOutcome.Complete : AccApplyOutcome.Partial;
+        }
+
         public static bool Decide(AccReviewProposal p, string state, string user, DateTime now, string appliedCode, string note)
         {
             if (p == null || !p.IsPending) return false;

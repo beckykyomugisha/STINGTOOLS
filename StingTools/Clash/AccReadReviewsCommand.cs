@@ -319,7 +319,7 @@ namespace StingTools.Core.Clash
 
             string user = AccReviewFiles.User(doc);
             var report = new StringBuilder();
-            int accepted = 0, dismissed = 0, refused = 0;
+            int accepted = 0, dismissed = 0, refused = 0, partial = 0;
             foreach (var p in chosen)
             {
                 if (choice == TaskDialogResult.CommandLink2)
@@ -328,12 +328,19 @@ namespace StingTools.Core.Clash
                     { dismissed++; report.AppendLine("Dismissed: " + p.Describe()); }
                     continue;
                 }
-                string outcome = Apply(doc, p, user, out string applied, out bool ok);
-                if (ok)
+                string outcome = Apply(doc, p, user, out string applied, out AccApplyOutcome result);
+                if (result == AccApplyOutcome.Complete)
                 {
                     AccReviewProposals.Decide(p, AccProposalState.Accepted, user, DateTime.Now, applied, outcome);
                     accepted++;
                     report.AppendLine("Accepted: " + p.Describe() + "\n    " + outcome);
+                }
+                else if (result == AccApplyOutcome.Partial)
+                {
+                    // F2: it stays pending; the next Accept applies only what is still missing.
+                    partial++;
+                    report.AppendLine("PARTLY applied (still pending - Accept it again once the cause is fixed; " +
+                                      "only the rest is applied): " + p.Describe() + "\n    " + outcome);
                 }
                 else { refused++; report.AppendLine("NOT applied (still pending): " + p.Describe() + "\n    " + outcome); }
             }
@@ -350,11 +357,12 @@ namespace StingTools.Core.Clash
 
             new TaskDialog(Title)
             {
-                MainInstruction = $"{accepted} accepted, {dismissed} dismissed" + (refused > 0 ? $", {refused} not applied" : ""),
+                MainInstruction = $"{accepted} accepted, {dismissed} dismissed" + (partial > 0 ? $", {partial} partly applied" : "") +
+                                  (refused > 0 ? $", {refused} not applied" : ""),
                 MainContent = report.ToString(),
             }.Show();
-            StingLog.Info($"ACC_ReviewProposals: accepted={accepted} dismissed={dismissed} refused={refused}");
-            return refused > 0 ? Result.Failed : Result.Succeeded;
+            StingLog.Info($"ACC_ReviewProposals: accepted={accepted} dismissed={dismissed} partial={partial} refused={refused}");
+            return refused > 0 || partial > 0 ? Result.Failed : Result.Succeeded;
         }
 
         private static string Targets(AccReviewProposal p)
@@ -366,17 +374,20 @@ namespace StingTools.Core.Clash
             return t.Count == 0 ? "no STING record" : string.Join(", ", t);
         }
 
-        /// <summary>Apply one accepted proposal. ok=false leaves it pending (nothing to apply
-        /// to, no code chosen, or every target refused).</summary>
-        private static string Apply(Document doc, AccReviewProposal p, string user, out string appliedCode, out bool ok)
+        /// <summary>Apply one accepted proposal. Anything but Complete leaves it pending
+        /// (nothing to apply to, no code chosen, or a target refused). F2: targets an earlier
+        /// Accept applied are skipped, and their code is reused.</summary>
+        private static string Apply(Document doc, AccReviewProposal p, string user, out string appliedCode, out AccApplyOutcome result)
         {
             appliedCode = "";
-            ok = false;
+            result = AccApplyOutcome.NothingApplied;
             if (!p.HasTarget)
                 return "it matches no STING deliverable, transmittal or register row - dismiss it, or record the document in STING first";
 
             bool approve = p.Kind == AccProposalKind.Approve;
-            string code = p.ProposedSuitability;
+            string code = !string.IsNullOrEmpty(p.PartialCode) ? p.PartialCode : p.ProposedSuitability;
+            var earlier = new HashSet<string>(p.AppliedTargets ?? new List<string>(), StringComparer.Ordinal);
+            var appliedNow = new List<string>();
             if (approve && string.IsNullOrEmpty(code))
             {
                 var pick = StingListPicker.Show(Title + " — choose the code",
@@ -394,7 +405,9 @@ namespace StingTools.Core.Clash
             var failed = new List<string>();
 
             // Deliverable — the lifecycle state machine (audit, workflow gate, persistence).
-            if (!string.IsNullOrEmpty(p.DeliverableKey))
+            if (!string.IsNullOrEmpty(p.DeliverableKey) && earlier.Contains(AccProposalTarget.Deliverable))
+                done.Add($"deliverable {p.DeliverableKey} (applied earlier)");
+            else if (!string.IsNullOrEmpty(p.DeliverableKey))
             {
                 try
                 {
@@ -409,7 +422,11 @@ namespace StingTools.Core.Clash
                         var lr = approve
                             ? Planscape.Docs.Templates.DeliverableLifecycle.ApproveFromReview(d, doc, engine.Registry.Manifest, user, code, reason)
                             : Planscape.Docs.Templates.DeliverableLifecycle.RejectFromReview(d, doc, engine.Registry.Manifest, user, reason);
-                        if (lr != null && lr.Ok) done.Add($"deliverable {p.DeliverableKey} → {lr.Message}" + (approve ? $" {code}" : ""));
+                        if (lr != null && lr.Ok)
+                        {
+                            done.Add($"deliverable {p.DeliverableKey} → {lr.Message}" + (approve ? $" {code}" : ""));
+                            appliedNow.Add(AccProposalTarget.Deliverable);
+                        }
                         else failed.Add($"deliverable {p.DeliverableKey}: {lr?.Message ?? "no result"}");
                     }
                 }
@@ -417,7 +434,9 @@ namespace StingTools.Core.Clash
             }
 
             // Transmittal — TransmittalRecord owns the transition and its history shape.
-            if (!string.IsNullOrEmpty(p.TransmittalId))
+            if (!string.IsNullOrEmpty(p.TransmittalId) && earlier.Contains(AccProposalTarget.Transmittal))
+                done.Add($"transmittal {p.TransmittalId} (applied earlier)");
+            else if (!string.IsNullOrEmpty(p.TransmittalId))
             {
                 try
                 {
@@ -428,7 +447,11 @@ namespace StingTools.Core.Clash
                     {
                         var row = TransmittalRecord.RecordReviewDecision(rows, p.TransmittalId, approve, code, DateTime.Now, user, reason, out string why);
                         if (row == null) failed.Add($"transmittal {p.TransmittalId}: {why}");
-                        else if (BIMManagerEngine.SaveJsonFile(path, rows)) done.Add($"transmittal {p.TransmittalId} → {row["status"]}");
+                        else if (BIMManagerEngine.SaveJsonFile(path, rows))
+                        {
+                            done.Add($"transmittal {p.TransmittalId} → {row["status"]}");
+                            appliedNow.Add(AccProposalTarget.Transmittal);
+                        }
                         else failed.Add($"transmittal {p.TransmittalId}: transmittals.json could not be saved (see the log)");
                     }
                 }
@@ -436,20 +459,26 @@ namespace StingTools.Core.Clash
             }
 
             // Register — its own suitability-history writer. A rejection changes no code.
-            if (!string.IsNullOrEmpty(p.RegisterDocId) && approve)
+            if (!string.IsNullOrEmpty(p.RegisterDocId) && approve && earlier.Contains(AccProposalTarget.Register))
+                done.Add($"register {p.RegisterDocId} (applied earlier)");
+            else if (!string.IsNullOrEmpty(p.RegisterDocId) && approve)
             {
                 try
                 {
                     // E4: found / saved / refused is reported as it is - never "→ code" for a
                     // write that did not happen.
                     var rr = BIMManagerEngine.UpdateDocumentSuitability(doc, p.RegisterDocId, code, reason, p.ApprovedRevision);
-                    if (rr.Ok) done.Add($"register {p.RegisterDocId} → {code}" + (rr.Status == AccRegisterApplyStatus.Unchanged ? " (already)" : ""));
+                    if (rr.Ok)
+                    {
+                        done.Add($"register {p.RegisterDocId} → {code}" + (rr.Status == AccRegisterApplyStatus.Unchanged ? " (already)" : ""));
+                        appliedNow.Add(AccProposalTarget.Register);
+                    }
                     else failed.Add($"register {p.RegisterDocId}: {rr.Message}");
                 }
                 catch (Exception ex) { StingLog.Error("ACC proposal → register", ex); failed.Add($"register {p.RegisterDocId}: {ex.Message}"); }
             }
 
-            ok = done.Count > 0;
+            result = AccReviewProposals.Settle(p, appliedNow, failed.Count, approve ? code : "");
             string text = string.Join("; ", done);
             if (failed.Count > 0) text += (text.Length > 0 ? "; " : "") + "NOT applied: " + string.Join("; ", failed);
             return text;
