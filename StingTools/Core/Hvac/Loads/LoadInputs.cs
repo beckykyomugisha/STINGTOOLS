@@ -164,6 +164,9 @@ namespace StingTools.Core.Hvac.Loads
         public int     PeakHour        { get; set; }
         public double  AreaM2          { get; set; }
         public double  OaLs            { get; set; }
+        /// <summary>True when this zone's infiltration used the site design wind
+        /// speed (CIBSE Guide A §4.6 stack + wind model).</summary>
+        public bool    UsedDesignWind  { get; set; }
 
         /// <summary>
         /// Hourly OA L/s per ASHRAE 62.1 DCV — modulates per-person component
@@ -198,5 +201,8 @@ namespace StingTools.Core.Hvac.Loads
             ? BlockSensibleW / SumOfPeaksSensibleW
             : 1.0;
         public List<ZoneLoadResult> Zones  { get; } = new();
+        /// <summary>Inputs the engine assumed rather than read, in plain words
+        /// (e.g. "design wind 3.0 m/s assumed"). Empty when nothing was assumed.</summary>
+        public List<string> Assumptions    { get; } = new();
     }
 }

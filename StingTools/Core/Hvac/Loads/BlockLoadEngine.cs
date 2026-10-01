@@ -139,6 +139,9 @@ namespace StingTools.Core.Hvac.Loads
                     blk.BlockSensibleW = peakW;
                     blk.BlockHour      = peakH;
                     blk.BlockLatentW   = blk.SystemLatentW[peakH];
+                    if (climate.DesignWindAssumed && blk.Zones.Any(zr => zr.UsedDesignWind))
+                        blk.Assumptions.Add(
+                            $"design wind {climate.DesignWindMs:0.0} m/s assumed (site '{climate.Id}' records no designWindMs)");
                     return blk;
                 })
                 .ToList();
@@ -194,6 +197,7 @@ namespace StingTools.Core.Hvac.Loads
             //   * Else fall back to InfiltrationAch.
             double oaLs   = z.OaLs;                                              // L/s
             double infLs;
+            bool usedDesignWind = false;
             if (z.Q4PaM3PerHperM2 > 0)
             {
                 double envM2 = z.InfiltrationEnvelopeAreaM2 > 0
@@ -205,6 +209,7 @@ namespace StingTools.Core.Hvac.Loads
                                        || seg.Kind == SegmentKind.Roof)
                             .Sum(seg => seg.AreaM2)
                         : 0);
+                usedDesignWind = envM2 > 0;
                 infLs = (envM2 > 0)
                     ? CibseInfiltrationLs(z.Q4PaM3PerHperM2, envM2, z.HeightM,
                                           tSet, tPeak, c.DesignWindMs,
@@ -398,6 +403,7 @@ namespace StingTools.Core.Hvac.Loads
                 PeakHour      = peakHour,
                 AreaM2        = z.FloorAreaM2,
                 OaLs          = oaLs,
+                UsedDesignWind = usedDesignWind,
                 HourlyOaLs    = dcv,
                 AverageOaLs   = avgOa,
                 DcvSavingsPct = savings

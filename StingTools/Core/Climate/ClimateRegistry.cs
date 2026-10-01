@@ -97,8 +97,22 @@ namespace StingTools.Core.Climate
         /// <summary>Annual-mean wind speed at 10 m, m/s. ASHRAE 2021 column
         /// "Wsf" (wind speed at the cooling design hour). Used by the
         /// CIBSE Guide A §4.6 stack + wind infiltration model. Defaults to
-        /// 3.0 m/s when not in the site record (representative UK mean).</summary>
-        public double DesignWindMs { get; set; } = 3.0;
+        /// 3.0 m/s when not in the site record (representative UK mean);
+        /// <see cref="DesignWindAssumed"/> says when that happened.</summary>
+        public double DesignWindMs
+        {
+            get => _designWindMs ?? DefaultDesignWindMs;
+            set => _designWindMs = value;
+        }
+        private double? _designWindMs;
+
+        /// <summary>The wind speed used when a site record carries no designWindMs.</summary>
+        public const double DefaultDesignWindMs = 3.0;
+
+        /// <summary>True when no wind speed was recorded for this site, so
+        /// <see cref="DesignWindMs"/> is the <see cref="DefaultDesignWindMs"/>
+        /// assumption rather than site data. Callers that use the wind must say so.</summary>
+        public bool DesignWindAssumed => !_designWindMs.HasValue;
 
         /// <summary>
         /// Air density at the cooling design dry-bulb, corrected for
@@ -281,9 +295,12 @@ namespace StingTools.Core.Climate
                     RainfallMmYr    = (double?)s["rainfallMmYr"] ?? 0,
                     Source          = (string)s["source"] ?? "",
                     UtcOffsetHours      = (double?)s["utcOffsetHours"] ?? 0,
-                    ObservesDstInSummer = (bool?)s["observesDstInSummer"] ?? false,
-                    DesignWindMs        = (double?)s["designWindMs"] ?? 3.0
+                    ObservesDstInSummer = (bool?)s["observesDstInSummer"] ?? false
                 };
+                // Only a recorded wind speed is set; absent, DesignWindMs reads the
+                // 3.0 m/s default and DesignWindAssumed stays true.
+                var windMs = (double?)s["designWindMs"];
+                if (windMs.HasValue) site.DesignWindMs = windMs.Value;
                 // Project override replaces an existing entry with the same id
                 int existing = data.Sites.FindIndex(x => string.Equals(x.Id, site.Id, StringComparison.OrdinalIgnoreCase));
                 if (existing >= 0) data.Sites[existing] = site;
