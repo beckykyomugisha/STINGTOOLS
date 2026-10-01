@@ -238,6 +238,22 @@ ad42c8bda, which includes PR #1021. The earlier rounds' PR #1021 is merged and d
 | DTW-175 | CreateVGOverridesCommand | Low | Unreachable branch; adds every STING filter | fix/dt-r8-vg | In progress |
 | DTW-176 | ManagedTemplateSyncer ~292 | Low | Schedules excluded from templates | fix/dt-r8-vg | In progress |
 | DTW-177 | ApplyMaterialClassOverrides | Low | Dead code; adds a filter with no override | fix/dt-r8-vg | In progress |
+| DTW-178 | DrawingTypeEditorDialog pack load/save | Critical | Editor loads corporate packs only; every Save erases previously saved project packs | fix/dt-r8-auth | In progress |
+| DTW-179 | DrawingTypeExcelCommands validation | High | Shipped catalogue cannot round-trip (NA scale, Schematic/Coordination slots, ByDiscipline) | fix/dt-r8-auth | In progress |
+| DTW-180 | Excel routing sheet | High | Predicate fields lost (rules become catch-alls); corporate rules written to the override | fix/dt-r8-auth | In progress |
+| DTW-181 | Excel change detection / POCOs | High | Unedited import freezes the whole catalogue in the override and drops fields | fix/dt-r8-auth | In progress |
+| DTW-182 | Excel decimals | Med | Comma-decimal cultures fail import | fix/dt-r8-auth | In progress |
+| DTW-183 | Excel ApplyImport packs | Med | Corporate pack routing written to the project file | fix/dt-r8-auth | In progress |
+| DTW-184 | DrawingTypeRegistry ES path | Med | After ES_Migrate, file edits are ignored | fix/dt-r8-auth | In progress |
+| DTW-185 | DrawingTypeRegistry routing de-dup | Med | OptionMatches not in the signature | fix/dt-r8-auth | In progress |
+| DTW-186 | Editor ids | Med | Renamed corporate types dropped; duplicate clone ids; no pre-save validation | fix/dt-r8-auth | In progress |
+| DTW-187 | Registry load failure + non-atomic writes | Med | Malformed override then Save means project data lost; non-atomic writers | fix/dt-r8-auth | In progress |
+| DTW-188 | ProductionPresetRegistry | Med-Low | Save reports success on failure; failed load erases presets on the next save | fix/dt-r8-auth | In progress |
+| DTW-189 | Excel import unsaved model | Low-Med | Writes to a folder the registry never reads | fix/dt-r8-auth | In progress |
+| DTW-190 | Reload on close / Reload JSON | Low-Med | Packs and match-line config never reloaded | fix/dt-r8-auth | In progress |
+| DTW-191 | Legacy routing without origin | Low | Frozen corporate rules load as project rules | fix/dt-r8-auth | In progress |
+| DTW-192 | TitleBlockMigrateCsvToRecipe | Low | Corporate CSV preferred; hand-built path; wrong instruction | fix/dt-r8-auth | In progress |
+| DTW-193 | Editor push template | Low | Keeps the corporate checksum on a promoted entry | fix/dt-r8-auth | In progress |
 
 ## Decisions
 
