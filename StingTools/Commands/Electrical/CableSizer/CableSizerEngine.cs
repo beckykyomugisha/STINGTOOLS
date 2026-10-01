@@ -489,23 +489,15 @@ namespace StingTools.Commands.Electrical.CableSizer
             }
         }
 
-        private static readonly Dictionary<string, double> NecCircularMils = new Dictionary<string, double>
-        {
-            ["14"] = 4110, ["12"] = 6530, ["10"] = 10380, ["8"] = 16510,
-            ["6"] = 26240, ["4"] = 41740, ["3"] = 52620, ["2"] = 66360,
-            ["1"] = 83690, ["1/0"] = 105600, ["2/0"] = 133100, ["3/0"] = 167800,
-            ["4/0"] = 211600, ["250"] = 250000, ["300"] = 300000, ["350"] = 350000,
-            ["400"] = 400000, ["500"] = 500000, ["600"] = 600000, ["700"] = 700000,
-            ["750"] = 750000,
-        };
-
         /// <summary>The TRUE mm2 area of an AWG / kcmil size, so a downstream numeric
         /// parameter carries the real cross-section rather than a nearest-metric guess.
         /// 1 circular mil = pi/4 x (0.001 in)^2 = 5.067075e-4 mm2.</summary>
         internal static double NecCircularMilsToMm2(string size)
-            => NecCircularMils.TryGetValue(size ?? "", out double cm)
-                ? Math.Round(cm * 5.067074790e-4, 2)
-                : 0.0;
+        {
+            // Chapter 9 Table 8 — one copy, in NECStandards.
+            double cm = StingTools.Standards.NEC2023.NECStandards.GetCircularMils(size);
+            return cm > 0 ? Math.Round(cm * 5.067074790e-4, 2) : 0.0;
+        }
 
         /// <summary>"12" -> "12AWG"; "250" -> "250kcmil". The table keys both as bare
         /// numbers, and printing "250AWG" would name a conductor that does not exist.</summary>

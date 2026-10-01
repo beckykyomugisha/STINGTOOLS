@@ -258,44 +258,66 @@ namespace StingTools.Standards.NEC2023
         }
 
         /// <summary>
-        /// Table 310.15(B)(1) - Temperature Correction Factors
+        /// NEC 2023 Table 310.15(B)(1)(1), Ambient Temperature Correction Factors Based on
+        /// 30 °C (86 °F): upper bound of each band (°C) and the 60 / 75 / 90 °C factors; NaN is
+        /// the table's "—" (no factor: the conductor may not be used at that ambient).
+        /// Checked 2026-10-02 against the 2023 table reproduced unmarked by NFPA as the base of
+        /// PIs 1309 and 960-NFPA 70-2023 [310.15(B)(2)], NEC CMP-6 First Draft public-input
+        /// report pp. 54 and 59/307 (identical), https://docinfofiles.nfpa.org/files/AboutTheCodes/70/70_A2025_NEC_P06_FD_PIResponses.pdf.
+        /// The table held here before was per-degree and not the NEC's: 36 °C gave 0.91 for a
+        /// 75 °C conductor (the table: 0.88), 46-50 °C 0.71-0.67 (0.75), and every ambient above
+        /// 50 °C 0.67, where the table gives 0.67 / 0.58 / 0.47 / 0.33 and then no factor at all.
         /// </summary>
-        private static readonly Dictionary<int, double> _tempCorrectionFactors75C = new Dictionary<int, double>
+        private static readonly (double maxC, double f60, double f75, double f90)[] _ambientCorrection30C =
         {
-            { 21, 1.05 }, { 22, 1.04 }, { 23, 1.04 }, { 24, 1.03 }, { 25, 1.02 },
-            { 26, 1.00 }, { 27, 1.00 }, { 28, 1.00 }, { 29, 1.00 }, { 30, 1.00 },
-            { 31, 0.99 }, { 32, 0.97 }, { 33, 0.96 }, { 34, 0.95 }, { 35, 0.94 },
-            { 36, 0.91 }, { 37, 0.90 }, { 38, 0.89 }, { 39, 0.88 }, { 40, 0.87 },
-            { 41, 0.82 }, { 42, 0.81 }, { 43, 0.80 }, { 44, 0.79 }, { 45, 0.78 },
-            { 46, 0.71 }, { 47, 0.70 }, { 48, 0.69 }, { 49, 0.68 }, { 50, 0.67 }
+            (10, 1.29, 1.20, 1.15), (15, 1.22, 1.15, 1.12), (20, 1.15, 1.11, 1.08), (25, 1.08, 1.05, 1.04),
+            (30, 1.00, 1.00, 1.00), (35, 0.91, 0.94, 0.96), (40, 0.82, 0.88, 0.91), (45, 0.71, 0.82, 0.87),
+            (50, 0.58, 0.75, 0.82), (55, 0.41, 0.67, 0.76), (60, double.NaN, 0.58, 0.71), (65, double.NaN, 0.47, 0.65),
+            (70, double.NaN, 0.33, 0.58), (75, double.NaN, double.NaN, 0.50), (80, double.NaN, double.NaN, 0.41),
+            (85, double.NaN, double.NaN, 0.29),
         };
 
         /// <summary>
-        /// Apply temperature correction factor based on ambient temperature
-        /// Reference: NEC 2023 Table 310.15(B)(1)
+        /// Table 310.15(B)(1)(1) factor for an ambient (°C) and a conductor temperature rating
+        /// (60, 75 or 90). The bands are whole degrees; a fractional ambient takes the hotter
+        /// band (30.5 °C is corrected as 31-35 °C). NaN when the table gives no factor ("—",
+        /// or above 85 °C) — the conductor is not usable there and the caller must refuse.
         /// </summary>
-        /// <param name="ampacity">Base ampacity</param>
-        /// <param name="ambientTemp">Ambient temperature in Celsius</param>
-        /// <returns>Corrected ampacity</returns>
-        public static double ApplyTemperatureCorrection(double ampacity, double ambientTemp)
+        public static double GetTemperatureCorrectionFactor(double ambientC, int conductorTempRating)
         {
-            int temp = (int)Math.Round(ambientTemp);
-
-            if (temp < 21)
-                return ampacity * 1.05;
-
-            if (temp > 50)
-                return ampacity * 0.67;
-
-            if (_tempCorrectionFactors75C.TryGetValue(temp, out double factor))
-                return ampacity * factor;
-
-            return ampacity;
+            if (conductorTempRating != 60 && conductorTempRating != 75 && conductorTempRating != 90)
+                throw new ArgumentException($"Invalid temperature rating: {conductorTempRating}. Must be 60, 75, or 90.");
+            foreach (var row in _ambientCorrection30C)
+            {
+                if (ambientC <= row.maxC)
+                    return conductorTempRating == 60 ? row.f60 : conductorTempRating == 75 ? row.f75 : row.f90;
+            }
+            return double.NaN;
         }
 
         /// <summary>
+        /// Ambient correction on the 75 °C column (the column the NEC sizer reads, 110.14(C)).
+        /// Returns 0 when Table 310.15(B)(1)(1) gives no 75 °C factor (above 70 °C), so no
+        /// conductor carries the load and the sizer refuses — never a capped factor.
+        /// </summary>
+        public static double ApplyTemperatureCorrection(double ampacity, double ambientTemp)
+        {
+            double f = GetTemperatureCorrectionFactor(ambientTemp, 75);
+            return double.IsNaN(f) ? 0 : ampacity * f;
+        }
+
+        /// <summary>Chapter 9 Table 1 fill fraction: 1 conductor 53 %, 2 conductors 31 %,
+        /// over 2 40 % (checked against the CMP-8 First Revision report p. 161/163,
+        /// https://docinfofiles.nfpa.org/files/AboutTheCodes/70/70_A2025_NEC_P08_FD_PrelimFR.pdf).</summary>
+        public static double GetConduitFillFraction(int conductorCount)
+            => _conduitFillPercentages[Math.Min(Math.Max(conductorCount, 1), 3)];
+
+        /// <summary>
         /// Apply conductor bundling adjustment factor
-        /// Reference: NEC 2023 Table 310.15(B)(3)(a)
+        /// Reference: NEC 2023 Table 310.15(C)(1) (Table 310.15(B)(3)(a) in earlier editions):
+        /// 4-6 80 %, 7-9 70 %, 10-20 50 %, 21-30 45 %, 31-40 40 %, 41 and above 35 %. Checked
+        /// 2026-10-02 against PI 3958-NFPA 70-2023 [310.15(C)(1)], CMP-6 PI report p. 63/307,
+        /// https://docinfofiles.nfpa.org/files/AboutTheCodes/70/70_A2025_NEC_P06_FD_PIResponses.pdf.
         /// </summary>
         /// <param name="ampacity">Base ampacity</param>
         /// <param name="conductorCount">Number of current-carrying conductors</param>
@@ -367,20 +389,32 @@ namespace StingTools.Standards.NEC2023
             return "Oversized - use parallel conductors";
         }
 
-        private static double GetCircularMils(string wireSize)
+        /// <summary>
+        /// NEC 2023 Chapter 9 Table 8 circular-mil areas for AWG sizes; kcmil sizes are
+        /// n x 1000 by definition. The ONE copy (CableSizerEngine reads this). Checked
+        /// 2026-10-02 against the 2023 Table 8 reproduced by NFPA as the base of PIs 2158 and
+        /// 259-NFPA 70-2023 [Chapter 9 Table 8], CMP-6 PI report pp. 301 and 305/307,
+        /// https://docinfofiles.nfpa.org/files/AboutTheCodes/70/70_A2025_NEC_P06_FD_PIResponses.pdf. 0 for a size Table 8 does not list.
+        /// </summary>
+        public static double GetCircularMils(string wireSize)
         {
-            var circularMilsTable = new Dictionary<string, double>
-            {
-                { "14", 4110 }, { "12", 6530 }, { "10", 10380 }, { "8", 16510 },
-                { "6", 26240 }, { "4", 41740 }, { "3", 52620 }, { "2", 66360 },
-                { "1", 83690 }, { "1/0", 105600 }, { "2/0", 133100 }, { "3/0", 167800 },
-                { "4/0", 211600 }, { "250", 250000 }, { "300", 300000 }, { "350", 350000 },
-                { "400", 400000 }, { "500", 500000 }, { "600", 600000 }, { "700", 700000 },
-                { "750", 750000 }, { "800", 800000 }, { "900", 900000 }, { "1000", 1000000 }
-            };
-
-            return circularMilsTable.TryGetValue(wireSize, out double value) ? value : 0;
+            if (string.IsNullOrWhiteSpace(wireSize)) return 0;
+            if (_awgCircularMils.TryGetValue(wireSize.Trim(), out double cm)) return cm;
+            return _tableEightKcmil.Contains(wireSize.Trim()) ? double.Parse(wireSize.Trim(), System.Globalization.CultureInfo.InvariantCulture) * 1000.0 : 0;
         }
+
+        private static readonly Dictionary<string, double> _awgCircularMils = new Dictionary<string, double>
+        {
+            { "18", 1620 }, { "16", 2580 }, { "14", 4110 }, { "12", 6530 }, { "10", 10380 }, { "8", 16510 },
+            { "6", 26240 }, { "4", 41740 }, { "3", 52620 }, { "2", 66360 }, { "1", 83690 },
+            { "1/0", 105600 }, { "2/0", 133100 }, { "3/0", 167800 }, { "4/0", 211600 },
+        };
+
+        /// <summary>The kcmil sizes Table 8 lists.</summary>
+        private static readonly HashSet<string> _tableEightKcmil = new HashSet<string>
+        {
+            "250", "300", "350", "400", "500", "600", "700", "750", "800", "900", "1000", "1250", "1500", "1750", "2000",
+        };
 
         #endregion
 
@@ -503,15 +537,17 @@ namespace StingTools.Standards.NEC2023
         #region Article 250 - Grounding and Bonding
 
         /// <summary>
-        /// Table 250.122 - Equipment Grounding Conductor sizing
-        /// Reference: NEC 2023 Table 250.122
+        /// NEC 2023 Table 250.122, Minimum Size Equipment Grounding Conductors, COPPER column:
+        /// OCPD rating "not exceeding" (A) → EGC size. Checked 2026-10-02 against the 2023 table
+        /// reproduced unmarked by NFPA as the base of PI 3222-NFPA 70-2023 [250.122], CMP-5 PI
+        /// report p. 302/383, https://docinfofiles.nfpa.org/files/AboutTheCodes/70/70_A2025_NEC_P05_FD_PIResponses.pdf
+        /// (30 A and 40 A rows that the table does not have were removed; they gave the same
+        /// answer). The aluminium / copper-clad aluminium column is not held.
         /// </summary>
         private static readonly Dictionary<int, string> _equipmentGroundingConductorTable = new Dictionary<int, string>
         {
             { 15, "14" },
             { 20, "12" },
-            { 30, "10" },
-            { 40, "10" },
             { 60, "10" },
             { 100, "8" },
             { 200, "6" },
@@ -549,40 +585,36 @@ namespace StingTools.Standards.NEC2023
         }
 
         /// <summary>
-        /// Table 250.66 - Grounding Electrode Conductor sizing
+        /// NEC 2023 Table 250.66, Grounding Electrode Conductor for Alternating-Current Systems,
+        /// copper service conductors → copper GEC, as (largest conductor up to, cmil; GEC):
+        /// 2 or smaller 8; 1 or 1/0 6; 2/0 or 3/0 4; over 3/0 through 350 2; over 350 through
+        /// 600 1/0; over 600 through 1100 2/0; over 1100 3/0. Checked 2026-10-02 against the 2023
+        /// table reproduced unmarked by NFPA as the base of PI 1748-NFPA 70-2023 [250.66], CMP-5
+        /// PI report p. 192/383, https://docinfofiles.nfpa.org/files/AboutTheCodes/70/70_A2025_NEC_P05_FD_PIResponses.pdf.
+        /// The size-keyed table held here before was wrong from 300 kcmil up (300 gave 1/0, the
+        /// table 2; 400-600 2/0 or 3/0, the table 1/0; 700-1000 3/0 or 4/0, the table 2/0) and
+        /// returned "consult" for sizes smaller than 2 AWG. The aluminium columns are not held.
         /// </summary>
-        private static readonly Dictionary<string, string> _groundingElectrodeConductorTable = new Dictionary<string, string>
+        private static readonly (double maxCmil, string gec)[] _gecCopper =
         {
-            { "2", "8" },
-            { "1", "6" },
-            { "1/0", "6" },
-            { "2/0", "4" },
-            { "3/0", "4" },
-            { "4/0", "2" },
-            { "250", "2" },
-            { "300", "1/0" },
-            { "350", "1/0" },
-            { "400", "2/0" },
-            { "500", "2/0" },
-            { "600", "3/0" },
-            { "700", "3/0" },
-            { "750", "3/0" },
-            { "800", "3/0" },
-            { "900", "4/0" },
-            { "1000", "4/0" }
+            (66360, "8"), (105600, "6"), (167800, "4"), (350000, "2"), (600000, "1/0"), (1100000, "2/0"),
+            (double.MaxValue, "3/0"),
         };
 
         /// <summary>
-        /// Get grounding electrode conductor size
+        /// Get grounding electrode conductor size (copper) for the largest copper service-entrance
+        /// conductor (AWG / kcmil trade size, or the equivalent area for parallel sets).
         /// Reference: NEC 2023 Table 250.66
         /// </summary>
-        /// <param name="serviceEntranceSize">Service entrance conductor size</param>
-        /// <returns>Grounding electrode conductor size</returns>
         public static string GetGroundingElectrodeConductor(string serviceEntranceSize)
         {
-            return _groundingElectrodeConductorTable.TryGetValue(serviceEntranceSize, out string value)
-                ? value
-                : "Consult NEC Table 250.66";
+            double cm = GetCircularMils(serviceEntranceSize);
+            // An equivalent area for parallel sets (e.g. "1100") is any kcmil figure, not only a trade size.
+            if (cm <= 0 && double.TryParse(serviceEntranceSize, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double kc) && kc >= 250) cm = kc * 1000.0;
+            if (cm <= 0) return "Consult NEC Table 250.66";
+            foreach (var row in _gecCopper)
+                if (cm <= row.maxCmil) return row.gec;
+            return "Consult NEC Table 250.66";
         }
 
         /// <summary>
@@ -622,6 +654,9 @@ namespace StingTools.Standards.NEC2023
 
         /// <summary>
         /// Table 4 - EMT conduit dimensions (internal area in square inches)
+        /// VERIFY (2026-10-02): no NFPA committee report for the 2026 cycle reproduces the 2023
+        /// Chapter 9 Table 4 EMT rows, so these values are NOT checked against the NFPA text.
+        /// Confirm every row against the printed NFPA 70-2023 Chapter 9 Table 4 (Article 358).
         /// </summary>
         private static readonly Dictionary<string, double> _emtConduitAreas = new Dictionary<string, double>
         {
@@ -639,6 +674,9 @@ namespace StingTools.Standards.NEC2023
 
         /// <summary>
         /// Wire cross-sectional areas with THHN insulation (square inches)
+        /// VERIFY (2026-10-02): no NFPA committee report reproduces the 2023 Chapter 9 Table 5
+        /// THHN rows, so these are NOT checked against the NFPA text. Confirm every row against
+        /// the printed NFPA 70-2023 Chapter 9 Table 5 — in particular 300, 350, 700 and 750 kcmil.
         /// </summary>
         private static readonly Dictionary<string, double> _wireAreas = new Dictionary<string, double>
         {
