@@ -786,12 +786,30 @@ namespace StingTools.Core.Drawing
                             // dt.ViewTemplateName was resolved — explicit template wins (PACK-1).
                             if (!explicitTemplateApplied)
                             {
-                                try
+                                bool valid = true;
+                                try { valid = view.IsValidViewTemplate(templateId); }
+                                catch (Exception ex) { r.Warnings.Add($"Managed template validity check: {ex.Message}"); }
+                                if (!valid)
                                 {
-                                    view.ViewTemplateId = templateId;
-                                    r.TemplateApplied = true;
+                                    // DTW-176: e.g. a schedule template minted from a
+                                    // schedule of another category. Say so and style the
+                                    // view directly rather than throw on assignment.
+                                    r.Warnings.Add($"Managed template for pack '{resolvedPack.Id}' is not valid for "
+                                        + $"view '{view.Name}' ({view.ViewType}) — pack applied to the view directly.");
+                                    var directStats = ViewStylePackApplier.Apply(doc, view, resolvedPack,
+                                        DrawingPrintApplier.EffectiveLineWeightScale(resolvedPack, dt));
+                                    DrawingPrintApplier.ApplyHalftoneLinks(doc, view, dt, directStats);
+                                    r.Warnings.AddRange(directStats.Warnings);
                                 }
-                                catch (Exception ex) { r.Warnings.Add($"Assign managed template: {ex.Message}"); }
+                                else
+                                {
+                                    try
+                                    {
+                                        view.ViewTemplateId = templateId;
+                                        r.TemplateApplied = true;
+                                    }
+                                    catch (Exception ex) { r.Warnings.Add($"Assign managed template: {ex.Message}"); }
+                                }
                             }
 
                             // DTW-163: the template carries the pack's V/G and

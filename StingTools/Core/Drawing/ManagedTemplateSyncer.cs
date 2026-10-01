@@ -310,10 +310,18 @@ namespace StingTools.Core.Drawing
 
         /// <summary>
         /// View types that can actually carry a View.ViewTemplateId. Revit
-        /// rejects the assignment on a schedule, a legend, a sheet and the
-        /// browser-only types, so minting a managed template for one produces a
-        /// template that can never be applied — and an exception per view when
+        /// rejects the assignment on a legend, a sheet and the browser-only
+        /// types, so minting a managed template for one produces a template
+        /// that can never be applied — and an exception per view when
         /// something tries.
+        ///
+        /// DTW-176: schedules DO take view templates (Revit 2022+), and the
+        /// template catalogue creates schedule templates. The earlier throw on
+        /// health-rds-A3 was a template seeded from a schedule of another
+        /// category — Revit only accepts a schedule template that is valid for
+        /// that schedule — so the assignment is now gated on
+        /// View.IsValidViewTemplate (DrawingTypePresentation) rather than the
+        /// whole view type being refused.
         ///
         /// Whitelist rather than blacklist: an unfamiliar view type is refused
         /// with a named warning instead of being discovered by a throw.
@@ -322,7 +330,7 @@ namespace StingTools.Core.Drawing
         {
             ViewType.FloorPlan, ViewType.CeilingPlan, ViewType.EngineeringPlan, ViewType.AreaPlan,
             ViewType.Section, ViewType.Elevation, ViewType.Detail, ViewType.DraftingView,
-            ViewType.ThreeD, ViewType.Walkthrough, ViewType.Rendering,
+            ViewType.ThreeD, ViewType.Walkthrough, ViewType.Rendering, ViewType.Schedule,
         };
 
         /// <summary>Revit-free predicate, so the rule is unit-testable.</summary>
@@ -336,13 +344,13 @@ namespace StingTools.Core.Drawing
 
             if (!CanCarryViewTemplate(viewType))
             {
-                // Named, not thrown. A Schedule or Legend profile bound to a
+                // Named, not thrown. A Legend or Sheet profile bound to a
                 // managed pack is a data mistake, and saying so is more useful
                 // than a stack trace from ViewTemplateId.
                 result.Warnings.Add(
                     $"Style pack '{pack.Id}' is managed, but a {viewType} view cannot carry a view template — "
                     + "no managed template minted. Bind this profile to an \"external\" pack "
-                    + "(corp-standard-detail serves the schedule profiles) so its overrides apply to the view directly.");
+                    + "(e.g. corp-standard-detail) so its overrides apply to the view directly.");
                 return ElementId.InvalidElementId;
             }
 
