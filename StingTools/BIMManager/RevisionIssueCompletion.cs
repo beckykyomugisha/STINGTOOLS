@@ -175,8 +175,22 @@ namespace StingTools.BIMManager
                 else if (report != null) report.RegisterUpdated++;
 
                 if (!string.IsNullOrWhiteSpace(s.Revision)) row["revision"] = s.Revision.Trim();
-                if (suit.Length > 0) row["suitability"] = suit;
+                if (suit.Length > 0) { row["suitability"] = suit; row.Remove(ExportRegisterUpsert.SuitabilityDefaultedKey); }
                 if (!string.IsNullOrEmpty(cde)) { row["status"] = cde; row["cde_status"] = cde; }
+
+                // C8 (as R5 for deliverables): a new revision issued with no suitability kept the
+                // row's earlier code, so the register read "P03 / A1" and the Document Manager and
+                // the bundle-revision lookup took it as fact. A contradicted code is cleared,
+                // flagged and reported, never persisted beside the new revision.
+                string keptSuit = (string)row["suitability"] ?? "";
+                var pairing = Iso19650RevisionRules.Check((string)row["revision"] ?? "", keptSuit);
+                if (pairing.IsInconsistent)
+                {
+                    row["suitability"] = "";
+                    row["iso_conflict"] = $"{row["revision"]} cannot carry {keptSuit}: {pairing.Reason}";
+                    report?.Warnings.Add($"Register {docNumber}: suitability {keptSuit} cleared — {pairing.Reason}. Set its suitability.");
+                }
+                else row.Remove("iso_conflict");
                 row["date_issued"] = ev.IssuedDate ?? "";
                 row["date_modified"] = stamp;
             }

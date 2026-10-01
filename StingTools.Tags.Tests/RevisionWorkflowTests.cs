@@ -293,6 +293,28 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
+        public void Register_AStaleSuitability_ContradictedByTheNewRevision_IsClearedAndReported()
+        {
+            // C8: A1 from an earlier contractual issue must not sit beside P01.
+            var ev = Ev(); ev.Suitability = "";
+            var reg = JArray.Parse(@"[{""doc_id"":""DOC-0001"",""doc_number"":""KUT-PLN-ZZ-01-DR-A-0101"",""revision"":""C01"",""suitability"":""A1""}]");
+            var rep = new IssueCompletionReport();
+            RevisionIssueCompletion.ApplyToRegister(reg, ev, new DateTime(2026, 10, 1), rep);
+            Assert.Equal("P01", (string)reg[0]["revision"]);
+            Assert.Equal("", (string)reg[0]["suitability"]);
+            Assert.Contains("A1", (string)reg[0]["iso_conflict"]);
+            Assert.Contains(rep.Warnings, w => w.Contains("KUT-PLN-ZZ-01-DR-A-0101"));
+
+            // The issue's own code wins and clears both the conflict and a defaulted flag.
+            var ev2 = Ev();
+            reg[0]["suitability_defaulted"] = true;
+            RevisionIssueCompletion.ApplyToRegister(reg, ev2, new DateTime(2026, 10, 2), new IssueCompletionReport());
+            Assert.Equal("S2", (string)reg[0]["suitability"]);
+            Assert.Null(reg[0]["iso_conflict"]);
+            Assert.Null(reg[0]["suitability_defaulted"]);
+        }
+
+        [Fact]
         public void MatchingIssues_AreProposed_NeverClosed()
         {
             var issues = JArray.Parse(@"[
