@@ -36,12 +36,12 @@
     },
     {
       "commandTag": "DrawingTypes_ProducePerLevel",
-      "label": "Produce whole-floor MEP plans per level (runs only when the project has no area boxes; the routed plan type of each modelled M/E/P/FP/MG discipline, on the levels it occupies, unless params.drawingTypes names them)",
+      "label": "Produce whole-floor MEP plans per level (runs only when the project has neither area boxes nor STING:: boxes, so a box-drawn project is not produced twice; the routed plan type of each modelled M/E/P/FP/MG discipline, on the levels it occupies, unless params.drawingTypes names them)",
       "optional": true,
       "params": {
         "output": "Views and sheets"
       },
-      "condition": "no_area_boxes"
+      "condition": "no_production_boxes"
     },
     {
       "commandTag": "MEP_ApplyMepCoordination",

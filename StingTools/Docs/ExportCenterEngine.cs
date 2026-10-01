@@ -1355,46 +1355,19 @@ namespace StingTools.Docs
                     return;
                 }
 
-                // Snapshot the folder's PDFs before export so we can locate whatever
-                // Revit actually writes. PDFExportOptions.FileName honouring is version-
-                // dependent: with Combine == true it is normally authoritative, but some
-                // Revit builds still write a single-sheet export under a default name
-                // (e.g. "<Sheet Number> - <Sheet Name>.pdf" or "Sheet-Unnamed.pdf").
-                // Verifying File.Exists(<stem>.pdf) alone therefore reported perfectly
-                // good exports as failures and left the file under the wrong name.
-                var before = SnapshotFiles(folder, "pdf");
-
-                var opts = new PDFExportOptions
+                // Shared single-sheet routine: Combine = true so FileName is honoured,
+                // folder snapshot + rename so a build that still writes its own name is
+                // found and renamed to <stem>.pdf.
+                string finalPath = ExportSingleSheetPdf(doc, view, folder, stem, opts =>
                 {
-                    FileName = stem,
-                    Combine = true,
-                    AlwaysUseRaster = profile.Pdf.HiddenLineMode == "Raster",
-                    RasterQuality = MapRasterQuality(profile.Pdf.RasterDpi),
-                    ColorDepth = MapColorDepth(profile.Pdf.ColourScheme),
-                };
-                ApplyPdfLayout(opts, profile.Pdf);
-
-                bool ok = doc.Export(folder, new List<ElementId> { view.Id }, opts);
-
-                // Resolve the file Revit actually produced and move it to <stem>.pdf when
-                // it landed under a different name, so the output matches the naming
-                // template the user configured and the success verify is reliable.
-                string produced = ResolveProducedFile(folder, outputPath, before, "pdf");
-                if (produced != null && !PathsEqual(produced, outputPath))
-                {
-                    try
-                    {
-                        if (File.Exists(outputPath)) File.Delete(outputPath);
-                        File.Move(produced, outputPath);
-                    }
-                    catch (Exception mv)
-                    {
-                        StingLog.Warn($"PDF export {row.SheetNumber}: could not rename " +
-                                      $"'{Path.GetFileName(produced)}' to '{stem}.pdf': {mv.Message}");
-                        outputPath = produced;          // report the real path we ended up with
-                        row.OutputPath = produced;
-                    }
-                }
+                    opts.AlwaysUseRaster = profile.Pdf.HiddenLineMode == "Raster";
+                    opts.RasterQuality = MapRasterQuality(profile.Pdf.RasterDpi);
+                    opts.ColorDepth = MapColorDepth(profile.Pdf.ColourScheme);
+                    ApplyPdfLayout(opts, profile.Pdf);
+                }, out bool ok, out string renameWarning);
+                if (!string.IsNullOrEmpty(renameWarning))
+                    StingLog.Warn($"PDF export {row.SheetNumber}: {renameWarning}");
+                if (finalPath != null) { outputPath = finalPath; row.OutputPath = finalPath; }
 
                 row.Success = File.Exists(row.OutputPath);
                 if (row.Success)
@@ -1420,6 +1393,81 @@ namespace StingTools.Docs
                 StingLog.Warn($"PDF export {row.SheetNumber}: {ex.Message}");
             }
             finally { CommitRow(row, result); }
+        }
+
+        /// <summary>
+        /// Export one sheet (or view) to <c>&lt;folder&gt;/&lt;stem&gt;.pdf</c>; returns the path of
+        /// the file that now exists, or null when nothing was written.
+        /// <para>PDFExportOptions.FileName is honoured only with Combine = true. With the
+        /// default (false) Revit names the file by its own rule, and a caller that then
+        /// looks for <c>&lt;stem&gt;.pdf</c> finds nothing (DTW-87). This sets Combine,
+        /// snapshots the folder, finds what Revit produced and renames it to the stem.
+        /// Every single-sheet PDF export (Export Centre, Produce &amp; Export, drawing
+        /// packages) goes through here.</para>
+        /// </summary>
+        /// <param name="configure">Optional extra options (raster, colour, layout);
+        /// FileName and Combine are set after it runs.</param>
+        /// <param name="revitOk">What Revit's Export returned.</param>
+        /// <param name="warning">Set when the file could not be renamed and kept Revit's name.</param>
+        public static string ExportSingleSheetPdf(Document doc, View view, string folder, string stem,
+            Action<PDFExportOptions> configure, out bool revitOk, out string warning)
+        {
+            warning = null;
+            string expected = Path.Combine(folder, stem + ".pdf");
+            var before = SnapshotFiles(folder, "pdf");
+
+            var opts = new PDFExportOptions();
+            configure?.Invoke(opts);
+            opts.FileName = stem;
+            opts.Combine = true;
+
+            revitOk = doc.Export(folder, new List<ElementId> { view.Id }, opts);
+
+            string produced = ResolveProducedFile(folder, expected, before, "pdf");
+            if (produced == null) return null;
+            if (!PathsEqual(produced, expected))
+            {
+                try
+                {
+                    if (File.Exists(expected)) File.Delete(expected);
+                    File.Move(produced, expected);
+                    produced = expected;
+                }
+                catch (Exception mv)
+                {
+                    warning = $"could not rename '{Path.GetFileName(produced)}' to '{stem}.pdf': {mv.Message}";
+                }
+            }
+            return File.Exists(produced) ? produced : null;
+        }
+
+        /// <summary>
+        /// The Export Centre's filename stem for a sheet, for exporters with no profile of
+        /// their own (Produce &amp; Export). Uses the last-used Export Centre profile's
+        /// naming template, else the last template used, else the default ISO 19650
+        /// template (identifier, suitability, revision) — so a P02 issue does not
+        /// overwrite P01 and both exporters name a sheet the same way (DTW-88).
+        /// </summary>
+        public static string DefaultSheetFileStem(Document doc, View view)
+        {
+            string template = null, replacement = "-";
+            try
+            {
+                var st = LoadState();
+                var prof = st?.Profiles?.FirstOrDefault(p =>
+                    string.Equals(p.Name, st.LastProfile, StringComparison.OrdinalIgnoreCase));
+                template = prof?.Output?.NamingTemplate;
+                if (!string.IsNullOrEmpty(prof?.Output?.IllegalCharReplacement))
+                    replacement = prof.Output.IllegalCharReplacement;
+                if (string.IsNullOrWhiteSpace(template)) template = st?.LastNamingTemplate;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DefaultSheetFileStem: Export Centre state unreadable, using the default template: {ex.Message}");
+            }
+            var output = new OutputSettings();
+            if (string.IsNullOrWhiteSpace(template)) template = output.NamingTemplate;
+            return Sanitise(ResolveNaming(doc, view, template, output), replacement);
         }
 
         /// <summary>Snapshot files of the given extension(s) in a folder (full path →

@@ -137,15 +137,16 @@ namespace StingTools.Core.Drawing
             ctx.Seeds = ScopeBoxRevit.Seeds(doc, ctx.Problems);
             ctx.Levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
                 .OrderBy(l => l.Elevation).ThenBy(l => l.Id.Value).ToList();
-            ctx.LevelCodes = ScopeBoxRevit.LevelCodes(doc);
+            ctx.SavedPlan = LoadPlan(doc, out var planError);
+            ctx.SavedPlanError = planError;
+            if (planError != null) ctx.Problems.Add(planError);
+            // DTW-90: codes stay on the levels the saved plan bound them to (by UniqueId).
+            ctx.LevelCodes = ScopeBoxRevit.LevelCodes(doc, ctx.SavedPlan, ctx.Problems);
             var boxes = ScopeBoxRevit.AllBoxes(doc);
             ctx.BuildingBoxCount = boxes.Count(b => ScopeBoxNames.Classify(b.Name) == ScopeBoxKind.Building);
             foreach (var b in boxes) ctx.ExistingNames.Add(b.Name ?? "");
             ctx.ExistingBoxes = ScopeBoxRevit.AreaBoxes(doc, ctx.Problems);
             ctx.GridAngleRad = ScopeBoxRevit.GridAngleRad(doc);
-            ctx.SavedPlan = LoadPlan(doc, out var planError);
-            ctx.SavedPlanError = planError;
-            if (planError != null) ctx.Problems.Add(planError);
             return ctx;
         }
 
@@ -183,7 +184,10 @@ namespace StingTools.Core.Drawing
                 made = ScopeBoxRevit.Create(doc, res.Boxes, report);
                 tx.Commit();
             }
-            var file = ScopeBoxPlanFile.From(req, res, LevelCodes(ctx, o), o.FootprintMode.ToString(), made.Failed);
+            // DTW-90: record each code's level UniqueId, so a later rename or inserted level
+            // cannot move the code (and orphan the boxes named with it).
+            var file = ScopeBoxPlanFile.From(req, res, LevelCodes(ctx, o), o.FootprintMode.ToString(), made.Failed,
+                ScopeBoxRevit.LevelIdsByCode(doc, ctx.LevelCodes));
             var merged = ScopeBoxPlanFile.Merge(ctx.SavedPlan, file);
             var inModel = new HashSet<string>(ScopeBoxRevit.AllBoxes(doc).Select(e => e.Name ?? ""), StringComparer.OrdinalIgnoreCase);
             var pruned = merged.PruneMissing(inModel);
@@ -327,7 +331,9 @@ namespace StingTools.Core.Drawing
                 report.Add($"No saved plan ({PlanFileName}): each area box is produced from its name — its ::level, or every level it reaches — "
                          + $"with {string.Join(", ", defaultTypes)}.");
             var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().ToList();
-            var codes = ScopeBoxRevit.LevelCodes(doc);
+            // DTW-90: a box's ::L01 and the plan's levels resolve to the level the plan bound
+            // L01 to (UniqueId), falling back to the level whose name reads L01.
+            var codes = ScopeBoxRevit.LevelCodes(doc, plan, report);
             var drawables = LoadDrawables(report);
             foreach (var box in ScopeBoxRevit.AllBoxes(doc).Where(b => ScopeBoxNames.Classify(b.Name) == ScopeBoxKind.Area))
             {

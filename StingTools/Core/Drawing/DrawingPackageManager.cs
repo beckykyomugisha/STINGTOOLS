@@ -119,8 +119,19 @@ namespace StingTools.Core.Drawing
                 string filename = SanitizeFilename($"{seq:D3}_{s.SheetNumber}_{s.Name}");
                 try
                 {
-                    var opts = new PDFExportOptions { FileName = filename };
-                    doc.Export(outputDir, new List<ElementId> { s.Id }, opts);
+                    // Shared single-sheet routine (Combine = true, produced file found and
+                    // renamed); a sheet counts only when its PDF exists (DTW-87).
+                    string path = StingTools.Docs.ExportCenterEngine.ExportSingleSheetPdf(
+                        doc, s, outputDir, filename, null, out bool ok, out string renameWarning);
+                    if (!string.IsNullOrEmpty(renameWarning))
+                        result.Warnings.Add($"Export '{s.SheetNumber}': {renameWarning}");
+                    if (path == null)
+                    {
+                        result.Warnings.Add(ok
+                            ? $"Export '{s.SheetNumber}': Revit reported success but no PDF appeared in {outputDir}."
+                            : $"Export '{s.SheetNumber}': Revit reported the export as failed.");
+                        continue;
+                    }
                     result.SheetCount++;
                 }
                 catch (Exception ex2) { result.Warnings.Add($"Export '{s.SheetNumber}': {ex2.Message}"); }

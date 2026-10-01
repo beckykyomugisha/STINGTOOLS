@@ -1729,10 +1729,14 @@ namespace StingTools.Core
                 foreach (var box in boxes)
                 {
                     string name = box?.Name ?? "";
-                    int sep = name.IndexOf("::", StringComparison.OrdinalIgnoreCase);
-                    if (sep < 0 || !name.StartsWith("STING-LOC", StringComparison.OrdinalIgnoreCase)) continue;
-                    string loc = name.Substring(sep + 2).Trim();
-                    if (string.IsNullOrEmpty(loc)) continue;
+                    // DTW-93: the same segment rule as the planner (ScopeBoxNames). A code
+                    // with a space, or "STING-LOCATION::X", used to become a LOC here while
+                    // the planner refused it; now both refuse it, and it is logged.
+                    if (!Drawing.ScopeBoxNames.TryParseLoc(name, out var loc, out var reason))
+                    {
+                        if (reason != null) StingLog.Warn($"BuildScopeBoxLocIndex: '{name}' ignored — {reason}");
+                        continue;
+                    }
 
                     BoundingBoxXYZ bb = box.get_BoundingBox(null);
                     if (bb == null) continue;

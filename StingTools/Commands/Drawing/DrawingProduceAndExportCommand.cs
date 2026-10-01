@@ -563,28 +563,36 @@ namespace StingTools.Commands.Drawing
                 return;
             }
 
+            var emitted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var sheet in sheets)
             {
                 try
                 {
-                    string filename = MakeSafeFilename(
-                        $"{sheet.SheetNumber}_{sheet.Name}");
-                    var exportOpts = new PDFExportOptions { FileName = filename };
+                    // Named by the Export Centre's naming (ISO identifier + suitability +
+                    // revision), so both exporters agree and a new revision does not
+                    // overwrite the previous issue (DTW-88).
+                    string filename = StingTools.Docs.ExportCenterEngine.DefaultSheetFileStem(doc, sheet);
                     string dir = StingTools.Docs.ExportCenterEngine.DeliverableFolderForSheet(doc, sheet) ?? outDir;
-                    bool ok = doc.Export(dir, new List<ElementId> { sheet.Id }, exportOpts);
-                    string path = Path.Combine(dir, filename + ".pdf");
-                    if (!ok)
+                    if (!emitted.Add(Path.Combine(dir, filename + ".pdf")))
                     {
-                        stats.Warnings.Add($"PDF [{sheet.SheetNumber}]: Revit reported the export as failed.");
+                        stats.Warnings.Add($"PDF [{sheet.SheetNumber}]: another sheet in this run already wrote '{filename}.pdf' in {dir}; skipped rather than overwrite it.");
+                        continue;
+                    }
+                    // Shared single-sheet routine: Combine = true so FileName is honoured,
+                    // and whatever Revit wrote is found and renamed (DTW-87).
+                    string path = StingTools.Docs.ExportCenterEngine.ExportSingleSheetPdf(
+                        doc, sheet, dir, filename, null, out bool ok, out string renameWarning);
+                    if (!string.IsNullOrEmpty(renameWarning))
+                        stats.Warnings.Add($"PDF [{sheet.SheetNumber}]: {renameWarning}");
+                    if (path == null)
+                    {
+                        stats.Warnings.Add(ok
+                            ? $"PDF [{sheet.SheetNumber}]: Revit reported success but no PDF appeared in {dir}, so nothing was recorded in the document register."
+                            : $"PDF [{sheet.SheetNumber}]: Revit reported the export as failed.");
                         continue;
                     }
                     stats.PdfsExported++;
                     stats.PdfFolders.Add(dir);
-                    if (!File.Exists(path))
-                    {
-                        stats.Warnings.Add($"PDF [{sheet.SheetNumber}]: exported, but not found at {path}, so it was not recorded in the document register.");
-                        continue;
-                    }
                     stats.Exported.Add(new StingTools.Docs.ExportCenterEngine.ExportedFile
                     {
                         Sheet = sheet, Path = path, Format = "PDF",
@@ -678,13 +686,6 @@ namespace StingTools.Commands.Drawing
         }
 
         // ── Utilities ────────────────────────────────────────────────────────────
-
-        private static string MakeSafeFilename(string name)
-        {
-            if (string.IsNullOrEmpty(name)) return "sheet";
-            foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
-            return name;
-        }
 
         private static string CsvEscape(string v)
         {
