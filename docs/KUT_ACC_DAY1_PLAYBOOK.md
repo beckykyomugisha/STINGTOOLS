@@ -420,7 +420,7 @@ A verification with no written result did not happen.
   Either way, use one named IM machine.
 - **Issues rate limit** is about 500 requests/min per user per hub. STING's volumes are far
   below it, but do not run bulk imports or escalations from two machines at once.
-- **Refresh tokens expire** (15 days, and each refresh rotates the token). Run **Test / Refresh** at least weekly, and
+- **Refresh tokens expire** (14 days if unused, per Autodesk; each refresh rotates the token). Run **Test / Refresh** at least weekly, and
   re-sign-in if it fails.
 - **Revit cloud models are not supported by StingTools' folder resolver** (next section).
 

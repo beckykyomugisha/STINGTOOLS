@@ -192,7 +192,11 @@ namespace StingTools.V6
     /// (<see cref="AccTokenKeepAlive"/>) and the ACC card shows the remaining days.</summary>
     public static class AccSignInLifetime
     {
-        public static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(15);
+        /// <summary>H-1: 14 days, as Autodesk documents it ("the refresh token will only expire after
+        /// 14 days" - https://aps.autodesk.com/blog/about-refresh-token; "These refresh tokens remain
+        /// valid for 14 days" - https://aps.autodesk.com/en/docs/aecdatamodel/v1/developers_guide/faq/,
+        /// read 2026-10-01). It was 15, so the card showed a day left on a sign-in already gone.</summary>
+        public static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(14);
 
         /// <summary>Refresh proactively once the token is this old.</summary>
         public static readonly TimeSpan KeepAliveAfter = TimeSpan.FromDays(3);
