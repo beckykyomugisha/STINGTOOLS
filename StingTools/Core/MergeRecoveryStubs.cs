@@ -501,6 +501,12 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        /// <summary>DTW-126: how old an index must be before a miss rebuilds it.</summary>
+        private static readonly TimeSpan MissRevalidateInterval = TimeSpan.FromSeconds(5);
+        /// <summary>When each store's index for each document was built (guarded by _resolveLock).</summary>
+        private static readonly Dictionary<object, Dictionary<string, DateTime>> _builtAt
+            = new Dictionary<object, Dictionary<string, DateTime>>();
+
         private static ElementId LookupCached(
             Dictionary<string, Dictionary<string, ElementId>> store,
             Document doc, string name, Func<Document, Dictionary<string, ElementId>> build,
@@ -513,8 +519,11 @@ namespace StingTools.Core.Drawing
                 // At most one rebuild: a hit that no longer names a live element of
                 // the expected kind (deleted, or minted inside a transaction that
                 // then rolled back) drops the index and looks again.
+                if (!_builtAt.TryGetValue(store, out var builtAt))
+                    _builtAt[store] = builtAt = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
                 for (int attempt = 0; attempt < 2; attempt++)
                 {
+                    bool builtNow = false;
                     if (!store.TryGetValue(key, out var index))
                     {
                         try { index = build(doc); }
@@ -524,8 +533,24 @@ namespace StingTools.Core.Drawing
                             index = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
                         }
                         store[key] = index;
+                        builtAt[key] = DateTime.UtcNow;
+                        builtNow = true;
                     }
-                    if (!index.TryGetValue(name, out var id)) return ElementId.InvalidElementId;
+                    if (!index.TryGetValue(name, out var id))
+                    {
+                        // DTW-126: a miss was final, so a filter or pattern made after the
+                        // index was built (by another command, or by hand) read as absent for
+                        // the rest of the session. An index older than the revalidate interval
+                        // is rebuilt once and looked in again; rate-limited per document so a
+                        // batch asking for many genuinely absent names does not rescan per call.
+                        if (!builtNow && builtAt.TryGetValue(key, out var at)
+                            && DateTime.UtcNow - at >= MissRevalidateInterval)
+                        {
+                            store.Remove(key);
+                            continue;
+                        }
+                        return ElementId.InvalidElementId;
+                    }
 
                     // DTW-10: validate the hit. A stale id used to be returned as-is
                     // and AddFilter threw once per view for the rest of the session.
