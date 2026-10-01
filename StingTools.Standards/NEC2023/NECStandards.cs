@@ -337,8 +337,13 @@ namespace StingTools.Standards.NEC2023
         /// covers (the table kept here before also carried 8 AWG to 4/0 values, e.g. 8 AWG
         /// 40 A, that are not in 240.4(D) and capped those conductors below their 75 °C
         /// ampacity). Copper 18/16/14/12/10 AWG: 7 / 10 / 15 / 20 / 30 A; aluminium and
-        /// copper-clad aluminium 12/10 AWG: 15 / 25 A. VERIFY against the printed NFPA 70-2023
-        /// (checked against secondary sources only, 2026-10-01; DSCH-30 sign-off).
+        /// copper-clad aluminium 12/10 AWG: 15 / 25 A. Confirmed 2026-10-02 against the
+        /// NFPA report reproducing the NFPA 70-2023 text: Public Input 705-NFPA 70-2023 [Section 240.4], NEC CMP-10 First Draft public-input report, pp. 321-322/533, https://docinfofiles.nfpa.org/files/AboutTheCodes/70/70_A2025_NEC_P10_FD_PIResponses.pdf.
+        /// The 18 / 16 AWG values carry conditions this table does not check (continuous load
+        /// at most 5.6 / 8 A; a device listed and marked for the conductor, or Class CC / CF /
+        /// J / T fuses). 2023 also has 240.4(D)(3), 14 AWG copper-clad aluminium 10 A, which is
+        /// not modelled: ConductorMaterial has no copper-clad aluminium member, so a 14 AWG CCA
+        /// conductor cannot be described here at all.
         /// </summary>
         private static readonly Dictionary<string, int> _smallConductorMaxCopper = new Dictionary<string, int>
         {

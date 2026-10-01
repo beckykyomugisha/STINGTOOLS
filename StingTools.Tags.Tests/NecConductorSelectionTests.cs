@@ -8,15 +8,15 @@ namespace StingTools.Tags.Tests
     /// DSCH-30 follow-up — NEC conductor + OCPD selection with the 240.4(D) small-conductor
     /// limit. The old CalculateNec capped the breaker at the limit AFTER choosing it, so a
     /// 17 A continuous load (21.25 A sizing current) on 12 AWG got a 20 A breaker. Now the
-    /// conductor is upsized until the device it needs is permitted. Limits (VERIFY against
-    /// NFPA 70-2023 240.4(D)): Cu 14/12/10 AWG 15/20/30 A; Al 12/10 AWG 15/25 A.
+    /// conductor is upsized until the device it needs is permitted. Limits (checked 2026-10-02 against
+    /// NFPA 70-2023 240.4(D), as reproduced in NFPA PI 705-NFPA 70-2023): Cu 14/12/10 AWG 15/20/30 A; Al 12/10 AWG 15/25 A.
     /// Ampacities: Table 310.16 75 °C, 30 °C ambient, ≤ 3 CCC (no correction).
     /// </summary>
     public class NecConductorSelectionTests
     {
         private static readonly int[] Nec =
         {
-            15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200,
+            10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200,
             225, 250, 300, 350, 400, 450, 500, 600, 700, 800, 1000, 1200, 1600, 2000, 2500,
             3000, 4000, 5000, 6000
         };
