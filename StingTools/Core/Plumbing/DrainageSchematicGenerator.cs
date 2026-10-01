@@ -221,24 +221,15 @@ namespace StingTools.Core.Plumbing
                     return result;
                 }
 
-                // 3. Create Drafting View ───────────────────────────────────────
-                var vft = FindDraftingViewType(doc);
-                if (vft == null)
+                // 3. Drafting view ─────────────────────────────────────────────
+                // DTW-119: one view per name, reused and cleared on a re-run (its sheet
+                // placement survives). A new view every run ("… (2)", "… (3)") left the
+                // previous run's view orphaned once the sheet took the new one.
+                var view = StingTools.Core.Drawing.SchematicViewFactory.CreateOrReplace(
+                    doc, ViewName(opts), out string viewError, 50);
+                if (view == null)
                 {
-                    result.Warnings.Add("No Drafting ViewFamilyType found — cannot create view.");
-                    return result;
-                }
-
-                ViewDrafting view;
-                try
-                {
-                    view = ViewDrafting.Create(doc, vft.Id);
-                    view.Name = GenerateUniqueViewName(doc, "STING - Drainage Schematic Riser");
-                    view.Scale = 50;
-                }
-                catch (Exception ex)
-                {
-                    result.Warnings.Add($"Could not create ViewDrafting: {ex.Message}");
+                    result.Warnings.Add(viewError ?? "The drainage schematic view could not be made.");
                     return result;
                 }
 
@@ -715,23 +706,9 @@ namespace StingTools.Core.Plumbing
             return (solid, dashed == ElementId.InvalidElementId ? solid : dashed);
         }
 
-        private static string GenerateUniqueViewName(Document doc, string baseName)
-        {
-            var existing = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewDrafting))
-                .Cast<ViewDrafting>()
-                .Select(v => v.Name)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            if (!existing.Contains(baseName)) return baseName;
-
-            for (int i = 2; i < 100; i++)
-            {
-                string candidate = $"{baseName} ({i})";
-                if (!existing.Contains(candidate)) return candidate;
-            }
-
-            return $"{baseName} ({DateTime.UtcNow:HHmmss})";
-        }
+        /// <summary>The view's name: one per system filter, so a re-run reuses it.</summary>
+        internal static string ViewName(DrainageSchematicOptions opts)
+            => "STING - Drainage Schematic Riser"
+             + (string.IsNullOrWhiteSpace(opts?.SystemNameFilter) ? "" : " " + opts.SystemNameFilter.Trim());
     }
 }

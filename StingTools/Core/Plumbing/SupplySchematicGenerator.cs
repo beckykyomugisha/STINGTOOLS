@@ -152,27 +152,12 @@ namespace StingTools.Core.Plumbing
                 }
             }
 
-            // 4. Create drafting view
-            var vft = DrainageSchematicGenerator.FindDraftingViewType(doc);
-            if (vft == null)
+            // 4. Drafting view — DTW-119: reused and cleared on a re-run, never "… (2)".
+            var view = StingTools.Core.Drawing.SchematicViewFactory.CreateOrReplace(
+                doc, ViewName(opts), out string viewError, 50);
+            if (view == null)
             {
-                result.Warnings.Add("No Drafting ViewFamilyType found.");
-                return result;
-            }
-
-            ViewDrafting view;
-            try
-            {
-                view = ViewDrafting.Create(doc, vft.Id);
-                bool dcwOnly = opts.Classifications != null && opts.Classifications.Length == 1
-                            && opts.Classifications[0] == PipeSystemType.DomesticColdWater;
-                view.Name = UniqueViewName(doc,
-                    $"STING - Supply Schematic{(dcwOnly ? " DCW" : "")}{(string.IsNullOrEmpty(opts.SystemNameFilter) ? "" : " " + opts.SystemNameFilter)}");
-                view.Scale = 50;
-            }
-            catch (Exception ex)
-            {
-                result.Warnings.Add($"ViewDrafting.Create: {ex.Message}");
+                result.Warnings.Add(viewError ?? "The supply schematic view could not be made.");
                 return result;
             }
             result.ViewId = view.Id;
@@ -550,23 +535,13 @@ namespace StingTools.Core.Plumbing
             return (solid, dashed == ElementId.InvalidElementId ? solid : dashed);
         }
 
-        private static string UniqueViewName(Document doc, string baseName)
+        /// <summary>The view's name: one per classification and system filter, so a re-run reuses it.</summary>
+        internal static string ViewName(SupplySchematicOptions opts)
         {
-            try
-            {
-                var existing = new HashSet<string>(
-                    new FilteredElementCollector(doc).OfClass(typeof(View))
-                    .Cast<View>().Select(v => v.Name ?? ""),
-                    StringComparer.OrdinalIgnoreCase);
-                if (!existing.Contains(baseName)) return baseName;
-                for (int i = 2; i < 1000; i++)
-                {
-                    var candidate = $"{baseName} ({i})";
-                    if (!existing.Contains(candidate)) return candidate;
-                }
-            }
-            catch { }
-            return baseName + " " + DateTime.UtcNow.Ticks;
+            bool dcwOnly = opts?.Classifications != null && opts.Classifications.Length == 1
+                        && opts.Classifications[0] == PipeSystemType.DomesticColdWater;
+            return "STING - Supply Schematic" + (dcwOnly ? " DCW" : "")
+                 + (string.IsNullOrWhiteSpace(opts?.SystemNameFilter) ? "" : " " + opts.SystemNameFilter.Trim());
         }
 
         /// <summary>
