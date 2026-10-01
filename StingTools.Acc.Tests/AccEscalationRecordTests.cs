@@ -216,5 +216,116 @@ namespace StingTools.Acc.Tests
             Assert.Equal(1, outcome.Skipped);
             Assert.Equal("acc-old", tracked["g1"]);
         }
+
+        // ── E1: closed in ACC while the clash persists is HELD, not re-raised ──────
+
+        private static readonly Func<string, bool> Closed = AccIssueSync.IsClosedStatus;
+
+        [Theory]
+        [InlineData("closed")]
+        [InlineData("void")]
+        [InlineData("not_an_issue")]
+        public void Closed_in_acc_while_still_clashing_is_held_not_plainly_untracked(string status)
+        {
+            var pushed = new Dictionary<string, string> { ["a|b"] = "i1" };
+            var st = new Dictionary<string, string> { ["i1"] = status };
+            var present = new HashSet<string> { "a|b" };
+            var d = Assert.Single(AccEscalationReconcile.Decide(pushed, st, Closed, present));
+            Assert.Equal(AccEscalationAction.HoldClosedStillClashing, d.Action);
+            Assert.True(d.RemovesFromTracking);
+        }
+
+        [Fact]
+        public void Closed_in_acc_and_absent_from_a_complete_pull_is_resolved()
+        {
+            var d = Assert.Single(AccEscalationReconcile.Decide(
+                new Dictionary<string, string> { ["a|b"] = "i1" },
+                new Dictionary<string, string> { ["i1"] = "closed" }, Closed, new HashSet<string> { "x|y" }));
+            Assert.Equal(AccEscalationAction.Untrack, d.Action);
+        }
+
+        [Fact]
+        public void With_no_complete_pull_known_a_closed_escalation_is_held_never_assumed_gone()
+        {
+            var d = Assert.Single(AccEscalationReconcile.Decide(
+                new Dictionary<string, string> { ["a|b"] = "i1" },
+                new Dictionary<string, string> { ["i1"] = "closed" }, Closed, null));
+            Assert.Equal(AccEscalationAction.HoldClosedStillClashing, d.Action);
+        }
+
+        [Fact]
+        public void An_issue_deleted_in_acc_is_untracked_and_named_not_kept_forever()
+        {
+            var d = Assert.Single(AccEscalationReconcile.Decide(
+                new Dictionary<string, string> { ["a|b"] = "gone" },
+                new Dictionary<string, string> { ["i1"] = "open" }, Closed, new HashSet<string> { "a|b" }));
+            Assert.Equal(AccEscalationAction.UntrackNotFound, d.Action);
+            Assert.Equal(AccEscalationReconcile.NotFoundStatus, d.Status);
+            Assert.True(d.RemovesFromTracking);
+        }
+
+        [Fact]
+        public void An_open_escalation_stays_tracked()
+        {
+            var d = Assert.Single(AccEscalationReconcile.Decide(
+                new Dictionary<string, string> { ["a|b"] = "i1" },
+                new Dictionary<string, string> { ["i1"] = "open" }, Closed, new HashSet<string>()));
+            Assert.Equal(AccEscalationAction.Keep, d.Action);
+            Assert.False(d.RemovesFromTracking);
+        }
+
+        [Fact]
+        public void A_hold_survives_save_and_load_and_is_released_only_when_the_clash_is_gone()
+        {
+            var o = new AccIssueOrigins();
+            Assert.True(o.Hold(AccIssueImport.ClashEscalationOrigin, "a|b", "i1", "void", T0));
+            Assert.False(o.Hold(AccIssueImport.ClashEscalationOrigin, "a|b", "i1", "void", T0));
+            Assert.True(o.TrySave(_origins, out _));
+            var back = AccIssueOrigins.Load(_origins, out string err);
+            Assert.Null(err);
+            Assert.Contains("a|b", back.HeldKeys(AccIssueImport.ClashEscalationOrigin));
+
+            // still present -> nothing released; null (no complete pull) -> nothing released
+            Assert.Empty(back.ReleaseAbsent(AccIssueImport.ClashEscalationOrigin, new HashSet<string> { "a|b" }));
+            Assert.Empty(back.ReleaseAbsent(AccIssueImport.ClashEscalationOrigin, null));
+            Assert.Contains("a|b", back.HeldKeys(AccIssueImport.ClashEscalationOrigin));
+
+            // gone from a complete pull -> released, so a later recurrence escalates again
+            Assert.Equal(new[] { "a|b" }, back.ReleaseAbsent(AccIssueImport.ClashEscalationOrigin, new HashSet<string>()));
+            Assert.Empty(back.HeldKeys(AccIssueImport.ClashEscalationOrigin));
+        }
+
+        [Fact]
+        public void An_origin_file_written_before_E1_loads_with_no_holds()
+        {
+            File.WriteAllText(_origins, "{\"entries\":[{\"origin\":\"clash\",\"key\":\"a|b\",\"issueId\":\"i1\",\"recordedUtc\":\"2026-01-01T00:00:00Z\"}]}");
+            var o = AccIssueOrigins.Load(_origins, out string err);
+            Assert.Null(err);
+            Assert.Single(o.Entries);
+            Assert.Empty(o.HeldKeys(AccIssueImport.ClashEscalationOrigin));
+        }
+
+        [Fact]
+        public void Clash_presence_is_tri_state_and_unions_model_sets()
+        {
+            string path = Path.Combine(_dir, AccClashPresence.FileName);
+            var p = AccClashPresence.Load(path, out string err);
+            Assert.Null(err);
+            Assert.Null(p.Present());   // nothing recorded is "unknown", not "nothing present"
+
+            p.Record("set-1", "Arch+MEP", new[] { "a|b" }, T0);
+            p.Record("set-2", "Str+MEP", new[] { "c|d" }, T0);
+            Assert.True(p.TrySave(path, out _));
+            var back = AccClashPresence.Load(path, out err);
+            Assert.Null(err);
+            Assert.Equal(new HashSet<string> { "a|b", "c|d" }, back.Present());
+
+            back.Record("set-1", "Arch+MEP", new string[0], T0);   // a complete empty pull of set-1
+            Assert.Equal(new HashSet<string> { "c|d" }, back.Present());
+
+            File.WriteAllText(path, "{ not json");
+            Assert.Null(AccClashPresence.Load(path, out err));
+            Assert.NotNull(err);
+        }
     }
 }

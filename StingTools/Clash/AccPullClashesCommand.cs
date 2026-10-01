@@ -158,8 +158,11 @@ namespace StingTools.Core.Clash
             }
             if (clashes.Count == 0)
             {
+                // E1: a complete, empty pull is evidence too - every held escalation is resolved.
+                string presenceNote = RecordPresence(doc, chosen, new List<string>(), complete: true, origins: null);
                 Report(policy, "ACC — Pull Clashes",
-                    $"Model set '{chosen.Name}': the latest COMPLETED clash test reports no clashes.");
+                    $"Model set '{chosen.Name}': the latest COMPLETED clash test reports no clashes." +
+                    (string.IsNullOrEmpty(presenceNote) ? "" : "\n\n" + presenceNote));
                 return Result.Succeeded;
             }
 
@@ -248,6 +251,22 @@ namespace StingTools.Core.Clash
             if (unkeyable > 0)
                 report.AppendLine($"{unkeyable} clash(es) cannot be escalated: ACC gave no document names for them " +
                                   "(the document scope file was missing), so there is no key that survives the next model version.");
+            // E1: record which clashes this COMPLETE pull saw (a truncated one proves nothing is
+            // gone), release holds whose clash has gone, then refuse to re-raise the rest: an
+            // escalation closed or voided in ACC while the clash still exists is not new work.
+            string presenceLine = RecordPresence(doc, chosen, candidates.Select(sc => SignatureFor(sc, byId)),
+                complete: !clashResult.Truncated, origins: origins);
+            if (!string.IsNullOrEmpty(presenceLine)) report.AppendLine(presenceLine);
+            var held = origins.HeldKeys(AccIssueImport.ClashEscalationOrigin);
+            int heldStillClashing = candidates.Count(sc => held.Contains(SignatureFor(sc, byId)));
+            if (heldStillClashing > 0)
+            {
+                candidates = candidates.Where(sc => !held.Contains(SignatureFor(sc, byId))).ToList();
+                string heldLine = $"{heldStillClashing} clash(es) CLOSED IN ACC, STILL CLASHING - their escalation was closed or " +
+                                  "voided in ACC Issues, so they are not raised again while the clash persists.";
+                report.AppendLine(heldLine);
+                StingLog.Info("ACC_PullClashes: " + heldLine);
+            }
             var plan = policy.PlanEscalation(candidates, sc => SignatureFor(sc, byId), tracked);
             StingLog.Info("ACC_PullClashes escalation — " + plan.Reason);
 
@@ -638,6 +657,51 @@ namespace StingTools.Core.Clash
             string accDir = StingPaths.MetaFile(doc, "_BIM_COORD", "acc");
             try { Directory.CreateDirectory(accDir); } catch { }
             return Path.Combine(accDir, AccPushedMap.ClashFileName);
+        }
+
+        /// <summary>E1: acc_clash_presence.json beside pushed_clashes.json.</summary>
+        internal static string PresencePath(Document doc)
+            => Path.Combine(Path.GetDirectoryName(SidecarPath(doc)) ?? string.Empty, AccClashPresence.FileName);
+
+        /// <summary>E1: record a COMPLETE pull's active clash signatures for this model set and
+        /// release every "closed in ACC" hold whose clash is no longer present in any recorded
+        /// set. An incomplete pull records nothing and releases nothing. Returns a report line
+        /// (or null). <paramref name="origins"/> is loaded here when null.</summary>
+        internal static string RecordPresence(Document doc, AccModelSet set, IEnumerable<string> activeSignatures,
+            bool complete, AccIssueOrigins origins)
+        {
+            if (!complete)
+                return "Clash pull was truncated, so it was not recorded as complete: no 'closed in ACC' hold was released.";
+            string path = PresencePath(doc);
+            var presence = AccClashPresence.Load(path, out string err);
+            if (presence == null)
+            {
+                StingLog.Warn("ACC_PullClashes: clash presence record unreadable, left untouched: " + err);
+                return "WARNING: the clash presence record could not be read (" + err + "); it was left untouched and no hold was released.";
+            }
+            presence.Record(set?.Id, set?.Name, activeSignatures, DateTime.UtcNow);
+            if (!presence.TrySave(path, out string saveErr))
+            {
+                StingLog.Warn("ACC_PullClashes: clash presence record not saved: " + saveErr);
+                return "WARNING: the clash presence record could not be written (" + saveErr + "); no hold was released.";
+            }
+
+            string originsPath = OriginsPath(doc);
+            if (origins == null)
+            {
+                origins = AccIssueOrigins.Load(originsPath, out string oErr);
+                if (origins == null) { StingLog.Warn("ACC_PullClashes: origin record unreadable, no hold released: " + oErr); return null; }
+            }
+            var released = origins.ReleaseAbsent(AccIssueImport.ClashEscalationOrigin, presence.Present());
+            if (released.Count == 0) return null;
+            if (!origins.TrySave(originsPath, out string oSaveErr))
+            {
+                StingLog.Warn("ACC_PullClashes: origin record not saved after releasing holds: " + oSaveErr);
+                return $"WARNING: {released.Count} 'closed in ACC' hold(s) are resolved but the origin record could not be written: " + oSaveErr;
+            }
+            string line = $"{released.Count} escalation(s) closed in ACC are now resolved (clash gone from the latest complete pull) - a recurrence will be raised again.";
+            StingLog.Info("ACC_PullClashes: " + line);
+            return line;
         }
 
         /// <summary>The append-only origin record beside pushed_clashes.json (A15).</summary>

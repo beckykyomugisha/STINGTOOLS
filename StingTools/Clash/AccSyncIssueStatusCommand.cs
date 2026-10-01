@@ -5,9 +5,11 @@
 // _BIM_COORD/acc/pushed_clashes.json. This command pulls the current ACC issue
 // statuses and reconciles them against that escalation log:
 //   - counts how many escalated clashes are now CLOSED in ACC,
-//   - UNTRACKS the closed ones (removes them from the dedup map) so that if the
-//     same clash recurs in a later pull it is re-raised rather than silently
-//     skipped. The ORIGIN of each one stays in acc/acc_issue_origins.json, which
+//   - UNTRACKS a closed one only when its clash is absent from the latest COMPLETE
+//     pull (acc/acc_clash_presence.json), so a real recurrence is re-raised. One
+//     closed or voided while the clash persists is HELD (closedInAcc in the origin
+//     record) and ACC_PullClashes will not raise it again while it persists (E1).
+//     An issue deleted in ACC (NOT_FOUND) is untracked and reported. The ORIGIN of each one stays in acc/acc_issue_origins.json, which
 //     nothing prunes, so ACC_ImportIssues still recognises it as STING-raised (A15),
 //   - reports what is still open / not found, and writes a closure CSV.
 //
@@ -105,37 +107,51 @@ namespace StingTools.Core.Clash
             foreach (var i in issues)
                 if (!string.IsNullOrEmpty(i.Id)) statusById[i.Id] = i.Status;
 
-            int closed = 0, open = 0, missing = 0;
+            // E1: the decision is Revit-free (AccEscalationReconcile). An escalation leaves
+            // tracking for good only when its clash is absent from a COMPLETE pull; one closed
+            // or voided in ACC while the clash persists is HELD, so the pull stops re-raising it.
+            string presencePath = Path.Combine(Path.GetDirectoryName(sidecar) ?? string.Empty, AccClashPresence.FileName);
+            var presence = AccClashPresence.Load(presencePath, out string presenceErr);
+            if (presence == null)
+                StingLog.Warn("ACC_SyncIssueStatus: clash presence record unreadable, closed escalations are held, not resolved: " + presenceErr);
+            var present = presence?.Present();   // null: no complete pull known -> hold, never assume gone
+            var decisions = AccEscalationReconcile.Decide(pushedMap, statusById, AccIssueSync.IsClosedStatus, present);
+
+            int closed = 0, held = 0, open = 0, missing = 0;
             var rows = new List<string> { "Signature,IssueId,Status,Action" };
             var toUntrack = new List<string>();
-            foreach (var kv in pushedMap)
+            var now = DateTime.UtcNow;
+            foreach (var d in decisions)
             {
-                if (!statusById.TryGetValue(kv.Value, out string st))
+                string action;
+                switch (d.Action)
                 {
-                    missing++;
-                    rows.Add($"{Csv(kv.Key)},{Csv(kv.Value)},NOT_FOUND,keep");
-                    continue;
+                    case AccEscalationAction.Untrack: closed++; action = "untrack (resolved)"; break;
+                    case AccEscalationAction.HoldClosedStillClashing:
+                        held++; action = "untrack + hold (closed in ACC, still clashing)";
+                        origins.Hold(AccIssueImport.ClashEscalationOrigin, d.Signature, d.IssueId, d.Status, now);
+                        break;
+                    case AccEscalationAction.UntrackNotFound: missing++; action = "untrack (issue not found in ACC)"; break;
+                    default: open++; action = "keep"; break;
                 }
-                if (AccIssueSync.IsClosedStatus(st))
-                {
-                    closed++;
-                    toUntrack.Add(kv.Key);
-                    rows.Add($"{Csv(kv.Key)},{Csv(kv.Value)},{Csv(st)},untrack");
-                }
-                else { open++; rows.Add($"{Csv(kv.Key)},{Csv(kv.Value)},{Csv(st)},keep"); }
+                if (d.RemovesFromTracking) toUntrack.Add(d.Signature);
+                rows.Add($"{Csv(d.Signature)},{Csv(d.IssueId)},{Csv(d.Status)},{Csv(action)}");
             }
 
-            // Origins FIRST: an escalation is only un-tracked once its origin is on disk.
-            if (toUntrack.Count > 0 && origins.Absorb(AccIssueImport.ClashEscalationOrigin, pushedMap, DateTime.UtcNow) > 0 &&
-                !origins.TrySave(originsPath, out string originSaveErr))
+            // Origins FIRST: an escalation is only un-tracked once its origin (and any hold) is on disk.
+            if (toUntrack.Count > 0)
             {
-                AccPullClashesCommand.Report(policy, "ACC — Sync Issue Status",
-                    $"{closed} escalated clash(es) are closed in ACC, but the origin record could not be written, so " +
-                    "nothing was un-tracked:\n" + originSaveErr);
-                StingLog.Warn("ACC_SyncIssueStatus: origin record save failed — " + originSaveErr);
-                return Result.Failed;
+                origins.Absorb(AccIssueImport.ClashEscalationOrigin, pushedMap, now);
+                if (!origins.TrySave(originsPath, out string originSaveErr))
+                {
+                    AccPullClashesCommand.Report(policy, "ACC — Sync Issue Status",
+                        $"{toUntrack.Count} escalation(s) would leave tracking, but the origin record could not be written, so " +
+                        "nothing was un-tracked:\n" + originSaveErr);
+                    StingLog.Warn("ACC_SyncIssueStatus: origin record save failed — " + originSaveErr);
+                    return Result.Failed;
+                }
             }
-            foreach (var sig in toUntrack) pushedMap.Remove(sig);   // closed → re-raise on recurrence
+            foreach (var sig in toUntrack) pushedMap.Remove(sig);
             string saveErr = toUntrack.Count > 0 ? AccPullClashesCommand.SavePushed(sidecar, pushedMap) : null;
 
             string csvPath = null;
@@ -147,17 +163,21 @@ namespace StingTools.Core.Clash
             catch (Exception ex) { StingLog.Warn("ACC IssueSync CSV: " + ex.Message); }
 
             var sb = new StringBuilder();
-            sb.AppendLine($"Escalated clashes tracked: {closed + open + missing}");
-            sb.AppendLine($"Now CLOSED in ACC:         {closed}  (untracked — will re-raise if they recur)");
+            sb.AppendLine($"Escalated clashes tracked: {decisions.Count}");
+            sb.AppendLine($"Resolved (closed in ACC, clash gone from the latest complete pull): {closed}  (untracked — re-raised if they recur)");
+            sb.AppendLine($"Closed in ACC, STILL CLASHING: {held}  (held — not re-raised while the clash persists)");
+            if (present == null && held > 0)
+                sb.AppendLine("  (no complete clash pull is on record, so a closed escalation cannot be shown resolved — run ACC Pull Clashes)");
             sb.AppendLine($"Still open:                {open}");
-            sb.AppendLine($"Issue not found:           {missing}  (kept; may have been deleted in ACC)");
+            sb.AppendLine($"Issue NOT FOUND in ACC:    {missing}  (untracked — deleted in ACC; re-raised if the clash is still present)");
             sb.AppendLine($"Still tracked after sync:  {pushedMap.Count}");
+            if (!string.IsNullOrEmpty(saveErr)) sb.AppendLine("WARNING: the tracking record could not be saved: " + saveErr);
             if (csvPath != null) { sb.AppendLine(); sb.AppendLine("CSV: " + csvPath); }
 
             AccPullClashesCommand.Report(policy, "ACC — Sync Issue Status",
                 $"{closed} escalated clash(es) resolved in ACC\n\n" + sb.ToString());
-            StingLog.Info($"ACC_SyncIssueStatus: closed={closed} open={open} missing={missing} tracked={pushedMap.Count}");
-            return Result.Succeeded;
+            StingLog.Info($"ACC_SyncIssueStatus: resolved={closed} heldStillClashing={held} open={open} notFound={missing} tracked={pushedMap.Count}");
+            return string.IsNullOrEmpty(saveErr) ? Result.Succeeded : Result.Failed;
         }
 
         private static string Csv(string s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
