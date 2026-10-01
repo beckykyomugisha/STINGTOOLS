@@ -425,6 +425,12 @@ def validate_object(obj, schema, where):
             continue
         if key in types and value is not None and not type_ok(value, types[key]):
             err(f"{where}.{key}: expected {types[key]}, found {type(value).__name__}")
+        ref = schema.get("valueRefersTo", {}).get(key)
+        if ref and isinstance(value, str) and value:
+            names = _ref_set(ref, where)
+            if names is not None and value not in names and value not in ref.get("alsoAllowed", []):
+                err(f"{where}.{key}: '{value}' does not exist in {ref['file']} ({ref['kind']}). "
+                    f"A mapping to a name that resolves to nothing writes nothing, silently.")
         if key.lower() in children and value is not None:
             validate_node(value, children[key.lower()], f"{where}.{key}")
 
@@ -864,6 +870,12 @@ def self_test(reg):
               add_unknown_json([0]))
     json_case(D + "Placement/STING_PLACEMENT_RULES.json", "unknown key on a placement rule",
               add_unknown_json(["Rules", 0]))
+    def bad_sting_param(doc):
+        doc["property_mappings"][0]["sting_param"] = "NO_SUCH_PARAM_TXT"
+        return doc
+
+    json_case(D + "IFC/ARCHICAD_IFC_MAPPING.json", "mapping targets a parameter that does not exist",
+              bad_sting_param)
     json_case(D + "STING_NRM2_MEASUREMENT_RULES.json", "missing required key",
               lambda d: (d["rules"][0].pop("unit"), d)[1])
 
