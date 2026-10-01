@@ -90,7 +90,7 @@ second Revit; the Claude desktop window can sit over Revit and swallow clicks.
 | F3 | Med | Token Conf | audit called scope-box zones and proximity fills "Low / fallback"; no reason per element | **TAGACC-18**, PR #1022 |
 | F4 | **High** | config | both whole-file writers of `project_config.json` reset every key they did not list (SEQ_*, folder layout, COST_*) — wizard, auto-tagger toggle, Save Config | **TAGACC-19**, PR #1023 |
 | F5 | Med | SEQ | multi-user borrow/defer/re-sequence/repair — no Revit run | open — TAGACC-12 protocol + smoke (NEEDS REVIT) |
-| F6 | Med | families | text types/sizes consistent; labels' params registered + bound; coverage; orphans | open — gate |
+| F6 | Med | families | text types/sizes consistent; labels' params registered + bound; coverage; orphans | **part done** — manifest coverage + checksums gated (TAGFAM-8); label params gated earlier (`DeclaredTagFamiliesTests`); text types inside `.rfa` need Revit |
 | F7 | Low | families | three tie-in tags built as `… Tag` (doubled) — the tier map and config declare the name without it | logged **TAGFAM-7**; no effect today, renaming risky |
 | F8 | — | config | do any UI setters change in-memory TagConfig keys that `SaveToFile` does not write? | **Checked** — SEQ setters are the G2 in-memory restore; `AUTO_TAGGER_DISC_FILTER` uses `SetConfigValue`, which a later `SaveToFile` used to wipe — fixed by TAGACC-19 |
 
