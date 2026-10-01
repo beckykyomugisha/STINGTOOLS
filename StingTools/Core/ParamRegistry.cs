@@ -1116,13 +1116,10 @@ namespace StingTools.Core
         public static string PLM_PUMP_DUTY_FLOW_LPS => Ext("PLM_PUMP_DUTY_FLOW_LPS");
         public static string PLM_PUMP_MODEL         => Ext("PLM_PUMP_MODEL");
         public static string PLM_PUMP_EFF_PCT       => Ext("PLM_PUMP_EFF_PCT");
-        public static string PLM_TMV_INLET_HOT_C    => Ext("PLM_TMV_INLET_HOT_C");
-        public static string PLM_TMV_INLET_COLD_C   => Ext("PLM_TMV_INLET_COLD_C");
-        // PLM_TMV_BLEND_TEMP_C is the design set-point; PLM_TMV_MEASURED_C (a const,
-        // with the DSCH-36 parameters below) is the commissioning reading. Keeping them
-        // separate is what lets the outlet check test a measured temperature at all.
-        public static string PLM_TMV_TEST_DATE      => Ext("PLM_TMV_TEST_DATE");
-        public static string PLM_TMV_NEXT_TEST      => Ext("PLM_TMV_NEXT_TEST");
+        // PLM_TMV_BLEND_TEMP_C is the design set-point; PLM_TMV_MEASURED_C is the
+        // commissioning reading. It, the inlet temperatures and the test dates are consts
+        // with the DSCH-36 parameters below. Keeping set-point and reading separate is what
+        // lets the outlet check test a measured temperature at all.
         public static string PLM_TMV_OVERDUE        => Ext("PLM_TMV_OVERDUE");
         public static string PLM_VENT_PIPE_ID       => Ext("PLM_VENT_PIPE_ID");
         public static string PLM_PIPE_REAL_SIZE     => Ext("PLM_PIPE_REAL_SIZE");
@@ -3331,10 +3328,6 @@ namespace StingTools.Core
             _extendedParams["PLM_PUMP_DUTY_FLOW_LPS"] = "PLM_PUMP_DUTY_FLOW_LPS";
             _extendedParams["PLM_PUMP_MODEL"]         = "PLM_PUMP_MODEL_TXT";
             _extendedParams["PLM_PUMP_EFF_PCT"]       = "PLM_PUMP_EFF_PCT";
-            _extendedParams["PLM_TMV_INLET_HOT_C"]    = "PLM_TMV_INLET_HOT_C";
-            _extendedParams["PLM_TMV_INLET_COLD_C"]   = "PLM_TMV_INLET_COLD_C";
-            _extendedParams["PLM_TMV_TEST_DATE"]      = "PLM_TMV_TEST_DATE_TXT";
-            _extendedParams["PLM_TMV_NEXT_TEST"]      = "PLM_TMV_NEXT_TEST_TXT";
             _extendedParams["PLM_TMV_OVERDUE"]        = "PLM_TMV_OVERDUE_BOOL";
             _extendedParams["PLM_VENT_PIPE_ID"]       = "PLM_VENT_PIPE_ID_TXT";
             _extendedParams["PLM_PIPE_REAL_SIZE"]     = "PLM_PIPE_REAL_SIZE_BOOL";
@@ -4069,10 +4062,19 @@ namespace StingTools.Core
         public const string PLM_FIX_TYPE_TXT_GUID            = "825bb253-9c4b-5051-bd48-8b50ebdbd40b";
         public const string PLM_TMV_ASSISTED_BOOL            = "PLM_TMV_ASSISTED_BOOL";
         public const string PLM_TMV_ASSISTED_BOOL_GUID       = "ac32041d-b1f2-5bfc-86bd-80622407b94b";
-        // DSCH-36. Read by TMVEngine and WaterSafetyValidator through this name, but no
-        // shared-parameter file defined it, so a measured temperature never reached the check.
+        // DSCH-36. Read by TMVEngine (and the measured temperature by WaterSafetyValidator)
+        // through ParamRegistry.Ext, but no shared-parameter file defined them, so none was
+        // ever bound and every TMV read blank: no measured temperature reached the check.
         public const string PLM_TMV_MEASURED_C               = "PLM_TMV_MEASURED_C";
         public const string PLM_TMV_MEASURED_C_GUID          = "1e9925ed-2c23-52cc-9bac-4b0940eb7249";
+        public const string PLM_TMV_INLET_HOT_C              = "PLM_TMV_INLET_HOT_C";
+        public const string PLM_TMV_INLET_HOT_C_GUID         = "6719d6d1-15b4-5b0c-9e04-d3e9cd52e14d";
+        public const string PLM_TMV_INLET_COLD_C             = "PLM_TMV_INLET_COLD_C";
+        public const string PLM_TMV_INLET_COLD_C_GUID        = "fc47f1d3-f246-5684-b890-8262519c76c9";
+        public const string PLM_TMV_TEST_DATE_TXT            = "PLM_TMV_TEST_DATE_TXT";
+        public const string PLM_TMV_TEST_DATE_TXT_GUID       = "e38a2138-93cf-59ac-9ed6-ce88c6b521ea";
+        public const string PLM_TMV_NEXT_TEST_TXT            = "PLM_TMV_NEXT_TEST_TXT";
+        public const string PLM_TMV_NEXT_TEST_TXT_GUID       = "fe2fd66a-99ce-505e-857d-9c53087361fe";
         public const string PLM_TMV_TYPE_TXT                 = "PLM_TMV_TYPE_TXT";
         public const string PLM_TMV_TYPE_TXT_GUID            = "c8d4f6e2-1201-4d27-8c61-0e7a3f9b7001";
         public const string MGS_GAS_REQUIREMENT_TXT          = "MGS_GAS_REQUIREMENT_TXT";

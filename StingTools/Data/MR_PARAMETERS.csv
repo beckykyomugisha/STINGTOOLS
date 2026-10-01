@@ -1,4 +1,4 @@
-# v6.8 | 3670 parameter rows — Phase 188 native-type + _TXT mirror sync
+# v6.8 | 3674 parameter rows — Phase 188 native-type + _TXT mirror sync
 # v6.11 | 20260720 | +5 mirror rows (4 STING_GATE_* universal-tag badge stamps + PRJ_SHEET_SYSTEM_TXT title-block SYSTEM cell) — realigns with MR_PARAMETERS.txt (CI data-file gate)
 # v6.10 | 20260630 | +5 STING_PLACER_* symbol-placement idempotency stamps (group 37) — aligns with MR_PARAMETERS.txt
 # v6.9 | 20260630 | +30 Tier-2 element-bound params (electrical SLD/circuit, plumbing router, design-option, sheet/view, clash, IFC) — aligns with MR_PARAMETERS.txt
@@ -3679,3 +3679,7 @@ Views,STING_SCOPE_BOX_TAG_TXT,a7c0b2e4-4d91-4a55-9c7e-aa0001000007,TEXT,STING_DR
 Views,STING_DEFAULT_TAG_STYLE_TXT,4e90ed9d-5b3a-5791-ab43-c90a1f440310,TEXT,STING_DRAWING,Instance,"Default tag style preset ({size}{style}_{color}) of the view style pack, stamped on managed view templates by ManagedTemplateSyncer [DTW-59]",False,,,MULTI,1,0
 Generic Models,PLM_TMV_ASSISTED_BOOL,ac32041d-b1f2-5bfc-86bd-80622407b94b,YESNO,PLM_DRN,Instance,"TMV serves an assisted bath (HTM 04-01 Part A Table 2: 46 C assisted, 44 C unassisted; Yes only where the WSG approved assisted bathing above 44 C) [DSCH-25]",False,,,MULTI,1,0
 Generic Models,PLM_TMV_MEASURED_C,1e9925ed-2c23-52cc-9bac-4b0940eb7249,NUMBER,PLM_DRN,Instance,"TMV outlet temperature measured at commissioning or the annual test, C (the design set-point is PLM_TMV_BLEND_TEMP_C), entered from the commissioning record; checked against the never-exceed limit in STING_TMV_STANDARDS.json. Blank = not measured [DSCH-36]",False,,,MULTI,1,0
+Generic Models,PLM_TMV_INLET_HOT_C,6719d6d1-15b4-5b0c-9e04-d3e9cd52e14d,NUMBER,PLM_DRN,Instance,"TMV hot supply temperature at the valve inlet, C, recorded at commissioning or the annual test; read by the TMV register. Blank = not recorded [DSCH-36]",False,,,MULTI,1,0
+Generic Models,PLM_TMV_INLET_COLD_C,fc47f1d3-f246-5684-b890-8262519c76c9,NUMBER,PLM_DRN,Instance,"TMV cold supply temperature at the valve inlet, C, recorded at commissioning or the annual test; read by the TMV register. Blank = not recorded [DSCH-36]",False,,,MULTI,1,0
+Generic Models,PLM_TMV_TEST_DATE_TXT,e38a2138-93cf-59ac-9ed6-ce88c6b521ea,TEXT,PLM_DRN,Instance,Date of the last TMV performance test (yyyy-MM-dd); the TMV register derives the next test (+12 months) from it when PLM_TMV_NEXT_TEST_TXT is blank [DSCH-36],False,,,MULTI,1,0
+Generic Models,PLM_TMV_NEXT_TEST_TXT,fe2fd66a-99ce-505e-857d-9c53087361fe,TEXT,PLM_DRN,Instance,Date the next TMV performance test is due (yyyy-MM-dd); blank = test date + 12 months. The TMV register reports a past date as overdue [DSCH-36],False,,,MULTI,1,0

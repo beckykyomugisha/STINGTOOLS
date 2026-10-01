@@ -22035,6 +22035,54 @@
       "curated": true
     },
     {
+      "param_name": "PLM_TMV_INLET_HOT_C",
+      "guid": "6719d6d1-15b4-5b0c-9e04-d3e9cd52e14d",
+      "description": "TMV hot supply temperature at the valve inlet, C, recorded at commissioning or the annual test; read by the TMV register. Blank = not recorded [DSCH-36]",
+      "datatype": "NUMBER",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
+      "param_name": "PLM_TMV_INLET_COLD_C",
+      "guid": "fc47f1d3-f246-5684-b890-8262519c76c9",
+      "description": "TMV cold supply temperature at the valve inlet, C, recorded at commissioning or the annual test; read by the TMV register. Blank = not recorded [DSCH-36]",
+      "datatype": "NUMBER",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
+      "param_name": "PLM_TMV_TEST_DATE_TXT",
+      "guid": "e38a2138-93cf-59ac-9ed6-ce88c6b521ea",
+      "description": "Date of the last TMV performance test (yyyy-MM-dd); the TMV register derives the next test (+12 months) from it when PLM_TMV_NEXT_TEST_TXT is blank [DSCH-36]",
+      "datatype": "TEXT",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
+      "param_name": "PLM_TMV_NEXT_TEST_TXT",
+      "guid": "fe2fd66a-99ce-505e-857d-9c53087361fe",
+      "description": "Date the next TMV performance test is due (yyyy-MM-dd); blank = test date + 12 months. The TMV register reports a past date as overdue [DSCH-36]",
+      "datatype": "TEXT",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
       "param_name": "MGS_GAS_REQUIREMENT_TXT",
       "guid": "0427a377-ac36-52c4-b9e3-ab62433bc577",
       "description": "Medical gases a clinical room needs, comma-separated codes: O2, N2O, CO2, MA4 (medical air), MA7 (surgical air), N2, HE, VAC, AGS (scavenging). Read by Med Gas Outlet placement.",
