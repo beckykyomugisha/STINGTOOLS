@@ -95,7 +95,9 @@ namespace StingTools.Commands.Electrical.ArcFlash
     /// exclamation mark in it, at the left of the signal-word header strip. Drawn as filled
     /// regions, never a font glyph (fonts could not be relied on for it). Revit-free so the
     /// geometry is tested; ArcFlashLabelSheetCommand turns it into filled regions.
-    /// <para>Colours, per ANSI Z535.4 as we read it (VERIFY against the printed standard):
+    /// <para>Colours, per ANSI Z535.4 as we read it (VERIFY against the printed standard —
+    /// still unconfirmed 2026-10-02: Z535.4 is sold by NEMA and no free publisher text of
+    /// its safety-alert-symbol colour rule was found):
     /// the triangle takes the signal-word TEXT colour and the exclamation mark the panel
     /// BACKGROUND colour — black triangle / orange mark on WARNING, white triangle / red mark
     /// on DANGER.</para>

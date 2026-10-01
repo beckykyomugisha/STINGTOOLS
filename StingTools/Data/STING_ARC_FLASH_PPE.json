@@ -13,18 +13,18 @@
   ],
   "labelHeader": {
     "dangerAboveCalCm2": 40,
-    "verify": "40 cal/cm2 follows the NFPA 70E informational note on the upper limit where de-energising should be emphasised; confirm its clause number in the 2024 edition. Whether to use DANGER at all is a licensed professional's call.",
+    "verify": "STILL UNCONFIRMED (checked 2026-10-02): the NFPA 70E-2024 text could not be read - NFPA's free-access reader (https://link.nfpa.org/free-access/publications/70E/2024) needs an NFPA account login, which was not available, and no NFPA committee report reproducing 130.7 was found at docinfofiles.nfpa.org. Only secondary summaries were seen. Confirm against the printed NFPA 70E-2024 that an informational note says greater emphasis on de-energising is warranted above 40 cal/cm2, and its clause number. Whether to use DANGER at all is a licensed professional's call.",
     "warning": {
       "signalWord": "WARNING",
       "background": "#FF8200",
       "text": "#000000",
-      "verify": "Safety orange sRGB approximation (Pantone 151C); confirm against ANSI Z535.1."
+      "verify": "STILL UNCONFIRMED (checked 2026-10-02): ANSI Z535.1-2022 is sold by NEMA and no free publisher text was found. As a cross-check only, the Munsell central colour 5.0YR 6.0/15 (CIE Y 30.05, x 0.5510, y 0.4214, illuminant C) published for 'Orange' in 49 CFR Part 172 Appendix A (DOT hazmat placards, https://www.law.cornell.edu/cfr/text/49/appendix-A_to_part_172) is the value secondary sources (e.g. Wikipedia, 'Safety orange') attribute to Z535.1-1998; it converts to about sRGB #E57800 (just outside sRGB), Delta E76 about 12 from this #FF8200. Confirm the Z535.1 safety-orange specification and choose the print colour from it."
     },
     "danger": {
       "signalWord": "DANGER",
       "background": "#C8102E",
       "text": "#FFFFFF",
-      "verify": "Safety red sRGB approximation (Pantone 186C); confirm against ANSI Z535.1."
+      "verify": "STILL UNCONFIRMED (checked 2026-10-02): no free ANSI Z535.1 text found. Cross-check only: the 'Red' central colour 7.5R 4.0/14 (CIE Y 12.00, x 0.5959, y 0.3269, illuminant C) in 49 CFR Part 172 Appendix A converts to about sRGB #BC2221, Delta E76 about 9 from this #C8102E (Pantone 186C). Confirm the Z535.1 safety-red specification and choose the print colour from it."
     }
   }
 }
