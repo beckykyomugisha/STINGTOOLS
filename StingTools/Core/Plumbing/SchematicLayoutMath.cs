@@ -228,6 +228,13 @@ namespace StingTools.Core.Plumbing
         }
 
         /// <summary>
+        /// True when a source of this rank is a guess: only a water meter, a tank or a pump
+        /// set is known to feed the network. Other connected equipment (rank 3) or no
+        /// source at all means the layout and any pressure from it are indicative (DTW-128).
+        /// </summary>
+        public static bool SupplySourceIsAssumed(int rank) => rank > 2;
+
+        /// <summary>
         /// Pressure label text, or null when none may be shown. A pressure is only
         /// printed when the inlet pressure was configured by the user; when the
         /// source node itself was not found in the model it is marked indicative.

@@ -236,6 +236,18 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
+        public void Only_a_meter_tank_or_pump_is_a_known_source_other_equipment_is_assumed()
+        {
+            // DTW-128: any connected equipment (rank 3) became the source and pressures from
+            // it were printed as modelled ones.
+            Assert.False(SchematicLayoutMath.SupplySourceIsAssumed(SchematicLayoutMath.SupplySourceRank("MTR", false)));
+            Assert.False(SchematicLayoutMath.SupplySourceIsAssumed(SchematicLayoutMath.SupplySourceRank("TK", true)));
+            Assert.False(SchematicLayoutMath.SupplySourceIsAssumed(SchematicLayoutMath.SupplySourceRank("PMP", true)));
+            Assert.True(SchematicLayoutMath.SupplySourceIsAssumed(SchematicLayoutMath.SupplySourceRank(null, true)));
+            Assert.True(SchematicLayoutMath.SupplySourceIsAssumed(int.MaxValue));
+        }
+
+        [Fact]
         public void Pressure_is_shown_only_when_configured_and_flagged_when_the_source_is_assumed()
         {
             Assert.Null(SchematicLayoutMath.PressureLabel(250, inletPressureConfigured: false, sourceAssumed: false));

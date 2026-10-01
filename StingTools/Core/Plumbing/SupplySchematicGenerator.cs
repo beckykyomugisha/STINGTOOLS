@@ -116,6 +116,14 @@ namespace StingTools.Core.Plumbing
             if (inlet != null)
             {
                 result.SourceDescription = $"{SourceName(ranked.Sym, inlet)} {inlet.Id.Value}";
+                // DTW-128: other equipment is a guess at the source, not a modelled inlet.
+                if (SchematicLayoutMath.SupplySourceIsAssumed(ranked.Rank))
+                {
+                    result.SourceAssumed = true;
+                    result.SourceDescription += " (assumed)";
+                    result.Warnings.Add($"No water meter, tank or pump is connected to the network — laid out from "
+                        + $"{SourceName(ranked.Sym, inlet)} {inlet.Id.Value}; any pressures shown are indicative.");
+                }
             }
             else
             {
@@ -178,7 +186,10 @@ namespace StingTools.Core.Plumbing
             // fall through to the geometric glyph fallback below.
             var symbolMap = ResolveSymbolFamilies(doc);
 
-            // 6. Draw edges
+            // 6. Draw edges. DTW-128: a pipe is two edges (one per end), and each edge
+            //    used to print the pipe's DN — every pipe was labelled twice. The label
+            //    is now placed once per pipe, at the pipe's own node where it has one.
+            var labelledPipes = new HashSet<long>();
             foreach (var edge in net.Edges)
             {
                 if (edge.From == null || edge.To == null) continue;
@@ -191,15 +202,18 @@ namespace StingTools.Core.Plumbing
                     continue;
                 result.PipesDrawn++;
 
-                if (opts.ShowDnLabels && edge.DnMm > 0)
+                long pipeKey = edge.PipeId?.Value ?? -1;
+                if (opts.ShowDnLabels && edge.DnMm > 0 && pipeKey > 0 && labelledPipes.Add(pipeKey))
                 {
-                    var mid = new XYZ((p0.X + p1.X) / 2.0 + P(2),
-                                      (p0.Y + p1.Y) / 2.0, 0);
+                    XYZ at = coords.TryGetValue(pipeKey, out var pipeAt)
+                        ? new XYZ(pipeAt.X + P(2), pipeAt.Y, 0)
+                        : new XYZ((p0.X + p1.X) / 2.0 + P(2), (p0.Y + p1.Y) / 2.0, 0);
+                    var pipeNode = net.ById.TryGetValue(pipeKey, out var pn) ? pn : edge.To;
                     string label = $"DN{(int)Math.Round(edge.DnMm)}";
                     string kpa = showPressure
-                        ? SchematicLayoutMath.PressureLabel(edge.To.PressureKpa, true, result.SourceAssumed) : null;
+                        ? SchematicLayoutMath.PressureLabel(pipeNode.PressureKpa, true, result.SourceAssumed) : null;
                     if (kpa != null) label += "\n" + kpa;
-                    TryPlaceTextNote(doc, view, mid, label,
+                    TryPlaceTextNote(doc, view, at, label,
                         textType?.Id ?? ElementId.InvalidElementId, result);
                 }
             }
