@@ -50,24 +50,7 @@ namespace StingTools.BIMManager
             // Project override files only contain entries whose origin is "project".
             // Corporate baselines on disk stay untouched — drift on a corporate row
             // flips its origin to "project" first (FlipModifiedCorporateOrigin*).
-            var projectDt = new DrawingTypeLibrary {
-                Version      = updatedDtLib?.Version ?? 1,
-                DrawingTypes = (updatedDtLib?.DrawingTypes ?? new())
-                                .Where(d => string.Equals(d.Origin, "project", StringComparison.OrdinalIgnoreCase))
-                                .ToList(),
-                Routing      = updatedDtLib?.Routing ?? new(),
-            };
-            var projectPacks = new StylePackDoc {
-                SchemaVersion = updatedPacks?.SchemaVersion,
-                Name          = updatedPacks?.Name,
-                Description   = updatedPacks?.Description,
-                Namespace     = updatedPacks?.Namespace,
-                LastUpdated   = DateTime.Now.ToString("yyyy-MM-dd"),
-                StylePacks    = (updatedPacks?.StylePacks ?? new())
-                                .Where(p => string.Equals(p.Origin, "project", StringComparison.OrdinalIgnoreCase))
-                                .ToList(),
-                Routing       = updatedPacks?.Routing,
-            };
+            var (projectDt, projectPacks) = BuildProjectOverride(updatedDtLib, updatedPacks);
 
             var dtPath   = Path.Combine(outputDir, "drawing_types.json");
             var packPath = Path.Combine(outputDir, "view_style_packs.json");

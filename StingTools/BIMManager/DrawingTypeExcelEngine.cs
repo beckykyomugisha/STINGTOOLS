@@ -478,28 +478,43 @@ namespace StingTools.BIMManager
             FinaliseSheet(ws, headers.Length);
         }
 
+        // DTW-180: every predicate the matcher reads, plus origin. The sheet
+        // used to carry only discipline/phase/docType/levelMatches/
+        // projectCodeMatches, so the 23 shipped rules written with
+        // disciplineMatches / docTypeMatches / phaseMatches (and any
+        // optionMatches rule) came back as "*" catch-alls.
+        internal static readonly string[] RoutingHeaders = {
+            "ruleIndex","origin","discipline","phase","docType",
+            "disciplineMatches","phaseMatches","docTypeMatches",
+            "levelMatches","projectCodeMatches","optionMatches","drawingTypeId"
+        };
+
         private static void BuildRoutingSheet(XLWorkbook wb, DrawingTypeLibrary dt)
         {
             var ws = wb.AddWorksheet("Routing");
-            string[] headers = {
-                "ruleIndex","discipline","phase","docType","levelMatches",
-                "projectCodeMatches","drawingTypeId"
-            };
+            var headers = RoutingHeaders;
             WriteHeader(ws, headers);
 
             int row = 2; int idx = 0;
             foreach (var r in dt.Routing ?? new())
             {
-                ws.Cell(row, 1).Value = idx++;
-                ws.Cell(row, 2).Value = r.Discipline ?? "";
-                ws.Cell(row, 3).Value = r.Phase ?? "";
-                ws.Cell(row, 4).Value = r.DocType ?? "";
-                ws.Cell(row, 5).Value = r.LevelMatches ?? "";
-                ws.Cell(row, 6).Value = r.ProjectCodeMatches ?? "";
-                ws.Cell(row, 7).Value = r.DrawingTypeId ?? "";
+                if (r == null) continue;
+                ws.Cell(row, 1).Value  = idx++;
+                ws.Cell(row, 2).Value  = r.Origin ?? "corporate";
+                ws.Cell(row, 3).Value  = r.Discipline ?? "";
+                ws.Cell(row, 4).Value  = r.Phase ?? "";
+                ws.Cell(row, 5).Value  = r.DocType ?? "";
+                ws.Cell(row, 6).Value  = r.DisciplineMatches ?? "";
+                ws.Cell(row, 7).Value  = r.PhaseMatches ?? "";
+                ws.Cell(row, 8).Value  = r.DocTypeMatches ?? "";
+                ws.Cell(row, 9).Value  = r.LevelMatches ?? "";
+                ws.Cell(row,10).Value  = r.ProjectCodeMatches ?? "";
+                ws.Cell(row,11).Value  = r.OptionMatches ?? "";
+                ws.Cell(row,12).Value  = r.DrawingTypeId ?? "";
                 if (row % 2 == 0) ws.Range(row, 1, row, headers.Length).Style.Fill.BackgroundColor = RowAltFill;
                 row++;
             }
+            LockColumn(ws, 2, row);
             FinaliseSheet(ws, headers.Length);
         }
 
@@ -1315,32 +1330,66 @@ namespace StingTools.BIMManager
             }
         }
 
+        /// <summary>
+        /// DTW-180: read every predicate (by header name, so a workbook from
+        /// before the extra columns still imports), and keep the corporate /
+        /// project split. A row identical (signature + target) to a corporate
+        /// rule IS that corporate rule; anything else is the project's. Only a
+        /// change to the project's rules is recorded, and only project rules
+        /// are written to the override (BuildProjectOverride) — the old code
+        /// replaced the routing table wholesale and wrote all 143 corporate
+        /// rules into the project file with no origin.
+        /// </summary>
         private static void ApplyRoutingSheet(XLWorkbook wb, DrawingTypeLibrary dt, List<ChangeRecord> changes)
         {
             var ws = wb.Worksheets.FirstOrDefault(s => s.Name == "Routing");
             if (ws == null) return;
             int last = ws.LastRowUsed()?.RowNumber() ?? 1;
+            int C(string h) => FindHeader(ws, h);
+            string Get(int r, int col) => col < 1 ? null : NullIfEmpty(ws.Cell(r, col).GetString().Trim());
+            int cDisc = C("discipline"), cPhase = C("phase"), cDoc = C("docType");
+            int cDiscRx = C("disciplineMatches"), cPhaseRx = C("phaseMatches"), cDocRx = C("docTypeMatches");
+            int cLvl = C("levelMatches"), cProj = C("projectCodeMatches"), cOpt = C("optionMatches");
+            int cTarget = C("drawingTypeId");
+            if (cTarget < 1) return;
 
-            var rules = new List<DrawingRoutingRule>();
+            var corporate = (dt.Routing ?? new()).Where(r => r != null && !r.IsProjectRule).ToList();
+            var corporateKeys = new HashSet<string>(corporate.Select(DrawingRoutingMatcher.SignatureWithTarget),
+                StringComparer.OrdinalIgnoreCase);
+            var oldProject = (dt.Routing ?? new()).Where(r => r != null && r.IsProjectRule).ToList();
+
+            var sheetRules = new List<DrawingRoutingRule>();
             for (int r = 2; r <= last; r++)
             {
-                var dt_id = ws.Cell(r, 7).GetString().Trim();
-                if (string.IsNullOrEmpty(dt_id)) continue;
+                var target = Get(r, cTarget);
+                if (target == null) continue;
                 var rule = new DrawingRoutingRule {
-                    Discipline         = ws.Cell(r, 2).GetString(),
-                    Phase              = ws.Cell(r, 3).GetString(),
-                    DocType            = ws.Cell(r, 4).GetString(),
-                    LevelMatches       = NullIfEmpty(ws.Cell(r, 5).GetString()),
-                    ProjectCodeMatches = NullIfEmpty(ws.Cell(r, 6).GetString()),
-                    DrawingTypeId      = dt_id,
+                    Discipline         = Get(r, cDisc)  ?? "*",
+                    Phase              = Get(r, cPhase) ?? "*",
+                    DocType            = Get(r, cDoc)   ?? "*",
+                    DisciplineMatches  = Get(r, cDiscRx),
+                    PhaseMatches       = Get(r, cPhaseRx),
+                    DocTypeMatches     = Get(r, cDocRx),
+                    LevelMatches       = Get(r, cLvl),
+                    ProjectCodeMatches = Get(r, cProj),
+                    OptionMatches      = Get(r, cOpt),
+                    DrawingTypeId      = target,
                 };
-                rules.Add(rule);
+                rule.Origin = corporateKeys.Contains(DrawingRoutingMatcher.SignatureWithTarget(rule)) ? "corporate" : "project";
+                sheetRules.Add(rule);
             }
 
-            int oldCount = dt.Routing?.Count ?? 0;
-            dt.Routing = rules;
-            changes.Add(new ChangeRecord { EntityType = "Routing", Id = "*", Field = "rules",
-                OldValue = $"{oldCount} rules", NewValue = $"{rules.Count} rules" });
+            var newProject = sheetRules.Where(r => r.IsProjectRule).ToList();
+            bool same = newProject.Count == oldProject.Count
+                && newProject.Select(DrawingRoutingMatcher.SignatureWithTarget)
+                       .SequenceEqual(oldProject.Select(DrawingRoutingMatcher.SignatureWithTarget), StringComparer.OrdinalIgnoreCase);
+            if (same) return;
+
+            // Project rules first (they are prepended at runtime anyway), then
+            // the corporate table untouched.
+            dt.Routing = newProject.Concat(corporate).ToList();
+            changes.Add(new ChangeRecord { EntityType = "Routing", Id = "project", Field = "rules",
+                OldValue = $"{oldProject.Count} project rule(s)", NewValue = $"{newProject.Count} project rule(s)" });
         }
 
         private static string NullIfEmpty(string s) => string.IsNullOrWhiteSpace(s) ? null : s;
@@ -1378,6 +1427,32 @@ namespace StingTools.BIMManager
                         OldValue = "corporate", NewValue = "project" });
                 }
             }
+        }
+
+        /// <summary>
+        /// What ApplyImport writes: only project-origin drawing types, only
+        /// project routing rules (DTW-180), only project-origin packs. Pure so
+        /// the round-trip test can assert an unedited import writes nothing.
+        /// </summary>
+        public static (DrawingTypeLibrary Types, StylePackDoc Packs) BuildProjectOverride(
+            DrawingTypeLibrary updatedDtLib, StylePackDoc updatedPacks)
+        {
+            static bool IsProject(string origin) => string.Equals(origin, "project", StringComparison.OrdinalIgnoreCase);
+            var projectDt = new DrawingTypeLibrary {
+                Version      = updatedDtLib?.Version ?? 1,
+                DrawingTypes = (updatedDtLib?.DrawingTypes ?? new()).Where(d => d != null && IsProject(d.Origin)).ToList(),
+                Routing      = (updatedDtLib?.Routing ?? new()).Where(r => r != null && r.IsProjectRule).ToList(),
+            };
+            var projectPacks = new StylePackDoc {
+                SchemaVersion = updatedPacks?.SchemaVersion,
+                Name          = updatedPacks?.Name,
+                Description   = updatedPacks?.Description,
+                Namespace     = updatedPacks?.Namespace,
+                LastUpdated   = DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                StylePacks    = (updatedPacks?.StylePacks ?? new()).Where(p => p != null && IsProject(p.Origin)).ToList(),
+                Routing       = updatedPacks?.Routing,
+            };
+            return (projectDt, projectPacks);
         }
 
         public static StylePackDoc MergeStylePacks(StylePackDoc baseDoc, StylePackDoc over)

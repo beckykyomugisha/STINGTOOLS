@@ -59,6 +59,49 @@ namespace StingTools.Tags.Tests
                 errors.Count + " validation error(s):\n" + string.Join("\n", errors.Take(25)));
         }
 
+        // ── DTW-180 ───────────────────────────────────────────────────────
+
+        [Fact]
+        public void Routing_rows_carry_every_predicate_and_stay_corporate_when_unedited()
+        {
+            var dt = ShippedTypes();
+            var packs = ShippedPacks();
+            Assert.True(dt.Routing.Count(r => !string.IsNullOrEmpty(r.DisciplineMatches) || !string.IsNullOrEmpty(r.DocTypeMatches)) >= 20,
+                "fixture: the shipped regex-predicate rules are what this test is about");
+            using var wb = Export(dt, packs);
+            var imp = DrawingTypeExcelEngine.ImportWorkbook(wb, dt, packs);
+
+            Assert.DoesNotContain(imp.Changes, c => c.EntityType == "Routing");
+            var (types, _) = DrawingTypeExcelEngine.BuildProjectOverride(imp.UpdatedDtLib, imp.UpdatedPackLib);
+            Assert.Empty(types.Routing);
+            // No rule lost its predicates on the way through.
+            Assert.Equal(dt.Routing.Select(DrawingRoutingMatcher.SignatureWithTarget),
+                         imp.UpdatedDtLib.Routing.Select(DrawingRoutingMatcher.SignatureWithTarget));
+        }
+
+        [Fact]
+        public void An_added_routing_row_becomes_a_project_rule_with_all_its_predicates()
+        {
+            var dt = ShippedTypes();
+            var packs = ShippedPacks();
+            using var wb = Export(dt, packs);
+            var ws = wb.Worksheet("Routing");
+            int row = ws.LastRowUsed().RowNumber() + 1;
+            var headers = DrawingTypeExcelEngine.RoutingHeaders.ToList();
+            void Set(string h, string v) => ws.Cell(row, headers.IndexOf(h) + 1).Value = v;
+            Set("discipline", "A"); Set("docType", "PLAN");
+            Set("disciplineMatches", "^A$"); Set("optionMatches", "^VE");
+            Set("drawingTypeId", dt.DrawingTypes[0].Id);
+
+            var imp = DrawingTypeExcelEngine.ImportWorkbook(wb, dt, packs);
+            var (types, _) = DrawingTypeExcelEngine.BuildProjectOverride(imp.UpdatedDtLib, imp.UpdatedPackLib);
+            var rule = Assert.Single(types.Routing);
+            Assert.Equal("project", rule.Origin);
+            Assert.Equal("^A$", rule.DisciplineMatches);
+            Assert.Equal("^VE", rule.OptionMatches);
+            Assert.Contains(imp.Changes, c => c.EntityType == "Routing");
+        }
+
         // ── DTW-182 ───────────────────────────────────────────────────────
 
         [Fact]
