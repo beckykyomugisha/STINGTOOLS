@@ -68,28 +68,40 @@ namespace StingTools.Commands.Validation
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            var dlg = new Microsoft.Win32.OpenFileDialog
+            string templatePath;
+            if (PresetDialog.Quiet)
             {
-                Title = "Select the Owner program template (Excel)",
-                Filter = "Excel Files (*.xlsx)|*.xlsx",
-                InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Compliance")
-            };
-            if (dlg.ShowDialog() != true) return Result.Cancelled;
+                // Inside a preset the Owner's template is the step's params.programTemplate — never guessed.
+                templatePath = PresetDialog.InputFile(doc, "Program_Audit", "programTemplate",
+                    "the Owner program template (.xlsx)", ref msg);
+                if (templatePath == null) return Result.Failed;
+            }
+            else
+            {
+                var dlg = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Select the Owner program template (Excel)",
+                    Filter = "Excel Files (*.xlsx)|*.xlsx",
+                    InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Compliance")
+                };
+                if (dlg.ShowDialog() != true) return Result.Cancelled;
+                templatePath = dlg.FileName;
+            }
 
             var map = ProgramAuditMap.Load(doc);
 
             List<ProgramRow> program;
-            try { program = ReadProgram(dlg.FileName, map, out string headerNote); if (headerNote != null) StingLog.Info(headerNote); }
+            try { program = ReadProgram(templatePath, map, out string headerNote); if (headerNote != null) StingLog.Info(headerNote); }
             catch (Exception ex)
             {
-                TaskDialog.Show("Program Audit", $"Could not read the template:\n{ex.Message}");
+                PresetDialog.Show("Program Audit", $"Could not read the template:\n{ex.Message}", ref msg);
                 return Result.Failed;
             }
             if (program.Count == 0)
             {
-                TaskDialog.Show("Program Audit",
+                PresetDialog.Show("Program Audit",
                     "No program rows read. Check the template has a header row with a Room Name " +
-                    "column (configurable via _BIM_COORD/program_audit_map.json).");
+                    "column (configurable via _BIM_COORD/program_audit_map.json).", ref msg);
                 return Result.Succeeded;
             }
 
@@ -99,7 +111,7 @@ namespace StingTools.Commands.Validation
             string xlsx = WriteDeficiencyLog(doc, result);
 
             var sb = new StringBuilder();
-            sb.AppendLine($"Template: {Path.GetFileName(dlg.FileName)}  ({program.Count} program rows, unit {map.AreaUnit})");
+            sb.AppendLine($"Template: {Path.GetFileName(templatePath)}  ({program.Count} program rows, unit {map.AreaUnit})");
             sb.AppendLine($"Model: {rooms.Count} placed room(s)   tolerance ±{map.TolerancePct:F0}%");
             sb.AppendLine();
             sb.AppendLine($"Compliant:        {result.Compliant}");
@@ -123,12 +135,9 @@ namespace StingTools.Commands.Validation
             }
             if (xlsx != null) { sb.AppendLine(); sb.AppendLine($"Deficiency log: {xlsx}"); }
 
-            new TaskDialog("Program Audit")
-            {
-                MainInstruction = $"{result.Compliant}/{program.Count} compliant — " +
-                                  $"{result.Missing} missing, {result.Extra} extra",
-                MainContent = sb.ToString()
-            }.Show();
+            string head = $"{result.Compliant}/{program.Count} compliant — " +
+                          $"{result.Missing} missing, {result.Extra} extra";
+            PresetDialog.Show("Program Audit", head, sb.ToString(), ref msg);
             StingLog.Info($"Program_Audit: {result.Compliant} compliant, {result.Missing} missing, {result.Extra} extra");
             return Result.Succeeded;
         }

@@ -1309,7 +1309,7 @@ namespace StingTools.Temp
                 report.AppendLine("CANCELLED by user (Escape key). Partial results committed.");
             report.AppendLine("Pipeline: CategoryFilter → TypeTokenInherit → PopulateAll → NativeMapper → Formulas → Tag → Containers → TAG7 → GridRef");
 
-            TaskDialog.Show("Full Auto-Populate", report.ToString());
+            PresetDialog.Show("Full Auto-Populate", report.ToString(), ref message);
 
             StingLog.Info($"FullAutoPopulate: {totalElements} elements, " +
                 $"pipelined={tagged}, errors={errors}, " +

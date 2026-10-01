@@ -7545,16 +7545,15 @@ namespace StingTools.BIMManager
                 if (tagCompliance.CompliancePercent >= 100 && bepExists && openIssues == 0 && namingScore >= 100)
                     report.AppendLine("  ✓ All subsystems compliant — no actions needed");
 
-                TaskDialog td = new TaskDialog("ISO 19650 Compliance");
-                td.MainInstruction = $"Overall Compliance: {overallScore}% ({overallRag})";
-                td.MainContent = report.ToString();
-                td.Show();
+                PresetDialog.Show("ISO 19650 Compliance",
+                    $"Overall Compliance: {overallScore}% ({overallRag})", report.ToString(), ref message);
 
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
                 StingLog.Error("FullComplianceDashboardCommand failed", ex);
+                message = "Compliance dashboard failed: " + ex.Message;
                 return Result.Failed;
             }
         }

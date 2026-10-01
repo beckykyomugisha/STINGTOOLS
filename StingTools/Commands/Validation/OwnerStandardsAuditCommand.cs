@@ -34,9 +34,9 @@ namespace StingTools.Commands.Validation
             var def = OwnerStandardsRegistry.Get(doc);
             if (def.Rules == null || def.Rules.Count == 0)
             {
-                TaskDialog.Show("Owner Standards",
+                PresetDialog.Show("Owner Standards",
                     "No Owner Standards Pack found.\n\nShip STING_OWNER_STANDARDS_PACK.json in data/ " +
-                    "or add a project overlay at <project>/_BIM_COORD/owner_standards.json.");
+                    "or add a project overlay at <project>/_BIM_COORD/owner_standards.json.", ref msg);
                 return Result.Succeeded;
             }
 
@@ -66,11 +66,8 @@ namespace StingTools.Commands.Validation
             if (csv != null) { sb.AppendLine(); sb.AppendLine($"CSV: {csv}"); }
             if (json != null) sb.AppendLine($"Report: {json}");
 
-            new TaskDialog("Owner Standards Audit")
-            {
-                MainInstruction = $"{rag} — {blockFail} BLOCK, {warnFail} WARN, {infoFail} INFO failing",
-                MainContent = sb.ToString()
-            }.Show();
+            PresetDialog.Show("Owner Standards Audit",
+                $"{rag} — {blockFail} BLOCK, {warnFail} WARN, {infoFail} INFO failing", sb.ToString(), ref msg);
             StingLog.Info($"OwnerStandards_Audit: {rag} block={blockFail} warn={warnFail} info={infoFail} skip={skipped}");
             return Result.Succeeded;
         }

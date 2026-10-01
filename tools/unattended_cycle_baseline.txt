@@ -68,7 +68,6 @@ StingTools/BIMManager/BIMManagerCommands.cs::CDEStatusCommand|new TaskDialog|4	G
 # ExportModelHealthCommand — step ExportModelHealth in CoordinationCycle, DeliverableA, DeliverableB, DeliverableC, DeliverableD, GateAudit, MonthlyReport
 
 # FullComplianceDashboardCommand — step FullComplianceDashboard in DeliverableA, DeliverableB, DeliverableC, DeliverableD, GateAudit, MonthlyReport
-StingTools/BIMManager/BIMManagerCommands.cs::FullComplianceDashboardCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
 
 # ACCPublishCommand — step ACCPublish in CoordinationCycle, FortnightlyIssue
 StingTools/BIMManager/PlatformLinkCommands.cs::ACCPublishCommand|new TaskDialog|1	GATED - the suitability picker window itself (same branch as its four AddCommandLinks). Unattended uses publishSuitability or fails; closing the picker now cancels (A3).
@@ -144,26 +143,16 @@ StingTools/Commands/Twin/NiagaraCommands.cs::NiagaraReconcileCommand|TaskDialog.
 StingTools/Commands/Twin/NiagaraCommands.cs::NiagaraReconcileCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
 
 # DeviceCoordinationCommand — step DeviceCoord_Audit in DeliverableB, DeliverableC, GateAudit
-StingTools/Commands/Validation/DeviceCoordinationCommand.cs::DeviceCoordinationCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
-StingTools/Commands/Validation/DeviceCoordinationCommand.cs::DeviceCoordinationCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
 
 # LodStampCommand — step LOD_Stamp in DeliverableD
-StingTools/Commands/Validation/LodVerifyCommand.cs::LodStampCommand|TaskDialog.Show|2	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
-StingTools/Commands/Validation/LodVerifyCommand.cs::LodStampCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
 
 # LodVerifyCommand — step LOD_Verify in DeliverableA, DeliverableB, DeliverableC, DeliverableD, GateAudit
-StingTools/Commands/Validation/LodVerifyCommand.cs::LodVerifyCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
-StingTools/Commands/Validation/LodVerifyCommand.cs::LodVerifyCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
 
 # OwnerStandardsAuditCommand — step OwnerStandards_Audit in DeliverableB, DeliverableC, GateAudit
-StingTools/Commands/Validation/OwnerStandardsAuditCommand.cs::OwnerStandardsAuditCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
-StingTools/Commands/Validation/OwnerStandardsAuditCommand.cs::OwnerStandardsAuditCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
 
 # ProgramAuditCommand — step Program_Audit in DeliverableA, DeliverableB, DeliverableC, GateAudit
-StingTools/Commands/Validation/ProgramAuditCommand.cs::ProgramAuditCommand|OpenFileDialog|1	UNGATED - asks a person for an input file; nothing configures the path, so the step cannot run unattended.
-StingTools/Commands/Validation/ProgramAuditCommand.cs::ProgramAuditCommand|ShowDialog|1	UNGATED - the modal file chooser (or WPF window) opened for that input.
-StingTools/Commands/Validation/ProgramAuditCommand.cs::ProgramAuditCommand|TaskDialog.Show|2	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
-StingTools/Commands/Validation/ProgramAuditCommand.cs::ProgramAuditCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
+StingTools/Commands/Validation/ProgramAuditCommand.cs::ProgramAuditCommand|OpenFileDialog|1	GATED - the Owner program template picker, built only when !PresetDialog.Quiet; inside a preset the step's params.programTemplate names the .xlsx (PresetDialog.InputFile) and a step without it fails naming the param (never guessed).
+StingTools/Commands/Validation/ProgramAuditCommand.cs::ProgramAuditCommand|ShowDialog|1	GATED - that picker's ShowDialog; same branch.
 
 # WorkflowTrendCommand — step WorkflowTrend in MonthlyReport
 StingTools/Core/WorkflowEngine.cs::WorkflowTrendCommand|TaskDialog.Show|2	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
@@ -171,7 +160,6 @@ StingTools/Core/WorkflowEngine.cs::WorkflowTrendCommand|TaskDialog.Show|2	UNGATE
 # ExportCenterRunSchedulesCommand — step ExportCenterRunSchedules in FortnightlyIssue
 
 # ExportSheetRegisterCommand — step ExportSheetRegister in DeliverableC, DeliverableD, MonthlyReport
-StingTools/Docs/SheetTemplateCommands.cs::ExportSheetRegisterCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
 
 # SheetComplianceCheckCommand — step SheetComplianceCheck in DeliverableC, FortnightlyIssue, MonthlyReport
 StingTools/Docs/SheetTemplateCommands.cs::SheetComplianceCheckCommand|AddCommandLink|1	GATED - the select-non-compliant offer is built only when !PresetDialog.Quiet; the report itself goes through PresetDialog.
@@ -209,7 +197,6 @@ StingTools/ExLink/FohlioFinishesCommands.cs::FohlioImportFinishesCommand|TaskDia
 StingTools/ExLink/FohlioFinishesCommands.cs::FohlioImportFinishesCommand|new TaskDialog|2	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
 
 # AuditTagsCSVCommand — step AuditTagsCSV in DeliverableD
-StingTools/Organise/TagOperationCommands.cs::AuditTagsCSVCommand|TaskDialog.Show|2	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
 
 # RetagStaleCommand — step RetagStale in CoordinationCycle, DeliverableB, DeliverableC
 StingTools/Organise/TagOperationCommands.cs::RetagStaleCommand|new TaskDialog|1	GATED - the picker window; same branch.
@@ -219,22 +206,21 @@ StingTools/Tags/LoadSharedParamsCommand.cs::LoadSharedParamsCommand|TaskDialogRe
 StingTools/Tags/LoadSharedParamsCommand.cs::LoadSharedParamsCommand|new TaskDialog|1	GATED - the result window; same PresetDialog.Quiet branch.
 
 # PreTagAuditCommand — step PreTagAudit in DeliverableA, GateAudit
-StingTools/Tags/PreTagAuditCommand.cs::PreTagAuditCommand|AddCommandLink|2	UNGATED - a choice offered in a TaskDialog, always shown. A real blocker to unattended operation.
-StingTools/Tags/PreTagAuditCommand.cs::PreTagAuditCommand|TaskDialog.Show|4	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
-StingTools/Tags/PreTagAuditCommand.cs::PreTagAuditCommand|TaskDialogResult|2	UNGATED - reading a dialog answer, i.e. a branch on a click. A real blocker to unattended operation.
-StingTools/Tags/PreTagAuditCommand.cs::PreTagAuditCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
+StingTools/Tags/PreTagAuditCommand.cs::PreTagAuditCommand|AddCommandLink|2	GATED - the view/project scope picker is built only when !PresetDialog.Quiet; inside a preset the step's params.scope ("project"|"view") decides and a step without it fails (never defaulted). KUT steps set "project".
+StingTools/Tags/PreTagAuditCommand.cs::PreTagAuditCommand|TaskDialog.Show|3	GATED - all three sit inside the result panel's action-button callbacks (auto-fix error, create-issues outcome/error), which run only when a person clicks a button in the shown panel; inside a preset the panel goes through PresetDialog.Show(panel) and is never shown.
+StingTools/Tags/PreTagAuditCommand.cs::PreTagAuditCommand|TaskDialogResult|2	GATED - reading the scope picker; same branch.
+StingTools/Tags/PreTagAuditCommand.cs::PreTagAuditCommand|new TaskDialog|1	GATED - the scope picker window; same branch.
 
 # TokenConfidenceAuditCommand — step TokenConfidenceAudit in DeliverableA, DeliverableB, DeliverableC, DeliverableD, GateAudit
-StingTools/Tags/TokenConfidenceAuditCommand.cs::TokenConfidenceAuditCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
+StingTools/Tags/TokenConfidenceAuditCommand.cs::TokenConfidenceAuditCommand|new TaskDialog|1	GATED - the TaskDialog is constructed to hold the headline but td.Show() runs only in the `else` of `if (PresetDialog.Quiet)`; inside a preset the report goes to the log and the headline to the step message.
 
 # CompletenessDashboardCommand — step CompletenessDashboard, DiscComplianceReport in CoordinationCycle, MonthlyReport
 StingTools/Tags/TokenWriterCommands.cs::CompletenessDashboardCommand|new TaskDialog|1	GATED - same branch as the legend offer.
 
 # ValidateTagsCommand — step ValidateTags in CoordinationCycle, DeliverableA, DeliverableB, DeliverableC, DeliverableD
-StingTools/Tags/ValidateTagsCommand.cs::ValidateTagsCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
+StingTools/Tags/ValidateTagsCommand.cs::ValidateTagsCommand|TaskDialog.Show|1	GATED - inside the result panel's "Fix All Issues Now" action callback, which runs only on a click in the shown panel; the panel goes through PresetDialog.Show(panel) and is never shown inside a preset.
 
 # FullAutoPopulateCommand — step FullAutoPopulate in DeliverableA
-StingTools/Temp/ScheduleCommands.cs::FullAutoPopulateCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
 
 # CreateFiltersCommand — step CreateFilters in Mobilisation
 

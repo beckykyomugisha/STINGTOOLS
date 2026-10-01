@@ -837,18 +837,21 @@ namespace StingTools.Organise
                 try
                 {
                     string dir = System.IO.Path.GetDirectoryName(path);
-                    if (System.IO.Directory.Exists(dir))
+                    // Not inside a workflow preset: nobody is there to look at an Explorer window.
+                    if (!PresetDialog.Quiet && System.IO.Directory.Exists(dir))
                         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true })?.Dispose();
                 }
-                catch (Exception) { }
+                catch (Exception exOpen) { StingLog.Warn($"AuditCSV open folder: {exOpen.Message}"); }
 
-                TaskDialog.Show("Audit CSV",
-                    $"Exported {total} elements to:\n{path}\n+XLSX mirror");
+                PresetDialog.Show("Audit CSV",
+                    $"Exported {total} elements to:\n{path}\n+XLSX mirror", ref msg);
             }
             catch (Exception ex)
             {
-                TaskDialog.Show("Audit CSV", $"Export failed: {ex.Message}");
+                PresetDialog.Show("Audit CSV", $"Export failed: {ex.Message}", ref msg);
                 StingLog.Error("AuditCSV export failed", ex);
+                // A failed export is a failed step, not a success with an error message.
+                return Result.Failed;
             }
 
             return Result.Succeeded;

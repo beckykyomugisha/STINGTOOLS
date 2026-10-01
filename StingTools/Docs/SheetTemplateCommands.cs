@@ -505,13 +505,29 @@ namespace StingTools.Docs
             if (ctx.Doc == null) return Result.Failed;
             var doc = ctx.Doc;
 
-            string filePath = OutputLocationHelper.PromptForExportPath(doc,
-                $"SheetRegister_{DateTime.Now:yyyyMMdd_HHmmss}.csv", "CSV Files|*.csv", "SheetRegister");
-            if (string.IsNullOrEmpty(filePath)) return Result.Cancelled;
+            string fileName = $"SheetRegister_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            string filePath;
+            if (PresetDialog.Quiet)
+            {
+                // No one to ask where to save: the project's own routed folder for this export
+                // type — the "Project folder for this export" choice the prompt offers a person.
+                filePath = OutputLocationHelper.GetRoutedPath(doc, "SheetRegister", fileName);
+                if (string.IsNullOrEmpty(filePath))
+                {
+                    message = "ExportSheetRegister: no project export folder could be resolved (is the model saved?); nothing was written.";
+                    StingLog.Warn(message);
+                    return Result.Failed;
+                }
+            }
+            else
+            {
+                filePath = OutputLocationHelper.PromptForExportPath(doc, fileName, "CSV Files|*.csv", "SheetRegister");
+                if (string.IsNullOrEmpty(filePath)) return Result.Cancelled;
+            }
 
             SheetTemplateEngine.ExportSheetRegister(doc, filePath);
 
-            TaskDialog.Show("Sheet Register", $"Sheet register exported to:\n{filePath}");
+            PresetDialog.Show("Sheet Register", $"Sheet register exported to:\n{filePath}", ref message);
             return Result.Succeeded;
         }
     }

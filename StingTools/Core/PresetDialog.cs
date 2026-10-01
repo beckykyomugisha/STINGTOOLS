@@ -24,6 +24,21 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// The common hand-built result window — a TaskDialog with a main instruction and a
+        /// content block — outside a preset; the log and <paramref name="message"/> inside one.
+        /// </summary>
+        internal static void Show(string title, string instruction, string content, ref string message)
+        {
+            if (!Quiet)
+            {
+                new TaskDialog(title) { MainInstruction = instruction, MainContent = content }.Show();
+                return;
+            }
+            StingLog.Info($"{title}: {instruction}\n{content}");
+            message = StepMessage.Summarise(title, instruction + "\n" + content);
+        }
+
+        /// <summary>
         /// <paramref name="panel"/>.Show() outside a preset (returns the clicked action);
         /// inside one the panel's text goes to the log and a summary to
         /// <paramref name="message"/>, and -1 is returned (no action).
