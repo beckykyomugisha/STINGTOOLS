@@ -1648,9 +1648,16 @@ namespace StingTools.Temp
         /// cropped to the box, stamped with the type and the box (so Doctor, Renumber and
         /// a later Produce From Scope Boxes find it and reuse it). Which boxes:
         ///   plain boxes            every plan type, every level;
-        ///   STING-AREA::a[::lvl]   every plan type, the named level (else every level);
+        ///   STING-AREA::a[::lvl]   produced by the Scope Box Planner's own rule
+        ///                          (ScopeBoxPlannerService.PlanProduction): the types of the
+        ///                          box's size class in the saved plan, on the levels the box
+        ///                          names and reaches; a box the plan does not list gets the
+        ///                          routed plan types (DTW-132);
         ///   STING::type[::lvl]     its own type only, on its level (else every level);
         ///   seed / building / zone boxes are footprints and templates, not drawing areas.
+        /// A box's level segment is read as the planner names levels — the unique level code
+        /// ("L01") first, then the name (LevelSegmentResolver, as Produce From Scope Boxes),
+        /// so a box named by code on a level called "Level 1" is not skipped (DTW-132).
         /// </summary>
         private static Result ProduceScopeBoxDependents(Document doc, ProjectSetupData data, StringBuilder detail)
         {
@@ -1679,6 +1686,29 @@ namespace StingTools.Temp
             // (drawing type, level, box, tag) in the order they will be produced.
             var jobs = new List<(Core.Drawing.DrawingType Type, Level Level, Element Box, string Tag)>();
             var notes = new List<string>();
+
+            // DTW-132 — level segments resolve by level code first, then name, exactly as
+            // Produce From Scope Boxes reads them (ScopeBoxRevit.LevelCodes + LevelSegmentResolver).
+            var codes = Core.Drawing.ScopeBoxRevit.LevelCodes(doc);
+            var levelRefs = levels.Select(l => new Core.Drawing.LevelRef
+            {
+                Id = l.Id.Value, Name = l.Name,
+                Code = codes.TryGetValue(l.Id.Value, out var c) ? c : null,
+            }).ToList();
+
+            // DTW-132 — area boxes are produced by the planner's own rule: the types of the
+            // box's size class in the saved plan (not every routed plan type), on the levels
+            // it names and reaches. One rule, shared with ScopeBox_ProduceAreas.
+            var areaItems = new List<Core.Drawing.ScopeBoxPlannerService.ProductionItem>();
+            if (boxes.Any(b => Core.Drawing.ScopeBoxNames.Classify(b.Name ?? "") == Core.Drawing.ScopeBoxKind.Area))
+            {
+                var plan = Core.Drawing.ScopeBoxPlannerService.LoadPlan(doc, out var planErr);
+                if (planErr != null) notes.Add($"Area boxes: {planErr} — not produced.");
+                else
+                    areaItems = Core.Drawing.ScopeBoxPlannerService.PlanProduction(doc, plan, notes,
+                        planTypes.Select(t => t.Id).ToList());
+            }
+
             foreach (var box in boxes)
             {
                 string name = box.Name ?? "";
@@ -1690,15 +1720,7 @@ namespace StingTools.Temp
                         break;
 
                     case Core.Drawing.ScopeBoxKind.Area:
-                    {
-                        if (!Core.Drawing.ScopeBoxNames.TryParseArea(name, out _, out var lvlSeg, out var why))
-                        { notes.Add($"{name}: {why} — skipped."); break; }
-                        var onLevels = MatchLevels(levels, lvlSeg);
-                        if (onLevels.Count == 0) { notes.Add($"{name}: level '{lvlSeg}' is not in the model — skipped."); break; }
-                        foreach (var dt in planTypes)
-                            foreach (var lvl in onLevels) jobs.Add((dt, lvl, box, null));
-                        break;
-                    }
+                        break;   // planned above (areaItems), by the planner's rule
 
                     case Core.Drawing.ScopeBoxKind.DrawingType:
                     {
@@ -1706,8 +1728,8 @@ namespace StingTools.Temp
                         { notes.Add($"{name}: {why ?? "not a valid STING:: name"} — skipped."); break; }
                         var dt = Core.Drawing.DrawingTypeRegistry.Get(doc, bnd.DrawingTypeId);
                         if (dt == null) { notes.Add($"{name}: drawing type '{bnd.DrawingTypeId}' is not in the catalogue — skipped."); break; }
-                        var onLevels = MatchLevels(levels, bnd.LevelCode);
-                        if (onLevels.Count == 0) { notes.Add($"{name}: level '{bnd.LevelCode}' is not in the model — skipped."); break; }
+                        var onLevels = MatchLevels(levels, levelRefs, bnd.LevelCode, out var how);
+                        if (onLevels.Count == 0) { notes.Add($"{name}: level '{bnd.LevelCode}' — {how} — skipped."); break; }
                         foreach (var lvl in onLevels) jobs.Add((dt, lvl, box, bnd.Tag));
                         break;
                     }
@@ -1717,7 +1739,7 @@ namespace StingTools.Temp
                 }
             }
 
-            if (jobs.Count == 0)
+            if (jobs.Count == 0 && areaItems.Count == 0)
             {
                 detail.AppendLine(planTypes.Count == 0
                     ? "      No ticked discipline routes to a plan drawing type, and no STING:: box names one."
@@ -1768,21 +1790,32 @@ namespace StingTools.Temp
                 tg.Assimilate();
             }
 
+            // DTW-132 — area boxes, through the planner's production (its own transaction group).
+            if (areaItems.Count > 0)
+            {
+                var outcome = Core.Drawing.ScopeBoxPlannerService.ProduceWithOutcome(doc, areaItems, data.CreateSheets,
+                    ViewDuplicateOption.AsDependent);
+                views += outcome.Made + outcome.Refreshed;
+                sheets += outcome.Sheets;
+                if (outcome.NotCropped > 0) warnings.Add($"Area boxes: {outcome.NotCropped} view(s) could not be cropped to their box and were not kept.");
+                if (outcome.Failed > 0) warnings.Add($"Area boxes: {outcome.Failed} item(s) failed — see the STING log.");
+                StingLog.Info("Project Setup area boxes: " + outcome.Report);
+            }
+
             detail.AppendLine($"      {views} view(s) from {boxes.Count} scope box(es) (existing stamped views reused), " +
                               $"{sheets} new sheet(s){(data.CreateSheets ? "" : " — sheets not requested")}.");
             AppendWarnings(detail, warnings, "dependents");
             return views > 0 ? Result.Succeeded : Result.Failed;
         }
 
-        /// <summary>Levels a box's level segment names; every level when it names none.</summary>
-        private static List<Level> MatchLevels(List<Level> levels, string segment)
+        /// <summary>Levels a box's level segment names (level code, then name — the
+        /// LevelSegmentResolver rule); every level when it names none. DTW-132.</summary>
+        private static List<Level> MatchLevels(List<Level> levels, List<Core.Drawing.LevelRef> refs, string segment, out string how)
         {
+            how = "every level";
             if (string.IsNullOrWhiteSpace(segment)) return levels;
-            string Squash(string s) => new string((s ?? "").Where(char.IsLetterOrDigit).ToArray());
-            return levels.Where(l =>
-                    string.Equals(l.Name, segment, StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(Squash(l.Name), Squash(segment), StringComparison.OrdinalIgnoreCase))
-                .ToList();
+            var id = Core.Drawing.LevelSegmentResolver.Resolve(segment, refs, out how);
+            return id.HasValue ? levels.Where(l => l.Id.Value == id.Value).ToList() : new List<Level>();
         }
 
         /// <summary>
