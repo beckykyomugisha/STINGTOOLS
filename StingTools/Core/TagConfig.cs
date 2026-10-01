@@ -192,6 +192,7 @@ namespace StingTools.Core
         /// <summary>
         /// Validates token values against discipline profile constraints.
         /// Returns a list of validation error messages (empty if all valid).
+        /// Enforced through ISO19650Validator.ValidateElement.
         /// </summary>
         public static List<string> ValidateAgainstProfile(string disc, string sys, string func, string prod)
         {

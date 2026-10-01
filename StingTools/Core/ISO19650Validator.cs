@@ -474,6 +474,16 @@ namespace StingTools.Core
                     errors.Add(new ValidationError(funcProdError, ValidationErrorType.CrossValidation));
             }
 
+            // DSCH-27: the project's DISCIPLINE_PROFILES (AllowedSysCodes / AllowedFuncCodes,
+            // and RequiredTokens under ValidationStrictness) were loaded but never enforced:
+            // TagConfig.ValidateAgainstProfile had no caller. Only a project that defines a
+            // profile for this DISC is affected.
+            if (!string.IsNullOrEmpty(disc))
+            {
+                foreach (string profileError in TagConfig.ValidateAgainstProfile(disc, sys, func, prod))
+                    errors.Add(new ValidationError(profileError, ValidationErrorType.CrossValidation));
+            }
+
             // Phase 86: Return defensive copy — raw [ThreadStatic] reference would be
             // cleared on next call, corrupting any caller that stored the result.
             return new List<ValidationError>(errors);
