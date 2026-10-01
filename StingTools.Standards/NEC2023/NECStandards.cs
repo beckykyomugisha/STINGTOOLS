@@ -333,62 +333,58 @@ namespace StingTools.Standards.NEC2023
         // sit here also returned the largest rating when nothing fitted.
 
         /// <summary>
-        /// Maximum breaker sizes for conductor protection
-        /// Reference: NEC 2023 Table 240.4(D)
+        /// NEC 2023 240.4(D) small-conductor overcurrent limits, A — the ONLY sizes the rule
+        /// covers (the table kept here before also carried 8 AWG to 4/0 values, e.g. 8 AWG
+        /// 40 A, that are not in 240.4(D) and capped those conductors below their 75 °C
+        /// ampacity). Copper 18/16/14/12/10 AWG: 7 / 10 / 15 / 20 / 30 A; aluminium and
+        /// copper-clad aluminium 12/10 AWG: 15 / 25 A. VERIFY against the printed NFPA 70-2023
+        /// (checked against secondary sources only, 2026-10-01; DSCH-30 sign-off).
         /// </summary>
-        private static readonly Dictionary<string, int> _maxBreakerForWire = new Dictionary<string, int>
+        private static readonly Dictionary<string, int> _smallConductorMaxCopper = new Dictionary<string, int>
         {
-            { "14", 15 },
-            { "12", 20 },
-            { "10", 30 },
-            { "8", 40 },
-            { "6", 60 },
-            { "4", 85 },
-            { "3", 100 },
-            { "2", 115 },
-            { "1", 130 },
-            { "1/0", 150 },
-            { "2/0", 175 },
-            { "3/0", 200 },
-            { "4/0", 230 }
+            { "18", 7 }, { "16", 10 }, { "14", 15 }, { "12", 20 }, { "10", 30 },
+        };
+        private static readonly Dictionary<string, int> _smallConductorMaxAluminum = new Dictionary<string, int>
+        {
+            { "12", 15 }, { "10", 25 },
         };
 
+        /// <summary>240.4(D) limit for the size and material, A; 0 when 240.4(D) does not
+        /// cover the size (the device is then governed by 240.4(B)/(C) on the ampacity).</summary>
+        public static int GetSmallConductorMaxOcpd(string wireSize, ConductorMaterial material)
+        {
+            var table = material == ConductorMaterial.Copper ? _smallConductorMaxCopper : _smallConductorMaxAluminum;
+            return wireSize != null && table.TryGetValue(wireSize, out int value) ? value : 0;
+        }
+
         /// <summary>
-        /// Validate breaker size for conductor
+        /// Validate a breaker against the 240.4(D) small-conductor limit (copper). Sizes the
+        /// rule does not cover are valid here with a warning — check 240.4(B)/(C) on the
+        /// conductor ampacity (ProtectiveDeviceSelection in the plugin does).
         /// </summary>
-        /// <param name="wireSize">Wire size</param>
-        /// <param name="breakerAmps">Breaker amperage</param>
-        /// <returns>Validation result</returns>
         public static ValidationResult ValidateBreakerSize(string wireSize, int breakerAmps)
         {
             var result = new ValidationResult { IsValid = true };
-
-            if (!_maxBreakerForWire.ContainsKey(wireSize))
+            if (string.IsNullOrEmpty(wireSize) || !_copperAmpacityTable.ContainsKey(wireSize))
             {
                 result.IsValid = false;
                 result.Errors.Add($"Unknown wire size: {wireSize}");
                 return result;
             }
-
-            int maxBreaker = _maxBreakerForWire[wireSize];
-            if (breakerAmps > maxBreaker)
+            int maxBreaker = GetSmallConductorMaxOcpd(wireSize, ConductorMaterial.Copper);
+            if (maxBreaker == 0)
+                result.Warnings.Add($"{wireSize}: no 240.4(D) limit — check the device against the conductor ampacity per 240.4(B)/(C)");
+            else if (breakerAmps > maxBreaker)
             {
                 result.IsValid = false;
-                result.Errors.Add($"Breaker size {breakerAmps}A exceeds maximum {maxBreaker}A for {wireSize} AWG conductor");
+                result.Errors.Add($"Breaker size {breakerAmps}A exceeds the 240.4(D) maximum {maxBreaker}A for {wireSize} AWG copper");
             }
-
             return result;
         }
 
-        /// <summary>
-        /// Get maximum breaker size for conductor
-        /// </summary>
-        /// <param name="wireSize">Wire size</param>
-        /// <returns>Maximum breaker amperage</returns>
+        /// <summary>240.4(D) limit for a COPPER conductor; 0 when the rule does not cover the size.</summary>
         public static int GetMaximumBreakerSize(string wireSize)
-        {
-            return _maxBreakerForWire.TryGetValue(wireSize, out int value) ? value : 0;
-        }
+            => GetSmallConductorMaxOcpd(wireSize, ConductorMaterial.Copper);
 
         /// <summary>
         /// Check if GFCI protection is required

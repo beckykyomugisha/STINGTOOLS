@@ -29,7 +29,7 @@ namespace StingTools.Commands.Electrical.Reports
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
-            string standardId = (StingElectricalCommandHandler.ActivePanel?.SelectedStandard ?? "BS7671") == "NEC2023"
+            string standardId = StingTools.Standards.ElectricalStandardId.IsNec(StingElectricalCommandHandler.ActivePanel?.SelectedStandard)
                 ? "NEC_2023" : "BS7671_2018";
             var rules = LoadRules(standardId);
             if (rules.Count == 0)

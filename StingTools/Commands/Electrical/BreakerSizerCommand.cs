@@ -25,6 +25,9 @@ namespace StingTools.Commands.Electrical
         /// <summary>True when the device must NOT be applied: In &gt; Iz (cable unprotected
         /// against overload) or no standard rating is large enough.</summary>
         public bool Blocked { get; set; }
+        /// <summary>NEC: applied under the 240.4(B) next-size-up allowance, whose
+        /// receptacle-circuit condition the engineer must confirm (DSCH-30).</summary>
+        public bool NeedsConfirmation { get; set; }
         public string Note { get; set; } = "";
     }
 
@@ -59,7 +62,8 @@ namespace StingTools.Commands.Electrical
             var proposals = Compute(doc, opts.Standard, opts.ContinuousFactor);
             StingElectricalCommandHandler.LastBreakerProposals = proposals;
             var blocked = proposals.Where(p => p.Blocked).ToList();
-            string head = string.Equals(opts.Standard, "NEC", StringComparison.OrdinalIgnoreCase)
+            var confirm = proposals.Where(p => !p.Blocked && p.NeedsConfirmation).ToList();
+            string head = StingTools.Standards.ElectricalStandardId.IsNec(opts.Standard)
                 ? "NEC 240.6(A) ratings" + (opts.ContinuousFactor ? ", ×1.25 continuous (210.20(A))" : "")
                 : "BS 7671 Reg 433.1.1: Ib ≤ In ≤ Iz (no ×1.25 continuous factor — that is an NEC rule)";
             StingLog.Info($"BreakerSizer: {proposals.Count} proposal(s), {blocked.Count} blocked ({opts.Standard}).");
@@ -70,6 +74,11 @@ namespace StingTools.Commands.Electrical
                 $"{blocked.Count} will NOT be applied (device larger than the cable can carry, or no rating large enough):\n" +
                 string.Join("\n", blocked.Take(10).Select(b => $"  {b.PanelName}-{b.CircuitNumber}: {b.Note}")) +
                 (blocked.Count > 10 ? $"\n  …and {blocked.Count - 10} more" : "") +
+                (confirm.Count == 0 ? "" :
+                    $"\n\n{confirm.Count} rely on the NEC 240.4(B) next-size-up allowance — CONFIRM each is not a " +
+                    "multi-outlet receptacle branch circuit for cord-and-plug portable loads:\n" +
+                    string.Join("\n", confirm.Take(10).Select(b => $"  {b.PanelName}-{b.CircuitNumber}: {b.ProposedBreakerA} A over {b.IzA:0.#} A")) +
+                    (confirm.Count > 10 ? $"\n  …and {confirm.Count - 10} more" : "")) +
                 (WorkflowEngine.IsRunningPreset ? "\n\nCalc_ApplyBreakers commits the rest." : "\n\nClick Apply to commit the rest."),
                 ref message);
             return Result.Succeeded;
@@ -87,7 +96,7 @@ namespace StingTools.Commands.Electrical
                     .Where(s => { try { return s.SystemType == ElectricalSystemType.PowerCircuit; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return true; } })
                     .ToList();
 
-                bool useNec = string.Equals(standard, "NEC", StringComparison.OrdinalIgnoreCase);
+                bool useNec = StingTools.Standards.ElectricalStandardId.IsNec(standard);
                 bool useMccb = string.Equals(standard, "BS_MCCB", StringComparison.OrdinalIgnoreCase);
                 int[] ratings = useNec ? VoltageDropEngine.BreakerSizesNEC
                               : useMccb ? VoltageDropEngine.BreakerSizesBSMCCB
@@ -119,6 +128,8 @@ namespace StingTools.Commands.Electrical
 
                         double? iz = null;
                         string izBasis = null;
+                        string necSizeForLimit = null;
+                        var necMatForLimit = StingTools.Standards.NEC2023.ConductorMaterial.Copper;
                         if (!useNec)
                         {
                             string wire = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM)?.AsString() ?? "";
@@ -147,9 +158,40 @@ namespace StingTools.Commands.Electrical
                             else if (csa > 0)
                                 izBasis = $"no BS 7671 table for {mat}/{ins} {cableType} method {method}";
                         }
+                        else
+                        {
+                            // NEC 240.4 (DSCH-30): the conductor ampacity from Table 310.16 at the
+                            // 75 °C column for the recorded wire size, UNcorrected (30 °C, ≤ 3 CCC) —
+                            // the best case, as the BS branch uses It. A device that fails even that
+                            // is certainly wrong; one that passes still needs 310.15 checked.
+                            string wire = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM)?.AsString() ?? "";
+                            string necSize = StingTools.Core.Electrical.WireSizeParser.ParseNecSize(wire);
+                            if (necSize == null)
+                                izBasis = string.IsNullOrWhiteSpace(wire) ? "no wire size on the circuit"
+                                        : $"wire size \"{wire}\" is not a single AWG / kcmil conductor";
+                            else
+                            {
+                                var necMat = string.Equals(mat, "Al", StringComparison.OrdinalIgnoreCase)
+                                    ? StingTools.Standards.NEC2023.ConductorMaterial.Aluminum
+                                    : StingTools.Standards.NEC2023.ConductorMaterial.Copper;
+                                try
+                                {
+                                    iz = StingTools.Standards.NEC2023.NECStandards.GetConductorAmpacity(necSize, necMat, 75);
+                                    necSizeForLimit = necSize;
+                                    necMatForLimit = necMat;
+                                    izBasis = $"Table 310.16 {(necMat == StingTools.Standards.NEC2023.ConductorMaterial.Aluminum ? "Al" : "Cu")} " +
+                                              $"{StingTools.Commands.Electrical.CableSizer.CableSizerEngine.NecSizeLabel(necSize)} @75°C, uncorrected (30 °C, ≤ 3 CCC)";
+                                }
+                                catch (ArgumentException) { izBasis = $"{necSize} not in NEC Table 310.16"; }
+                            }
+                        }
 
                         var sel = StingTools.Core.Electrical.ProtectiveDeviceSelection.Select(
                             iA, useNec, continuous, ratings, iz, izBasis);
+                        // NEC 240.4(D): 14/12/10 AWG (Cu) and 12/10 AWG (Al) have a fixed
+                        // device ceiling below their tabulated ampacity.
+                        if (useNec && necSizeForLimit != null)
+                            StingTools.Core.Electrical.NecConductorSelection.ApplySmallConductorLimit(sel, necSizeForLimit, necMatForLimit);
                         string note = sel.Note;
                         if (ratings.Length == 0)
                             note = "rating list not loaded: " + (VoltageDropEngine.BreakerSizesLoadError ?? "empty list");
@@ -167,6 +209,7 @@ namespace StingTools.Commands.Electrical
                             ProposedBreakerA = sel.ProposedA,
                             IzA = iz ?? 0,
                             Blocked = sel.Blocked,
+                            NeedsConfirmation = sel.NeedsConfirmation,
                             Note = note
                         });
                     }

@@ -140,6 +140,13 @@ namespace StingTools.Standards
 
         /// <summary>True when the standard's conductor series is AWG / kcmil rather than
         /// mm2. Drives how a size is REPORTED — never how it is chosen.</summary>
-        public static bool UsesAwgSeries(string raw) => Normalise(raw) == Nec2023;
+        public static bool UsesAwgSeries(string raw) => IsNec(raw);
+
+        /// <summary>THE predicate for "is this the NEC?" — every spelling in the alias map
+        /// ("NEC", "NEC2023", "NEC 2023", any case). Engines must call this, never compare a
+        /// token: the panel emits "NEC2023", the breaker / wizard combos emit "NEC", and an
+        /// exact compare against either silently routes the other to BS 7671 (KUT-7).
+        /// Breaker-device tokens ("BS_MCB", "BS_MCCB") are not NEC.</summary>
+        public static bool IsNec(string raw) => Normalise(raw) == Nec2023;
     }
 }

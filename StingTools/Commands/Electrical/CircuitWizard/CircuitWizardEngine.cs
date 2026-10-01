@@ -50,6 +50,9 @@ namespace StingTools.Commands.Electrical.CircuitWizard
         /// A circuit carrying this must not be created.
         /// </summary>
         public string RatingRefusal   { get; set; }
+        /// <summary>NEC: the device relies on the 240.4(B) next-size-up allowance over the
+        /// proposed conductor's ampacity — shown to the user to confirm (DSCH-30); null otherwise.</summary>
+        public string ConductorNote   { get; set; }
         public double ProposedCsaMm2  { get; set; }
         public List<UnconnectedElement> Elements { get; set; } = new List<UnconnectedElement>();
         public bool   UserModified    { get; set; }
@@ -70,7 +73,8 @@ namespace StingTools.Commands.Electrical.CircuitWizard
         /// <summary>Maximum load utilisation percentage (0–1). Default 0.8 = 80 %.</summary>
         public double MaxLoadPct        { get; set; } = 0.80;
 
-        /// <summary>Wiring standard: "BS" or "NEC". Default "BS".</summary>
+        /// <summary>Wiring standard, any ElectricalStandardId spelling ("BS7671", "NEC",
+        /// "NEC2023" …); NEC is decided by ElectricalStandardId.IsNec. Default "BS" (= BS 7671).</summary>
         public string Standard          { get; set; } = "BS";
 
         /// <summary>Installation method for cable sizer: A1/A2/B1/B2/C/E/F. Default "C".</summary>
@@ -237,7 +241,7 @@ namespace StingTools.Commands.Electrical.CircuitWizard
         {
             double prospectiveVA = cur.TotalLoadVA + el.LoadVA;
             double iA = prospectiveVA / Math.Max(1.0, cur.VoltageV);
-            int trial = string.Equals(opts.Standard, "NEC", StringComparison.OrdinalIgnoreCase)
+            int trial = StingTools.Standards.ElectricalStandardId.IsNec(opts.Standard)
                 ? VoltageDropEngine.NextStandardBreakerSizeNEC(iA)
                 : VoltageDropEngine.NextStandardBreakerSizeBS(iA);
             // 0 = no standard device for the combined load: start a new circuit. A single
@@ -268,7 +272,7 @@ namespace StingTools.Commands.Electrical.CircuitWizard
             var opts = options ?? CircuitWizardOptions.Default;
             circuit.TotalLoadVA = circuit.Elements.Sum(e => e.LoadVA);
             double iA = circuit.TotalLoadVA / Math.Max(1.0, circuit.VoltageV);
-            bool nec = string.Equals(opts.Standard, "NEC", StringComparison.OrdinalIgnoreCase);
+            bool nec = StingTools.Standards.ElectricalStandardId.IsNec(opts.Standard);
             circuit.ProposedRatingA = nec
                 ? VoltageDropEngine.NextStandardBreakerSizeNEC(iA)
                 : VoltageDropEngine.NextStandardBreakerSizeBS(iA);
@@ -296,6 +300,25 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                 Standard     = opts.Standard
             }, opts.Bs7671Tables);
             circuit.ProposedCsaMm2 = sized.RecommendedCsaMm2;
+
+            // NEC 240.4 (DSCH-30): check the device against the proposed conductor. No
+            // conductor (not sized) = not checked, said so; a forbidden device = refused.
+            circuit.ConductorNote = null;
+            if (nec && circuit.ProposedRatingA > 0)
+            {
+                var sel = StingTools.Core.Electrical.ProtectiveDeviceSelection.Select(iA, isNec: true, continuous: false,
+                    VoltageDropEngine.BreakerSizesNEC,
+                    sized.Sized && sized.ConductorAmpacityA > 0 ? sized.ConductorAmpacityA : (double?)null,
+                    sized.Sized ? sized.CsaLabel : "conductor not sized: " + sized.Warning);
+                if (sel.Blocked)
+                {
+                    circuit.ProposedRatingA = 0;
+                    circuit.UtilisationPct = 0;
+                    circuit.RatingRefusal = "NEC 240.4: " + sel.Note;
+                }
+                else if (sel.NeedsConfirmation || !sel.ConductorChecked)
+                    circuit.ConductorNote = sel.Note;
+            }
         }
 
         /// <summary>Backwards-compatibility shim — delegates to the options overload.</summary>

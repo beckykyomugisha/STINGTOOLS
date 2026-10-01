@@ -279,7 +279,17 @@ namespace StingTools.UI
                     "\n\nSplit or remove them first.");
                 return;
             }
+            var toConfirm = Proposals.Where(p => p.Source.ConductorNote != null).ToList();
+            if (toConfirm.Count > 0)
+                MessageBoxAlt($"{toConfirm.Count} proposed circuit(s) need the NEC 240.4 conductor check confirmed:\n" +
+                    string.Join("\n", toConfirm.Take(10).Select(p => $"  {p.ProposedLabel}: {p.Source.ConductorNote}")) +
+                    (toConfirm.Count > 10 ? $"\n  …and {toConfirm.Count - 10} more" : ""));
             CircuitWizardCommand.PendingCircuits = Proposals.Select(p => p.Source).ToList();
+            // The post-create recalculation (a circuit with no cable size) reads
+            // PendingOptions.Standard, which defaulted to "BS": an NEC proposal was
+            // re-sized to BS 7671 at Create. Carry the standard the proposals were made on.
+            (CircuitWizardCommand.PendingOptions ??= CircuitWizardOptions.Default).Standard =
+                ((cmbWzStandard.SelectedItem as ComboBoxItem)?.Tag as string) ?? "BS7671";
             CircuitWizardCommand.PendingPanelName = panel;
             try { StingElectricalCommandHandler.Instance?.SetCommand("Circuit_CreateWizard"); }
             catch (Exception ex) { StingLog.Warn($"CreateWizard dispatch: {ex.Message}"); }

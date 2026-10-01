@@ -94,6 +94,12 @@ namespace StingTools.Commands.Electrical.CableSizer
         /// reported only; null where it does not apply. Never used to choose the size.</summary>
         public double? LoadCorrectedVoltDropPct { get; set; }
         public string LoadCorrectionNote { get; set; } = "";
+        /// <summary>NEC: Table 310.16 ampacity of the chosen size after 310.15 correction (A).
+        /// 0 on the BS 7671 path and when not sized.</summary>
+        public double ConductorAmpacityA { get; set; }
+        /// <summary>NEC: the proposed OCPD rests on the 240.4(B) next-size-up allowance,
+        /// whose receptacle-circuit condition an engineer must confirm (DSCH-30).</summary>
+        public bool OcpdNeedsConfirmation { get; set; }
     }
 
     /// <summary>
@@ -386,48 +392,34 @@ namespace StingTools.Commands.Electrical.CableSizer
                 // fact this engine is not given.
                 int ccc = input.Phases == 3 ? 3 : 2;
 
-                string awg = null;
-                double ampacity = 0;
-                foreach (string size in NecSizeLadder)
-                {
-                    double a;
-                    try { a = StingTools.Standards.NEC2023.NECStandards.GetConductorAmpacity(size, material, 75); }
-                    catch (ArgumentException) { continue; }   // size absent from the table for this material
-                    a = StingTools.Standards.NEC2023.NECStandards.ApplyTemperatureCorrection(a, input.AmbientTempC);
-                    a = StingTools.Standards.NEC2023.NECStandards.ApplyBundlingAdjustment(a, ccc);
-                    if (a >= sizingCurrent) { awg = size; ampacity = a; break; }
-                }
-
-                if (awg == null)
+                // Conductor and device together (DSCH-30): the first size that carries the
+                // sizing current AND takes a 240.6(A) device permitted by 240.4(B)/(C) and,
+                // for 14/12/10 AWG, the 240.4(D) limit. A size whose device would exceed its
+                // 240.4(D) limit is upsized past — the breaker is never capped below the
+                // sizing current. No rating large enough (or the list did not load) is a
+                // refusal, never the largest rating.
+                var pick = StingTools.Core.Electrical.NecConductorSelection.Pick(
+                    iB, input.ContinuousLoad, material, input.AmbientTempC, ccc, VoltageDropEngine.BreakerSizesNEC);
+                if (pick.Size == null)
                 {
                     result.Sized = false;
-                    result.Warning =
-                        $"No single conductor in NEC Table 310.16 carries {sizingCurrent:0.0} A after " +
-                        $"310.15(B)(1) ambient and 310.15(C)(1) adjustment. Parallel conductors " +
-                        $"(310.10(G)) are required and are not sized here.";
+                    result.Warning = pick.Refusal +
+                        (pick.Refusal.StartsWith("No NEC Table 240.6(A)")
+                            ? (VoltageDropEngine.BreakerSizesLoadError != null
+                                ? " — " + VoltageDropEngine.BreakerSizesLoadError
+                                : "; specify the overcurrent device manually.")
+                            : "");
                     return result;
                 }
+                string awg = pick.Size;
+                double ampacity = pick.AmpacityA;
+                var sel = pick.Device;
+                int breaker = sel.ProposedA;
 
                 double csaMm2 = NecCircularMilsToMm2(awg);
                 result.RecommendedCsaMm2 = csaMm2;
                 result.CsaLabel = $"{NecSizeLabel(awg)} {input.Material}/{input.Insulation}";
                 result.Sized = true;
-
-                // 240.6(A) standard rating (STING_WIRE_TABLES.json NEC_OCPD, the one copy —
-                // DSCH-25), then the 240.4(D) small-conductor ceiling. No rating large
-                // enough (or the list did not load) is a refusal, never the largest rating.
-                int breaker = VoltageDropEngine.NextStandardBreakerSizeNEC(sizingCurrent);
-                if (breaker <= 0)
-                {
-                    result.Sized = false;
-                    result.Warning = $"No NEC Table 240.6(A) rating ≥ {sizingCurrent:0.0} A" +
-                        (VoltageDropEngine.BreakerSizesLoadError != null
-                            ? " — " + VoltageDropEngine.BreakerSizesLoadError
-                            : "; specify the overcurrent device manually.");
-                    return result;
-                }
-                int maxForSize = StingTools.Standards.NEC2023.NECStandards.GetMaximumBreakerSize(awg);
-                if (maxForSize > 0 && breaker > maxForSize) breaker = maxForSize;
                 result.ProposedBreakerA = breaker;
 
                 // Informational only - see the summary above.
@@ -442,12 +434,20 @@ namespace StingTools.Commands.Electrical.CableSizer
                         "NEC 210.19(A) Informational Note 4 RECOMMENDS 3% (5% overall) but does not " +
                         "require it, so the conductor was not upsized. Upsize deliberately if the " +
                         "project specification makes the limit binding.";
+                bool confirm = sel.NeedsConfirmation;
+                result.ConductorAmpacityA = ampacity;
+                result.OcpdNeedsConfirmation = confirm;
+                if (confirm)
+                    result.Warning = (string.IsNullOrEmpty(result.Warning) ? "" : result.Warning + " ") +
+                                     "CONFIRM: " + sel.Note;
 
                 result.DerivationNote =
                     $"Ib={iB:0.0}A" + (input.ContinuousLoad ? $", x1.25 continuous = {sizingCurrent:0.0}A [210.19(A)(1)]" : "") +
                     $", Table 310.16 @75°C corrected to {ampacity:0.0}A " +
-                    $"(ta={input.AmbientTempC:0}°C [310.15(B)(1)], {ccc} CCC [310.15(C)(1)]), " +
-                    $"OCPD {breaker}A [240.6(A)" + (maxForSize > 0 ? " capped by 240.4(D)" : "") + "] — " +
+                    $"(ta={input.AmbientTempC:0}°C [310.15(B)(1)], {ccc} CCC [310.15(C)(1)])" +
+                    (pick.UpsizedPast.Count > 0 ? $", upsized past {string.Join(", ", pick.UpsizedPast)}" : "") +
+                    $", OCPD {breaker}A [240.6(A)" +
+                    (confirm ? ", 240.4(B) next size up — confirm" : ", 240.4 conductor check passed") + "] — " +
                     result.StandardBasis;
                 return result;
             }
@@ -463,15 +463,6 @@ namespace StingTools.Commands.Electrical.CableSizer
                 return result;
             }
         }
-
-        /// <summary>NEC conductor series, smallest first. Trade sizes as
-        /// <c>NECStandards</c> keys them: AWG below 250, then kcmil.</summary>
-        private static readonly string[] NecSizeLadder =
-        {
-            "14", "12", "10", "8", "6", "4", "3", "2", "1",
-            "1/0", "2/0", "3/0", "4/0",
-            "250", "300", "350", "400", "500", "600", "700", "750",
-        };
 
         private static readonly Dictionary<string, double> NecCircularMils = new Dictionary<string, double>
         {
