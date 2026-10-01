@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Newtonsoft.Json.Linq;
 
 namespace StingTools.Commands.Electrical.ArcFlash
 {
@@ -128,10 +131,61 @@ namespace StingTools.Commands.Electrical.ArcFlash
         public const double JoulesPerCalorie = 4.184;
 
         // NFPA 70E legacy hazard/risk category thresholds by incident energy (cal/cm²).
-        private static readonly (double maxCal, int cat)[] PpeThresholds =
+        // Built-in fallback; STING_ARC_FLASH_PPE.json ppeCategories is read and used
+        // only where it matches these (see ResolvePpeThresholds).
+        internal static readonly (double maxCal, int cat)[] DefaultPpeThresholds =
         {
             (1.2, 0), (4.0, 1), (8.0, 2), (25.0, 3), (40.0, 4)
         };
+
+        private static readonly Lazy<(double maxCal, int cat)[]> _ppeThresholds =
+            new Lazy<(double maxCal, int cat)[]>(LoadPpeThresholds);
+
+        private static (double maxCal, int cat)[] PpeThresholds => _ppeThresholds.Value;
+
+        private static (double maxCal, int cat)[] LoadPpeThresholds()
+        {
+            JObject root = null;
+            try
+            {
+                string path = StingTools.Core.StingToolsApp.FindDataFile("STING_ARC_FLASH_PPE.json");
+                if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                    root = JObject.Parse(File.ReadAllText(path));
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"ArcFlashEngine.LoadPpeThresholds: {ex.Message}");
+            }
+            return ResolvePpeThresholds(root);
+        }
+
+        /// <summary>
+        /// PPE category thresholds from STING_ARC_FLASH_PPE.json → ppeCategories (rows with
+        /// cat ≥ 0; the cat −1 row is "above the last threshold"). The data is used only when
+        /// it matches the built-in NFPA 70E thresholds; a list that differs would move
+        /// incidents between PPE categories, so it is logged and the built-in list stands.
+        /// </summary>
+        internal static (double maxCal, int cat)[] ResolvePpeThresholds(JObject root)
+        {
+            if (!(root?["ppeCategories"] is JArray arr)) return DefaultPpeThresholds;
+            var data = new List<(double maxCal, int cat)>();
+            foreach (var row in arr.OfType<JObject>())
+            {
+                var c = row["cat"]; var m = row["maxCalCm2"];
+                if (c == null || m == null || c.Type != JTokenType.Integer ||
+                    (m.Type != JTokenType.Float && m.Type != JTokenType.Integer)) return DefaultPpeThresholds;
+                int cat = c.Value<int>();
+                if (cat < 0) continue;
+                data.Add((m.Value<double>(), cat));
+            }
+            data.Sort((a, b) => a.maxCal.CompareTo(b.maxCal));
+            if (data.SequenceEqual(DefaultPpeThresholds)) return data.ToArray();
+            StingTools.Core.StingLog.WarnRateLimited("ArcFlashEngine.PpeThresholds",
+                "STING_ARC_FLASH_PPE.json ppeCategories thresholds [" +
+                string.Join(", ", data.Select(d => $"cat {d.cat} <= {d.maxCal}")) +
+                "] differ from the built-in NFPA 70E thresholds; the built-in thresholds are used.");
+            return DefaultPpeThresholds;
+        }
 
         // ── Equipment-class tables (IEEE 1584-2002 Tables 3 and 4, ≤ 1 kV) ────
 

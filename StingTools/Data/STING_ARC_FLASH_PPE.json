@@ -1,6 +1,7 @@
 {
   "_comment": "NFPA 70E Table 130.5(G) PPE categories + default IEEE 1584-2018 calculation parameters.",
   "_standard": "NFPA 70E-2021 / IEEE 1584-2018",
+  "_note": "ppeCategories is read by ArcFlashEngine (category thresholds) and ArcFlashBoundaryViewCommand (boundary colours); each is used only where it matches the built-in values, otherwise the built-in values stand and the difference is logged. Working distance and bus gap are not taken from this file: the engine uses the IEEE 1584 per-equipment-class Table values, which the former workingDistances / busGapByVoltage lists contradicted.",
   "defaultClearingMs": 100,
   "defaultBusGapMm": 32,
   "ppeCategories": [
@@ -10,17 +11,5 @@
     { "cat": 3, "maxCalCm2": 25.0, "description": "PPE Category 3 — Arc-rated suit 25 cal/cm² minimum",     "colour": "#C84000" },
     { "cat": 4, "maxCalCm2": 40.0, "description": "PPE Category 4 — Arc-rated suit 40 cal/cm² minimum",     "colour": "#C80000" },
     { "cat": -1,"maxCalCm2": 9999, "description": "DANGER — Exceeds Category 4. Engineering controls required.", "colour": "#800000" }
-  ],
-  "workingDistances": [
-    { "maxVoltageV": 240,   "distMm": 455 },
-    { "maxVoltageV": 600,   "distMm": 455 },
-    { "maxVoltageV": 15000, "distMm": 910 },
-    { "maxVoltageV": 99999, "distMm": 1830 }
-  ],
-  "busGapByVoltage": [
-    { "maxVoltageV": 250,   "gapMm": 25 },
-    { "maxVoltageV": 600,   "gapMm": 32 },
-    { "maxVoltageV": 5000,  "gapMm": 102 },
-    { "maxVoltageV": 15000, "gapMm": 152 }
   ]
 }

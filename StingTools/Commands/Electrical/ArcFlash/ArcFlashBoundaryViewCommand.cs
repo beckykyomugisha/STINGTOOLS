@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Newtonsoft.Json.Linq;
 using StingTools.Core;
 
 namespace StingTools.Commands.Electrical.ArcFlash
@@ -94,15 +96,67 @@ namespace StingTools.Commands.Electrical.ArcFlash
             return Result.Succeeded;
         }
 
-        private static Color PpeColor(int ppe) => ppe switch
+        private static Color PpeColor(int ppe)
         {
-            < 0  => new Color(183, 28, 28),    // dark red - exceeds 40 cal/cm2 (was drawn green)
-            >= 4 => new Color(244, 67, 54),    // red
-            3    => new Color(255, 87, 34),    // deep orange
-            2    => new Color(255, 152, 0),    // orange
-            1    => new Color(255, 235, 59),   // yellow
-            _    => new Color(76, 175, 80)     // green
+            var (r, g, b) = PpeRgb(ppe);
+            return new Color(r, g, b);
+        }
+
+        // Built-in colours by PPE category; STING_ARC_FLASH_PPE.json ppeCategories[].colour
+        // is used only when every category's colour matches these (see PpeRgb).
+        private static (byte r, byte g, byte b) BuiltInPpeRgb(int ppe) => ppe switch
+        {
+            < 0  => ((byte)183, (byte)28,  (byte)28),    // dark red - exceeds 40 cal/cm2 (was drawn green)
+            >= 4 => ((byte)244, (byte)67,  (byte)54),    // red
+            3    => ((byte)255, (byte)87,  (byte)34),    // deep orange
+            2    => ((byte)255, (byte)152, (byte)0),     // orange
+            1    => ((byte)255, (byte)235, (byte)59),    // yellow
+            _    => ((byte)76,  (byte)175, (byte)80)     // green
         };
+
+        private static readonly Lazy<Dictionary<int, (byte r, byte g, byte b)>> _dataRgb =
+            new Lazy<Dictionary<int, (byte r, byte g, byte b)>>(LoadDataRgb);
+
+        private static (byte r, byte g, byte b) PpeRgb(int ppe)
+        {
+            var data = _dataRgb.Value;
+            int key = ppe < 0 ? -1 : Math.Min(ppe, 4);
+            return data != null && data.TryGetValue(key, out var c) ? c : BuiltInPpeRgb(ppe);
+        }
+
+        /// <summary>The data colours when they all agree with the built-in ones, else null
+        /// (the built-in colours stand and the difference is logged once).</summary>
+        private static Dictionary<int, (byte r, byte g, byte b)> LoadDataRgb()
+        {
+            try
+            {
+                string path = StingToolsApp.FindDataFile("STING_ARC_FLASH_PPE.json");
+                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
+                var arr = JObject.Parse(File.ReadAllText(path))["ppeCategories"] as JArray;
+                if (arr == null) return null;
+                var map = new Dictionary<int, (byte r, byte g, byte b)>();
+                var diffs = new List<string>();
+                foreach (var row in arr.OfType<JObject>())
+                {
+                    if (row["cat"]?.Type != JTokenType.Integer) continue;
+                    int cat = row["cat"].Value<int>();
+                    string hex = (row["colour"]?.ToString() ?? "").Trim().TrimStart('#');
+                    if (hex.Length != 6 || !int.TryParse(hex, System.Globalization.NumberStyles.HexNumber,
+                            System.Globalization.CultureInfo.InvariantCulture, out int rgb))
+                    { diffs.Add($"cat {cat}: unreadable colour '{row["colour"]}'"); continue; }
+                    var c = ((byte)(rgb >> 16), (byte)((rgb >> 8) & 0xFF), (byte)(rgb & 0xFF));
+                    var bi = BuiltInPpeRgb(cat);
+                    if (c != bi) diffs.Add($"cat {cat}: data #{hex.ToUpperInvariant()} vs built-in #{bi.r:X2}{bi.g:X2}{bi.b:X2}");
+                    map[cat] = c;
+                }
+                if (diffs.Count == 0) return map;
+                StingLog.WarnRateLimited("ArcFlashBoundaryView.PpeColours",
+                    "STING_ARC_FLASH_PPE.json ppeCategories colours differ from the built-in boundary colours (" +
+                    string.Join("; ", diffs) + "); the built-in colours are used.");
+            }
+            catch (Exception ex) { StingLog.Warn($"ArcFlashBoundaryView PPE colours: {ex.Message}"); }
+            return null;
+        }
 
         private static double ParseDouble(string s) =>
             double.TryParse(s, out double v) ? v : 0;
