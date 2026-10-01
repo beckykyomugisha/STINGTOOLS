@@ -889,6 +889,7 @@ CST_PROC_SPARE_01_TXT,3,cost-meta,<ALL>,Spare parameter 1 for CST_PROC group
 CST_PROC_SPARE_02_TXT,3,cost-meta,<ALL>,Spare parameter 2 for CST_PROC group
 CST_PROVISIONAL_SUM,2,cost-meta,<ALL>,True if this element represents a provisional sum [ISO 19650-3:2020]
 CST_PS_DESCRIPTION,2,cost-meta,<ALL>,Provisional sum scope description [ISO 19650-3:2020]
+CST_PS_TYPE_TXT,2,cost-meta,<ALL>,"Provisional sum type: Defined or Undefined (NRM2 2.9.1; defined = contractor deemed to have allowed for programming, planning and preliminaries) [DSCH-35]"
 CST_QTY_MEASURED,2,cost-meta,<ALL>,Measured quantity for BOQ (area/length/volume/count) [ISO 19650-3:2020]
 CST_QUOTE_REF_TXT,2,cost-meta,<ALL>,Supplier quote reference number
 CST_RATE_CONFIDENCE,2,cost-meta,<ALL>,Rate confidence score 0-100 (source reliability) [ISO 19650-3:2020]

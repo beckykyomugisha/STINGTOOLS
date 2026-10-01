@@ -18063,6 +18063,18 @@
       "curated": true
     },
     {
+      "param_name": "CST_PS_TYPE_TXT",
+      "guid": "963d74eb-a24f-5d19-8a69-11f29cc15676",
+      "description": "Provisional sum type: Defined or Undefined (NRM2 2.9.1; defined = contractor deemed to have allowed for programming, planning and preliminaries) [DSCH-35]",
+      "datatype": "TEXT",
+      "group_id": 2,
+      "group_name": "CST_PROC",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Cost",
+      "curated": true
+    },
+    {
       "param_name": "CST_EMBODIED_CARBON_KG",
       "guid": "52512f2c-ecdf-4f7b-8128-a8c99222aa0d",
       "description": "Embodied carbon in kgCO2e for this element [ISO 19650-3:2020]",
