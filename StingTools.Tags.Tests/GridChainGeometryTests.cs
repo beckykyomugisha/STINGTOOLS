@@ -135,5 +135,35 @@ namespace StingTools.Tags.Tests
 
             Assert.Empty(GridChainGeometry.Plan(new List<GridSeg> { new GridSeg(0, 1, 1, 1, 1) }, Margin));
         }
+
+        // DTW-101: column-to-grid reads the host's grids and every loaded link's. Where a
+        // linked grid lies on a host grid (copy / monitor), the host one is used.
+
+        [Fact]
+        public void A_linked_grid_on_a_host_grid_is_dropped_and_the_host_kept()
+        {
+            var grids = new List<GridSeg>
+            {
+                Seg(0, 0, 0, 1, 0),              // host A
+                Seg(1, 20, 0.0005, 1, 0, 30),    // linked A: same line, 0.15 mm off, shorter, slid along
+                Seg(2, 0, 20, 1, 0),             // linked B: its own line
+            };
+            Assert.Equal(new[] { 0, 2 }, GridChainGeometry.KeepFirstOfCoincident(grids));
+        }
+
+        [Fact]
+        public void Grids_apart_or_crossing_are_all_kept()
+        {
+            var grids = new List<GridSeg>
+            {
+                Seg(0, 0, 0, 1, 0),
+                Seg(1, 0, 10.0 / 304.8, 1, 0),   // 10 mm away: a different grid
+                Seg(2, 50, -50, 0, 1),           // crosses grid 0
+                Seg(3, 0, 0, -1, 0),             // same line, opposite direction: coincident
+            };
+            Assert.Equal(new[] { 0, 1, 2 }, GridChainGeometry.KeepFirstOfCoincident(grids));
+            Assert.Empty(GridChainGeometry.KeepFirstOfCoincident(new List<GridSeg>()));
+            Assert.Empty(GridChainGeometry.KeepFirstOfCoincident(null));
+        }
     }
 }

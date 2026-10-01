@@ -261,12 +261,19 @@ namespace StingTools.Core.Drawing.Dimensioning
                 return;
             }
 
-            var grids = new FilteredElementCollector(doc, view.Id)
-                .OfClass(typeof(Grid)).Cast<Grid>()
-                .Where(g => g?.Curve is Line).ToList();
+            // DTW-101: the host's grids and every loaded link's the view shows — on an MEP
+            // or structural model the grids usually live in the linked architectural model,
+            // and a host-only collector found none. Linked grids carry a link reference.
+            // Where a linked grid lies on a host grid (copy / monitor) the host one is kept:
+            // StraightGrids lists host grids first, KeepFirstOfCoincident keeps the first.
+            var allGrids = ViewLinks.StraightGrids(doc, view, result.Warnings, out _);
+            var segs = allGrids.Select((g, i) => new GridSeg(i,
+                g.Line.GetEndPoint(0).X, g.Line.GetEndPoint(0).Y,
+                g.Line.GetEndPoint(1).X, g.Line.GetEndPoint(1).Y)).ToList();
+            var grids = GridChainGeometry.KeepFirstOfCoincident(segs).Select(i => allGrids[i]).ToList();
             if (grids.Count == 0)
             {
-                result.Warnings.Add("AutoDimColumnGrid: view contains no straight grids — skipped.");
+                result.Warnings.Add("AutoDimColumnGrid: view shows no straight grids, host or linked — skipped.");
                 return;
             }
 
@@ -287,14 +294,14 @@ namespace StingTools.Core.Drawing.Dimensioning
                     // was dimensioned to the next grid over — a number that is
                     // correct and useless.
                     var ranked = grids
-                        .Select(g => (G: g, D: PerpDistanceFt(origin, (Line)g.Curve)))
+                        .Select(g => (G: g, D: PerpDistanceInViewFt(origin, g.Line, view.ViewDirection)))
                         .Where(t => t.D < MaxGridSearchFt)
                         .OrderBy(t => t.D)
                         .ToList();
                     var nearest = PickSettingOutGrid(ranked);
                     if (nearest.G == null) { result.Skipped++; continue; }
 
-                    var gridDir = ((Line)nearest.G.Curve).Direction;
+                    var gridDir = nearest.G.Line.Direction;
                     // The dimension measures ACROSS the grid: its line runs along the
                     // grid's in-plane normal, and the column reference must be the
                     // centre plane PARALLEL to the grid — the one whose normal is
@@ -312,11 +319,12 @@ namespace StingTools.Core.Drawing.Dimensioning
                     }
 
                     var refs = new ReferenceArray();
-                    refs.Append(new Reference(nearest.G));
+                    refs.Append(nearest.G.Ref);
                     refs.Append(colRef);
 
                     var line = DimensionStrategy.BuildWitnessLine(origin, across, ColumnGridOffsetMm, Math.Max(nearest.D, 1.0));
-                    if (Emit(doc, view, line, refs, dimType, result, $"column {col.Id} → grid {nearest.G.Name}",
+                    var gridLabel = nearest.G.Linked ? $"linked grid {nearest.G.Name}" : $"grid {nearest.G.Name}";
+                    if (Emit(doc, view, line, refs, dimType, result, $"column {col.Id} → {gridLabel}",
                             AnnotationProvenance.DimColumnGrid, col))
                         already.Add(col.Id);
                 }
@@ -508,14 +516,14 @@ namespace StingTools.Core.Drawing.Dimensioning
         /// OTHER direction — unless it is on one of those too (a grid intersection),
         /// in which case there is nothing to set out and null is returned.
         /// </summary>
-        private static (Grid G, double D) PickSettingOutGrid(List<(Grid G, double D)> ranked)
+        private static (ViewGridLine G, double D) PickSettingOutGrid(List<(ViewGridLine G, double D)> ranked)
         {
             if (ranked == null || ranked.Count == 0) return default;
             var first = ranked[0];
             if (first.D > OnGridTolFt) return first;
-            var onDir = ((Line)first.G.Curve).Direction;
-            bool Parallel((Grid G, double D) t) =>
-                Math.Abs(((Line)t.G.Curve).Direction.CrossProduct(onDir).GetLength()) < 1e-3;
+            var onDir = first.G.Line.Direction;
+            bool Parallel((ViewGridLine G, double D) t) =>
+                Math.Abs(t.G.Line.Direction.CrossProduct(onDir).GetLength()) < 1e-3;
             var other = ranked.Where(t => !Parallel(t)).ToList();
             if (other.Count == 0 || other[0].D <= OnGridTolFt) return default;   // at an intersection
             return other[0];
@@ -570,6 +578,29 @@ namespace StingTools.Core.Drawing.Dimensioning
         {
             if (p == null || origin == null || dir == null) return 0;
             return (p - origin).DotProduct(dir.Normalize());
+        }
+
+        /// <summary>
+        /// DTW-101: <see cref="PerpDistanceFt"/> as the view sees it — the component along
+        /// the view direction dropped, so a linked grid drawn at another elevation (its
+        /// curve sits at the link's Z) is measured by its plan distance, the same way as a
+        /// host grid, and the nearest grid is not decided by a height difference.
+        /// </summary>
+        internal static double PerpDistanceInViewFt(XYZ p, Line line, XYZ viewDir)
+        {
+            try
+            {
+                var o = line.Origin; var d = line.Direction;
+                var v = p - o;
+                var off = v - d * v.DotProduct(d);
+                if (viewDir != null && viewDir.GetLength() > 1e-9)
+                {
+                    var n = viewDir.Normalize();
+                    off = off - n * off.DotProduct(n);
+                }
+                return off.GetLength();
+            }
+            catch (Exception ex) { StingLog.Warn($"PerpDistanceInViewFt: {ex.Message}"); return double.MaxValue; }
         }
 
         internal static double PerpDistanceFt(XYZ p, Line line)
