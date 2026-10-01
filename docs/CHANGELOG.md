@@ -2,6 +2,22 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGACC-18 Token Confidence Audit reads the sources the tagger writes, 2026-10-01)
+
+- **The bug.** The Token Confidence Audit (`TokenConfidenceAudit`) classified `ASS_ZONE_SOURCE_TXT`
+  as High only for `Room` / `TYPE_OVERRIDE`. `PopulateAll` also writes `ScopeBox` (a `STING-ZONE::`
+  box) and `Proximity` (copied from the nearest tagged element) for ZONE, and `Proximity` for LOC.
+  All three fell through to **Low**, so a zone drawn as a scope box was reported as a silent default.
+  The "silent BLD1" count tested the literal `BLD1`, which the token policy's fallback need not be.
+- **The fix.** The bands live in `Core/TokenConfidenceBands.cs` (Revit-free) and each carries a
+  reason. `ScopeBox` is High for both tokens; `Proximity` is Medium (inherited, not detected). The
+  silent count is "LOC_SOURCE = Default", whatever value was written. The report lists a tally of
+  reasons, and the CSV now has one row per element with any Medium or Low token, with band and
+  reason per token (columns `*_BAND` / `*_REASON`; the old `Bands` column is gone).
+- **Tests** `TokenConfidenceBandsTests` (26 cases), including one that reads the source strings
+  `ParameterHelpers.cs` writes to `LOC_SOURCE` / `ZONE_SOURCE` and fails if the classifier does not
+  know one. With the ZONE `ScopeBox` case removed, 2 fail; with it, all pass. `StingTools.Tags.Tests`
+  4,625 passing; plugin build 0 errors / 0 warnings. **Not run in Revit.**
 #### Completed (TAGFAM-3: the four specialist tag labels, 2026-10-01)
 
 - **Built in the Revit 2025 Family Editor** on the families Create Tag Fams made (category, size
