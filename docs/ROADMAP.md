@@ -46,6 +46,7 @@ What remains is listed under **Residual**
 | TAGACC-17 | ~~P3~~ **Done 2026-09-29** | Deferred elements are retried after Reload Latest as well as after this user's sync (`DocumentReloadedLatest`), and duplicates are repaired at the same point. A user who neither syncs nor reloads still waits; nothing can refresh their copy of the counters. |
 | TAGACC-18 | ~~P2~~ **Done 2026-10-01** | Token Confidence Audit reported `STING-ZONE::` scope-box zones and proximity-inherited LOC/ZONE as Low defaults; it now shares one classifier (`Core/TokenConfidenceBands`) with a reason per band, tested against the writer's source strings. |
 | TAGACC-19 | ~~P1~~ **Done 2026-10-01** | Save Config to Project and `TagConfig.SaveToFile` (wizard, auto-tagger toggles) rewrote `project_config.json` from their own key list, resetting SEQ_*, folder-layout, COST_* and every other key; both now merge (`Core/ConfigFileMerge`). |
+| TAGACC-22 | ~~P2~~ **Done 2026-10-01** | Tag Rule Engine (`TAG_RULES`) and Tag Format (`TAG_FORMAT`) read `project_config.json` first, but when it did not parse they wrote a new file holding only their own key — erasing SEQ_*, folder, cost and every other setting. Both now merge through `ConfigFileMerge` (TAGACC-19) and refuse an unreadable file; the commands already show the failure. |
 
 **Settings.** RETAG_MOVED_ELEMENTS, RENUMBER_ON_OVERWRITE, AUTO_CORRECT_STATUS_FROM_PHASE and
 SEQ_LOCK_MODE are switched from the **Tag Rules** button (TAGGING tab, beside Batch Tag) and

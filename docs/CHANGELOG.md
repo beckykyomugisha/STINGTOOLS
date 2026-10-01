@@ -2,6 +2,18 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGACC-22 Tag Rule Engine / Tag Format no longer replace an unreadable project_config.json, 2026-10-01)
+
+- `TagIntelligenceHelper.SaveRules` and `SaveFormatConfig` read `project_config.json` before writing, but on a
+  parse failure they logged "Config parse fallback" and wrote a fresh file with only `TAG_RULES` or
+  `TAG_FORMAT` — so one stray comma in the file, followed by *Tag Rule Engine* or *Tag Format*, erased every
+  other project setting. Both now write their key through `ConfigFileMerge.Merge` (TAGACC-19) via a temp
+  file, and an unreadable file throws; `TagRuleEngineCommand` and the Tag Format dialog already catch and
+  show "Failed to save". The other `project_config.json` writers (Tag Rules, Project Cfg toggles, paragraph
+  preset, output location, permissions) were checked: they parse without a catch-and-replace fallback.
+- **Test** `ConfigFileMergeTests.Tag_intelligence_writers_merge_and_never_replace_an_unreadable_file` (fails
+  against main). `StingTools.Tags.Tests` all passing; build 0 / 0.
+
 #### Completed (TAGFAM-6 follow-up: one shared-parameter index for every tag command, 2026-10-01)
 
 - Three more commands carried a private `FindSharedDefinition` that walked the whole shared-parameter
