@@ -52,7 +52,7 @@ has **not been re-measured**.
   GREEN: 29 of 29.** `TagFamilyParamScopeTests.cs`, 22 cases: the TYPE / INSTANCE rule by name (including
   `TAG_7_SECTION_VISIBLE_A_BOOL` staying INSTANCE, which tightened the switch-shape match), and that
   `AddSharedParameters`, Migrate and Family Parameter Creator all call it. **RED against the first commit of
-  this branch: 5 of 22 failing; GREEN: 22 of 22.** Full Tags suite 5,227 passing, 0 failing.
+  this branch: 5 of 22 failing; GREEN: 22 of 22.** Full Tags suite 5,532 passing, 0 failing (after rebasing onto origin/main with #1040 and #1045).
 
 #### Completed (TAGACC-25 discipline profiles: CollisionMode applied, five settings retired, 2026-10-01)
 
