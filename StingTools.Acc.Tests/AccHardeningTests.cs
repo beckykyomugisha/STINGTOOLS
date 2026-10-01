@@ -314,6 +314,50 @@ namespace StingTools.Acc.Tests
             Assert.Equal("rotated-from-mine", AccCredentialStore.Load(out _).RefreshToken);
         }
 
+        // D4: the loser of a refresh race got "sign in again" although the winner had saved a
+        // valid rotated token by then.
+        [Fact]
+        public async Task LosingARefreshRace_AdoptsTheWinnersToken_NotSignInAgain()
+        {
+            var mine = H.Creds();
+            mine.RefreshToken = "shared-before-race";
+            mine.RefreshTokenIssuedAt = DateTime.UtcNow.AddHours(-2);
+            mine.AccessTokenExpiry = DateTime.UtcNow.AddHours(-1);
+            Assert.True(AccIssueSync.SaveCredentials(mine, out _));
+
+            using var server = new LoopbackServer((n, req) =>
+            {
+                // The other session finished first: it saved the rotated token, then Autodesk
+                // refuses ours (the same refresh token, already spent).
+                var winner = H.Creds();
+                winner.RefreshToken = "rotated-by-winner";
+                winner.RefreshTokenIssuedAt = DateTime.UtcNow;
+                winner.AccessToken = "winner-access";
+                winner.AccessTokenExpiry = DateTime.UtcNow.AddMinutes(55);
+                AccIssueSync.SaveCredentials(winner, out _);
+                return new CannedResponse(400, "{\"error\":\"invalid_grant\"}");
+            });
+            AccIssueSync.OverrideHostForTests(server.BaseUrl);
+
+            var o = await AccIssueSync.EnsureAuthDetailedAsync(mine);
+
+            Assert.True(o.Ok, o.Detail);
+            Assert.Equal("winner-access", mine.AccessToken);
+            Assert.Equal("rotated-by-winner", mine.RefreshToken);
+        }
+
+        [Fact]
+        public async Task ARefusedGrant_WithNobodyHoldingAValidToken_IsStillSignInAgain()
+        {
+            using var server = LoopbackServer.Always(400, "{\"error\":\"invalid_grant\"}");
+            AccIssueSync.OverrideHostForTests(server.BaseUrl);
+            var mine = H.Creds();
+            mine.AccessTokenExpiry = DateTime.UtcNow.AddHours(-1);
+            var o = await AccIssueSync.EnsureAuthDetailedAsync(mine);
+            Assert.False(o.Ok);
+            Assert.Equal(AccFetchStatus.AuthFailed, o.Status);
+        }
+
         [Theory]
         [InlineData("b", 12, "a", 8, true)]     // file newer, different
         [InlineData("b", 8, "a", 12, false)]    // file older

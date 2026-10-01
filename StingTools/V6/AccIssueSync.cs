@@ -239,7 +239,23 @@ namespace StingTools.V6
                         new KeyValuePair<string, string>("refresh_token", creds.RefreshToken),
                     };
                     var tok = await TokenRequestAsync(creds, form, CancellationToken.None).ConfigureAwait(false);
-                    if (!tok.Ok) return tok.Outcome;
+                    if (!tok.Ok)
+                    {
+                        // D4: Autodesk refusing the grant may only mean another session won the
+                        // race with the same refresh token (the lock wait can be shorter than a
+                        // throttled refresh). If the file now holds a rotated token, take it —
+                        // "sign in again" is the answer only when nobody has a valid one.
+                        if (tok.Outcome?.Status == AccFetchStatus.AuthFailed && TryAdoptFromMachineFile(creds, rejectedAccessToken))
+                            return AccAuthOutcome.Success();
+                        if (tok.Outcome?.Status == AccFetchStatus.AuthFailed && !string.IsNullOrEmpty(creds.RefreshToken) &&
+                            !string.Equals(creds.RefreshToken, form[1].Value, StringComparison.Ordinal))
+                        {
+                            // Adopted a rotated refresh token but no usable access token: one more try with it.
+                            form[1] = new KeyValuePair<string, string>("refresh_token", creds.RefreshToken);
+                            tok = await TokenRequestAsync(creds, form, CancellationToken.None).ConfigureAwait(false);
+                        }
+                        if (!tok.Ok) return tok.Outcome;
+                    }
 
                     ApplyTokenResponse(creds, tok.Json);
                     string warn = PersistAfterRefresh(creds);
