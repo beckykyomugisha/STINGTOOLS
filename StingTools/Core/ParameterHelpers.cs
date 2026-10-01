@@ -1758,6 +1758,40 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// DTW-144 — every scope box whose name claims (or nearly claims) a STING-LOC /
+        /// STING-ZONE / STING-AREA prefix and does not parse, as "'name' — reason"
+        /// (ScopeBoxNameAudit). The strict grammar (DTW-93) refuses them and the elements
+        /// inside take the fallback LOC / ZONE; this is what tagging and the Drawing Doctor
+        /// show so the refusal is seen. The latest result is handed to
+        /// <see cref="TaggingStats.CurrentScopeBoxNameProblems"/> for the tagging report.
+        /// </summary>
+        public static List<string> AuditScopeBoxNames(Document doc)
+        {
+            var problems = new List<string>();
+            if (doc == null) { TaggingStats.CurrentScopeBoxNameProblems = problems; return problems; }
+            try
+            {
+                foreach (var box in new FilteredElementCollector(doc)
+                             .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                             .WhereElementIsNotElementType())
+                {
+                    string name = box?.Name ?? "";
+                    string why = Drawing.ScopeBoxNameAudit.Problem(name);
+                    if (why != null) problems.Add($"'{name}' — {why}");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"AuditScopeBoxNames: {ex.Message}");
+                problems.Add($"(the scope-box names could not be checked: {ex.Message})");
+            }
+            if (problems.Count > 0)
+                StingLog.Warn($"Scope boxes whose STING-LOC/ZONE/AREA name does not parse ({problems.Count}): " + string.Join("; ", problems));
+            TaggingStats.CurrentScopeBoxNameProblems = problems;
+            return problems;
+        }
+
+        /// <summary>
         /// Phase 192 (A4) — LOC from scope-box containment. Returns the LOC code
         /// of the SMALLEST <c>STING-LOC::*</c> scope box whose plan rectangle
         /// contains the element's bounding-box centre (XY, Z ignored), or null.
@@ -2454,6 +2488,10 @@ namespace StingTools.Core
             /// ZONE twin of <see cref="ScopeBoxLocs"/>. Empty when none exist.</summary>
             public List<ScopeBoxLoc> ScopeBoxZones { get; set; }
 
+            /// <summary>DTW-144: scope boxes whose STING-LOC / ZONE / AREA name does not
+            /// parse ("'name' — reason"). Elements inside them took the fallback LOC / ZONE.</summary>
+            public List<string> ScopeBoxNameProblems { get; set; } = new List<string>();
+
             /// <summary>GAP-019: Configurable default STATUS (from project_config.json or "NEW").</summary>
             public string DefaultStatus { get; set; } = "NEW";
 
@@ -2601,6 +2639,8 @@ namespace StingTools.Core
                     // Phase 192 (A4) — STING-LOC scope-box rectangles for site elements
                     ScopeBoxLocs = SpatialAutoDetect.BuildScopeBoxLocIndex(doc),
                     ScopeBoxZones = SpatialAutoDetect.BuildScopeBoxZoneIndex(doc),
+                    // DTW-144 — named in the tagging result (TaggingStats), not only the log.
+                    ScopeBoxNameProblems = SpatialAutoDetect.AuditScopeBoxNames(doc),
                     // Apply config overrides for STATUS/REV defaults
                     DefaultStatus = !string.IsNullOrEmpty(TagConfig.StatusDefault) ? TagConfig.StatusDefault : "NEW",
                     DefaultRev = !string.IsNullOrEmpty(TagConfig.RevDefault) ? TagConfig.RevDefault : "P01",
