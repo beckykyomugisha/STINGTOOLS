@@ -7,18 +7,23 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 
 ## Resume here
 
-The loop has converged. Round 7 found only low and medium-low items (DTW-146..148, fixed).
-Open: DTW-82 (in-Revit checks, below) and DTW-102 (linked MEP runs reported, not dimensioned,
-an accepted limit).
+Round 8 (the deeper pass) started 2026-10-02 on branch `fix/drawing-review-2`, from main
+ad42c8bda, which includes PR #1021. The earlier rounds' PR #1021 is merged and deployed
+(STING_KUT_LIVE c73ded891).
 
-1. Mark PR #1021 ready, wait for CI green, and merge.
-2. Redeploy. The live plugin is `C:\Dev\STING_KUT_LIVE`, owned by the ACC session on
-   `claude/kut-combined-acc-tags`: merge `main` into that branch, or ask that session to, then
-   run its `deploy.bat`. Remind the user to re-run Load Shared Parameters on existing projects
-   (the binding upgrade).
-3. Run the NEEDS REVIT CHECK list in Revit. Whether Revit accepts parameters on Lines decides
-   whether match-line keys move to Extensible Storage. Then start a fresh audit pass on
-   whatever those checks turn up.
+1. Four read-only researchers are running:
+   - view graphics: packs, filters, templates, crop
+   - sheets and title blocks: factory, slots, placement
+   - authoring and config: editor, Excel round-trip, registries, JSON loaders
+   - end-to-end edge cases: worksharing, scale, phases, design options, odd levels and boxes,
+     re-runs after user edits, policy switch, undo
+
+   Log their findings as DTW-149 onwards. Fix them on disjoint file sets, merging one branch at
+   a time with build, tests and gates in between.
+2. Open a PR for `fix/drawing-review-2` when it has merged work; merge it once CI is green. Ask
+   the ACC session to redeploy STING_KUT_LIVE from its integration branch.
+3. Still open from before: DTW-82 (in-Revit checks) and DTW-102 (linked MEP runs reported, not
+   dimensioned).
 
 ## State (2026-10-01)
 
