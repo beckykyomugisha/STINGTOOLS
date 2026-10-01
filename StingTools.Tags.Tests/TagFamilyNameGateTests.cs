@@ -57,16 +57,11 @@ namespace StingTools.Tags.Tests
         }
 
         /// <summary>
-        /// Known disagreements, each tracked on the ROADMAP. Not TAGFAM-7's three: the
-        /// creator builds "Specialty Equipment Tag Asset Tag" where the config declares
-        /// it without the last " Tag" (TAGFAM-10). Remove an entry when it is fixed; the
+        /// Known disagreements, each tracked on the ROADMAP. Empty since TAGFAM-10 renamed
+        /// the two Specialty Equipment families. Add an entry only with a ROADMAP id; the
         /// test below fails if an entry stops disagreeing, so the list cannot go stale.
         /// </summary>
-        private static readonly string[] KnownNameDisagreements =
-        {
-            "STING - Specialty Equipment Tag Asset Tag",
-            "STING - Specialty Equipment Tag General Tag",
-        };
+        private static readonly string[] KnownNameDisagreements = Array.Empty<string>();
 
         private static List<string> NameDisagreements()
         {
@@ -145,12 +140,24 @@ namespace StingTools.Tags.Tests
         [Fact]
         public void The_tier_map_resolves_legacy_and_dash_spellings_to_the_family_plan()
         {
+            // The legacy name resolves exactly as its canonical name does. Where the tier map
+            // has a family plan for the canonical name, that is the plan both get (not the
+            // default); where it has none (the Specialty Equipment pair), both take the
+            // category plan, so the check is made with the category supplied.
+            var mapped = new HashSet<string>(PerFamilyTierMap.KnownFamilyNames, StringComparer.OrdinalIgnoreCase);
+            int planned = 0;
             foreach (var kv in TagFamilyNameAliases.LegacyFamilyNames)
             {
-                var canonical = PerFamilyTierMap.Resolve(kv.Value, null);
-                Assert.NotSame(PerFamilyTierMap.DefaultPlan, canonical);
-                Assert.Same(canonical, PerFamilyTierMap.Resolve(kv.Key, null));
+                var canonical = PerFamilyTierMap.Resolve(kv.Value, "Specialty Equipment");
+                if (mapped.Contains(kv.Value))
+                {
+                    Assert.NotSame(PerFamilyTierMap.DefaultPlan, canonical);
+                    planned++;
+                }
+                Assert.Same(canonical, PerFamilyTierMap.Resolve(kv.Key, "Specialty Equipment"));
+                Assert.Equal(kv.Value, TagFamilyNameAliases.Canonicalise(kv.Key));
             }
+            Assert.True(planned >= 3, "the tie-in aliases should resolve to family plans");
             var slash = PerFamilyTierMap.Resolve("STING - Tie-In Point Tag (Conduit — Electrical LV/ELV)", null);
             Assert.NotSame(PerFamilyTierMap.DefaultPlan, slash);
             Assert.Same(slash, PerFamilyTierMap.Resolve("STING - Tie-In Point Tag (Conduit — Electrical LV-ELV)", null));

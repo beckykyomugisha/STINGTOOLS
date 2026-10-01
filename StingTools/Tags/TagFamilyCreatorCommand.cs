@@ -534,6 +534,10 @@ namespace StingTools.Tags
             { "Tie-In Gas",             "STING - Tie-In Point Tag (Gas — Medical / Industrial / Natural Gas)" },
             // STR CSV: "Brace / Truss" (with slashes + spaces) vs creator's flat "Brace Truss"
             { "Brace Truss",            "STING - Brace / Truss Tag" },
+            // TAGFAM-10: GEN / MEP CSVs declare these without a trailing " Tag" (the name
+            // already says "Tag"); the generic form built "… Tag Asset Tag".
+            { "Specialty Equipment Tag Asset",   "STING - Specialty Equipment Tag Asset" },
+            { "Specialty Equipment Tag General", "STING - Specialty Equipment Tag General" },
             // NOTE: Anti-Ligature is intentionally NOT mapped here. The HEALTH CSV
             // declares it once but binds 3 BICs (Doors / Lighting Fixtures /
             // Plumbing Fixtures); each .rfa must carry its own category binding so
@@ -1933,9 +1937,11 @@ namespace StingTools.Tags
             // ── Step 5b: Create tie-in point tag families ──
             report.AppendLine();
             report.AppendLine("── Tie-In Point Families ──");
-            // TAGFAM-7: rename a tie-in family this project holds under its old doubled-"Tag"
-            // name, so it is kept (with its placed tags) rather than loaded a second time.
+            // TAGFAM-7 / TAGFAM-10: rename a tie-in or healthcare-variant family this project
+            // holds under its old doubled-"Tag" name, so it is kept (with its placed tags)
+            // rather than loaded a second time. Runs before both steps.
             var tieInRename = TagFamilyLegacyRename.Apply(doc, TagFamilyConfig.TieInPointFamilies
+                .Concat(TagFamilyConfig.HealthcareVariantFamilies)
                 .Select(t => Path.GetFileNameWithoutExtension(TagFamilyConfig.GetTieInFamilyFileName(t.suffix))));
             foreach (var line in tieInRename.Lines()) report.AppendLine(line);
             if (tieInRename.Renamed.Count > 0)
