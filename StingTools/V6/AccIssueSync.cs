@@ -412,24 +412,16 @@ namespace StingTools.V6
             if (!string.IsNullOrEmpty(creds.IssueTypeId) && !string.IsNullOrEmpty(creds.IssueSubtypeId))
                 return AccFetchResult<string>.Success(creds.IssueSubtypeId, empty: false);
 
-            var resp = await AccHttp.SendAsync(() => WithRegion(new HttpRequestMessage(HttpMethod.Get,
-                    $"{ProjectUrl(creds)}/issue-types?include=subtypes&limit=100"), creds),
-                creds, idempotent: true).ConfigureAwait(false);
-            if (!resp.IsSuccess)
-            {
-                var st = resp.Classify();
-                return AccFetchResult<string>.Failure(st, "", resp.Status, "listing ACC issue types: " + resp.Describe());
-            }
-
-            JArray results = AccFetchOutcome.FindArray(resp.Body, "results");
-            if (results == null)
-                return AccFetchResult<string>.Failure(AccFetchStatus.TransportFailed, "", resp.Status,
-                    "the issue-types response carried no 'results' array");
+            // AUT-2: every page, not the first 100 - a type past the first page was reported
+            // as "not found" and the fix offered was the wrong one.
+            var read = await ReadAllResultsAsync(creds, $"{ProjectUrl(creds)}/issue-types?include=subtypes", 100, "ACC issue types").ConfigureAwait(false);
+            if (!read.Succeeded) return AccFetchResult<string>.Failure(read.Status, "", read.HttpStatus, read.Detail);
+            JArray results = read.Value;
 
             var active = results.Where(t => t["isActive"] == null || (bool?)t["isActive"] != false).ToList();
             var choice = IssueTypeChooser.Choose(active, creds.IssueTypeId);
             if (!choice.Ok)
-                return AccFetchResult<string>.Failure(AccFetchStatus.NotFound, "", resp.Status, choice.Reason);
+                return AccFetchResult<string>.Failure(AccFetchStatus.NotFound, "", read.HttpStatus, choice.Reason);
 
             // Remembered on these credentials for the rest of THIS run only. It is NOT persisted:
             // on project-scoped credentials ToMachineFile writes back the machine file's own
@@ -457,23 +449,56 @@ namespace StingTools.V6
             if (!string.IsNullOrEmpty(configuredTypeId) && !string.IsNullOrEmpty(configuredSubtypeId))
                 return AccFetchResult<string>.Success(configuredSubtypeId, empty: false);
 
-            var resp = await AccHttp.SendAsync(() => WithRegion(new HttpRequestMessage(HttpMethod.Get,
-                    $"{ProjectUrl(creds)}/issue-types?include=subtypes&limit=100"), creds),
-                creds, idempotent: true).ConfigureAwait(false);
-            if (!resp.IsSuccess)
-                return AccFetchResult<string>.Failure(resp.Classify(), "", resp.Status, "listing ACC issue types: " + resp.Describe());
-
-            JArray results = AccFetchOutcome.FindArray(resp.Body, "results");
-            if (results == null)
-                return AccFetchResult<string>.Failure(AccFetchStatus.TransportFailed, "", resp.Status,
-                    "the issue-types response carried no 'results' array");
+            // AUT-2: every page, not the first 100 - a type past the first page was reported
+            // as "not found" and the fix offered was the wrong one.
+            var read = await ReadAllResultsAsync(creds, $"{ProjectUrl(creds)}/issue-types?include=subtypes", 100, "ACC issue types").ConfigureAwait(false);
+            if (!read.Succeeded) return AccFetchResult<string>.Failure(read.Status, "", read.HttpStatus, read.Detail);
+            JArray results = read.Value;
 
             var active = results.Where(t => t["isActive"] == null || (bool?)t["isActive"] != false).ToList();
             var choice = IssueTypeChooser.ChooseByName(active, configuredTypeId, new[] { typeName }, typeName, typeName, settingHint);
             if (!choice.Ok)
-                return AccFetchResult<string>.Failure(AccFetchStatus.NotFound, "", resp.Status, choice.Reason);
+                return AccFetchResult<string>.Failure(AccFetchStatus.NotFound, "", read.HttpStatus, choice.Reason);
             StingLog.Info($"AccIssueSync: filing {typeName} issues as '{choice.TypeTitle} / {choice.SubtypeTitle}' ({choice.SubtypeId}).");
             return AccFetchResult<string>.Success(choice.SubtypeId, empty: false);
+        }
+
+        internal const int ResultsMaxPages = 50;
+
+        /// <summary>AUT-2: read every page of an Issues v1 list (offset + limit, ending when the
+        /// page is empty or <c>pagination.totalResults</c> is reached). Hitting
+        /// <see cref="ResultsMaxPages"/> is a failure that says INCOMPLETE: these lists are
+        /// searched by name, and a partial list turns "on page 3" into "does not exist".</summary>
+        internal static async Task<AccFetchResult<JArray>> ReadAllResultsAsync(AccCredentials creds, string baseUrl, int limit, string what)
+        {
+            var all = new JArray();
+            int offset = 0;
+            string sep = baseUrl.Contains("?") ? "&" : "?";
+            for (int page = 0; page < ResultsMaxPages; page++)
+            {
+                string url = $"{baseUrl}{sep}limit={limit}&offset={offset}";
+                var resp = await AccHttp.SendAsync(() => WithRegion(new HttpRequestMessage(HttpMethod.Get, url), creds),
+                    creds, idempotent: true).ConfigureAwait(false);
+                if (!resp.IsSuccess)
+                    return AccFetchResult<JArray>.Failure(resp.Classify(), new JArray(), resp.Status,
+                        $"listing {what}" + (page > 0 ? $" (page {page + 1})" : "") + ": " + resp.Describe());
+                JArray results = AccFetchOutcome.FindArray(resp.Body, "results");
+                if (results == null)
+                    return AccFetchResult<JArray>.Failure(AccFetchStatus.TransportFailed, new JArray(), resp.Status,
+                        $"the {what} response carried no 'results' array");
+                foreach (var r in results) all.Add(r);
+                int total = -1;
+                try { total = (int?)JObject.Parse(resp.Body)["pagination"]?["totalResults"] ?? -1; }
+                catch (Newtonsoft.Json.JsonException) { total = -1; }   // FindArray already parsed it; unreachable in practice
+                if (results.Count == 0 || (total >= 0 && all.Count >= total) || (total < 0 && results.Count < limit))
+                    return AccFetchResult<JArray>.Success(all, empty: all.Count == 0);
+                offset += results.Count;
+            }
+            var cut = AccFetchResult<JArray>.Failure(AccFetchStatus.TransportFailed, all, 200,
+                $"{what}: INCOMPLETE - stopped after {ResultsMaxPages} pages ({all.Count} read) with more remaining");
+            cut.Truncated = true;
+            cut.TotalAvailable = all.Count;
+            return cut;
         }
 
         /// <summary>Back-compat wrapper.</summary>
@@ -698,16 +723,10 @@ namespace StingTools.V6
         public static async Task<AccFetchResult<List<AccRootCause>>> GetRootCausesAsync(AccCredentials creds)
         {
             var list = new List<AccRootCause>();
-            var resp = await AccHttp.SendAsync(() => WithRegion(new HttpRequestMessage(HttpMethod.Get,
-                    $"{ProjectUrl(creds)}/issue-root-cause-categories?include=rootcauses&limit=200"), creds),
-                creds, idempotent: true).ConfigureAwait(false);
-            if (!resp.IsSuccess)
-                return AccFetchResult<List<AccRootCause>>.Failure(resp.Classify(), list, resp.Status,
-                    "listing ACC root causes: " + resp.Describe());
-            JArray results = AccFetchOutcome.FindArray(resp.Body, "results");
-            if (results == null)
-                return AccFetchResult<List<AccRootCause>>.Failure(AccFetchStatus.TransportFailed, list, resp.Status,
-                    "the issue-root-cause-categories response carried no 'results' array");
+            var read = await ReadAllResultsAsync(creds, $"{ProjectUrl(creds)}/issue-root-cause-categories?include=rootcauses", 200,
+                "ACC root causes").ConfigureAwait(false);
+            if (!read.Succeeded) return AccFetchResult<List<AccRootCause>>.Failure(read.Status, list, read.HttpStatus, read.Detail);
+            JArray results = read.Value;
             foreach (var cat in results)
             {
                 if (cat["isActive"] != null && (bool?)cat["isActive"] == false) continue;
