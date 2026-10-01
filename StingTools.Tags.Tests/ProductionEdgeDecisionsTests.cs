@@ -12,13 +12,51 @@ namespace StingTools.Tags.Tests
     {
         // ── DTW-194 ───────────────────────────────────────────────────
 
+        // ── DTW-220: the counters gate notes, it never stops the run ─────
+
         [Fact]
-        public void A_run_that_cannot_write_the_counters_says_who_owns_them_and_that_nothing_was_guessed()
+        public void Counters_owned_by_a_colleague_do_not_stop_a_run_that_may_only_reuse_sheets()
         {
-            var line = ProductionEdgeDecisions.CountersBlockedLine("owned by Jane (Project Information)");
+            var gate = ProductionEdgeDecisions.SheetCountersGate(workshared: true, ownerIfOther: "Jane", outOfDate: false);
+            Assert.Equal(ProductionEdgeDecisions.CountersGate.NoteNewSheetsSkipped, gate);
+        }
+
+        [Fact]
+        public void Counters_changed_in_central_are_a_note_too()
+            => Assert.Equal(ProductionEdgeDecisions.CountersGate.NoteNewSheetsSkipped,
+                ProductionEdgeDecisions.SheetCountersGate(true, null, outOfDate: true));
+
+        [Theory]
+        [InlineData(false, "Jane", true)]   // not workshared: nothing to check
+        [InlineData(true, null, false)]     // free, or owned by me
+        [InlineData(true, "  ", false)]     // a blank owner is not a colleague
+        public void Writable_counters_let_the_run_proceed(bool workshared, string owner, bool outOfDate)
+        {
+            Assert.Equal(ProductionEdgeDecisions.CountersGate.Proceed,
+                ProductionEdgeDecisions.SheetCountersGate(workshared, owner, outOfDate));
+            Assert.Null(ProductionEdgeDecisions.CountersNote(workshared, owner, outOfDate));
+        }
+
+        [Fact]
+        public void The_note_names_the_owner_and_says_only_new_sheets_are_skipped()
+        {
+            var line = ProductionEdgeDecisions.CountersNote(true, "Jane", false);
             Assert.Contains("owned by Jane", line);
-            Assert.Contains("never numbered from a guess", line);
-            Assert.StartsWith("Run stopped before any drawing was produced", line);
+            Assert.Contains("new sheet numbers cannot be reserved", line, System.StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("items needing a new sheet will be skipped", line);
+            Assert.DoesNotContain("Run stopped", line);
+        }
+
+        [Fact]
+        public void The_note_for_an_out_of_date_counter_says_reload_latest()
+            => Assert.Contains("reload latest", ProductionEdgeDecisions.CountersNote(true, null, outOfDate: true));
+
+        [Fact]
+        public void Both_reasons_are_named_when_both_hold()
+        {
+            var line = ProductionEdgeDecisions.CountersNote(true, "Jane", true);
+            Assert.Contains("owned by Jane", line);
+            Assert.Contains("reload latest", line);
         }
 
         [Fact]
@@ -32,7 +70,7 @@ namespace StingTools.Tags.Tests
 
         [Fact]
         public void A_missing_reason_still_reads_as_a_reason()
-            => Assert.Contains("reason unknown", ProductionEdgeDecisions.CountersBlockedLine(null));
+            => Assert.Contains("reason unknown", ProductionEdgeDecisions.SheetNotNumberedLine("t", null));
 
         // ── DTW-197 ───────────────────────────────────────────────────
 
@@ -328,5 +366,47 @@ namespace StingTools.Tags.Tests
             Assert.Contains("kept on sheet E-105", line);
             Assert.Contains("not placed on E-101", line);
         }
+
+        // ── DTW-224: managed templates and pack filters are pre-checked ─
+
+        [Fact]
+        public void Rule_view_types_name_the_managed_templates_an_item_can_touch()
+        {
+            var vts = ProductionEdgeDecisions.ManagedTemplateViewTypes(new[] { "FloorPlan", "RCP", "Section" });
+            Assert.Contains("FloorPlan", vts);
+            Assert.Contains("EngineeringPlan", vts);   // a structural plan from a FloorPlan rule
+            Assert.Contains("CeilingPlan", vts);       // "RCP" is the STING alias
+            Assert.Contains("Section", vts);
+            Assert.DoesNotContain("ThreeD", vts);
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("Panorama")]
+        public void An_item_whose_view_types_are_not_known_checks_every_template_of_its_pack(string ruleType)
+        {
+            Assert.Null(ProductionEdgeDecisions.ManagedTemplateViewTypes(new[] { "FloorPlan", ruleType }));
+            Assert.Null(ProductionEdgeDecisions.ManagedTemplateViewTypes(new string[0]));
+            Assert.Null(ProductionEdgeDecisions.ManagedTemplateViewTypes(null));
+        }
+
+        [Fact]
+        public void A_style_element_owned_by_a_colleague_skips_the_item_with_who_holds_it()
+        {
+            var why = ProductionEdgeDecisions.StylePackBlockReason(
+                new[] { new KeyValuePair<string, string>("STING:corp-mep:FloorPlan", "Jane") }, null);
+            Assert.StartsWith("style pack template/filter owned by Jane", why);
+            Assert.Contains("'STING:corp-mep:FloorPlan'", why);
+        }
+
+        [Fact]
+        public void A_style_element_changed_in_central_says_reload_latest()
+            => Assert.Contains("reload latest",
+                ProductionEdgeDecisions.StylePackBlockReason(null, new[] { "M-Supply Air" }));
+
+        [Fact]
+        public void Free_style_elements_do_not_block()
+            => Assert.Null(ProductionEdgeDecisions.StylePackBlockReason(null, null));
     }
 }

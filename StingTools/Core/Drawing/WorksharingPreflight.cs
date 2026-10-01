@@ -24,6 +24,16 @@ namespace StingTools.Core.Drawing
         private readonly bool _active;
         private Dictionary<string, List<Stamped>> _byType;   // built on first use
 
+        // DTW-224: the pack's managed templates and filters an item edits. Their status is
+        // checked like the item's views, but they are never borrowed up front — most runs
+        // leave them unchanged, and a borrowed template would block every colleague using
+        // the pack until sync. A change made at run time borrows them then.
+        private readonly HashSet<ElementId> _styleIds = new HashSet<ElementId>();
+        private List<(string Name, ElementId Id)> _managedTemplates;            // built on first use
+        private Dictionary<string, ElementId> _filtersByName;                  // built on first use
+        private readonly Dictionary<string, ViewStylePack> _packByType =
+            new Dictionary<string, ViewStylePack>(StringComparer.OrdinalIgnoreCase);
+
         private sealed class Stamped
         {
             public ElementId Id;
@@ -48,8 +58,9 @@ namespace StingTools.Core.Drawing
         /// The existing elements producing <paramref name="types"/> for
         /// <paramref name="ctx"/> would edit: each matching stamped view and sheet, the
         /// title blocks and viewports on those sheets, and — for a scope-box context on a
-        /// level — the level's own plan a dependent view hangs from. Empty when the model
-        /// is not workshared.
+        /// level — the level's own plan a dependent view hangs from — and (DTW-224) the
+        /// pack's managed templates and filters, which are checked but not borrowed. Empty
+        /// when the model is not workshared.
         /// </summary>
         internal ICollection<ElementId> ProductionElements(IEnumerable<DrawingType> types, DrawingContext ctx)
         {
@@ -65,6 +76,7 @@ namespace StingTools.Core.Drawing
                     if (dt == null || string.IsNullOrEmpty(dt.Id)) continue;
                     var keys = new List<string> { dt.Id };
                     keys.AddRange(ProductionEdgeDecisions.FormerIds(dt, ctx.FormerDrawingTypeIds));   // DTW-203
+                    var reusedViewTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     foreach (var key in keys)
                     {
                         if (!_byType.TryGetValue(key, out var list)) continue;
@@ -75,8 +87,10 @@ namespace StingTools.Core.Drawing
                                 && !string.Equals(s.Package, ctx.PackageId, StringComparison.OrdinalIgnoreCase)) continue;
                             ids.Add(s.Id);
                             if (s.IsSheet) AddSheetContents(s.Id, ids);
+                            else if (_doc.GetElement(s.Id) is View rv) reusedViewTypes.Add(rv.ViewType.ToString());
                         }
                     }
+                    AddStyleElements(dt, ctx, reusedViewTypes, ids);   // DTW-224
                 }
             }
             catch (Exception ex)
@@ -86,6 +100,62 @@ namespace StingTools.Core.Drawing
                 StingLog.Warn($"WorksharingPreflight elements: {ex.Message} — the item is not pre-checked.");
             }
             return ids;
+        }
+
+        /// <summary>
+        /// DTW-224: the style elements producing <paramref name="dt"/> can edit — the
+        /// resolved pack's managed templates (STING:{packId}:{ViewType}) for the view types
+        /// the item makes or reuses, and the pack's filters that exist in the model. Resolved
+        /// read-only; added to <paramref name="ids"/> and remembered as style elements, which
+        /// Check never borrows.
+        /// </summary>
+        private void AddStyleElements(DrawingType dt, DrawingContext ctx, HashSet<string> reusedViewTypes,
+            HashSet<ElementId> ids)
+        {
+            try
+            {
+                if (!_packByType.TryGetValue(dt.Id, out var pack))
+                    _packByType[dt.Id] = pack = ViewStylePackRegistry.ResolveForDrawingType(_doc, dt, out _);
+                if (pack == null) return;
+
+                if (pack.IsManaged && !string.IsNullOrEmpty(pack.Id))
+                {
+                    var rules = ctx.RulesOverride != null && ctx.RulesOverride.Count > 0 ? ctx.RulesOverride : dt.ProductionRules;
+                    var wanted = ProductionEdgeDecisions.ManagedTemplateViewTypes(rules?.Select(r => r.ViewType));
+                    if (_managedTemplates == null)
+                        _managedTemplates = ManagedTemplateSyncer.GetAllManagedTemplates(_doc)
+                            .Select(id => (Name: _doc.GetElement(id)?.Name ?? "", Id: id)).ToList();
+                    string prefix = "STING:" + pack.Id + ":";
+                    foreach (var (name, id) in _managedTemplates)
+                    {
+                        if (!name.StartsWith(prefix, StringComparison.Ordinal)) continue;
+                        string vt = name.Substring(prefix.Length);
+                        if (wanted != null && !wanted.Contains(vt) && !reusedViewTypes.Contains(vt)) continue;
+                        if (ids.Add(id)) _styleIds.Add(id);
+                    }
+                }
+
+                if (pack.Filters != null && pack.Filters.Count > 0)
+                {
+                    if (_filtersByName == null)
+                    {
+                        _filtersByName = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var f in new FilteredElementCollector(_doc).OfClass(typeof(ParameterFilterElement)))
+                            if (!string.IsNullOrEmpty(f.Name) && !_filtersByName.ContainsKey(f.Name)) _filtersByName[f.Name] = f.Id;
+                    }
+                    foreach (var rule in pack.Filters)
+                    {
+                        if (string.IsNullOrWhiteSpace(rule?.FilterName)) continue;
+                        if (_filtersByName.TryGetValue(rule.FilterName.Trim(), out var fid) && ids.Add(fid)) _styleIds.Add(fid);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // The views and sheets are still checked; a style element refused at commit
+                // is then reported by the failures preprocessor.
+                StingLog.Warn($"WorksharingPreflight style elements '{dt.Id}': {ex.Message} — templates and filters not pre-checked.");
+            }
         }
 
         /// <summary>Elements a sheet carries that production rewrites with it.</summary>
@@ -112,30 +182,34 @@ namespace StingTools.Core.Drawing
             if (!_active || ids == null || ids.Count == 0) return null;
             var owned = new List<KeyValuePair<string, string>>();
             var stale = new List<string>();
+            var styleOwned = new List<KeyValuePair<string, string>>();   // DTW-224
+            var styleStale = new List<string>();
             var toBorrow = new List<ElementId>();
             foreach (var id in ids)
             {
                 if (id == null || id == ElementId.InvalidElementId) continue;
+                bool style = _styleIds.Contains(id);
                 try
                 {
                     var status = WorksharingUtils.GetCheckoutStatus(_doc, id, out string owner);
                     if (status == CheckoutStatus.OwnedByOtherUser)
                     {
-                        owned.Add(new KeyValuePair<string, string>(Label(id), owner));
+                        (style ? styleOwned : owned).Add(new KeyValuePair<string, string>(Label(id), owner));
                         continue;
                     }
                     var updates = WorksharingUtils.GetModelUpdatesStatus(_doc, id);
                     if (updates == ModelUpdatesStatus.UpdatedInCentral || updates == ModelUpdatesStatus.DeletedInCentral)
                     {
-                        stale.Add(Label(id));
+                        (style ? styleStale : stale).Add(Label(id));
                         continue;
                     }
-                    if (status == CheckoutStatus.NotOwned) toBorrow.Add(id);
+                    if (status == CheckoutStatus.NotOwned && !style) toBorrow.Add(id);
                 }
                 catch (Exception ex) { StingLog.Warn($"WorksharingPreflight status {id}: {ex.Message}"); }
             }
+            string styleBlock = ProductionEdgeDecisions.StylePackBlockReason(styleOwned, styleStale);
             var notObtained = new List<string>();
-            if (owned.Count == 0 && stale.Count == 0 && toBorrow.Count > 0)
+            if (owned.Count == 0 && stale.Count == 0 && styleBlock == null && toBorrow.Count > 0)
             {
                 try
                 {
@@ -154,24 +228,43 @@ namespace StingTools.Core.Drawing
                     return "editing permission could not be obtained from the central model (" + ex.Message + ")";
                 }
             }
-            return ProductionRunReport.BlockReason(owned, stale, notObtained);
+            var block = ProductionRunReport.BlockReason(owned, stale, notObtained);
+            if (styleBlock == null) return block;
+            return block == null ? styleBlock : block + "; " + styleBlock;
         }
 
         /// <summary>
-        /// DTW-194: can the sheet-number counters — Extensible Storage on Project
-        /// Information — be written for the whole run? Checks ownership and that the
-        /// element is up to date, and borrows it. Null when they can (always, for a model
-        /// that is not workshared). Asked once, before the first item: a run that cannot
-        /// write them would number every new sheet from a guess, or roll back every item.
+        /// DTW-220: the run-level note when new sheet numbers cannot be reserved (the
+        /// counters are Extensible Storage on Project Information, owned by a colleague or
+        /// changed in central), or null when they can. Status is only READ — Project
+        /// Information is not borrowed here. A run whose items all reuse their sheets never
+        /// writes the counters, so borrowing up front blocked colleagues until sync for
+        /// nothing. The write that reserves a number edits Project Information inside the
+        /// item's transaction, and Revit borrows it at that moment (CheckoutElements cannot
+        /// run inside a transaction); DrawingProducer refuses an item needing a new number
+        /// first, through SheetSequenceStore.WriteBlockReason. Status that cannot be read is
+        /// logged and treated as writable: the per-item check and the write remain the arbiters.
         /// </summary>
-        internal string CheckSheetCounters()
+        internal string SheetCountersNote()
         {
             if (!_active) return null;
-            ElementId pi = null;
-            try { pi = _doc.ProjectInformation?.Id; }
-            catch (Exception ex) { StingLog.Warn($"WorksharingPreflight counters: {ex.Message}"); }
-            if (pi == null || pi == ElementId.InvalidElementId) return null;
-            return Check(new[] { pi });
+            try
+            {
+                var pi = _doc.ProjectInformation?.Id;
+                if (pi == null || pi == ElementId.InvalidElementId) return null;
+                var status = WorksharingUtils.GetCheckoutStatus(_doc, pi, out string owner);
+                string other = status == CheckoutStatus.OwnedByOtherUser
+                    ? (string.IsNullOrWhiteSpace(owner) ? "another user" : owner)
+                    : null;
+                var updates = WorksharingUtils.GetModelUpdatesStatus(_doc, pi);
+                bool stale = updates == ModelUpdatesStatus.UpdatedInCentral || updates == ModelUpdatesStatus.DeletedInCentral;
+                return ProductionEdgeDecisions.CountersNote(true, other, stale);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"WorksharingPreflight counters: {ex.Message} — not pre-checked; each new sheet is checked when it is numbered.");
+                return null;
+            }
         }
 
         /// <summary>Both checks for one item: null when it may run.</summary>
@@ -186,6 +279,7 @@ namespace StingTools.Core.Drawing
                 if (e is ViewSheet s) return $"{s.SheetNumber} - {s.Name}";
                 if (e is ProjectInfo) return "Project Information";
                 if (e is View v) return v.Name;
+                if (e is FilterElement f) return f.Name;   // DTW-224: a pack filter
                 if (e != null) return $"{e.Category?.Name ?? e.GetType().Name} {id.Value}";
             }
             catch (Exception ex) { StingLog.Warn($"WorksharingPreflight label {id}: {ex.Message}"); }
