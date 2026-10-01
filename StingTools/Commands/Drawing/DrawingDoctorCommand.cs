@@ -99,6 +99,12 @@ namespace StingTools.Commands.Drawing
                         staleSync.Add($"{s.SheetNumber}  lastSync={when:yyyy-MM-dd}");
                 }
 
+                // DTW-123: views and sheets produced for a context whose level, room or
+                // scope box has since been deleted. Production never revisits them, so they
+                // never converge; they are listed (and offered for selection), never deleted.
+                var orphanIds = new List<ElementId>();
+                var orphaned = FindOrphanedContexts(doc, sheets, orphanIds);
+
                 var sb = new StringBuilder();
                 sb.AppendLine($"STING — Drawing Doctor");
                 sb.AppendLine($"  Total sheets: {totalSheets}");
@@ -109,6 +115,8 @@ namespace StingTools.Commands.Drawing
                 sb.AppendLine($"  Sheets with no TB:      {missingTb.Count}");
                 sb.AppendLine($"  Family swaps:           {familySwap.Count}");
                 sb.AppendLine($"  Stale CSV sync (>30d):  {staleSync.Count}");
+                sb.AppendLine($"  Context deleted:        {orphaned.Count}    (level / room / box gone)");
+                AppendList(sb, "Views and sheets whose production context was deleted (not removed — review, then delete or re-produce)", orphaned);
                 AppendList(sb, "Cross-stamped sheets", crossStamped);
                 AppendList(sb, "Family swaps",         familySwap);
                 AppendList(sb, "Missing title block",  missingTb);
@@ -117,19 +125,38 @@ namespace StingTools.Commands.Drawing
 
                 var dlg = new TaskDialog("STING — Drawing Doctor")
                 {
-                    MainInstruction = $"{crossStamped.Count} cross-stamp(s), {familySwap.Count} family swap(s), {missingTb.Count} missing TB",
+                    MainInstruction = $"{crossStamped.Count} cross-stamp(s), {familySwap.Count} family swap(s), {missingTb.Count} missing TB, {orphaned.Count} with a deleted context",
                     MainContent = "Doctor inspects the title-block layer for divergence between the CSV-populate path and the recipe-binding path. " +
-                                  "Cross-stamped sheets carry stamps from both paths — values may have diverged.",
+                                  "Cross-stamped sheets carry stamps from both paths — values may have diverged." +
+                                  (orphaned.Count > 0
+                                      ? $"\n\n{orphaned.Count} view(s)/sheet(s) were produced for a level, room or scope box that no longer exists. Nothing is deleted."
+                                      : ""),
                     ExpandedContent = sb.ToString(),
                     CommonButtons = TaskDialogCommonButtons.Close,
                 };
+                if (orphanIds.Count > 0)
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        $"Select the {orphanIds.Count} view(s)/sheet(s) with a deleted context",
+                        "Selects them in the model so they can be reviewed, deleted or re-produced. Nothing is changed.");
                 // Inside a workflow preset: the full report to the log, the headline to the step message.
                 if (PresetDialog.Quiet)
                 {
                     StingLog.Info(sb.ToString());
                     msg = $"Drawing Doctor: {dlg.MainInstruction}; {unstamped.Count} unstamped of {totalSheets} sheet(s) (details in the STING log).";
                 }
-                else dlg.Show();
+                else if (dlg.Show() == TaskDialogResult.CommandLink1)
+                {
+                    try
+                    {
+                        var uidoc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument;
+                        uidoc?.Selection.SetElementIds(orphanIds);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"DrawingDoctor select orphaned contexts: {ex.Message}");
+                        TaskDialog.Show("STING — Drawing Doctor", $"Could not select them: {ex.Message}");
+                    }
+                }
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -138,6 +165,54 @@ namespace StingTools.Commands.Drawing
                 msg = ex.Message;
                 return Result.Failed;
             }
+        }
+
+        /// <summary>
+        /// DTW-123 — every stamped view and sheet whose context ids (ProductionContextKey,
+        /// DTW-42) name a level, room or scope box that no longer resolves. Stamps without
+        /// ids cannot be judged and are skipped.
+        /// </summary>
+        private static List<string> FindOrphanedContexts(Document doc, List<ViewSheet> sheets, List<ElementId> ids)
+        {
+            var lines = new List<string>();
+            var stamped = new List<(Element El, string Stamp, string Label)>();
+            foreach (var s in sheets)
+            {
+                var st = DrawingTypeStamper.ReadSheetContext(s);
+                if (!string.IsNullOrEmpty(st)) stamped.Add((s, st, $"Sheet {s.SheetNumber} - {s.Name}"));
+            }
+            try
+            {
+                foreach (var v in new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>())
+                {
+                    if (v == null || v.IsTemplate || v is ViewSheet) continue;
+                    var st = SafeRead(v, ParamRegistry.STING_VIEW_CONTEXT_TAG);
+                    if (!string.IsNullOrEmpty(st)) stamped.Add((v, st, $"View '{v.Name}'"));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DrawingDoctor orphaned views: {ex.Message}"); }
+
+            foreach (var (el, stamp, label) in stamped)
+            {
+                var ctx = ProductionContextIds.Parse(stamp);
+                if (!ctx.Any) continue;
+                var gone = new List<string>();
+                try
+                {
+                    if (ctx.LevelId.HasValue && !(doc.GetElement(new ElementId(ctx.LevelId.Value)) is Level))
+                        gone.Add($"level #{ctx.LevelId} ('{ProductionContextIds.LevelName(stamp) ?? "?"}')");
+                    if (ctx.RoomId != null && long.TryParse(ctx.RoomId, out var rid)
+                        && doc.GetElement(new ElementId(rid)) == null)
+                        gone.Add($"room #{ctx.RoomId}");
+                    if (ctx.BoxUniqueId != null && doc.GetElement(ctx.BoxUniqueId) == null)
+                        gone.Add("scope box");
+                }
+                catch (Exception ex) { StingLog.Warn($"DrawingDoctor context of {el.Id}: {ex.Message}"); continue; }
+                if (gone.Count == 0) continue;
+                lines.Add($"{label} [id {el.Id.Value}] - {string.Join(", ", gone)} deleted");
+                ids.Add(el.Id);
+            }
+            return lines;
         }
 
         private static string SafeRead(Element el, string paramName)
