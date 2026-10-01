@@ -3507,7 +3507,7 @@ namespace StingTools.UI
                 System.Windows.MessageBox.Show(
                     "Nothing was saved.\n\nThis project's drawing_types.json could not be read:\n"
                     + overrideError + "\n\nSaving now would overwrite it with only what the editor shows, losing every "
-                    + "project drawing type and routing rule in it. Repair or move the file, run Drawing Types → Reload, "
+                    + "project drawing type and routing rule in it. Repair or move the file, press Reload JSON (DOCS tab), "
                     + "and reopen the editor.",
                     "STING — Drawing Types", MessageBoxButton.OK);
                 return false;

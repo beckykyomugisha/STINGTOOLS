@@ -217,6 +217,20 @@ namespace StingTools.Tags.Tests
             Assert.Contains("MatchLineConfigRegistry.Reload(", src);
         }
 
+        // ── DTW-192 ───────────────────────────────────────────────────────
+
+        [Fact]
+        public void Csv_migration_prefers_the_project_title_block_table()
+        {
+            var src = DrawingCatalogueFixture.Source("Commands", "Drawing", "TitleBlockMigrateCsvToRecipeCommand.cs");
+            int project = src.IndexOf("StingPaths.MetaFile(doc, \"_BIM_COORD\", fileName)", StringComparison.Ordinal);
+            int corporate = src.IndexOf("StingToolsApp.FindDataFile(fileName)", StringComparison.Ordinal);
+            Assert.True(project > 0 && corporate > project, "project lookup must come first");
+            // The editor has no title-block-parameters card; the text must not send users to one.
+            Assert.DoesNotContain("Title block parameters' card", src);
+            Assert.DoesNotContain("Title block parameters card", src);
+        }
+
         // ── DTW-186 ───────────────────────────────────────────────────────
 
         [Fact]

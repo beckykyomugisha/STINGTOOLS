@@ -1580,7 +1580,7 @@ namespace StingTools.BIMManager
                         + (dtError != null ? "• drawing_types.json: " + dtError + "\n" : "")
                         + (packError != null ? "• view_style_packs.json: " + packError + "\n" : "")
                         + "\nImporting would overwrite it with only what the workbook holds. Repair or move the file, "
-                        + "run Drawing Types → Reload, and import again.");
+                        + "press Reload JSON (DOCS tab), and import again.");
                     return Result.Cancelled;
                 }
 
