@@ -464,6 +464,44 @@ namespace StingTools.Acc.Tests
             Assert.Equal("", AccReviewProposals.FindTransmittal(rows, "urn:v:none?version=1", "urn:item:none"));
         }
 
+        // E3: v3's approval must not land on v1's transmittal.
+        [Fact]
+        public void TheTransmittal_ForThisVersion_WinsOverAnEarlierOneOnTheSameItem()
+        {
+            var rows = JArray.Parse(@"[
+              {""transmittal_id"":""TR-v1"",""acc_item_urn"":""urn:item:9"",""acc_version_urn"":""urn:v:9?version=1""},
+              {""transmittal_id"":""TR-v3"",""acc_item_urn"":""urn:item:9"",""acc_version_urn"":""urn:v:9?version=3""}]");
+            Assert.Equal("TR-v3", AccReviewProposals.FindTransmittal(rows, "urn:v:9?version=3", "urn:item:9"));
+            Assert.Equal("TR-v1", AccReviewProposals.FindTransmittal(rows, "urn:v:9?version=1", "urn:item:9"));
+        }
+
+        [Fact]
+        public void SeveralTransmittalsOnTheItem_AndNoneForThisVersion_IsRefusedWithAReason()
+        {
+            var rows = JArray.Parse(@"[
+              {""transmittal_id"":""TR-a"",""acc_item_urn"":""urn:item:9""},
+              {""transmittal_id"":""TR-b"",""acc_item_urn"":""urn:item:9""}]");
+            Assert.Equal("", AccReviewProposals.FindTransmittal(rows, "urn:v:9?version=4", "urn:item:9", out string why));
+            Assert.Contains("TR-a", why);
+            Assert.Contains("TR-b", why);
+        }
+
+        [Fact]
+        public void TheOnlyTransmittalOnTheItem_RecordingAnotherVersion_IsRefused()
+        {
+            var rows = JArray.Parse(@"[{""transmittal_id"":""TR-v1"",""acc_item_urn"":""urn:item:9"",""acc_version_urn"":""urn:v:9?version=1""}]");
+            Assert.Equal("", AccReviewProposals.FindTransmittal(rows, "urn:v:9?version=3", "urn:item:9", out string why));
+            Assert.Contains("TR-v1", why);
+        }
+
+        [Fact]
+        public void TheOnlyTransmittalOnTheItem_RecordingNoVersion_IsStillFound()
+        {
+            var rows = JArray.Parse(@"[{""transmittal_id"":""TR-1"",""acc_item_urn"":""urn:item:9""}]");
+            Assert.Equal("TR-1", AccReviewProposals.FindTransmittal(rows, "urn:v:9?version=3", "urn:item:9", out string why));
+            Assert.Null(why);
+        }
+
         [Fact]
         public void AnUnreadableQueue_IsAnError_NotAnEmptyQueue()
         {

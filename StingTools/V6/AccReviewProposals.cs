@@ -343,22 +343,53 @@ namespace StingTools.V6
 
         // ── Which STING records a decision is about ──────────────────────
 
-        /// <summary>The transmittal row that recorded this version's upload (acc_version_urn,
-        /// acc_cover_version_urn, or the same item). Empty when none.</summary>
+        /// <summary>The transmittal row that recorded this version's upload. Empty when none.
+        /// See the overload for the matching rule.</summary>
         public static string FindTransmittal(JArray transmittalRows, string versionUrn, string itemUrn)
+            => FindTransmittal(transmittalRows, versionUrn, itemUrn, out _);
+
+        /// <summary>
+        /// E3. The transmittal row that recorded THIS version's upload:
+        ///   1. a row whose acc_version_urn / acc_cover_version_urn is exactly this version;
+        ///   2. else, by item, only when exactly ONE row has that item and that row records no
+        ///      other version - a row recording v1 is not where v3's decision belongs.
+        /// Several rows on the item, or one row on a different version, is refused: empty, with
+        /// <paramref name="refusal"/> saying why. The old rule took the first item hit, so v3's
+        /// approval landed on v1's transmittal.
+        /// </summary>
+        public static string FindTransmittal(JArray transmittalRows, string versionUrn, string itemUrn, out string refusal)
         {
+            refusal = null;
             if (transmittalRows == null) return string.Empty;
-            foreach (var row in transmittalRows.OfType<JObject>())
+            var rows = transmittalRows.OfType<JObject>().ToList();
+            if (!string.IsNullOrEmpty(versionUrn))
             {
-                bool hit =
-                    (!string.IsNullOrEmpty(versionUrn) &&
-                     (Eq(row["acc_version_urn"], versionUrn) || Eq(row["acc_cover_version_urn"], versionUrn))) ||
-                    (!string.IsNullOrEmpty(itemUrn) && Eq(row["acc_item_urn"], itemUrn));
-                if (!hit) continue;
-                string id = S(row["transmittal_id"]);
-                return id.Length > 0 ? id : S(row["id"]);
+                var exact = rows.FirstOrDefault(r => Eq(r["acc_version_urn"], versionUrn) || Eq(r["acc_cover_version_urn"], versionUrn));
+                if (exact != null) return RowId(exact);
             }
-            return string.Empty;
+            if (string.IsNullOrEmpty(itemUrn)) return string.Empty;
+            var byItem = rows.Where(r => Eq(r["acc_item_urn"], itemUrn)).ToList();
+            if (byItem.Count == 0) return string.Empty;
+            if (byItem.Count > 1)
+            {
+                refusal = $"{byItem.Count} transmittals ({string.Join(", ", byItem.Select(RowId))}) record this ACC item and none " +
+                          $"records version {versionUrn}, so the decision is not attached to any of them";
+                return string.Empty;
+            }
+            var only = byItem[0];
+            string recorded = S(only["acc_version_urn"]);
+            if (recorded.Length > 0 && !string.IsNullOrEmpty(versionUrn) && !string.Equals(recorded, versionUrn, StringComparison.Ordinal))
+            {
+                refusal = $"transmittal {RowId(only)} recorded version {recorded}, not {versionUrn}, so the decision is not attached to it";
+                return string.Empty;
+            }
+            return RowId(only);
+        }
+
+        private static string RowId(JObject row)
+        {
+            string id = S(row["transmittal_id"]);
+            return id.Length > 0 ? id : S(row["id"]);
         }
 
         /// <summary>The document key a file name belongs to, from <paramref name="keys"/>:

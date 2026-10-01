@@ -201,7 +201,8 @@ namespace StingTools.Core.Clash
                         comment, DateTime.Now, out string whyNone);
                     if (p == null) { notFinal[whyNone] = notFinal.TryGetValue(whyNone, out var n) ? n + 1 : 1; continue; }
                     p.ItemUrn = f.ItemUrn;
-                    p.TransmittalId = AccReviewProposals.FindTransmittal(txRows, f.VersionUrn, f.ItemUrn);
+                    p.TransmittalId = AccReviewProposals.FindTransmittal(txRows, f.VersionUrn, f.ItemUrn, out string txRefusal);
+                    if (!string.IsNullOrEmpty(txRefusal)) warnings.Add($"{f.FileName}: {txRefusal}");
                     p.DeliverableKey = AccReviewProposals.MatchDocumentKey(f.FileName, dKeys);
                     p.RegisterDocId = AccReviewProposals.MatchDocumentKey(f.FileName, rKeys);
                     incoming.Add(p);
