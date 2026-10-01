@@ -51,7 +51,7 @@
     "ifc_data_type": "IfcInteger"
   },
   {
-    "sting_param": "ASS_TAG_1",
+    "sting_param": "ASS_TAG_1_TXT",
     "ifc_pset": "Pset_ManufacturerTypeInformation",
     "ifc_property": "Tag",
     "ifc_data_type": "IfcIdentifier",
