@@ -450,8 +450,13 @@ namespace StingTools.Commands.Drawing
             return parts.Count == 0 ? null : "Preset overrides applied to every produced view: " + string.Join(", ", parts) + ".";
         }
 
+        /// <summary>
+        /// The result dialog. DTW-205: every warning goes to the STING log, and with a
+        /// document a run with more than the dialog shows writes them all to a CSV
+        /// (Validation route) the dialog names — the 21st onwards were simply lost.
+        /// </summary>
         internal static void ShowResult(string title, int views, int sheets, IList<string> warnings,
-            DrawingProductionPreset preset = null)
+            DrawingProductionPreset preset = null, Document doc = null)
         {
             var msg = new System.Text.StringBuilder();
             msg.AppendLine($"Views created: {views}");
@@ -460,12 +465,31 @@ namespace StingTools.Commands.Drawing
             if (presetLine != null) msg.AppendLine(presetLine);
             if (warnings != null && warnings.Count > 0)
             {
+                foreach (var w in warnings) StingLog.Info($"{title} warning: {w}");
+                string csv = warnings.Count > ProductionRunReport.DialogWarningLimit ? WriteWarningsCsv(doc, title, warnings) : null;
                 msg.AppendLine();
-                msg.AppendLine($"Warnings ({warnings.Count}):");
-                foreach (var w in warnings.Take(20)) msg.AppendLine("  • " + w);
-                if (warnings.Count > 20) msg.AppendLine($"  …and {warnings.Count - 20} more");
+                msg.Append(ProductionRunReport.WarningBlock(warnings, csv));
             }
             TaskDialog.Show(title, msg.ToString());
+        }
+
+        /// <summary>DTW-205: every warning to a routed CSV; null (and logged) when it cannot be written.</summary>
+        private static string WriteWarningsCsv(Document doc, string title, IList<string> warnings)
+        {
+            if (doc == null) return null;
+            try
+            {
+                var safe = new string((title ?? "Production").Where(c => char.IsLetterOrDigit(c)).ToArray());
+                var path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Validation",
+                    "STING_" + (safe.Length == 0 ? "Production" : safe) + "_Warnings", ".csv");
+                File.WriteAllText(path, ProductionRunReport.Csv(warnings), new UTF8Encoding(true));
+                return path;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"{title}: the warnings CSV could not be written: {ex.Message} — every warning is in this log.");
+                return null;
+            }
         }
     }
 
@@ -518,7 +542,7 @@ namespace StingTools.Commands.Drawing
                     warnings.Insert(0, $"Skipped {skippedEmpty.Count} drawing type / level pair(s) with nothing modelled "
                         + "('Skip levels with nothing modelled'): " + string.Join("; ", skippedEmpty.Take(12))
                         + (skippedEmpty.Count > 12 ? " …" : ""));
-                BatchProduceCommons.ShowResult("Produce Per Level", views, sheets, warnings, res.Preset);
+                BatchProduceCommons.ShowResult("Produce Per Level", views, sheets, warnings, res.Preset, doc);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceViewsPerLevel", ex); return Result.Failed; }
@@ -722,7 +746,7 @@ namespace StingTools.Commands.Drawing
                 if (boxesLeftOut > 0)
                     warnings.Add($"{boxesLeftOut} ticked box(es) are bound to a drawing type that is not ticked — not produced.");
                 Produce(doc, picked, bindingByName, tickedTypes, levels, opts, res.Preset?.PackageId, ref views, ref sheets, warnings);
-                BatchProduceCommons.ShowResult("Produce From Scope Boxes", views, sheets, warnings, res.Preset);
+                BatchProduceCommons.ShowResult("Produce From Scope Boxes", views, sheets, warnings, res.Preset, doc);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceFromScopeBoxes", ex); return Result.Failed; }
@@ -961,7 +985,7 @@ namespace StingTools.Commands.Drawing
                     tg.Assimilate();   // a stopped run keeps what it committed
                     if (runner.Stopped) warnings.Insert(0, runner.StoppedLine("room(s)"));
                 }
-                BatchProduceCommons.ShowResult("Produce Interior Elevations", views, sheets, warnings, res.Preset);
+                BatchProduceCommons.ShowResult("Produce Interior Elevations", views, sheets, warnings, res.Preset, doc);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceInteriorElevations", ex); return Result.Failed; }
@@ -1091,7 +1115,7 @@ namespace StingTools.Commands.Drawing
                     tg.Assimilate();   // a stopped run keeps what it committed
                     if (runner.Stopped) warnings.Insert(0, runner.StoppedLine("grid section(s)"));
                 }
-                BatchProduceCommons.ShowResult("Produce Sections", views, sheets, warnings, res.Preset);
+                BatchProduceCommons.ShowResult("Produce Sections", views, sheets, warnings, res.Preset, doc);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceSections", ex); return Result.Failed; }
@@ -1153,7 +1177,7 @@ namespace StingTools.Commands.Drawing
 
                 string blocker = Produce(doc, pickedTypes, host, elev, opts, res.Preset?.PackageId, ref views, ref sheets, warnings);
                 if (blocker != null) { TaskDialog.Show("STING", blocker); return Result.Succeeded; }
-                BatchProduceCommons.ShowResult("Produce Exterior Elevations", views, sheets, warnings, res.Preset);
+                BatchProduceCommons.ShowResult("Produce Exterior Elevations", views, sheets, warnings, res.Preset, doc);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceExteriorElevations", ex); return Result.Failed; }
@@ -1426,7 +1450,7 @@ namespace StingTools.Commands.Drawing
                     if (updated == 0) { message += " No template was regenerated."; return Result.Failed; }
                     return Result.Succeeded;
                 }
-                BatchProduceCommons.ShowResult("Regenerate Pack Templates", updated, 0, warnings);
+                BatchProduceCommons.ShowResult("Regenerate Pack Templates", updated, 0, warnings, null, doc);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("RegeneratePackTemplates", ex); return Result.Failed; }
@@ -1450,7 +1474,7 @@ namespace StingTools.Commands.Drawing
 
                 var outDir = OutputLocationHelper.GetRoutedDirectory(doc, "PDF");
                 var result = DrawingPackageManager.ExportPackage(doc, pkgId, outDir);
-                BatchProduceCommons.ShowResult("Export Drawing Package", result.SheetCount, 0, result.Warnings);
+                BatchProduceCommons.ShowResult("Export Drawing Package", result.SheetCount, 0, result.Warnings, null, doc);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ExportPackage", ex); return Result.Failed; }
