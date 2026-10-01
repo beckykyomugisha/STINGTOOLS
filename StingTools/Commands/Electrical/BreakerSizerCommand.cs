@@ -171,18 +171,23 @@ namespace StingTools.Commands.Electrical
                                         : $"wire size \"{wire}\" is not a single AWG / kcmil conductor";
                             else
                             {
-                                var necMat = string.Equals(mat, "Al", StringComparison.OrdinalIgnoreCase)
-                                    ? StingTools.Standards.NEC2023.ConductorMaterial.Aluminum
-                                    : StingTools.Standards.NEC2023.ConductorMaterial.Copper;
-                                try
+                                if (!StingTools.Standards.NEC2023.ConductorMaterialText.TryParse(mat, out var necMat))
+                                    izBasis = $"conductor material \"{mat}\" not recognised (Cu, Al or CCA)";
+                                else
                                 {
-                                    iz = StingTools.Standards.NEC2023.NECStandards.GetConductorAmpacity(necSize, necMat, 75);
+                                    // 240.4(D) applies to the size whatever 310.16 says — 2023 gives
+                                    // 14 AWG CCA a 10 A limit but no 310.16 ampacity.
                                     necSizeForLimit = necSize;
                                     necMatForLimit = necMat;
-                                    izBasis = $"Table 310.16 {(necMat == StingTools.Standards.NEC2023.ConductorMaterial.Aluminum ? "Al" : "Cu")} " +
-                                              $"{StingTools.Commands.Electrical.CableSizer.CableSizerEngine.NecSizeLabel(necSize)} @75°C, uncorrected (30 °C, ≤ 3 CCC)";
+                                    string matLabel = StingTools.Standards.NEC2023.ConductorMaterialText.Label(necMat);
+                                    try
+                                    {
+                                        iz = StingTools.Standards.NEC2023.NECStandards.GetConductorAmpacity(necSize, necMat, 75);
+                                        izBasis = $"Table 310.16 {matLabel} " +
+                                                  $"{StingTools.Commands.Electrical.CableSizer.CableSizerEngine.NecSizeLabel(necSize)} @75°C, uncorrected (30 °C, ≤ 3 CCC)";
+                                    }
+                                    catch (ArgumentException) { izBasis = $"{necSize} {matLabel} not in NEC Table 310.16"; }
                                 }
-                                catch (ArgumentException) { izBasis = $"{necSize} not in NEC Table 310.16"; }
                             }
                         }
 

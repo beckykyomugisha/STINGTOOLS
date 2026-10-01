@@ -823,6 +823,7 @@
                                 <ComboBox Grid.Row="5" Grid.Column="1" x:Name="cmbCblMaterial" Margin="2" FontSize="10">
                                     <ComboBoxItem Content="Copper (Cu)" IsSelected="True" Tag="Cu"/>
                                     <ComboBoxItem Content="Aluminium (Al)" Tag="Al"/>
+                                    <ComboBoxItem Content="Copper-clad aluminium (CCA) — NEC only" Tag="CCA"/>
                                 </ComboBox>
                                 <TextBlock Grid.Row="6" Grid.Column="0" Text="Insulation" Style="{StaticResource ElecLabel}"/>
                                 <ComboBox Grid.Row="6" Grid.Column="1" x:Name="cmbCblInsulation" Margin="2" FontSize="10">

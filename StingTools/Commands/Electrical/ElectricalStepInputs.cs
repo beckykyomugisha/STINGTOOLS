@@ -41,6 +41,7 @@ namespace StingTools.Commands.Electrical
         {
             new PresetStepInputs.Choice("Cu", "copper"),
             new PresetStepInputs.Choice("Al", "aluminium", "aluminum"),
+            new PresetStepInputs.Choice("CCA", "copper-clad aluminium", "copper-clad aluminum", "copperclad"),
         };
 
         internal static bool PanelOpen => StingElectricalCommandHandler.ActivePanel != null;

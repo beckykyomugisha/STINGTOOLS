@@ -365,8 +365,9 @@ namespace StingTools.UI
                 {
                     txtCblResultCurrent.Text = $"Design current: {r.DesignCurrentA:0.0} A";
                     txtCblResultSize.Text    = $"Min cable size: {r.CsaLabel}";
-                    txtCblResultVD.Text      = $"Actual VD: {r.ActualVoltDropPct:0.00}% " +
-                        (r.VDCompliant ? "✅" : "⚠");
+                    txtCblResultVD.Text      = r.VoltDropCalculated
+                        ? $"Actual VD: {r.ActualVoltDropPct:0.00}% " + (r.VDCompliant ? "✅" : "⚠")
+                        : "Actual VD: not calculated ⚠";
                     txtCblResultBreaker.Text = string.IsNullOrEmpty(r.ProtectiveDevice)
                         ? $"Breaker: {r.ProposedBreakerA} A"
                         : $"Device: {r.ProposedBreakerA} A {r.ProtectiveDevice}";

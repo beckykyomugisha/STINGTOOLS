@@ -661,6 +661,16 @@ namespace StingTools.Commands.Electrical
                         ? Math.Sqrt(3.0) * voltV * demandA * pf / 1000.0
                         : voltV * demandA * pf / 1000.0;
 
+                    // One reading of the material text (it was Contains("Al") — so
+                    // "ALUMINIUM" and "CCA" were both sized as copper). Unrecognised: refused.
+                    if (!StingTools.Standards.NEC2023.ConductorMaterialText.TryParse(mat, out var condMat))
+                    {
+                        refused++;
+                        string why = $"conductor material \"{mat}\" not recognised (Cu, Al or CCA)";
+                        refusalReasons[why] = refusalReasons.TryGetValue(why, out int nm) ? nm + 1 : 1;
+                        continue;
+                    }
+
                     var input = new CableSizeInput
                     {
                         LoadKW         = kw,
@@ -670,7 +680,7 @@ namespace StingTools.Commands.Electrical
                         // sizing data, so the old "B2" default was refused on every
                         // conduit with no method set. Assume C and say so.
                         InstallMethod  = string.IsNullOrWhiteSpace(method) ? DefaultInstallMethod : method,
-                        Material       = mat?.Contains("Al") == true ? "Al" : "Cu",
+                        Material       = StingTools.Standards.NEC2023.ConductorMaterialText.Label(condMat),
                         Phases         = phases,
                         AmbientTempC   = 30,
                         VDLimitPct     = 3.0,
@@ -697,7 +707,8 @@ namespace StingTools.Commands.Electrical
                     // Ib, which already lives in ELC_WIRE_MAX_DEMAND_A (this command's input).
                     var r = new WireStampWriteReport();
                     WireStampHelper.WriteNumber(el, "ELC_WIRE_CSA_MM2_NUM",       result.RecommendedCsaMm2, r);
-                    WireStampHelper.WriteNumber(el, "ELC_WIRE_VD_PCT_NUM",        result.ActualVoltDropPct, r);
+                    if (result.VoltDropCalculated)
+                        WireStampHelper.WriteNumber(el, "ELC_WIRE_VD_PCT_NUM",    result.ActualVoltDropPct, r);
                     double iz = result.EffectiveCapacityIzA > 0 ? result.EffectiveCapacityIzA : result.TabulatedCapacityA;
                     if (iz > 0) WireStampHelper.WriteNumber(el, "ELC_WIRE_AMPACITY_A", iz, r);
                     if (result.ProposedBreakerA > 0)
