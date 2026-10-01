@@ -107,43 +107,55 @@ namespace StingTools.Commands.Rooms
                 if (room.Location == null || room.Area <= 0) { tally.SkippedUnplaced++; continue; }
                 if (tagged.Contains(room.Id)) { tally.AlreadyHadTag++; continue; }
 
-                try
-                {
-                    var lp = room.Location as LocationPoint;
-                    if (lp == null) { tally.SkippedUnplaced++; continue; }
+                var lp = room.Location as LocationPoint;
+                if (lp == null) { tally.SkippedUnplaced++; continue; }
 
-                    var uv = new UV(lp.Point.X, lp.Point.Y);
-                    RoomTag tag = doc.Create.NewRoomTag(new LinkElementId(room.Id), uv, view.Id);
-                    if (tag == null)
-                    {
-                        tally.Failures.Add(Describe(room) + ": Revit returned no tag.");
-                        continue;
-                    }
-
-                    if (tagType != null)
-                    {
-                        try { tag.ChangeTypeId(tagType.Id); }
-                        catch (Exception ex)
-                        {
-                            // The tag exists and is usable; only its type is not what was asked.
-                            tally.Failures.Add(Describe(room) +
-                                ": tag placed but its type could not be set — " + ex.Message);
-                            StingLog.Warn("RoomTagPlacer type " + room.Id + ": " + ex.Message);
-                        }
-                    }
-
-                    try { tag.HasLeader = withLeader; }
-                    catch (Exception ex) { StingLog.Warn("RoomTagPlacer leader " + room.Id + ": " + ex.Message); }
-
-                    tally.Placed++;
-                }
-                catch (Exception ex)
-                {
-                    tally.Failures.Add(Describe(room) + ": " + ex.Message);
-                    StingLog.Warn("RoomTagPlacer place " + room.Id + ": " + ex.Message);
-                }
+                var tag = PlaceOne(doc, view, new LinkElementId(room.Id), lp.Point,
+                    tagType?.Id, withLeader, out string problem);
+                if (tag != null) tally.Placed++;
+                if (problem != null) tally.Failures.Add(Describe(room) + ": " + problem);
             }
             return tally;
+        }
+
+        /// <summary>
+        /// Place one room tag at <paramref name="point"/> (host coordinates) on a room of
+        /// this document or of a linked model. The type is applied when given; a type that
+        /// cannot be applied leaves the tag placed with the default type and says so.
+        /// Returns the tag, or null with <paramref name="problem"/> explaining why.
+        /// Shared with the drawing annotation runner (DTW-83). Caller owns the transaction.
+        /// </summary>
+        internal static RoomTag PlaceOne(Document doc, View view, LinkElementId room, XYZ point,
+            ElementId tagTypeId, bool withLeader, out string problem)
+        {
+            problem = null;
+            try
+            {
+                var uv = new UV(point.X, point.Y);
+                RoomTag tag = doc.Create.NewRoomTag(room, uv, view.Id);
+                if (tag == null) { problem = "Revit returned no tag."; return null; }
+
+                if (tagTypeId != null && tagTypeId != ElementId.InvalidElementId && tag.GetTypeId() != tagTypeId)
+                {
+                    try { tag.ChangeTypeId(tagTypeId); }
+                    catch (Exception ex)
+                    {
+                        // The tag exists and is usable; only its type is not what was asked.
+                        problem = "tag placed but its type could not be set — " + ex.Message;
+                        StingLog.Warn("RoomTagPlacer type " + room.HostElementId + "/" + room.LinkedElementId + ": " + ex.Message);
+                    }
+                }
+
+                try { tag.HasLeader = withLeader; }
+                catch (Exception ex) { StingLog.Warn("RoomTagPlacer leader " + tag.Id + ": " + ex.Message); }
+                return tag;
+            }
+            catch (Exception ex)
+            {
+                problem = ex.Message;
+                StingLog.Warn("RoomTagPlacer place " + room.HostElementId + "/" + room.LinkedElementId + ": " + ex.Message);
+                return null;
+            }
         }
 
         private static string Describe(Room room)
