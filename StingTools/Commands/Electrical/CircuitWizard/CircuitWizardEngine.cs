@@ -73,7 +73,8 @@ namespace StingTools.Commands.Electrical.CircuitWizard
         /// <summary>Maximum load utilisation percentage (0–1). Default 0.8 = 80 %.</summary>
         public double MaxLoadPct        { get; set; } = 0.80;
 
-        /// <summary>Wiring standard: "BS" or "NEC". Default "BS".</summary>
+        /// <summary>Wiring standard, any ElectricalStandardId spelling ("BS7671", "NEC",
+        /// "NEC2023" …); NEC is decided by ElectricalStandardId.IsNec. Default "BS" (= BS 7671).</summary>
         public string Standard          { get; set; } = "BS";
 
         /// <summary>Installation method for cable sizer: A1/A2/B1/B2/C/E/F. Default "C".</summary>
@@ -240,7 +241,7 @@ namespace StingTools.Commands.Electrical.CircuitWizard
         {
             double prospectiveVA = cur.TotalLoadVA + el.LoadVA;
             double iA = prospectiveVA / Math.Max(1.0, cur.VoltageV);
-            int trial = string.Equals(opts.Standard, "NEC", StringComparison.OrdinalIgnoreCase)
+            int trial = StingTools.Standards.ElectricalStandardId.IsNec(opts.Standard)
                 ? VoltageDropEngine.NextStandardBreakerSizeNEC(iA)
                 : VoltageDropEngine.NextStandardBreakerSizeBS(iA);
             // 0 = no standard device for the combined load: start a new circuit. A single
@@ -271,7 +272,7 @@ namespace StingTools.Commands.Electrical.CircuitWizard
             var opts = options ?? CircuitWizardOptions.Default;
             circuit.TotalLoadVA = circuit.Elements.Sum(e => e.LoadVA);
             double iA = circuit.TotalLoadVA / Math.Max(1.0, circuit.VoltageV);
-            bool nec = string.Equals(opts.Standard, "NEC", StringComparison.OrdinalIgnoreCase);
+            bool nec = StingTools.Standards.ElectricalStandardId.IsNec(opts.Standard);
             circuit.ProposedRatingA = nec
                 ? VoltageDropEngine.NextStandardBreakerSizeNEC(iA)
                 : VoltageDropEngine.NextStandardBreakerSizeBS(iA);

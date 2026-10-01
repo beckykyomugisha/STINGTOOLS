@@ -63,7 +63,7 @@ namespace StingTools.Commands.Electrical
             StingElectricalCommandHandler.LastBreakerProposals = proposals;
             var blocked = proposals.Where(p => p.Blocked).ToList();
             var confirm = proposals.Where(p => !p.Blocked && p.NeedsConfirmation).ToList();
-            string head = string.Equals(opts.Standard, "NEC", StringComparison.OrdinalIgnoreCase)
+            string head = StingTools.Standards.ElectricalStandardId.IsNec(opts.Standard)
                 ? "NEC 240.6(A) ratings" + (opts.ContinuousFactor ? ", ×1.25 continuous (210.20(A))" : "")
                 : "BS 7671 Reg 433.1.1: Ib ≤ In ≤ Iz (no ×1.25 continuous factor — that is an NEC rule)";
             StingLog.Info($"BreakerSizer: {proposals.Count} proposal(s), {blocked.Count} blocked ({opts.Standard}).");
@@ -96,7 +96,7 @@ namespace StingTools.Commands.Electrical
                     .Where(s => { try { return s.SystemType == ElectricalSystemType.PowerCircuit; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return true; } })
                     .ToList();
 
-                bool useNec = string.Equals(standard, "NEC", StringComparison.OrdinalIgnoreCase);
+                bool useNec = StingTools.Standards.ElectricalStandardId.IsNec(standard);
                 bool useMccb = string.Equals(standard, "BS_MCCB", StringComparison.OrdinalIgnoreCase);
                 int[] ratings = useNec ? VoltageDropEngine.BreakerSizesNEC
                               : useMccb ? VoltageDropEngine.BreakerSizesBSMCCB

@@ -41,7 +41,7 @@ namespace StingTools.Commands.Electrical.Busbar
 
         public static BusbarSizeResult Size(double demandA, string standard = "BS7671", double ambientC = 35)
         {
-            double designA = string.Equals(standard, "NEC", StringComparison.OrdinalIgnoreCase)
+            double designA = StingTools.Standards.ElectricalStandardId.IsNec(standard)
                 ? demandA * 1.25
                 : demandA * 1.00;
             double tempFactor = ambientC > 35 ? Math.Max(0.5, 1.0 - 0.005 * (ambientC - 35)) : 1.0;
