@@ -377,7 +377,23 @@ namespace StingTools.V6
         /// now exists only in memory. Returned as a warning the caller must show.</summary>
         private static string PersistAfterRefresh(AccCredentials creds)
         {
-            if (SaveCredentials(creds, out string err)) return string.Empty;
+            // P11: a refresh changes only the tokens. It used to write back the whole object the
+            // caller loaded before the network call - the keep-alive runs in the background, so a
+            // client id, hub or project saved from the ACC card during those seconds was lost.
+            // Now the file is re-read and only the token fields change on it.
+            KeepNewerFileToken(creds);
+            AccCredentials onDisk = null;
+            try { onDisk = AccCredentialStore.Load(out _); }
+            catch (Exception ex) { StingLog.Warn("AccIssueSync: machine credentials unreadable after refresh: " + ex.Message); }
+            var merged = MergeRefreshedTokens(onDisk, creds, out string refused);
+            if (refused != null)
+            {
+                StingLog.Warn("AccIssueSync: " + refused);
+                return refused;
+            }
+            string err;
+            if (merged == null ? SaveCredentials(creds, out err) : AccCredentialStore.Save(ToMachineFile(merged), out err))
+                return string.Empty;
             string msg = "The Autodesk token was refreshed but could not be saved (" + err + "). It works for this " +
                          "Revit session only — the next session will need 'Sign in with Autodesk' again.";
             StingLog.Error("AccIssueSync: " + msg);
@@ -949,6 +965,31 @@ namespace StingTools.V6
                 c.AccessToken = file.AccessToken;
                 c.AccessTokenExpiry = file.AccessTokenExpiry;
             }
+        }
+
+        /// <summary>
+        /// P11: what to write after a refresh. Null = the file holds no sign-in yet, so the
+        /// caller's object is written as before. Otherwise the file as it is NOW, with only the
+        /// four token fields taken from <paramref name="refreshed"/>. When the file now names a
+        /// different client id (the app was changed while the refresh ran), nothing is written
+        /// - those tokens belong to the old app - and <paramref name="refused"/> says so.
+        /// Revit-free; tested.
+        /// </summary>
+        internal static AccCredentials MergeRefreshedTokens(AccCredentials file, AccCredentials refreshed, out string refused)
+        {
+            refused = null;
+            if (refreshed == null || file == null || string.IsNullOrEmpty(file.ClientId)) return null;
+            if (!string.Equals(file.ClientId, refreshed.ClientId ?? "", StringComparison.Ordinal))
+            {
+                refused = "The Autodesk token was refreshed, but the ACC settings now name a different app (client id), " +
+                          "so the refreshed token was not saved over them. Sign in with Autodesk again for the new app.";
+                return null;
+            }
+            file.AccessToken = refreshed.AccessToken ?? string.Empty;
+            file.AccessTokenExpiry = refreshed.AccessTokenExpiry;
+            file.RefreshToken = refreshed.RefreshToken ?? string.Empty;
+            file.RefreshTokenIssuedAt = refreshed.RefreshTokenIssuedAt;
+            return file;
         }
 
         /// <summary>True when <paramref name="file"/> holds a different refresh token for the same
