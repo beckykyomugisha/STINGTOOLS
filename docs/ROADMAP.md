@@ -12,7 +12,6 @@ still open. Rows leave this table when their fix is merged; the worklog keeps th
 |---|---|---|---|
 | DTW-82 | Nothing merged in this loop has been run in Revit | Worklog "NEEDS REVIT CHECK" | Run the listed checks. Whether Revit accepts shared parameters on Lines (DTW-56) decides whether match-line keys move to Extensible Storage |
 | DTW-102 | Linked MEP runs are reported, not dimensioned | `AnnotationRunner MEP dimension passes` | Accepted limit: dimensioning through a link needs link references on pipe geometry, unverified off-Revit |
-| DTW-130 | Matchline frame has no provenance, so a re-run duplicates it and refresh skips decoratives | `AnnotationRunner` | In progress |
 
 ## Tag family library — missing families (2026-09-30)
 

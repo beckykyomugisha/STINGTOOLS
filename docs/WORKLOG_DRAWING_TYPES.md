@@ -183,7 +183,7 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-127 | ViewStylePackApplier ~549 | Low | Link overrides matched on the instance name | Merged | Done |
 | DTW-128 | SupplySchematicGenerator ~197/~109 | Low | DN printed twice per pipe; rank-3 source not marked assumed | Merged | Done |
 | DTW-129 | ParameterHelpers.DeriveSheetLevel ~4590 | Med | Sheet level stamp uses the elevation code; after DTW-105 the number uses the declared code | Merged | Done |
-| DTW-130 | AnnotationRunner matchline frame | Low | Four plain detail lines with no provenance, so a re-run adds another frame; refresh skips the whole decorative pass when a pack sets matchlineOffsetMm | Stamp the frame (provenance) and skip when present | In progress |
+| DTW-130 | AnnotationRunner matchline frame | Low | Four plain detail lines with no provenance, so a re-run adds another frame; refresh skips the whole decorative pass when a pack sets matchlineOffsetMm | Stamped frame; hold-back removed | Done |
 
 ## Decisions
 
