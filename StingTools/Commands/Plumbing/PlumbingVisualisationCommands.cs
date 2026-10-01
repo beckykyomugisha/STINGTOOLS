@@ -114,7 +114,15 @@ namespace StingTools.Commands.Plumbing
                                 ref message);
                             return Result.Cancelled;
                         }
-                        t.Commit();
+                        // DTW-124: a rolled-back commit (a failure handler, a regeneration
+                        // error) used to be reported as "created successfully".
+                        var status = t.Commit();
+                        if (status != TransactionStatus.Committed)
+                        {
+                            message = $"The drainage schematic was not saved: the transaction ended {status}.";
+                            StingLog.Warn($"PlumbDrainageSchematicCommand: commit returned {status}.");
+                            return Result.Failed;
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -739,7 +747,14 @@ namespace StingTools.Commands.Plumbing
                             ref message);
                         return Result.Cancelled;
                     }
-                    tx.Commit();
+                    // DTW-124: report a rolled-back commit, not a schematic that is not there.
+                    var status = tx.Commit();
+                    if (status != TransactionStatus.Committed)
+                    {
+                        message = $"The supply schematic was not saved: the transaction ended {status}.";
+                        StingLog.Warn($"PlumbSupplySchematic: commit returned {status}.");
+                        return Result.Failed;
+                    }
                 }
             }
             catch (Exception ex)
