@@ -63,6 +63,8 @@
     <Compile Include="..\StingTools\Core\TagTokenPolicy.cs" Link="Core\TagTokenPolicy.cs" />
     <Compile Include="..\StingTools\Core\TokenConfidenceBands.cs" Link="Core\TokenConfidenceBands.cs" />
     <Compile Include="..\StingTools\Core\SysConnectorChoice.cs" Link="Core\SysConnectorChoice.cs" />
+    <!-- DSCH-24: the plugin reader of the shared IFC pset map (Revit-free). -->
+    <Compile Include="..\StingTools\V6\IfcPsetMapping.cs" Link="V6\IfcPsetMapping.cs" />
     <!-- Numeric text extracted from a Revit value string. Revit-free: the culture and
          separator cases are exactly the ones that look obvious and are not. -->
     <Compile Include="..\StingTools\Core\UnitValueText.cs" Link="Core\UnitValueText.cs" />

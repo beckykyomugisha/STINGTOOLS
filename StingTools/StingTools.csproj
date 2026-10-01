@@ -268,6 +268,11 @@
     <None Include="Data\**\*"
           Exclude="Data\**\*.md;Data\**\*.bak;Data\**\*.py;Data\TAG_GUIDE.xlsx;Data\TAG GUIDE V2.xlsx"
           CopyToOutputDirectory="PreserveNewest" LinkBase="data" />
+    <!-- DSCH-24: the IFC pset <-> STING parameter map has ONE copy, shared with
+         Planscape.API (which links the same file). Never fork it back into Data/. -->
+    <None Include="..\shared\ifc\mappings\STING_IFC_PSET_MAPPING.json"
+          Link="data\IFC\STING_IFC_PSET_MAPPING.json"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

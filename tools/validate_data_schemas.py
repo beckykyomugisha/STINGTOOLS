@@ -807,6 +807,38 @@ def check_coverage(reg):
     return files
 
 
+def all_tracked_files():
+    """Every git-tracked file in the repository (for checks that span roots)."""
+    import subprocess
+    listing = subprocess.check_output(["git", "-C", REPO, "ls-files", "-z"],
+                                      stderr=subprocess.DEVNULL).decode("utf-8")
+    return [p for p in listing.split("\0") if p]
+
+
+_BUILD_OUTPUT = ("/bin/", "/obj/")
+
+
+def check_single_copy(reg, files=None):
+    """singleCopy: a file that is linked into several builds must exist exactly once.
+    A second tracked file with the same name is a fork - the two drift (DSCH-24)."""
+    rules = reg.get("singleCopy", {})
+    if not rules:
+        return
+    if files is None:
+        files = all_tracked_files()
+    for name, rule in rules.items():
+        canon = rule["path"]
+        if canon not in files and not os.path.isfile(os.path.join(REPO, canon)):
+            err(f"{canon}: singleCopy source for {name} does not exist.")
+        for f in files:
+            if os.path.basename(f) != name or f == canon:
+                continue
+            if f.startswith("CompiledPlugin/") or any(b in "/" + f for b in _BUILD_OUTPUT):
+                continue
+            err(f"{f}: a second copy of {name}. The one file is {canon}, linked into "
+                f"every build that needs it - {rule.get('reason', '')}")
+
+
 def validate_registered(reg, rel):
     kind, s = classify(reg, rel)
     if kind == "schema":
@@ -1170,6 +1202,18 @@ def self_test(reg):
         finally:
             tracked_files = real_tracked
         total += 1
+        # A forked copy of a file that must exist once (singleCopy).
+        if reg.get("singleCopy"):
+            errors = []
+            name, rule = next(iter(reg["singleCopy"].items()))
+            check_single_copy(reg, [rule["path"], "StingTools/Data/IFC/" + name])
+            if not any("a second copy" in e for e in errors):
+                failures.append("singleCopy: a forked copy was NOT caught")
+            errors = []
+            check_single_copy(reg, [rule["path"], "StingTools/bin/Debug/data/IFC/" + name])
+            if errors:
+                failures.append("singleCopy: a build-output copy was reported as a fork")
+            total += 2
     finally:
         ROOT = REPO
         errors, warnings, checked_files = [], [], 0
@@ -1210,6 +1254,7 @@ def main():
         return 0
 
     files = check_coverage(reg)
+    check_single_copy(reg)
     check_stale_allowances(reg)
     for rel in files:
         validate_registered(reg, rel)
