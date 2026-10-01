@@ -368,7 +368,10 @@ namespace StingTools.Core.Drawing
                         }
                         catch (Exception ex)
                         {
-                            StingTools.Core.StingLog.Warn($"SheetPlacementBridge.ResolveDrawableForFamily: {ex.Message}");
+                            // DTW-104: a failed load is not a read. Answer this call from what was
+                            // read so far, but do not cache it, so the next call tries again.
+                            StingTools.Core.StingLog.Warn($"SheetPlacementBridge.ResolveDrawableForFamily: {ex.Message} — not cached; will retry.");
+                            return cache.TryGetValue(familyName, out var partial) ? partial : null;
                         }
                         _drawableCache = cache;
                     }

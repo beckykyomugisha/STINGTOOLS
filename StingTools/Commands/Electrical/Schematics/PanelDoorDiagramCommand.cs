@@ -223,6 +223,9 @@ namespace StingTools.Commands.Electrical.Schematics
                 tx.Start();
 
                 string viewName = $"STING - Panel Layout - {panelName}";
+                // DTW-109: a board renamed since the last run still has its old view on its
+                // id-keyed sheet. Give that view the new name so it is redrawn in place.
+                RenamePreviousView(doc, BoardNaming.DoorDiagramSheetTag(chosenPanel.Id.Value), viewName);
                 var view = StingTools.Core.Drawing.SchematicViewFactory.CreateOrReplace(doc, viewName, out string viewError);
                 if (view == null)
                 {
@@ -356,6 +359,34 @@ namespace StingTools.Commands.Electrical.Schematics
         /// board's name as its context tag. Re-tag it by id, so the placement finds it (and
         /// a later rename keeps it) instead of making a second sheet.
         /// </summary>
+        private const string PanelLayoutViewPrefix = "STING - Panel Layout - ";
+
+        /// <summary>
+        /// DTW-109: find this board's door-diagram view on its id-keyed sheet under an older
+        /// name (the board was renamed) and rename it, so CreateOrReplace reuses it instead of
+        /// leaving it orphaned. Caller owns the transaction.
+        /// </summary>
+        private static void RenamePreviousView(Document doc, string idTag, string viewName)
+        {
+            try
+            {
+                if (new FilteredElementCollector(doc).OfClass(typeof(ViewDrafting)).Cast<View>()
+                        .Any(v => !v.IsTemplate && string.Equals(v.Name, viewName, StringComparison.Ordinal)))
+                    return;   // the current name already exists; CreateOrReplace reuses it
+                var sheet = new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).Cast<ViewSheet>()
+                    .FirstOrDefault(sh => string.Equals(DrawingTypeStamper.ReadSheetContext(sh), idTag, StringComparison.Ordinal));
+                if (sheet == null) return;
+                var old = sheet.GetAllPlacedViews()
+                    .Select(id => doc.GetElement(id) as ViewDrafting)
+                    .FirstOrDefault(v => v != null && v.Name.StartsWith(PanelLayoutViewPrefix, StringComparison.Ordinal));
+                if (old == null) return;
+                string was = old.Name;
+                old.Name = viewName;
+                StingLog.Info($"PanelDoorDiagram: view '{was}' renamed to '{viewName}' (board renamed).");
+            }
+            catch (Exception ex) { StingLog.Warn($"PanelDoorDiagram: rename previous view to '{viewName}': {ex.Message} — a new view will be made."); }
+        }
+
         private static void AdoptLegacySheet(Document doc, string boardName, string idTag)
         {
             try
