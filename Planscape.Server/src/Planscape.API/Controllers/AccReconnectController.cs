@@ -64,6 +64,10 @@ public class AccReconnectController : ControllerBase
     /// <summary>Why a connection needs a reconnect, or null when it does not.</summary>
     public static string? ReasonFor(PlatformConnection c)
     {
+        // H-1: an SSA connection has no refresh token by design and mints a new access token
+        // whenever it needs one, so a person signing in again changes nothing for it. Its
+        // failures are server settings, reported by the sync / test with the setting's name.
+        if (Planscape.Infrastructure.Services.Aps.ApsSsa.IsSsa(c)) return null;
         if (AccTokenRefresher.TokensUnreadable(c))
             return "Stored tokens cannot be decrypted: they were encrypted under a server key ring that no longer exists (for example, saved before the durable key store was deployed). They cannot be recovered.";
         if (string.IsNullOrWhiteSpace(c.RefreshToken))

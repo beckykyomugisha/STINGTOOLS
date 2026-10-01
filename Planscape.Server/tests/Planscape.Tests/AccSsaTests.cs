@@ -183,4 +183,25 @@ public partial class AccServerIntegrationTests
         Assert.Contains("SSA assertion", outcome.Error);
         Assert.Contains("HTTP 400", outcome.Error);
     }
+
+    // H-1: an SSA connection was listed as "reconnect required" (no refresh token), and a
+    // reconnect changed nothing; its test said "try again" for a missing server setting.
+    [Fact]
+    public async Task An_SSA_connection_is_not_listed_for_reconnect_and_its_test_names_the_setting()
+    {
+        var fx = new Fx();
+        var conn = await SeedSsaConnectionAsync(fx);
+        Assert.Null(Planscape.API.Controllers.AccReconnectController.ReasonFor(conn));
+
+        var oauth = new PlatformConnection { RefreshToken = "", ConfigJson = "{}" };
+        Assert.NotNull(Planscape.API.Controllers.AccReconnectController.ReasonFor(oauth));   // unchanged for OAuth
+
+        using var db = fx.Db();
+        var tracked = await db.PlatformConnections.SingleAsync(c => c.Id == fx.ConnId);
+        var t = await fx.Service(db).TestConnectionAsync(tracked);
+        Assert.False(t.Success);
+        Assert.DoesNotContain("try again", t.Message);
+        Assert.Contains("Secure Service Account", t.Message);
+        Assert.Contains(ApsSsa.KeyClientId, t.Message);
+    }
 }

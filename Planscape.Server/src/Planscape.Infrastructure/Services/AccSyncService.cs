@@ -229,7 +229,11 @@ public class AccSyncService
                 Mark(conn, Reconnect($"Couldn't obtain an ACC access token — reconnect ACC. {t.Error}"));
                 await _db.SaveChangesAsync(ct);
             }
-            return new PlatformTestResult(false, $"Couldn't obtain an ACC access token — {(t.ReconnectRequired ? "reconnect ACC" : "try again")}. {t.Error}");
+            // H-1: an SSA failure is a server setting or the SSA's ACC access, not a sign-in to redo.
+            string advice = t.ReconnectRequired ? "reconnect ACC"
+                : Aps.ApsSsa.IsSsa(conn) ? "this connection uses a Secure Service Account (accAuthMode = ssa); fix the server setting or ACC access named here"
+                : "try again";
+            return new PlatformTestResult(false, $"Couldn't obtain an ACC access token — {advice}. {t.Error}");
         }
         return await connector.TestConnectionAsync(conn, ct);
     }
