@@ -434,16 +434,65 @@ namespace StingTools.Core.Fabrication
             // in-memory bucket remains as the degraded path for documents
             // where ExtensibleStorage is unavailable (no transaction, or
             // ProjectInformation owned by another user).
+            //
+            // DTW-94: the project's sheet-number policy (PRJ_ORG_SHEET_NUMBER_POLICY_TXT)
+            // applies to spool sheets as it does to every produced drawing: the drawing
+            // type's pattern is resolved through SheetNumberPolicy.ResolvePattern, exactly
+            // as DrawingProducer does, so an "iso" project gets ISO 19650 numbers here too.
+            // Resolved before the sequence because under ISO it also picks the counter: the
+            // number's own template (SheetNumberEngine.CounterBucket), the same bucket the
+            // producer draws from, so a spool sheet and a produced sheet that would share a
+            // number share a counter instead of colliding.
+            var options = StingTools.Commands.Fabrication.FabricationOptions.ShopDrawing;
+            var policy = SheetNumberPolicyKind.Profile;
+            string registryNumPattern = drawingType?.SheetNumberPattern;
+            if (drawingType != null)
+            {
+                try
+                {
+                    policy = SheetNumberPolicy.Parse(StingTools.Core.Drawing.DrawingProducer.ReadSheetNumberPolicy(doc));
+                    registryNumPattern = SheetNumberPolicy.ResolvePattern(drawingType, policy, out var policyNote);
+                    if (!string.IsNullOrEmpty(policyNote)) result?.Warnings.Add(policyNote);
+                }
+                catch (Exception exPol)
+                {
+                    result?.Warnings.Add($"Sheet-number policy: {exPol.Message} — the drawing type's own pattern is used.");
+                    policy = SheetNumberPolicyKind.Profile;
+                    registryNumPattern = drawingType.SheetNumberPattern;
+                }
+            }
+            // The ISO counter applies only when the policy-resolved pattern is the one
+            // that numbers this sheet (a pattern captured in the options dialog wins).
+            string isoTemplate = null;
+            if (policy == SheetNumberPolicyKind.Iso && string.IsNullOrEmpty(options?.SheetNumberPattern)
+                && !string.IsNullOrEmpty(registryNumPattern))
+            {
+                isoTemplate = SheetNumberEngine.Template(registryNumPattern,
+                    disc: discCode, lvl: levelCode, sys: sysCode, mark: "", spool: spool ?? "", purpose: drawingType?.Purpose ?? "",
+                    extras: BuildTokenDict(doc, drawingType, spool, discCode, discipline, sysCode, levelCode, 0));
+                if (isoTemplate == null)
+                    result?.Warnings.Add($"Sheet-number pattern '{registryNumPattern}' does not carry exactly one {{seq}} token, "
+                                       + "so it cannot share an ISO counter; numbered from the spool bucket.");
+            }
+
             int seq;
             bool persisted = false;
             try
             {
-                seq = SheetSequenceStore.Next(
-                    doc,
-                    drawingTypeId: drawingType?.Id ?? "fabrication-spool",
-                    packageId:     sysCode,
-                    discipline:    discCode,
-                    vol:           levelCode ?? "");
+                if (isoTemplate != null)
+                {
+                    var tpl = isoTemplate;
+                    seq = SheetSequenceStore.NextForBucket(doc,
+                        SheetNumberEngine.CounterBucket(policy, tpl, drawingType?.Id, sysCode, discCode, levelCode ?? ""),
+                        () => HighestSequence(doc, tpl));
+                }
+                else
+                    seq = SheetSequenceStore.Next(
+                        doc,
+                        drawingTypeId: drawingType?.Id ?? "fabrication-spool",
+                        packageId:     sysCode,
+                        discipline:    discCode,
+                        vol:           levelCode ?? "");
                 persisted = true;
             }
             catch (Exception exSeq)
@@ -475,8 +524,6 @@ namespace StingTools.Core.Fabrication
             // a corporate pattern; otherwise fall back to the spool
             // number (if minted by AssemblyBuilder) or the engine
             // default SP-{disc}-{sys}-{lvl}-{seq}.
-            var options = StingTools.Commands.Fabrication.FabricationOptions.ShopDrawing;
-            string registryNumPattern = drawingType?.SheetNumberPattern;
             var extraTokens = BuildTokenDict(doc, drawingType, spool, discCode, discipline, sysCode, levelCode, seq);
             string sheetNumber = !string.IsNullOrEmpty(options?.SheetNumberPattern)
                 ? SubstituteTokens(options.SheetNumberPattern, spool, discCode, sysCode, levelCode, seq, discipline, extras: extraTokens)
@@ -559,6 +606,24 @@ namespace StingTools.Core.Fabrication
         private static string ReadString(Element el, string param)
         {
             try { return el?.LookupParameter(param)?.AsString() ?? ""; } catch { return ""; }
+        }
+
+        /// <summary>
+        /// First-use seed for an ISO counter bucket: the highest sequence any sheet already
+        /// carries in <paramref name="template"/>'s shape (DTW-94; the same reading
+        /// DrawingProducer seeds with, including numbers that still end in a status tail).
+        /// </summary>
+        private static int HighestSequence(Document doc, string template)
+        {
+            int max = 0;
+            foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)))
+            {
+                if (!(el is ViewSheet vs) || vs.IsPlaceholder) continue;
+                var n = SheetNumberEngine.ExtractSequence(vs.SheetNumber, template)
+                     ?? SheetNumberEngine.ExtractSequence(SheetNumberPolicy.StripStatusSuffix(vs.SheetNumber), template);
+                if (n.HasValue && n.Value > max) max = n.Value;
+            }
+            return max;
         }
 
         /// <summary>
