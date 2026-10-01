@@ -4600,29 +4600,14 @@ namespace StingTools.Core
                 // "01" on a ground-floor plan.
                 var map = BuildLevelMap(doc);
 
-                var levelCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-                foreach (View view in vpViews)
-                {
-                    Level lvl = view.GenLevel;
-                    if (lvl == null) continue;
-
-                    string code = (map != null && map.TryGetValue(lvl.Name, out string m))
-                        ? m
-                        : IsoLevelCode.FromNameOnly(lvl.Name);
-                    if (string.IsNullOrEmpty(code)) continue;
-
-                    levelCounts.TryGetValue(code, out int c);
-                    levelCounts[code] = c + 1;
-                }
-
-                if (levelCounts.Count == 0) return IsoLevelCode.NotApplicable;
-                if (levelCounts.Count == 1) return levelCounts.Keys.First();
-
+                // DTW-129: the code per level is the one the ISO sheet NUMBER takes
+                // (SheetNumberPolicy.LevelToken over the same map), so the stamp and the
+                // number agree on a level the project declares a code for.
                 // A sheet drawing several storeys is ZZ -- "applies to more than one
                 // level" -- and that is a real ISO code, not a fallback. Naming the
                 // most common one would state that the sheet covers that storey and
                 // silently drop the others.
-                return IsoLevelCode.Multiple;
+                return SheetLevelCode.ForSheet(vpViews.Select(v => v.GenLevel?.Name), map);
             }
             catch (Exception ex)
             {
@@ -4649,23 +4634,13 @@ namespace StingTools.Core
 
             try
             {
-                var storeys = new List<StoreyDatum>();
-                foreach (Level lvl in new FilteredElementCollector(doc)
-                             .OfClass(typeof(Level)).Cast<Level>())
-                {
-                    if (lvl == null || string.IsNullOrWhiteSpace(lvl.Name)) continue;
-                    storeys.Add(new StoreyDatum
-                    {
-                        Name = lvl.Name,
-                        // Revit's internal unit is decimal FEET; the resolver reasons
-                        // in millimetres because its ground tolerance is a real
-                        // physical distance, not a unitless number.
-                        ElevationMm = UnitUtils.ConvertFromInternalUnits(
-                            lvl.Elevation, UnitTypeId.Millimeters),
-                    });
-                }
-
-                _levelMap = IsoLevelCode.BuildMap(storeys);
+                // DTW-129: ONE map — the one DrawingProducer numbers ISO sheets from: the
+                // elevation stack with the project's declared level codes laid over it
+                // (DTW-105). This built its own elevation-only map, so on a declared level
+                // the SHT_TAG_1 stamp and the sheet number named two different codes.
+                var map = StingTools.Core.Drawing.DrawingProducer.BuildIsoLevelMap(doc);
+                if (map == null) return null;   // BuildIsoLevelMap logged why
+                _levelMap = map;
                 _levelMapDocKey = key;
                 return _levelMap;
             }
