@@ -1878,7 +1878,7 @@ namespace StingTools.Core.Drawing
                 if (sp != null && !rule.ScaleOverride.HasValue && !pinScale
                     && doc.GetElement(viewId) is View vFit
                     && PrimaryViewIdValue(vFit) < 0)
-                    SheetPlacementBridge.ApplyFitScale(doc, vFit, sp);
+                    SheetPlacementBridge.ApplyFitScale(doc, vFit, sp, dt.Scale, result.Warnings);
 
                 // SLOT-3: warn on a view/slot type mismatch rather than
                 // placing it silently into the wrong slot. DTW-63: slot terms
@@ -1908,7 +1908,7 @@ namespace StingTools.Core.Drawing
                 {
                     try
                     {
-                        var ssi = ScheduleSheetInstance.Create(doc, sheetId, scheduleView.Id, pt);
+                        var ssi = SheetPlacementBridge.PlaceScheduleInSlot(doc, sheetId, scheduleView, sp, pt, result.Warnings); // DTW-151: top-left, not centre
                         if (ssi != null)
                         {
                             SheetPlacementBridge.MarkAutoPlaced(ssi); // DTW-98: ES, not an unbindable parameter
@@ -1952,6 +1952,7 @@ namespace StingTools.Core.Drawing
                             $"Viewport type '{vpTypeName}' not found — viewport for slot '{sp?.Slot?.Label}' uses the default.");
                     }
                 }
+                SheetPlacementBridge.ReportViewportOverflow(vp, sp, result.Warnings); // DTW-157
                 return vp.Id;
             }
             catch (Exception ex)

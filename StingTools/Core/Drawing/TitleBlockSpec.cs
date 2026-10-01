@@ -434,7 +434,7 @@ namespace StingTools.Core.Drawing
 
         /// <summary>Walk the <see cref="TitleBlockSpec.Extends"/> chain
         /// and return a flattened spec — parent-first concatenation for
-        /// list fields, child-wins for scalar fields. Loop-safe via a
+        /// list fields, nearest-wins for scalar fields (DTW-149). Loop-safe via a
         /// visited set. Returns the input unchanged when there's no
         /// parent.</summary>
         public static TitleBlockSpec Resolve(TitleBlockLibrary lib, TitleBlockSpec spec)
@@ -463,16 +463,21 @@ namespace StingTools.Core.Drawing
             // Walk parents oldest → newest, fold into a fresh accumulator,
             // then layer the original child on top.
             chain.Reverse();
+            // DTW-149 — scalars are NOT pre-seeded from the leaf. MergeInto
+            // makes them nearest-wins (a later, nearer-to-leaf spec overrides),
+            // so seeding them here and folding root-first used to let the ROOT
+            // win over the size base: twelve A0/A2/A3 working families were
+            // minted from A1_common's "A1 metric.rft".
             var merged = new TitleBlockSpec
             {
                 Id          = spec.Id,
                 Description = spec.Description,
                 Abstract    = false, // resolved specs are concrete
                 Extends     = null,
-                Mode        = spec.Mode,
-                TemplateRft = spec.TemplateRft,
+                Mode        = null,
+                TemplateRft = null,
                 SaveAs      = spec.SaveAs,
-                Category    = spec.Category,
+                Category    = null,
             };
             foreach (var p in chain) MergeInto(merged, p);
             MergeInto(merged, spec);
@@ -493,10 +498,14 @@ namespace StingTools.Core.Drawing
         private static void MergeInto(TitleBlockSpec into, TitleBlockSpec from)
         {
             if (from == null) return;
-            // Scalars — child wins, but only when child left it blank.
-            if (string.IsNullOrEmpty(into.TemplateRft)) into.TemplateRft = from.TemplateRft;
-            if (string.IsNullOrEmpty(into.Mode))        into.Mode        = from.Mode;
-            if (string.IsNullOrEmpty(into.Category))    into.Category    = from.Category;
+            // Scalars — NEAREST-WINS (DTW-149). Resolve folds root → … → leaf,
+            // so `from` is always nearer to the leaf than anything already in
+            // the accumulator: take its value whenever it supplies one. A blank
+            // value inherits. (Was fill-if-blank, which with a root-first fold
+            // meant the ROOT won.)
+            if (!string.IsNullOrEmpty(from.TemplateRft)) into.TemplateRft = from.TemplateRft;
+            if (!string.IsNullOrEmpty(from.Mode))        into.Mode        = from.Mode;
+            if (!string.IsNullOrEmpty(from.Category))    into.Category    = from.Category;
             // P12 — Drawable is LEAF-WINS (unlike the string scalars above).
             // Resolve() folds root→…→leaf as `incoming`, so taking the incoming
             // value whenever it supplies one means a size base (A0/A3/portrait)

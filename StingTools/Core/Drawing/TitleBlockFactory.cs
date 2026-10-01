@@ -205,6 +205,7 @@ namespace StingTools.Core.Drawing
                 DefinitionFile defFile = app.OpenSharedParameterFile();
 
                 // 4. Augment inside a transaction.
+                Dictionary<string, FamilyParameter> builtParams = null;
                 using (var tx = new Transaction(famDoc, $"STING Build {spec.Id}"))
                 {
                     tx.Start();
@@ -227,6 +228,7 @@ namespace StingTools.Core.Drawing
                     var paramByName = new Dictionary<string, FamilyParameter>(
                         StringComparer.OrdinalIgnoreCase);
                     AddAllParameters(fm, defFile, spec, paramByName, r);
+                    builtParams = paramByName;   // DTW-156: the revision pass runs after propagation
 
                     // 4b. Lines — seed carries the border/strip already, so only
                     // the template fallback draws them (drawing them onto a seed
@@ -265,15 +267,8 @@ namespace StingTools.Core.Drawing
                         foreach (var slot in spec.Slots)
                             PlaceSlot(famDoc, fm, view, slot, spec.Drawable, r);
 
-                    // 4g. Revision history — a NATIVE Revit revision schedule for
-                    // any slot tagged "revision-history". Runs on every build path
-                    // (template / seed / master): hand-authored seeds want the
-                    // schedule too, and the helper is idempotent so a seed that
-                    // already carries one is left alone. Revit maintains an
-                    // embedded revision schedule automatically once it exists in
-                    // the family, which is why this is the zero-maintenance fix
-                    // for the previously-empty revision zone.
-                    PlaceRevisionSchedules(famDoc, fm, defFile, view, spec, paramByName, r);
+                    // 4g. Revision history — moved AFTER master-seed propagation
+                    // (DTW-156); see below.
 
                     // 4h. CDE status band — like the revision schedule, an overlay
                     // on EVERY build path: the static regions above are skipped on
@@ -299,6 +294,29 @@ namespace StingTools.Core.Drawing
                 {
                     r.PropagatedFromMaster = true;
                     r.MasterSeedSource     = masterSeedPath;
+                }
+
+                // 4g. Revision history — a NATIVE Revit revision schedule for
+                // any slot tagged "revision-history". Runs on every build path
+                // (template / seed / master): hand-authored seeds want the
+                // schedule too, and the helper is idempotent so a seed that
+                // already carries one is left alone. Revit maintains an
+                // embedded revision schedule automatically once it exists in
+                // the family, which is why this is the zero-maintenance fix
+                // for the previously-empty revision zone.
+                //
+                // DTW-156: this ran inside the build transaction, BEFORE the
+                // master-seed propagation, so its idempotency check could never
+                // see anything the propagation brings. It now runs last, and the
+                // propagation no longer copies schedule instances at all.
+                using (var txRev = new Transaction(famDoc, $"STING Revision schedule {spec.Id}"))
+                {
+                    txRev.Start();
+                    var revView = ResolveTitleBlockView(famDoc);
+                    if (revView != null)
+                        PlaceRevisionSchedules(famDoc, famDoc.FamilyManager, defFile, revView, spec,
+                            builtParams ?? new Dictionary<string, FamilyParameter>(StringComparer.OrdinalIgnoreCase), r);
+                    txRev.Commit();
                 }
                 if (!fromSeed)
                 {
@@ -671,6 +689,10 @@ namespace StingTools.Core.Drawing
                 foreach (Element e in new FilteredElementCollector(masterDoc, srcView.Id)
                              .WhereElementIsNotElementType())
                 {
+                    // DTW-156: never a schedule instance. The revision table is
+                    // the factory's (PlaceRevisionSchedules, run after this) —
+                    // copying the master's as well put two tables on the sheet.
+                    if (e is ScheduleSheetInstance) continue;
                     if (e is TextElement || e is CurveElement || e is FilledRegion
                         || e is FamilyInstance || e is ImportInstance)
                         ids.Add(e.Id);
