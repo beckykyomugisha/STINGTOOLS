@@ -177,6 +177,8 @@ namespace StingTools.Core.Clash
                     int named = 0, assigned = 0;
                     foreach (var r in records)
                     {
+                        // E6: the raiser's name, from the same member list (the id is kept when unknown).
+                        if (!string.IsNullOrEmpty(r.CreatedBy)) r.CreatedByName = dir.Value.NameFor(r.CreatedBy, "user");
                         if (string.IsNullOrEmpty(r.AssignedTo)) continue;
                         assigned++;
                         r.AssignedToName = dir.Value.NameFor(r.AssignedTo, r.AssignedToType);

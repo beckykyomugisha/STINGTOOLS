@@ -224,6 +224,19 @@ namespace StingTools.Core
 
         public static string SourceName(IssueSource s) => s.ToString().ToLowerInvariant();
 
+        /// <summary>E6: the priority an SLA clock may run on, or null when the row states none
+        /// (missing, blank, or flagged priority_defaulted - ACC issues carry no priority). Null
+        /// means "no SLA", never MEDIUM: assuming MEDIUM put a one-week clock on imported ACC
+        /// issues nobody had prioritised.</summary>
+        public static string SlaPriority(JObject row)
+        {
+            if (row == null) return null;
+            var flag = row["priority_defaulted"];
+            if (flag != null && flag.Type == JTokenType.Boolean && (bool)flag) return null;
+            string p = row["priority"]?.Type == JTokenType.String ? ((string)row["priority"] ?? "").Trim() : "";
+            return p.Length == 0 ? null : p.ToUpperInvariant();
+        }
+
         /// <summary>
         /// True when ACC owns this issue: it was imported from ACC (acc_issue_id / source "acc")
         /// or it is linked to an ACC issue STING itself raised (acc_origin). Such a row must

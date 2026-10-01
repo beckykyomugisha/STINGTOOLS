@@ -285,12 +285,16 @@ namespace StingTools.BIMManager
                         File.Exists(issuesPath) ? File.GetLastWriteTimeUtc(issuesPath) : DateTime.MinValue,
                         issues);
                 }
+                int noSla = 0;
                 foreach (var issue in issues)
                 {
                     string status = issue["status"]?.ToString() ?? "";
                     if (status == "CLOSED" || status == "VOID" || status == "ACCEPTED") continue;
 
-                    string priority = issue["priority"]?.ToString() ?? "MEDIUM";
+                    // E6: a row with no stated priority (an ACC import) has NO SLA - it used to
+                    // be assumed MEDIUM, so a six-week-old ACC issue read as a week overdue.
+                    string priority = IssueSchema.SlaPriority(issue as JObject);
+                    if (priority == null) { noSla++; continue; }
                     if (!SLAThresholdsHours.TryGetValue(priority, out int slaHours) || slaHours <= 0) continue;
 
                     string createdStr = issue["created_date"]?.ToString() ?? issue["date_raised"]?.ToString();
@@ -311,6 +315,8 @@ namespace StingTools.BIMManager
                         }
                     }
                 }
+                if (noSla > 0)
+                    StingLog.Info($"SLA check: {noSla} open issue(s) carry no priority (e.g. imported from ACC) — no SLA applied to them.");
             }
             catch (Exception ex) { StingLog.Warn($"SLA check failed: {ex.Message}"); }
             return overdue;
@@ -4999,7 +5005,7 @@ namespace StingTools.BIMManager
             string csvPath = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc),
                 $"STING_ISSUES_{DateTime.Now:yyyyMMdd}.csv");
             var sb = new StringBuilder();
-            sb.AppendLine("Issue_ID,Type,Priority,Status,Discipline,Title,Raised_By,Date_Raised,Date_Due,Date_Closed,Assigned_To,View,Element_Count");
+            sb.AppendLine("Issue_ID,Type,Priority,Status,Discipline,Title,Raised_By,Date_Raised,Date_Due,Date_Closed,Assigned_To,View,Element_Count,ACC_Display_ID,Assigned_To_Name");
             foreach (var issue in issues)
             {
                 var ids = issue["element_ids"] as JArray;
@@ -5016,7 +5022,10 @@ namespace StingTools.BIMManager
                     BIMManagerEngine.QuoteCSV(issue["date_closed"]?.ToString()),
                     BIMManagerEngine.QuoteCSV(issue["assigned_to"]?.ToString()),
                     BIMManagerEngine.QuoteCSV(issue["view_name"]?.ToString()),
-                    ids?.Count.ToString() ?? "0"
+                    ids?.Count.ToString() ?? "0",
+                    // E6: ACC's own number and the assignee's name, appended so existing columns keep their place.
+                    BIMManagerEngine.QuoteCSV(issue["acc_display_id"]?.ToString()),
+                    BIMManagerEngine.QuoteCSV(issue["acc_assigned_to_name"]?.ToString())
                 ));
             }
             try

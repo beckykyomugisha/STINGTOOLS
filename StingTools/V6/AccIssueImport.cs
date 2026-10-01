@@ -90,8 +90,14 @@ namespace StingTools.V6
         /// <summary>Custom attribute definition id -> value text. Read to link an issue STING
         /// escalated back to its clash when the sidecar has lost it.</summary>
         public Dictionary<string, string> CustomAttributes { get; set; } = new Dictionary<string, string>(StringComparer.Ordinal);
-        // createdAt is still NOT read: ParseIssue defaults it to the time of the pull when ACC
-        // omits it, so copying it would stamp an issue with a time that is not ACC's.
+        /// <summary>E6: ACC's createdAt, ISO 8601 UTC, or empty when ACC omitted it (ParseIssue
+        /// no longer defaults it to the time of the pull).</summary>
+        public string CreatedAt { get; set; } = string.Empty;
+        /// <summary>E6: ACC's createdBy - a user id, as given.</summary>
+        public string CreatedBy { get; set; } = string.Empty;
+        /// <summary>E6: the creator's display name from the project member list; empty when it
+        /// could not be looked up - never guessed.</summary>
+        public string CreatedByName { get; set; } = string.Empty;
 
         public static AccIssueImportRecord From(AccIssue a)
         {
@@ -111,6 +117,10 @@ namespace StingTools.V6
                 UpdatedAt = a.UpdatedAt.HasValue
                     ? DateTime.SpecifyKind(a.UpdatedAt.Value, DateTimeKind.Utc).ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture)
                     : string.Empty,
+                CreatedAt = a.CreatedAt.HasValue
+                    ? DateTime.SpecifyKind(a.CreatedAt.Value, DateTimeKind.Utc).ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture)
+                    : string.Empty,
+                CreatedBy = a.CreatedBy ?? string.Empty,
                 CustomAttributes = (a.CustomAttributes ?? new List<AccCustomAttributeValue>())
                     .Where(c => c != null && !string.IsNullOrEmpty(c.AttributeDefinitionId))
                     .GroupBy(c => c.AttributeDefinitionId, StringComparer.Ordinal)
@@ -423,7 +433,47 @@ namespace StingTools.V6
             foreach (string f in OwnedFields) baseObj[f] = AccValue(a, f);
             row[BaseField] = baseObj;
             row["acc_imported_at"] = stamp;
+            ApplyAccCreation(row, a, backfill: true);
+            // E6: ACC issues carry no priority. Create() wrote MEDIUM, and the SLA check then
+            // ran a one-week clock on an issue whose urgency nobody stated. Blank, and marked.
+            row["priority"] = "";
+            row[PriorityDefaultedField] = true;
             return row;
+        }
+
+        /// <summary>E6: set when STING gave the row no priority because ACC carries none; the SLA
+        /// check reports such a row as "no SLA" instead of assuming MEDIUM.</summary>
+        public const string PriorityDefaultedField = "priority_defaulted";
+        public const string CreatedAtField = "acc_created_at";
+        public const string CreatedByField = "acc_created_by";
+
+        /// <summary>E6: who raised the issue and when, from ACC - not "the importing user, now".
+        /// <paramref name="backfill"/> rewrites the row's own created_date / date_raised /
+        /// raised_by / created_by: always on create, and once for a row an earlier import created
+        /// with the import time (no acc_created_at yet). A row STING raised itself keeps its own.
+        /// A value ACC omitted is left blank - never filled with the time of the pull.</summary>
+        private static bool ApplyAccCreation(JObject row, AccIssueImportRecord a, bool backfill)
+        {
+            bool touched = false;
+            string created = (a.CreatedAt ?? "").Trim();
+            string by = (a.CreatedBy ?? "").Trim();
+            string byName = (a.CreatedByName ?? "").Trim();
+            if (backfill)
+            {
+                DateTime utc = default;
+                bool known = created.Length > 0 && DateTime.TryParse(created, CultureInfo.InvariantCulture,
+                    DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out utc);
+                string createdDate = known ? DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToString("o", CultureInfo.InvariantCulture) : "";
+                string raised = known ? DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) : "";
+                string raiser = byName.Length > 0 ? byName : by;
+                touched |= SetIfDifferent(row, "created_date", createdDate);
+                touched |= SetIfDifferent(row, "date_raised", raised);
+                touched |= SetIfDifferent(row, "raised_by", raiser);
+                touched |= SetIfDifferent(row, "created_by", raiser);
+            }
+            if (row[CreatedAtField] == null || created.Length > 0) touched |= SetIfDifferent(row, CreatedAtField, created);
+            if (by.Length > 0) touched |= SetIfDifferent(row, CreatedByField, by);
+            return touched;
         }
 
         private static void UpdateRow(JObject row, AccIssueImportRecord a, AccOriginLink origin,
@@ -511,6 +561,10 @@ namespace StingTools.V6
             { row.Remove(AssignedNameField); touched = true; }
             if (!string.IsNullOrWhiteSpace(a.DisplayId)) touched |= SetIfDifferent(row, "acc_display_id", a.DisplayId);
             if (!string.IsNullOrWhiteSpace(a.UpdatedAt)) touched |= SetIfDifferent(row, "acc_updated_at", a.UpdatedAt);
+            // E6: an ACC-sourced row an earlier import stamped with the import time and user is
+            // corrected once (it has no acc_created_at yet); a STING-raised row keeps its own.
+            bool importedRow = string.Equals((string)row["source"], IssueSchema.SourceName(IssueSource.Acc), StringComparison.Ordinal);
+            touched |= ApplyAccCreation(row, a, backfill: importedRow && row[CreatedAtField] == null && !string.IsNullOrWhiteSpace(a.CreatedAt));
             if (origin != null && string.IsNullOrWhiteSpace((string)row[OriginField]))
             {
                 row[OriginField] = origin.Origin;

@@ -100,7 +100,11 @@ namespace StingTools.V6
         /// <summary>user, company or role — required by ACC whenever an assignee is set.</summary>
         public string AssignedToType { get; set; } = string.Empty;
         public DateTime? DueDate { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        /// <summary>ACC's createdAt (UTC); null when ACC did not say. E6: it used to default to
+        /// the time of the pull, which made a six-week-old issue look new.</summary>
+        public DateTime? CreatedAt { get; set; }
+        /// <summary>ACC's createdBy (a user id); empty when ACC did not say.</summary>
+        public string CreatedBy { get; set; } = string.Empty;
         public DateTime? UpdatedAt { get; set; }
         public string LocationDescription { get; set; } = string.Empty;
         /// <summary>Custom attribute values (Issues v1 customAttributes). Sent on create only
@@ -733,7 +737,8 @@ namespace StingTools.V6
             AssignedToUserId = (string)(t["assignedTo"] ?? t["assigned_to"]) ?? string.Empty,
             AssignedToType = (string)t["assignedToType"] ?? string.Empty,
             DueDate = ReadDate(t["dueDate"]),
-            CreatedAt = ReadDate(t["createdAt"]) ?? DateTime.UtcNow,
+            CreatedAt = ReadDate(t["createdAt"] ?? t["created_at"]),   // E6: null when ACC omits it
+            CreatedBy = (string)(t["createdBy"] ?? t["created_by"]) ?? string.Empty,
             UpdatedAt = ReadDate(t["updatedAt"]),
             LocationDescription = (string)(t["locationDetails"] ?? t["location_description"]) ?? string.Empty,
             RootCauseId = (string)t["rootCauseId"] ?? string.Empty,

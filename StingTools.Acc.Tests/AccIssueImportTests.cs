@@ -331,5 +331,111 @@ namespace StingTools.Acc.Tests
             Run(rows, T1, origins, Acc("a-9", title: "Clash [Hard]", status: "completed"));
             Assert.Single(rows);
         }
+
+        // ── E6: who raised it and when come from ACC; no invented priority ────────
+
+        private static AccIssueImportRecord Raised(string id, string createdAt, string by = "acc-user-7", string byName = "")
+        {
+            var a = Acc(id);
+            a.CreatedAt = createdAt;
+            a.CreatedBy = by;
+            a.CreatedByName = byName;
+            return a;
+        }
+
+        [Fact]
+        public void ParseIssue_KeepsCreatedAtNull_WhenAccOmitsIt_AndReadsItWhenGiven()
+        {
+            var none = AccIssueSync.ParseIssue(JObject.Parse("{\"id\":\"x\",\"title\":\"t\"}"));
+            Assert.Null(none.CreatedAt);
+            Assert.Equal("", none.CreatedBy);
+            Assert.Equal("", AccIssueImportRecord.From(none).CreatedAt);
+
+            var given = AccIssueSync.ParseIssue(JObject.Parse(
+                "{\"id\":\"x\",\"title\":\"t\",\"createdAt\":\"2026-08-15T07:30:00.000Z\",\"createdBy\":\"ABC123\"}"));
+            Assert.Equal(new DateTime(2026, 8, 15, 7, 30, 0, DateTimeKind.Utc), given.CreatedAt);
+            Assert.Equal("ABC123", given.CreatedBy);
+            Assert.Equal("2026-08-15T07:30:00.000Z", AccIssueImportRecord.From(given).CreatedAt);
+        }
+
+        [Fact]
+        public void AnImportedRow_CarriesAccsCreationDateAndRaiser_NotTheImportersNow()
+        {
+            var rows = new JArray();
+            Run(rows, T0, Raised("a-1", "2026-08-15T07:30:00.000Z", byName: "Jane Engineer"));
+            var row = ByAcc(rows, "a-1");
+            var created = DateTime.Parse((string)row["created_date"], null, System.Globalization.DateTimeStyles.RoundtripKind);
+            Assert.Equal(new DateTime(2026, 8, 15, 7, 30, 0, DateTimeKind.Utc), created.ToUniversalTime());
+            Assert.StartsWith("2026-08-15", (string)row["date_raised"]);
+            Assert.Equal("Jane Engineer", (string)row["raised_by"]);
+            Assert.Equal("acc-user-7", (string)row[AccIssueImport.CreatedByField]);
+            Assert.NotEqual("tester", (string)row["raised_by"]);
+        }
+
+        [Fact]
+        public void WithNoCreatorName_TheRaiserIsTheAccId_AndWithNoDate_TheDateIsBlank()
+        {
+            var rows = new JArray();
+            Run(rows, T0, Raised("a-1", "", byName: ""));
+            var row = ByAcc(rows, "a-1");
+            Assert.Equal("acc-user-7", (string)row["raised_by"]);
+            Assert.Equal("", (string)row["created_date"]);   // never the time of the pull
+            Assert.Equal("", (string)row["date_raised"]);
+        }
+
+        [Fact]
+        public void AnImportedRow_HasNoInventedPriority_AndSoNoSla()
+        {
+            var rows = new JArray();
+            Run(rows, T0, Raised("a-1", "2026-08-15T07:30:00.000Z"));
+            var row = ByAcc(rows, "a-1");
+            Assert.Equal("", (string)row["priority"]);
+            Assert.True((bool)row[AccIssueImport.PriorityDefaultedField]);
+            Assert.Null(IssueSchema.SlaPriority(row));
+        }
+
+        [Fact]
+        public void SlaPriority_IsTheStatedPriority_OrNull_NeverAssumedMedium()
+        {
+            Assert.Equal("HIGH", IssueSchema.SlaPriority(new JObject { ["priority"] = "high" }));
+            Assert.Null(IssueSchema.SlaPriority(new JObject()));
+            Assert.Null(IssueSchema.SlaPriority(new JObject { ["priority"] = "  " }));
+            Assert.Null(IssueSchema.SlaPriority(new JObject { ["priority"] = "MEDIUM", ["priority_defaulted"] = true }));
+        }
+
+        [Fact]
+        public void ARowAnEarlierImportStampedWithImportTime_IsCorrectedOnce()
+        {
+            var rows = new JArray();
+            Run(rows, T0, Acc("a-1"));                        // as before E6: ACC gave no createdAt
+            var row = ByAcc(rows, "a-1");
+            row.Remove(AccIssueImport.CreatedAtField);         // a row written before E6 has no marker
+            row["created_date"] = T0.ToString("o");
+            row["raised_by"] = "tester";
+
+            Run(rows, T1, Raised("a-1", "2026-08-15T07:30:00.000Z", byName: "Jane Engineer"));
+            Assert.StartsWith("2026-08-15", (string)row["date_raised"]);
+            Assert.Equal("Jane Engineer", (string)row["raised_by"]);
+            Assert.Equal("2026-08-15T07:30:00.000Z", (string)row[AccIssueImport.CreatedAtField]);
+        }
+
+        [Fact]
+        public void AStingRaisedRow_LinkedToItsAccIssue_KeepsItsOwnCreation()
+        {
+            var sting = new JObject
+            {
+                ["issue_id"] = "CLASH-0003", ["status"] = "OPEN", ["title"] = "Clash [Hard]",
+                ["description"] = "L02 grid C4", ["assigned_to"] = "user-1",
+                ["source"] = "clash", ["source_hash"] = "11@A.rvt|22@B.rvt",
+                ["created_date"] = "2026-07-01T10:00:00.0000000Z", ["raised_by"] = "coordinator",
+            };
+            var rows = new JArray(sting);
+            var origins = new Dictionary<string, AccOriginLink>();
+            AccOriginLink.AddSidecar(origins, AccIssueImport.ClashEscalationOrigin,
+                new Dictionary<string, string> { ["11@A.rvt|22@B.rvt"] = "a-9" });
+            Run(rows, T0, origins, Raised("a-9", "2026-07-02T09:00:00.000Z"));
+            Assert.Equal("2026-07-01T10:00:00.0000000Z", (string)sting["created_date"]);
+            Assert.Equal("coordinator", (string)sting["raised_by"]);
+        }
     }
 }
