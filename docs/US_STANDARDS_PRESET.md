@@ -8,7 +8,7 @@ and which remain BS-only (flagged, not silently wrong).
 
 **Data, not code.** Where an engine already reads its limits from a JSON
 registry, the US values are supplied via an overlay — see
-[`../StingTools/Data/STING_US_PRESET_OVERLAY.json`](../StingTools/Data/STING_US_PRESET_OVERLAY.json)
+[`reference/STING_US_PRESET_OVERLAY.json`](reference/STING_US_PRESET_OVERLAY.json)
 (copy the slots you need into `<project>/_BIM_COORD/mep_sizing_rules.json`).
 No new US calculation engines were added in this phase.
 

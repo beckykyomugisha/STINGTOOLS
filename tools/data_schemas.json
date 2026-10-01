@@ -10192,10 +10192,6 @@
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },
-    "StingTools/Data/HEALTHCARE_ALERT_ROUTING.json": {
-      "format": "json",
-      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
-    },
     "StingTools/Data/HEALTHCARE_PACK_PROFILES.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
@@ -10344,10 +10340,6 @@
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },
-    "StingTools/Data/Plumbing/LEGIONELLA_REPORT_TEMPLATE.json": {
-      "format": "json",
-      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
-    },
     "StingTools/Data/Plumbing/STING_PIPE_MATERIALS_HYDRAULIC.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
@@ -10443,10 +10435,6 @@
     "StingTools/Data/STING_EMERGENCY_KEYWORDS.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/STING_EXTERNAL_FORMATS.json": {
-      "format": "json",
-      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
     },
     "StingTools/Data/STING_FAMILY_SWAP_REGISTRY.json": {
       "format": "json",
@@ -10648,10 +10636,6 @@
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },
-    "StingTools/Data/STING_US_PRESET_OVERLAY.json": {
-      "format": "json",
-      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
-    },
     "StingTools/Data/STING_VARIATION_LIABILITY_MAP.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
@@ -10667,10 +10651,6 @@
     "StingTools/Data/STING_WIRE_TABLES.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/STRUCTURAL_EXCEL_TEMPLATE.csv": {
-      "format": "csv-sections",
-      "reason": "Six sections, each with its own header row. Read by NOTHING: StrExcelTemplateCommand builds its xlsx in code (Model/ExcelStructuralEngine.cs). Reference only - ROADMAP DSCH-5."
     },
     "StingTools/Data/Schemas/STING_DRAWING_TYPES.schema.json": {
       "format": "json",

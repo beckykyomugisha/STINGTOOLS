@@ -21,6 +21,7 @@ documents cover one topic, the **current** one is marked ✅ and the superseded 
 | [`WORKLOG_TAGGING.md`](WORKLOG_TAGGING.md) | ✅ **Current.** The running worklog of the tagging review-and-fix loop: resume point, hand-done Revit steps, NEEDS REVIT CHECK, decisions, open findings. |
 | [`DATA_SCHEMAS.md`](DATA_SCHEMAS.md) | ✅ **Current.** How to change a data file and its schema together: `tools/data_schemas.json`, the validator, its CI gate. |
 | [`WORKLOG_DATA_SCHEMAS.md`](WORKLOG_DATA_SCHEMAS.md) | ✅ **Current.** The data-schema drift review (DSCH): per-round findings and fixes, decisions, files owned by other PRs, NEEDS REVIT CHECK. |
+| [`reference/README.md`](reference/README.md) | ✅ **Current.** Reference data moved out of `StingTools/Data/` because no plugin code reads it (alert routing design, US preset overlay example, legionella report outline). |
 | [`TAG_TEST_PROTOCOL.md`](TAG_TEST_PROTOCOL.md) | The five Revit tests that close Phases 287-293, with where each button is. Method only; results go in `ROADMAP.md`. |
 | [`TESTING_GUIDE.md`](TESTING_GUIDE.md) | How to test the plugin and server. |
 

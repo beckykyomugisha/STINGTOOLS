@@ -1654,7 +1654,6 @@ STINGTOOLS/
         ├── STING_TAG_CONFIG_v5_0_GEN.csv  # General tag family definitions
         ├── STING_TAG_CONFIG_v5_0_MEP.csv  # MEP tag family definitions
         ├── STING_TAG_CONFIG_v5_0_STR.csv  # Structural tag family
-        ├── STRUCTURAL_EXCEL_TEMPLATE.csv  # Structural Excel import
         ├── PROJECT_TEAM_TEMPLATE.json  # Project team role/discipline
         ├── PYREVIT_SCRIPT_MANIFEST.csv  # Legacy pyRevit script manifest (reference only; no code reads it)
         ├── TAG_GUIDE.xlsx  # Tag reference guide
