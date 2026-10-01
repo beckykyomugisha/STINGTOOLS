@@ -128,11 +128,14 @@ namespace StingTools.Core.Drawing
             if (doc == null || tokens == null) return null;
             try
             {
-                string loc = ResolveContextLoc(doc, scopeBox, tag);
-                if (loc == null) return null;
+                // DTW-141: the pattern first (a Project Information read). The box collector,
+                // the saved-plan read and the LOC index ran on every Build() before this
+                // check, though most patterns have no {vol}.
                 var policy = SheetNumberPolicy.Parse(DrawingProducer.ReadSheetNumberPolicy(doc));
                 string pattern = SheetNumberPolicy.ResolvePattern(dt, policy) ?? dt?.SheetNumberPattern;
                 if (!SheetNumberPolicy.PatternUsesVolume(pattern)) return null;
+                string loc = ResolveContextLoc(doc, scopeBox, tag);
+                if (loc == null) return null;
                 string vol = SheetNumberPolicy.VolumeForLoc(loc, LoadVolumeMap(doc));
                 if (string.IsNullOrEmpty(vol)) return null;
                 tokens["vol"] = vol;
