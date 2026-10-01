@@ -29,6 +29,10 @@ namespace StingTools.Tags
             { "STING - Tie-In Point Tag (Pipe — Plumbing & Hydraulic) Tag", "STING - Tie-In Point Tag (Pipe — Plumbing & Hydraulic)" },
             { "STING - Tie-In Point Tag (Duct — HVAC) Tag",                 "STING - Tie-In Point Tag (Duct — HVAC)" },
             { "STING - Tie-In Point Tag (Cable Tray — Electrical) Tag",     "STING - Tie-In Point Tag (Cable Tray — Electrical)" },
+            // TAGFAM-10, shipped until 2026-10-01 the same way: the suffix already said
+            // "Tag" ("Specialty Equipment Tag Asset") and the generic form appended another.
+            { "STING - Specialty Equipment Tag Asset Tag",   "STING - Specialty Equipment Tag Asset" },
+            { "STING - Specialty Equipment Tag General Tag", "STING - Specialty Equipment Tag General" },
         };
 
         /// <summary>

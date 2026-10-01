@@ -2,6 +2,26 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGFAM-10 Specialty Equipment tag families renamed to their declared names, 2026-10-01)
+
+- Same fault as TAGFAM-7, found by its gate: the healthcare variant suffixes `Specialty Equipment Tag Asset`
+  and `… Tag General` already contain "Tag", so the generic `{prefix} - {suffix} Tag` built
+  `STING - Specialty Equipment Tag Asset Tag` / `… General Tag`, while the GEN and MEP tag configs (#35/#36,
+  #60/#61) and `LABEL_DEFINITIONS.json` declare them without the last " Tag". Both suffixes are now mapped in
+  `VariantSuffixToCsvName`; the tuples are unchanged, so the label-definitions audit is unaffected.
+- The two `.rfa` files in `Data/TagFamilies` were `git mv`ed to the declared names; the manifest `familyFile`
+  entries follow (ids and checksums unchanged — `restamp_content_manifest.py` reports 210/210 match).
+- Both old names were added to `TagFamilyNameAliases.LegacyFamilyNames`. Existing projects are migrated by
+  **in-place rename on next load**: Load Tag Families already renames from that table; Create Tag Families now
+  runs the rename over the healthcare variants as well as the tie-ins. Placed tags are kept, no second family
+  is loaded, nothing is deleted; both names present is reported and left.
+- Gate: `TagFamilyNameGateTests.KnownNameDisagreements` is now empty. RED with the aliases added and the
+  exceptions removed (4 failing: legacy names shipped, alias targets not generated, creator names differing
+  from their declarations, and a tier-map assertion that assumed every canonical name has a family plan —
+  corrected to compare legacy and canonical resolution with the category supplied); GREEN after.
+  Tags suite 5,543 passed; plugin build 0/0.
+- **Not run in Revit.**
+
 #### Completed (TAGFAM-9 style switches opt-in: new tag families carry TAG_STYLE_CODE_TXT, not 128 switches, 2026-10-01)
 
 Verified by build (0 errors / 0 warnings) and unit tests only. **Not run in Revit**, and the new build time
