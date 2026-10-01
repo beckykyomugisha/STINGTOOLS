@@ -695,6 +695,19 @@ namespace StingTools.Core
                         { RecordSkip("the project is drawn by area boxes"); continue; }
                         if (cond == "has_sting_boxes" && CountScopeBoxes(doc, Drawing.ScopeBoxKind.DrawingType) == 0)
                         { RecordSkip("no STING:: scope boxes"); continue; }
+                        if (cond == "no_sting_boxes" && CountScopeBoxes(doc, Drawing.ScopeBoxKind.DrawingType) > 0)
+                        { RecordSkip("the project is drawn by STING:: scope boxes"); continue; }
+                        // DTW-95: the per-level route runs only when neither box route does —
+                        // a step carries one condition, so "no area AND no STING:: boxes" is one
+                        // name. Without it a STING::-box project produced the same type and
+                        // level twice: once cropped to its box, once whole-floor.
+                        if (cond == "no_production_boxes")
+                        {
+                            if (CountScopeBoxes(doc, Drawing.ScopeBoxKind.Area) > 0)
+                            { RecordSkip("the project is drawn by area boxes"); continue; }
+                            if (CountScopeBoxes(doc, Drawing.ScopeBoxKind.DrawingType) > 0)
+                            { RecordSkip("the project is drawn by STING:: scope boxes"); continue; }
+                        }
                         // Phase 39: Element count range condition (cached — count doesn't change between steps)
                         if (step.MinElementCount.HasValue || step.MaxElementCount.HasValue)
                         {
@@ -2576,6 +2589,7 @@ namespace StingTools.Core
             "has_overdue_issues", "has_placeholders", "has_stale",
             "has_unclassed_materials", "has_uncoded_materials", "has_untagged",
             "has_warnings", "has_area_boxes", "no_area_boxes", "has_sting_boxes",
+            "no_sting_boxes", "no_production_boxes",
         };
 
         /// <summary>Scope boxes of one STING kind in the document (0 on any read failure, logged).</summary>
