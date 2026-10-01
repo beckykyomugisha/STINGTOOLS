@@ -4,7 +4,7 @@ Standing task (2026-10-01): unattended loop — resume → research → record �
 
 ## Resume here
 1. The user runs docs/KUT_ACC_SETUP_AND_SMOKE_TEST.md. Act on the FAIL lines they send back first.
-2. Redeploy KUT live **only when the user says so**. The drawings session asked; #1040, #1051 (round 9, `7d5c6f5be`) and the H/S/P/NW-1 fixes are not deployed. Merge origin/main first.
+2. KUT live is at `e95e08d43` (deployed 14:45 2026-10-01). Next redeploy: only when the user says so; merge origin/main first.
 3. Navisworks NW-3/4/5 are waiting on sample XMLs from the team's Navisworks (search set, clash test, clash report). Then do NW-2.
 4. Open review items: ROADMAP "ACC second review" (P2, P3, P6/P7, P8, S2, S5, S9, S11, S12); then ACC-AUT-8/9 and ACC-LOCK-1.
 
@@ -26,7 +26,7 @@ python tools/check_kut_workflow_tags.py ; python tools/check_unattended_cycle.py
 Last full green (2026-10-01, after F1-F10 + main #1029-#1035, `27302d544`): build 0/0; Acc 710, Tags 5281, Cost 171, Mep 87; full server suite 1134 passed / 20 skipped / 1 failed, the one failure being HandoffReplayGuardTests.Handoff_ReplayGuardUnavailable_FailsOpen, which passes alone (4/4) and is not touched by this branch: a load-dependent flake, logged as ROADMAP TEST-FLAKE-1, not altered; `run_ci_gates.py --quick` 36/0; drawing-type checksums OK.
 
 ## Deploy (KUT live)
-`git -C C:/Dev/STING_KUT_LIVE checkout --detach <commit>` then `cmd.exe //c 'C:\Dev\STING_KUT_LIVE\deploy.bat'` with Revit closed. Verify: manifests point at STING_KUT_LIVE; deployed DLL == `StingTools/bin/Release/StingTools.dll`; 210 tag families in `CompiledPlugin/data/TagFamilies`; **no `Seeds/` folder** (the 137 seed families are superseded — never restore them). Last deploy: `57c3b236e` (claude/kut-combined-acc-tags = integration incl. main through #1028 + round 4 + SRV-11) at 07:00 on 2026-10-01; verified (3 manifests, DLL hash match, 210 tag families, no Seeds/). User told to re-run Load Shared Parameters (drawing stamps now bind to Views).
+`git -C C:/Dev/STING_KUT_LIVE checkout --detach <commit>` then `cmd.exe //c 'C:\Dev\STING_KUT_LIVE\deploy.bat'` with Revit closed. Verify: manifests point at STING_KUT_LIVE; deployed DLL == `StingTools/bin/Release/StingTools.dll`; 210 tag families in `CompiledPlugin/data/TagFamilies`; **no `Seeds/` folder** (the 137 seed families are superseded — never restore them). Last deploy: `e95e08d43` (integration = ACC H/S/P/NW-1 fixes + origin/main through #1052) at 14:45 on 2026-10-01, run by the drawings session at the user's request; verified here (manifests -> STING_KUT_LIVE, DLL hash = Release build, 219 tag families, no Seeds/). User to run Load Shared Parameters, then DOCS > DRAWING TYPES > Self-Test.
 
 ## Findings (open)
 ACC seam audit A1–A16: all fixed (see "Findings (done)"). Open work is the revision/ACC table below.
