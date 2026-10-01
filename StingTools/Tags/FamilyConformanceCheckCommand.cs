@@ -325,13 +325,12 @@ namespace StingTools.Tags
                 }
                 else
                 {
-                    int stylePts = 0;
-                    foreach (var name in TagStyleFingerprint)
-                    {
-                        if (paramsByName.ContainsKey(name)) stylePts += 5;
-                        else row.Missing.Add($"Tag style param missing: {name} (run FamilyParamCreator with InjectAutomationPack=true)");
-                    }
-                    score += Math.Min(stylePts, 10);
+                    // TAGFAM-9: TAG_STYLE_CODE_TXT is the style contract for families built
+                    // since the 128 switches became opt-in; the sampled switches still pass
+                    // a family built with the matrix. Either satisfies the check.
+                    score += TagStyleFamilyParams.ConformancePoints(
+                        paramsByName.ContainsKey(ParamRegistry.TAG_STYLE_CODE),
+                        TagStyleFingerprint, paramsByName.ContainsKey, row.Missing);
                 }
 
                 // ── (5) Tag visibility tiers (10 pts) ────────────────

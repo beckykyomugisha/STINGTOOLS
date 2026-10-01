@@ -248,6 +248,9 @@
          SHIPPED models rather than a test-local copy that could disagree. -->
     <Compile Include="..\StingTools\Core\Drawing\DrawingType.cs" Link="Core\Drawing\DrawingType.cs" />
     <Compile Include="..\StingTools\Core\Drawing\IsoTagText.cs" Link="Core\Drawing\IsoTagText.cs" />
+    <!-- TAGFAM-9: which style params a new tag family carries. The shipped
+         tag_style_catalogue.json is parsed through this, the same code the plugin runs. -->
+    <Compile Include="..\StingTools\Core\TagStyleFamilyParams.cs" Link="Core\TagStyleFamilyParams.cs" />
     <Compile Include="..\StingTools\Core\Drawing\TagColorSchemeNames.cs" Link="Core\Drawing\TagColorSchemeNames.cs" />
     <Compile Include="..\StingTools\Core\DisplayMirrorNames.cs" Link="Core\DisplayMirrorNames.cs" />
     <Compile Include="..\StingTools\Core\RevitBackupFiles.cs" Link="Core\RevitBackupFiles.cs" />

@@ -823,28 +823,34 @@ namespace StingTools.Tags
         }
 
         /// <summary>
-        /// Style/appearance parameters — all 128 TAG_{size}{style}_{colour}_BOOL variants plus
-        /// box colour/visibility/style, leader colour, scale-tier-auto, and depth-tier cache.
-        /// Added to every tag family by Create/Migrate so the Tag Style Engine can switch
-        /// visible label rows and box/leader overrides per type.
+        /// Style/appearance parameters added to every NEW tag family by Create / declared
+        /// families / Migrate / Propagate / FamilyParamCreator: TAG_STYLE_CODE_TXT, the
+        /// style switches the catalogue opts in (<c>family_style_switches</c>, none by
+        /// default), then box colour/visibility/style, leader colour, scale-tier-auto and
+        /// the depth-tier cache.
+        /// TAGFAM-9: the 128 TAG_{size}{style}_{colour}_BOOL switches are no longer added
+        /// by default — no shipped family associated any of them with an element, and they
+        /// cost ~100 s a build. A family's style is its type plus TAG_STYLE_CODE_TXT.
         /// </summary>
         public static string[] StyleParams
         {
             get
             {
-                var list = new List<string>();
-                list.AddRange(ParamRegistry.AllTagStyleParams); // 128 variants
-                list.Add(ParamRegistry.TAG_BOX_COLOR_R);
-                list.Add(ParamRegistry.TAG_BOX_COLOR_G);
-                list.Add(ParamRegistry.TAG_BOX_COLOR_B);
-                list.Add(ParamRegistry.TAG_BOX_VISIBLE);
-                list.Add(ParamRegistry.TAG_BOX_STYLE);
-                list.Add(ParamRegistry.TAG_LEADER_COLOR_R);
-                list.Add(ParamRegistry.TAG_LEADER_COLOR_G);
-                list.Add(ParamRegistry.TAG_LEADER_COLOR_B);
-                list.Add(ParamRegistry.TAG_SCALE_TIER_AUTO);
-                list.Add(ParamRegistry.TAG_DEPTH_TIER);
-                return list.ToArray();
+                return TagStyleFamilyParams.Compose(
+                    TagStyleCatalogue.FamilyStyleSwitchParams,
+                    new[]
+                    {
+                        ParamRegistry.TAG_BOX_COLOR_R,
+                        ParamRegistry.TAG_BOX_COLOR_G,
+                        ParamRegistry.TAG_BOX_COLOR_B,
+                        ParamRegistry.TAG_BOX_VISIBLE,
+                        ParamRegistry.TAG_BOX_STYLE,
+                        ParamRegistry.TAG_LEADER_COLOR_R,
+                        ParamRegistry.TAG_LEADER_COLOR_G,
+                        ParamRegistry.TAG_LEADER_COLOR_B,
+                        ParamRegistry.TAG_SCALE_TIER_AUTO,
+                        ParamRegistry.TAG_DEPTH_TIER,
+                    }).ToArray();
             }
         }
 

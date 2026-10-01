@@ -92,7 +92,8 @@ namespace StingTools.Commands.TagStudio
             var rows = new List<List<string>>();
             var progress = StingProgressDialog.Show("Migrate Tag Families", stingFamilies.Count);
             int migrated = 0, failed = 0, cancelled = 0;
-            int totalParamsAdded = 0, totalTypesCreated = 0;
+            int totalParamsAdded = 0, totalTypesCreated = 0, totalUnstyled = 0;
+            var unstyledFamilies = new List<string>();
             string originalSharedFile = app.SharedParametersFilename;
 
             try
@@ -116,6 +117,7 @@ namespace StingTools.Commands.TagStudio
                     var result = MigrateOne(doc, app, fam, variants);
                     totalParamsAdded += result.ParamsAdded;
                     totalTypesCreated += result.TypesCreated;
+                    if (result.UnstyledTypes > 0) { totalUnstyled += result.UnstyledTypes; unstyledFamilies.Add(famName); }
                     if (result.Success) migrated++; else failed++;
 
                     rows.Add(new List<string>
@@ -155,6 +157,11 @@ namespace StingTools.Commands.TagStudio
             td.MainContent =
                 $"Params added: {totalParamsAdded}\n" +
                 $"Types created: {totalTypesCreated}\n" +
+                (totalUnstyled > 0
+                    ? $"Types with NO style recorded: {totalUnstyled} in {unstyledFamilies.Count} family(ies) " +
+                      $"(no {ParamRegistry.TAG_STYLE_CODE} and no matching switch): " +
+                      string.Join(", ", unstyledFamilies.Take(8)) + (unstyledFamilies.Count > 8 ? ", ..." : "") + "\n"
+                    : "") +
                 $"Failed: {failed}\n" +
                 $"Cancelled: {cancelled}\n\n" +
                 (xlsx != null ? $"Report: {xlsx}" : "");
@@ -173,6 +180,7 @@ namespace StingTools.Commands.TagStudio
         {
             public int ParamsAdded;
             public int TypesCreated;
+            public int UnstyledTypes;   // TAGFAM-9: types with neither TAG_STYLE_CODE_TXT nor the switch
             public bool Success;
             public string ErrorMessage;
         }
@@ -217,6 +225,7 @@ namespace StingTools.Commands.TagStudio
                     // document; resolve them in the family being edited.
                     result.TypesCreated = TagTypeVariantWriter.CreateStandardVariants(
                         fm, variants, TagTypeVariantWriter.BuildArrowheadLookup(famDoc));
+                    result.UnstyledTypes = TagTypeVariantWriter.LastUnstyledTypes.Count;
 
                     tx.Commit();
                 }

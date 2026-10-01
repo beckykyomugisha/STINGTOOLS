@@ -666,6 +666,14 @@ namespace StingTools.Tags
             public int MissingActiveParam;  // types that carry style params but NOT the selected one
             public int Updated;             // types actually mutated
             public string ActiveParam;
+            // TAGFAM-9: style lives in TAG_STYLE_CODE_TXT on families built without the switches.
+            public int HadStyleCode;        // types that carry TAG_STYLE_CODE_TXT
+            public string StyleCode;        // the code written, e.g. "2.5BOLD_BLUE"
+            /// <summary>STING tag types (they carry a depth gate, the depth cache, the code
+            /// or a switch) on which NO style could be recorded: no TAG_STYLE_CODE_TXT and no
+            /// matching switch. Counted and named so the run cannot read as a success.</summary>
+            public int NoStyleTarget;
+            public List<string> NoStyleTargetNames = new List<string>();
         }
 
         public static ApplyStyleDiagnostics LastApplyDiagnostics { get; private set; } = new ApplyStyleDiagnostics();
@@ -673,9 +681,11 @@ namespace StingTools.Tags
         public static int ApplyTagStyle(Document doc, StylePreset preset, ICollection<Element> elements = null)
         {
             string activeParam = preset.ParamName;
+            string styleCode = TagStyleFamilyParams.StyleCode(preset.Size, preset.Style, preset.Color);
             string[] allStyleParams = ParamRegistry.AllTagStyleParams;
             int updated = 0;
-            int scanned = 0, hadAnyStyleParam = 0, missingActiveParam = 0;
+            int scanned = 0, hadAnyStyleParam = 0, missingActiveParam = 0, hadStyleCode = 0;
+            var noStyle = new List<string>();
 
             var targets = elements ?? new FilteredElementCollector(doc)
                 .WhereElementIsElementType()
@@ -697,8 +707,23 @@ namespace StingTools.Tags
                     bool shouldBeOn = (param == activeParam);
                     if (SetTagFormulaBool(p, shouldBeOn) == 1) any = true;
                 }
+
+                // TAGFAM-9: the single style code. Families built without the 128
+                // switches carry only this.
+                bool sawCode = false;
+                Parameter codeP = ParameterHelpers.CachedLookup(el, ParamRegistry.TAG_STYLE_CODE);
+                if (codeP != null && !codeP.IsReadOnly && codeP.StorageType == StorageType.String)
+                {
+                    sawCode = true;
+                    hadStyleCode++;
+                    if (!string.Equals(codeP.AsString() ?? "", styleCode, StringComparison.Ordinal))
+                    { codeP.Set(styleCode); any = true; }
+                }
+
                 if (sawAnyStyleParam) hadAnyStyleParam++;
                 if (sawAnyStyleParam && !sawActiveParam) missingActiveParam++;
+                if (!sawCode && !sawActiveParam && IsStingTagType(el))
+                    noStyle.Add(DescribeType(el));
                 if (any) updated++;
             }
 
@@ -708,12 +733,41 @@ namespace StingTools.Tags
                 HadAnyStyleParam = hadAnyStyleParam,
                 MissingActiveParam = missingActiveParam,
                 Updated = updated,
-                ActiveParam = activeParam
+                ActiveParam = activeParam,
+                HadStyleCode = hadStyleCode,
+                StyleCode = styleCode,
+                NoStyleTarget = noStyle.Count,
+                NoStyleTargetNames = noStyle,
             };
 
             StingLog.Info($"TagStyle: Applied {preset.TypeName} — scanned={scanned}, " +
-                $"hadStyleParams={hadAnyStyleParam}, missingActive={missingActiveParam}, updated={updated}");
+                $"hadStyleParams={hadAnyStyleParam}, hadStyleCode={hadStyleCode}, " +
+                $"missingActive={missingActiveParam}, noStyleTarget={noStyle.Count}, updated={updated}");
+            if (noStyle.Count > 0)
+                StingLog.Warn($"TagStyle: {noStyle.Count} STING tag type(s) have neither " +
+                    $"{ParamRegistry.TAG_STYLE_CODE} nor {activeParam}; style not recorded on: " +
+                    string.Join(", ", noStyle.Take(20)) + (noStyle.Count > 20 ? ", ..." : ""));
             return updated;
+        }
+
+        /// <summary>TAGFAM-9: a STING tag type — an annotation type carrying the depth
+        /// gate, the depth cache, the style code or any style switch. Used only to decide
+        /// whether a type with no style target is worth naming.</summary>
+        private static bool IsStingTagType(Element el)
+        {
+            if (el?.Category == null || el.Category.CategoryType != CategoryType.Annotation) return false;
+            if (ParameterHelpers.CachedLookup(el, ParamRegistry.PARA_STATE_1) != null) return true;
+            if (ParameterHelpers.CachedLookup(el, ParamRegistry.TAG_DEPTH_TIER) != null) return true;
+            if (ParameterHelpers.CachedLookup(el, ParamRegistry.TAG_STYLE_CODE) != null) return true;
+            foreach (string sp in ParamRegistry.AllTagStyleParams)
+                if (ParameterHelpers.CachedLookup(el, sp) != null) return true;
+            return false;
+        }
+
+        private static string DescribeType(Element el)
+        {
+            string fam = (el as ElementType)?.FamilyName;
+            return string.IsNullOrEmpty(fam) ? el.Name : $"{fam} : {el.Name}";
         }
 
         // ── TAG-01: Single style code parameter ──────────────────────────────────
@@ -1342,13 +1396,32 @@ namespace StingTools.Tags
                 string.IsNullOrEmpty(size) ? "2.5" : size,
                 string.IsNullOrEmpty(style) ? "NOM" : style,
                 string.IsNullOrEmpty(colour) ? "BLACK" : colour);
+            bool styleRecorded = false;
             var allTagStyleParams = ParamRegistry.AllTagStyleParams;
             foreach (string pname in allTagStyleParams)
             {
                 var p = ParameterHelpers.CachedLookup(typeEl, pname);
                 bool want = string.Equals(pname, activeStyle, StringComparison.OrdinalIgnoreCase);
+                if (want && p != null && !p.IsReadOnly) styleRecorded = true;
                 changed += SetTagFormulaBool(p, want);
             }
+
+            // 1b. TAGFAM-9: the single style code ("2.5BOLD_BLUE"). Families built
+            //     without the switch matrix record their style only here.
+            string styleCode = TagStyleFamilyParams.StyleCode(
+                string.IsNullOrEmpty(size) ? "2.5" : size,
+                string.IsNullOrEmpty(style) ? "NOM" : style,
+                string.IsNullOrEmpty(colour) ? "BLACK" : colour);
+            var codeP = ParameterHelpers.CachedLookup(typeEl, ParamRegistry.TAG_STYLE_CODE);
+            if (codeP != null && !codeP.IsReadOnly && codeP.StorageType == StorageType.String)
+            {
+                styleRecorded = true;
+                if (!string.Equals(codeP.AsString() ?? "", styleCode, StringComparison.Ordinal))
+                { codeP.Set(styleCode); changed++; }
+            }
+            if (!styleRecorded)
+                StingLog.Warn($"ApplyToType: '{DescribeType(typeEl)}' has neither {ParamRegistry.TAG_STYLE_CODE} " +
+                              $"nor {activeStyle} — style {styleCode} not recorded on it");
 
             // 2. Depth tiers — PARA_STATE_1..depth = Yes, rest = No
             int d = Math.Max(1, Math.Min(10, depthTier <= 0 ? 3 : depthTier));
