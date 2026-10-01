@@ -414,6 +414,9 @@ namespace StingTools.Commands.Electrical.CableSizer
                 string awg = pick.Size;
                 double ampacity = pick.AmpacityA;
                 var sel = pick.Device;
+                // NEC 2023 210.23(A): the input does not say whether this is a branch circuit
+                // or what it supplies, so a 10 A device is shown for confirmation.
+                StingTools.Core.Electrical.ProtectiveDeviceSelection.FlagNecTenAmpBranchCircuit(sel);
                 int breaker = sel.ProposedA;
 
                 double csaMm2 = NecCircularMilsToMm2(awg);
@@ -447,7 +450,7 @@ namespace StingTools.Commands.Electrical.CableSizer
                     $"(ta={input.AmbientTempC:0}°C [310.15(B)(1)], {ccc} CCC [310.15(C)(1)])" +
                     (pick.UpsizedPast.Count > 0 ? $", upsized past {string.Join(", ", pick.UpsizedPast)}" : "") +
                     $", OCPD {breaker}A [240.6(A)" +
-                    (confirm ? ", 240.4(B) next size up — confirm" : ", 240.4 conductor check passed") + "] — " +
+                    (confirm ? ", confirm — see the note" : ", 240.4 conductor check passed") + "] — " +
                     result.StandardBasis;
                 return result;
             }

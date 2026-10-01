@@ -192,6 +192,11 @@ namespace StingTools.Commands.Electrical
                         // device ceiling below their tabulated ampacity.
                         if (useNec && necSizeForLimit != null)
                             StingTools.Core.Electrical.NecConductorSelection.ApplySmallConductorLimit(sel, necSizeForLimit, necMatForLimit);
+                        // NEC 2023 210.23(A): a 10 A branch circuit may not supply receptacles,
+                        // fixed appliances, etc. The circuit's loads are not classified here, so a
+                        // 10 A proposal is shown for confirmation, never as a clean pass.
+                        if (useNec)
+                            StingTools.Core.Electrical.ProtectiveDeviceSelection.FlagNecTenAmpBranchCircuit(sel);
                         string note = sel.Note;
                         if (ratings.Length == 0)
                             note = "rating list not loaded: " + (VoltageDropEngine.BreakerSizesLoadError ?? "empty list");

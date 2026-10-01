@@ -6,7 +6,7 @@ namespace StingTools.Tags.Tests
     /// <summary>
     /// DSCH-30 — NEC 240.4 conductor protection in ProtectiveDeviceSelection.Select. Before
     /// this, the NEC path picked the next 240.6(A) rating and checked nothing against the
-    /// conductor. Rules as tested (NEC 2023 240.4(B)/(C), wording VERIFY — sign-off item):
+    /// conductor. Rules as tested (NEC 2023 240.4(B)/(C); wording checked 2026-10-02 against NFPA PI 705-NFPA 70-2023):
     /// at or below 800 A the next higher standard rating above the ampacity is permitted
     /// when the ampacity is not itself a standard rating (and the receptacle condition holds,
     /// which the code cannot see, so it is flagged); above 800 A ampacity ≥ rating.
@@ -16,7 +16,7 @@ namespace StingTools.Tags.Tests
         /// <summary>NEC 2023 Table 240.6(A), written from the standard.</summary>
         private static readonly int[] Nec =
         {
-            15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200,
+            10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200,
             225, 250, 300, 350, 400, 450, 500, 600, 700, 800, 1000, 1200, 1600, 2000, 2500,
             3000, 4000, 5000, 6000
         };

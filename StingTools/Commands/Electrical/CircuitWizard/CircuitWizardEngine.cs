@@ -242,7 +242,7 @@ namespace StingTools.Commands.Electrical.CircuitWizard
             double prospectiveVA = cur.TotalLoadVA + el.LoadVA;
             double iA = prospectiveVA / Math.Max(1.0, cur.VoltageV);
             int trial = StingTools.Standards.ElectricalStandardId.IsNec(opts.Standard)
-                ? VoltageDropEngine.NextStandardBreakerSizeNEC(iA)
+                ? VoltageDropEngine.NextRating(NecBranchRatings(cur.LoadClass), iA)
                 : VoltageDropEngine.NextStandardBreakerSizeBS(iA);
             // 0 = no standard device for the combined load: start a new circuit. A single
             // element that no device carries ends up alone, with RatingRefusal set.
@@ -250,6 +250,19 @@ namespace StingTools.Commands.Electrical.CircuitWizard
             double allowed = trial * maxLoadPct * cur.VoltageV;
             return prospectiveVA > allowed;
         }
+
+        /// <summary>
+        /// The NEC Table 240.6(A) ratings a branch circuit of this load class may use. NEC 2023
+        /// 210.23(A) permits a 10 A branch circuit for lighting outlets only (plus dwelling
+        /// exhaust fans on lighting circuits and an individual gas fireplace) and forbids it for
+        /// receptacle outlets, fixed appliances, garage door openers and laundry equipment, so
+        /// every class except Lighting starts at 15 A. Emergency lighting is held to 15 A too —
+        /// its classification here is by name, not by what the circuit supplies.
+        /// </summary>
+        private static int[] NecBranchRatings(string loadClass)
+            => string.Equals(loadClass, "Lighting", StringComparison.Ordinal)
+                ? VoltageDropEngine.BreakerSizesNEC
+                : StingTools.Core.Electrical.ProtectiveDeviceSelection.NecRatingsAboveTenAmpBranch(VoltageDropEngine.BreakerSizesNEC);
 
         private static ProposedCircuit NewCircuit(string panelName, string loadClass,
             double voltageV, int poles, int seq)
@@ -273,8 +286,9 @@ namespace StingTools.Commands.Electrical.CircuitWizard
             circuit.TotalLoadVA = circuit.Elements.Sum(e => e.LoadVA);
             double iA = circuit.TotalLoadVA / Math.Max(1.0, circuit.VoltageV);
             bool nec = StingTools.Standards.ElectricalStandardId.IsNec(opts.Standard);
+            int[] necRatings = nec ? NecBranchRatings(circuit.LoadClass) : null;
             circuit.ProposedRatingA = nec
-                ? VoltageDropEngine.NextStandardBreakerSizeNEC(iA)
+                ? VoltageDropEngine.NextRating(necRatings, iA)
                 : VoltageDropEngine.NextStandardBreakerSizeBS(iA);
             circuit.RatingRefusal = circuit.ProposedRatingA > 0 ? null
                 : $"No standard {(nec ? "NEC 240.6(A)" : "BS EN 60898 MCB")} rating ≥ {iA:0.0} A" +
@@ -307,7 +321,7 @@ namespace StingTools.Commands.Electrical.CircuitWizard
             if (nec && circuit.ProposedRatingA > 0)
             {
                 var sel = StingTools.Core.Electrical.ProtectiveDeviceSelection.Select(iA, isNec: true, continuous: false,
-                    VoltageDropEngine.BreakerSizesNEC,
+                    necRatings,
                     sized.Sized && sized.ConductorAmpacityA > 0 ? sized.ConductorAmpacityA : (double?)null,
                     sized.Sized ? sized.CsaLabel : "conductor not sized: " + sized.Warning);
                 if (sel.Blocked)

@@ -16,10 +16,14 @@ namespace StingTools.Tags.Tests
     /// </summary>
     public class BreakerRatingDataTests
     {
-        /// <summary>NEC 2023 Table 240.6(A), fuses and inverse-time circuit breakers.</summary>
+        /// <summary>NEC 2023 Table 240.6(A), fuses and inverse-time circuit breakers. 10 A
+        /// joined the table in the 2023 edition (NFPA 70 A2022 cycle, Public Input 3239 moved
+        /// it out of the fuse-only list); the 2023 text is reproduced unmarked as the base of
+        /// NFPA First Revision FR-9210-NFPA 70-2024, CMP-10 First Draft report,
+        /// https://docinfofiles.nfpa.org/files/AboutTheCodes/70/70_A2025_NEC_P10_FD_PrelimFR.pdf (p. 78/113).</summary>
         private static readonly int[] NecTable240_6A =
         {
-            15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200,
+            10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200,
             225, 250, 300, 350, 400, 450, 500, 600, 700, 800, 1000, 1200, 1600, 2000, 2500,
             3000, 4000, 5000, 6000
         };
@@ -48,9 +52,12 @@ namespace StingTools.Tags.Tests
         public void Shipped_NEC_fuse_only_ratings_are_separate_from_the_breaker_list()
         {
             var set = VoltageDropEngine.ResolveBreakerSizes(Shipped());
-            Assert.Equal(new[] { 1, 3, 6, 10 }, set.NecFuseAdditional);
+            // NEC 2023 240.6(A): "Additional standard ampere ratings for fuses shall be 1, 3, 6,
+            // and 601." (same NFPA report as above). 10 A is in the table now, not here.
+            Assert.Equal(new[] { 1, 3, 6, 601 }, set.NecFuseAdditional);
             Assert.DoesNotContain(1, set.Nec);
-            Assert.DoesNotContain(10, set.Nec);
+            Assert.DoesNotContain(601, set.Nec);
+            Assert.DoesNotContain(10, set.NecFuseAdditional);
         }
 
         [Fact]
@@ -64,6 +71,9 @@ namespace StingTools.Tags.Tests
         }
 
         [Theory]
+        [InlineData(8.0, 10)]
+        [InlineData(10.0, 10)]
+        [InlineData(10.1, 15)]
         [InlineData(14.0, 15)]
         [InlineData(16.0, 20)]
         [InlineData(21.0, 25)]

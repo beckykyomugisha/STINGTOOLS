@@ -620,10 +620,12 @@ namespace StingTools.Core.Electrical
             /// <summary>True when the proposed device would not be protected by the cable (In &gt; Iz),
             /// or when no standard rating is large enough. A blocked proposal must not be applied.</summary>
             public bool Blocked { get; set; }
-            /// <summary>NEC only: the device is above the conductor ampacity under the
-            /// 240.4(B) next-size-up allowance, which holds only when conditions this code
-            /// cannot see are met (<see cref="Nec2404BConfirmText"/>). Not blocked, but not a
-            /// clean pass either — the caller must show it.</summary>
+            /// <summary>NEC only: the proposal holds only when conditions this code cannot see
+            /// are met — the device is above the conductor ampacity under the 240.4(B)
+            /// next-size-up allowance (<see cref="Nec2404BConfirmText"/>), or it is a 10 A
+            /// branch-circuit device whose loads 210.23(A) restricts
+            /// (<see cref="FlagNecTenAmpBranchCircuit"/>). Not blocked, but not a clean pass
+            /// either — the caller must show it.</summary>
             public bool NeedsConfirmation { get; set; }
             /// <summary>False when the conductor was not checked against the device
             /// (no ampacity / Iz was available).</summary>
@@ -635,13 +637,52 @@ namespace StingTools.Core.Electrical
         public const int Nec2404MaxNextSizeUpA = 800;
 
         /// <summary>The 240.4(B) conditions this code cannot verify from the model.
-        /// Paraphrased from NEC 2023 240.4(B)(1) and the 240.4(B)(2) "without overload trip
-        /// adjustments above its rating" wording — VERIFY against the printed NFPA 70-2023
-        /// (DSCH-30 sign-off: an NEC-qualified engineer).</summary>
+        /// 240.4(B)(1) is quoted from NFPA 70-2023; the adjustable-trip sentence is the
+        /// paragraph after 240.4(B)(3). Wording confirmed 2026-10-02 against the
+        /// NFPA report reproducing the NFPA 70-2023 text: Public Input 705-NFPA 70-2023 [Section 240.4], NEC CMP-10 First Draft public-input report, pp. 321-322/533, https://docinfofiles.nfpa.org/files/AboutTheCodes/70/70_A2025_NEC_P10_FD_PIResponses.pdf
+        /// (the text there is the 2023 edition, reproduced as the base of a 2026-cycle
+        /// proposal; only the "(H I)" reference in the 240.4 lead-in is marked as changed).</summary>
         public const string Nec2404BConfirmText =
-            "confirm 240.4(B)(1): the conductors are not part of a branch circuit supplying more than one " +
-            "receptacle for cord-and-plug-connected portable loads, and no adjustable trip is set above the " +
-            "conductor ampacity [VERIFY wording against NFPA 70-2023 240.4(B)]";
+            "confirm NEC 240.4(B)(1): the conductors are not part of a branch circuit supplying more than one " +
+            "receptacle for cord-and-plug-connected portable loads; and, if the device is adjustable-trip, it is " +
+            "set no higher than the next standard value above the conductor ampacity with restricted access " +
+            "per 240.6(C)";
+
+        /// <summary>NEC 2023 210.18 / 210.23(A): the 10 A branch-circuit rating that the 2023
+        /// edition added (with 10 A in Table 240.6(A)).</summary>
+        public const int NecTenAmpBranchCircuitA = 10;
+
+        /// <summary>NEC 2023 210.23(A)(1) loads a 10 A branch circuit may supply and
+        /// 210.23(A)(2) loads it shall not. Read from the 2023 text reproduced unmarked as the
+        /// base of First Revision FR-7637-NFPA 70-2024 [210.23(A)], NEC CMP-2 First Draft
+        /// report p. 55/111,
+        /// https://docinfofiles.nfpa.org/files/AboutTheCodes/70/70_A2025_NEC_P02_FD_PrelimFR.pdf.</summary>
+        public const string Nec21023AConfirmText =
+            "a 10 A branch circuit is limited by NEC 210.23(A): it may supply lighting outlets and dwelling-unit " +
+            "bathroom / laundry exhaust fans on lighting circuits (or an individual gas fireplace unit), and shall not " +
+            "supply receptacle outlets, fixed appliances (except on an individual branch circuit), garage door " +
+            "openers or laundry equipment — confirm the load, or use 15 A";
+
+        /// <summary>
+        /// The NEC rating list without the 10 A branch-circuit rating, for a branch circuit
+        /// whose load 210.23(A) does not permit on 10 A (e.g. receptacles). Feeders and
+        /// lighting circuits use the full Table 240.6(A) list.
+        /// </summary>
+        public static int[] NecRatingsAboveTenAmpBranch(int[] ratingsA)
+            => (ratingsA ?? new int[0]).Where(r => r > NecTenAmpBranchCircuitA).ToArray();
+
+        /// <summary>
+        /// Marks a 10 A NEC proposal for confirmation when the caller cannot tell what the
+        /// branch circuit supplies (210.23(A)). Returns true when it flagged. A blocked
+        /// proposal, or any other rating, is left alone.
+        /// </summary>
+        public static bool FlagNecTenAmpBranchCircuit(Selection sel)
+        {
+            if (sel == null || sel.Blocked || sel.ProposedA != NecTenAmpBranchCircuitA) return false;
+            sel.NeedsConfirmation = true;
+            sel.Note = (string.IsNullOrEmpty(sel.Note) ? "" : sel.Note + "; ") + Nec21023AConfirmText;
+            return true;
+        }
 
         /// <param name="isNec">NEC: next 240.6(A) rating ≥ Ib (×1.25 when continuous), then
         /// the conductor check of 240.4(B)/(C) when <paramref name="izA"/> is given.
