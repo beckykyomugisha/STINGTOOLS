@@ -624,7 +624,7 @@ public sealed partial class PlanscapeServerClient : IDisposable
     public async Task<string?> CreateIssueAsync(Guid projectId, string type, string title,
         string priority = "MEDIUM", string? assignee = null, string? discipline = null,
         List<long>? linkedElementIds = null,
-        string? optionSetName = null, string? optionName = null)
+        string? optionSetName = null, string? optionName = null, string? idempotencyKey = null)
     {
         if (!await EnsureAuthenticatedAsync()) return null;
         try
@@ -639,7 +639,7 @@ public sealed partial class PlanscapeServerClient : IDisposable
                 linkedElementIds = linkedElementIds ?? new List<long>(),
                 optionSetName,
                 optionName
-            });
+            }, idempotencyKey);
             if (!resp.ok) { LastError = $"Create issue failed: {resp.body}"; return null; }
             var json = JObject.Parse(resp.body);
             return json["issueCode"]?.Value<string>();
@@ -1937,6 +1937,11 @@ public sealed partial class PlanscapeServerClient : IDisposable
     }
 
     private async Task<(bool ok, int status, string body)> PostJsonAsync(string path, object payload)
+        => await PostJsonAsync(path, payload, null).ConfigureAwait(false);
+
+    /// <summary>As PostJsonAsync; <paramref name="idempotencyKey"/>, when given, is sent as
+    /// X-Idempotency-Key so the server answers a retried create with the original (C3).</summary>
+    private async Task<(bool ok, int status, string body)> PostJsonAsync(string path, object payload, string? idempotencyKey)
     {
         var content = new StringContent(
             JsonConvert.SerializeObject(payload, new JsonSerializerSettings
@@ -1951,7 +1956,9 @@ public sealed partial class PlanscapeServerClient : IDisposable
         // which the capability layer reads as unknown rather than as denied.
         LastStatus = null;
         if (http == null) throw new InvalidOperationException("HttpClient not initialised — call LoginAsync first.");
-        var resp = await http.PostAsync(path, content).ConfigureAwait(false);
+        using var req = new HttpRequestMessage(HttpMethod.Post, path) { Content = content };
+        if (!string.IsNullOrWhiteSpace(idempotencyKey)) req.Headers.TryAddWithoutValidation("X-Idempotency-Key", idempotencyKey);
+        var resp = await http.SendAsync(req).ConfigureAwait(false);
         var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
         var ok = (int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300;
         LastStatus = (int)resp.StatusCode;

@@ -844,6 +844,29 @@ namespace StingTools.Acc.Tests
         }
     }
 
+    // C3: a create retried after a timeout must resolve to the same server issue.
+    public class IssueServerCreateKeyTests
+    {
+        private static readonly Guid Project = Guid.Parse("11111111-2222-3333-4444-555555555555");
+
+        [Fact]
+        public void TheKey_IsStablePerProjectAndIssue_AndCaseInsensitiveOnTheId()
+        {
+            string k = StingTools.Core.IssueSchema.ServerCreateKey(Project, "iss-0042");
+            Assert.Equal(k, StingTools.Core.IssueSchema.ServerCreateKey(Project, " ISS-0042 "));
+            Assert.NotEqual(k, StingTools.Core.IssueSchema.ServerCreateKey(Project, "ISS-0043"));
+            Assert.NotEqual(k, StingTools.Core.IssueSchema.ServerCreateKey(Guid.NewGuid(), "ISS-0042"));
+            Assert.StartsWith("sting-issue-create:", k);
+        }
+
+        [Fact]
+        public void NoStableIdentity_NoKey()
+        {
+            Assert.Null(StingTools.Core.IssueSchema.ServerCreateKey(Guid.Empty, "ISS-1"));
+            Assert.Null(StingTools.Core.IssueSchema.ServerCreateKey(Project, "  "));
+        }
+    }
+
     public class AccOwnedIssueTests
     {
         [Theory]

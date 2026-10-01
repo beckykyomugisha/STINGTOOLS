@@ -373,7 +373,8 @@ namespace StingTools.Core
                     try
                     {
                         string code = await PlanscapeServerClient.Instance.CreateIssueAsync(
-                            projectId, type, title, priority, assignee, discipline, elementIds);
+                            projectId, type, title, priority, assignee, discipline, elementIds,
+                            idempotencyKey: IssueSchema.ServerCreateKey(projectId, issueId));
 
                         if (string.IsNullOrEmpty(code))
                         {
@@ -470,6 +471,7 @@ namespace StingTools.Core
                         foreach (var t in ea)
                             if (long.TryParse(t?.ToString(), out long v)) elementIds.Add(v);
 
+                    string rowId = IssueSchema.IdOf(row);
                     string code = await PlanscapeServerClient.Instance.CreateIssueAsync(
                         projectId,
                         (string)row["type"] ?? "RFI",
@@ -477,7 +479,8 @@ namespace StingTools.Core
                         (string)row["priority"] ?? "MEDIUM",
                         (string)row["assigned_to"] ?? "",
                         (string)row["discipline"] ?? "",
-                        elementIds);
+                        elementIds,
+                        idempotencyKey: IssueSchema.ServerCreateKey(projectId, rowId));
 
                     if (string.IsNullOrEmpty(code))
                     {
@@ -486,15 +489,15 @@ namespace StingTools.Core
                         StingLog.Warn($"IssueStore.Reconcile stopped: {PlanscapeServerClient.Instance.LastError}");
                         break;
                     }
-                    row["server_code"] = code;
+                    // C3: stamp this row on a FRESH read under the lock. Writing back the
+                    // snapshot read before the awaits erased any server_code another path
+                    // (a fire-and-forget create) stamped meanwhile, so the next reconcile
+                    // posted that row again.
+                    StampServerCode(path, rowId, code);
                     pushed++;
                 }
 
-                if (pushed > 0)
-                {
-                    lock (LockFor(path)) { CoordStores.WriteArray(path, rows); }
-                    StingLog.Info($"IssueStore.ReconcileToServer pushed {pushed} issue(s).");
-                }
+                if (pushed > 0) StingLog.Info($"IssueStore.ReconcileToServer pushed {pushed} issue(s).");
                 return pushed;
             }
             catch (Exception ex) { StingLog.Warn($"IssueStore.ReconcileToServerAsync: {ex.Message}"); return 0; }

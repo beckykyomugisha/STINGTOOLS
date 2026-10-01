@@ -196,6 +196,19 @@ namespace StingTools.Core
             IssueStatusNormalizer.IsOpen((string)(row?["status"] ?? row?["Status"]) ?? "");
 
         /// <summary>Server GUID if this row is mirrored server-side.</summary>
+        /// <summary>
+        /// C3: the X-Idempotency-Key for creating this issue on the Planscape server — stable
+        /// per (project, local issue id), so a create retried after a timeout (a Render cold
+        /// start outlasts the client timeout) resolves to the issue the first attempt made
+        /// instead of a second BimIssue that AccSyncService would then push to ACC as well.
+        /// Null when the row has no id (nothing stable to key on).
+        /// </summary>
+        public static string ServerCreateKey(Guid projectId, string issueId)
+        {
+            if (projectId == Guid.Empty || string.IsNullOrWhiteSpace(issueId)) return null;
+            return "sting-issue-create:" + projectId.ToString("N") + ":" + issueId.Trim().ToUpperInvariant();
+        }
+
         public static string ServerIdOf(JObject row)
         {
             string v = (string)(row?["server_id"]);
