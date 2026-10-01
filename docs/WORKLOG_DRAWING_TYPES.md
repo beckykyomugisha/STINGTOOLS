@@ -209,20 +209,35 @@ ad42c8bda, which includes PR #1021. The earlier rounds' PR #1021 is merged and d
 | DTW-146 | ParameterHelpers level-map key | Med-Low | spatial_codes.json edits not seen: the registry kept its old cache | Reload the registry on a key miss | Done |
 | DTW-147 | ResolveAllIssuesCommand ~122 | Low-Med | Report showed another run's scope-box audit | Take the model's own audit after the context builds | Done |
 | DTW-148 | AnnotationRunner matchline frame | Low-Med | Stamped frame never followed a crop change | Redraw when incomplete or not matching the crop | Done |
-| DTW-149 | TitleBlockSpec.Resolve ~466-497 | High | Scalars fill-if-blank root-first: 12 working A0/A2/A3 families resolve the A1 template (.rft); COVER/A2 data errors too | Round 8 | Queued |
-| DTW-150 | SheetPlacementBridge ~274 | Med-High | Fit-to-slot overrides the type's scale in both directions; should only coarsen when it does not fit | Round 8 | Queued |
-| DTW-151 | DrawingProducer ~1911 / SheetPlacementBridge ~454 | Med-High | Schedules placed at the slot centre (their point is the top-left), so they run off the slot | Round 8 | Queued |
-| DTW-152 | TitleBlockResolver.ResolveMode ~94 | Med | Reads PRJ_SHEET_BIM_MODE_TXT from Project Information, but it is bound to Sheets only, so NONBIM is never chosen | Round 8 | Queued |
-| DTW-153 | TitleBlockSwap / Set Variant / Toggle BIM / MigrateLegacy | Med | Family swaps ignore the title-block lock | Round 8 | Queued |
-| DTW-154 | TitleBlockCommands Populate / Sheet Count / Transmittal | Med | Instance-only lock check, missing type and sheet locks | Round 8 | Queued |
-| DTW-155 | STING_TITLE_BLOCKS.json COVER_A2/A3, CLARIFICATION_A3 | Med | Inherit A1 drawable and slots on A2/A3 paper | Round 8 | Queued |
-| DTW-156 | TitleBlockFactory master path ~276/297/671 | Med (Revit) | Revision schedule placed before master propagation, with no ScheduleSheetInstance exclusion: possible duplicate revision table | Round 8 | Queued |
-| DTW-157 | SheetPlacementBridge fit ~256 | Med-Low | Fit ignores annotation extents; a failed scale set is swallowed; overflow never reported | Round 8 | Queued |
-| DTW-158 | TitleBlock_AutoPlaceViewports ~141 | Med-Low | Ignores the title-block origin | Round 8 | Queued |
-| DTW-159 | SheetManagerEngine Clone ~739 | Low | Copies the title block's revision schedule instance | Round 8 | Queued |
-| DTW-160 | Toggle BIM / Migrate ~301,168 | Low | Takes the first type rather than the same-named type | Round 8 | Queued |
-| DTW-161 | SheetPlacementBridge _drawableCache | Low | Session cache ignores edits to the title-block JSON | Round 8 | Queued |
-| DTW-162 | SheetSequenceStore.SeedFromExistingSheets ~323 | Low | Seeds ignore discipline and vol: numbering gap on first use | Round 8 | Queued |
+| DTW-149 | TitleBlockSpec.Resolve ~466-497 | High | Scalars fill-if-blank root-first: 12 working A0/A2/A3 families resolve the A1 template (.rft); COVER/A2 data errors too | fix/dt-r8-tb | In progress |
+| DTW-150 | SheetPlacementBridge ~274 | Med-High | Fit-to-slot overrides the type's scale in both directions; should only coarsen when it does not fit | fix/dt-r8-tb | In progress |
+| DTW-151 | DrawingProducer ~1911 / SheetPlacementBridge ~454 | Med-High | Schedules placed at the slot centre (their point is the top-left), so they run off the slot | fix/dt-r8-tb | In progress |
+| DTW-152 | TitleBlockResolver.ResolveMode ~94 | Med | Reads PRJ_SHEET_BIM_MODE_TXT from Project Information, but it is bound to Sheets only, so NONBIM is never chosen | fix/dt-r8-tb | In progress |
+| DTW-153 | TitleBlockSwap / Set Variant / Toggle BIM / MigrateLegacy | Med | Family swaps ignore the title-block lock | fix/dt-r8-tb | In progress |
+| DTW-154 | TitleBlockCommands Populate / Sheet Count / Transmittal | Med | Instance-only lock check, missing type and sheet locks | fix/dt-r8-tb | In progress |
+| DTW-155 | STING_TITLE_BLOCKS.json COVER_A2/A3, CLARIFICATION_A3 | Med | Inherit A1 drawable and slots on A2/A3 paper | fix/dt-r8-tb | In progress |
+| DTW-156 | TitleBlockFactory master path ~276/297/671 | Med (Revit) | Revision schedule placed before master propagation, with no ScheduleSheetInstance exclusion: possible duplicate revision table | fix/dt-r8-tb | In progress |
+| DTW-157 | SheetPlacementBridge fit ~256 | Med-Low | Fit ignores annotation extents; a failed scale set is swallowed; overflow never reported | fix/dt-r8-tb | In progress |
+| DTW-158 | TitleBlock_AutoPlaceViewports ~141 | Med-Low | Ignores the title-block origin | fix/dt-r8-tb | In progress |
+| DTW-159 | SheetManagerEngine Clone ~739 | Low | Copies the title block's revision schedule instance | fix/dt-r8-tb | In progress |
+| DTW-160 | Toggle BIM / Migrate ~301,168 | Low | Takes the first type rather than the same-named type | fix/dt-r8-tb | In progress |
+| DTW-161 | SheetPlacementBridge _drawableCache | Low | Session cache ignores edits to the title-block JSON | fix/dt-r8-tb | In progress |
+| DTW-162 | SheetSequenceStore.SeedFromExistingSheets ~323 | Low | Seeds ignore discipline and vol: numbering gap on first use | fix/dt-r8-tb | In progress |
+| DTW-163 | ManagedTemplateSyncer ~625 | High | Managed packs release V/G: produced views get no pack overrides or filters | fix/dt-r8-vg | In progress |
+| DTW-164 | STING_AEC_FILTERS.json enum values | High | Structural material/usage and wall-function integers wrong (concrete and steel swapped, etc.) | fix/dt-r8-vg | In progress |
+| DTW-165 | ViewStylePackApplier / ResolveFillPattern / MEP system filters | High | 'Solid fill' never resolves; other pattern names uncreated; colour with no pattern draws nothing; misses silent | fix/dt-r8-vg | In progress |
+| DTW-166 | AecFilterFactory phase rules | Med-High | PHASE_DEMOLISHED notEquals 'None' makes a null rule; corp-base filter never created | fix/dt-r8-vg | In progress |
+| DTW-167 | AecFilterFactory.FindOrCreate | Med | Existing filters never updated, so data fixes never reach projects that already ran | fix/dt-r8-vg | In progress |
+| DTW-168 | TemplateManagerCommands.LoadViewFiltersFromCsv | Med | CSV rule prose unparsed: every row becomes a category-wide filter | fix/dt-r8-vg | In progress |
+| DTW-169 | ViewStylePackApplier.ApplyPresetOverrides | Med | Subcategory rows dropped; most VG fields ignored; raw weights throw | fix/dt-r8-vg | In progress |
+| DTW-170 | Managed packs 'scale' | Med (Revit) | Template may lock every view to the seed's scale | fix/dt-r8-vg | In progress |
+| DTW-171 | AecFilterFactory compound/values | Med-Low | AND drops a failed child (broader filter); unparseable value becomes 0 | fix/dt-r8-vg | In progress |
+| DTW-172 | DrawingCropApplier tight/room | Low-Med | View-scoped collector can only shrink the crop; includes datums | fix/dt-r8-vg | In progress |
+| DTW-173 | ViewStylePackApplier ~65 | Low | Overrides written to a view whose template masks them; misleading message | fix/dt-r8-vg | In progress |
+| DTW-174 | ViewStylePackRegistry ~296 | Low | Child's default line-weight scale overwrites the parent's | fix/dt-r8-vg | In progress |
+| DTW-175 | CreateVGOverridesCommand | Low | Unreachable branch; adds every STING filter | fix/dt-r8-vg | In progress |
+| DTW-176 | ManagedTemplateSyncer ~292 | Low | Schedules excluded from templates | fix/dt-r8-vg | In progress |
+| DTW-177 | ApplyMaterialClassOverrides | Low | Dead code; adds a filter with no override | fix/dt-r8-vg | In progress |
 
 ## Decisions
 
@@ -285,6 +300,15 @@ ad42c8bda, which includes PR #1021. The earlier rounds' PR #1021 is merged and d
   as metadata). Only new sheets use the new pattern; existing numbers are not rewritten.
 
 ## NEEDS REVIT CHECK
+
+Round 8 view graphics:
+- Can PHASE_CREATED and PHASE_DEMOLISHED be filter rules?
+- Is STRUCTURAL_MATERIAL_TYPE accepted on walls and floors?
+- Which scale parameter id does GetTemplateParameterIds return?
+- Does a view-scoped collector exclude elements outside the crop?
+- After the fix, does a produced view from a managed pack show the pack's overrides and
+  filter fills?
+
 
 Round 3 (DTW-83..96):
 - **Room/space/area tags.** One room tag per room at its location; a re-run places nothing; a
