@@ -48,8 +48,9 @@ namespace StingTools.Core.Drawing
         /// Throws rather than returning an unpersisted number: a sequence the
         /// store could not save is worse than no sequence, because the caller
         /// stamps it on a sheet and the next session hands out the same one.
-        /// DrawingProducer.ResolveSheetSequence catches this and falls back to
-        /// its legacy counter, so production still proceeds — loudly.
+        /// DrawingProducer.ResolveSheetSequence catches this and makes no sheet
+        /// (DTW-194: it fell back to a count of the package's sheets, which
+        /// collided with the numbers another user had stored).
         /// </summary>
         /// <exception cref="InvalidOperationException">
         /// Counters could not be read, or could not be persisted.
@@ -135,7 +136,7 @@ namespace StingTools.Core.Drawing
         /// "Nothing stored yet" and "could not read what is stored" are now
         /// different outcomes. The first returns empty, which is correct and
         /// safe to write back. The second throws, so Next aborts into its
-        /// caller's catch and the legacy fallback path rather than persisting
+        /// caller's catch (which makes no sheet, DTW-194) rather than persisting
         /// a dictionary that is missing everything it failed to read.
         /// </summary>
         /// <exception cref="InvalidOperationException">
@@ -244,6 +245,38 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
+        /// DTW-194: why the counters cannot be written now, or null when they can —
+        /// no active transaction; Project Information owned by another user; or Project
+        /// Information changed in the central model since the last reload (the write would
+        /// be refused at commit). Asked before a production run too, so the run stops
+        /// instead of numbering sheets from a guess.
+        /// </summary>
+        internal static string WriteBlockReason(Document doc)
+        {
+            var pi = doc?.ProjectInformation;
+            if (pi == null) return null;
+            if (!doc.IsModifiable)
+                return "no active transaction (the number handed out would be reissued next session)";
+            if (!doc.IsWorkshared) return null;
+            try
+            {
+                var status = WorksharingUtils.GetCheckoutStatus(doc, pi.Id, out string owner);
+                if (status == CheckoutStatus.OwnedByOtherUser)
+                    return $"Project Information is owned by '{(string.IsNullOrWhiteSpace(owner) ? "another user" : owner)}' — "
+                         + "ask them to synchronise and relinquish, then run again";
+                var updates = WorksharingUtils.GetModelUpdatesStatus(doc, pi.Id);
+                if (updates == ModelUpdatesStatus.UpdatedInCentral || updates == ModelUpdatesStatus.DeletedInCentral)
+                    return "Project Information has changed in the central model since your last reload — reload latest, then run again";
+            }
+            catch (Exception ex)
+            {
+                // Status could not be determined: let the write itself be the arbiter, but say so.
+                StingLog.Warn($"SheetSequenceStore.WriteBlockReason: worksharing status unavailable ({ex.Message}); attempting write.");
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Persist every bucket.
         ///
         /// E-5(b)/(c): this used to swallow every failure. Two of them are
@@ -263,37 +296,15 @@ namespace StingTools.Core.Drawing
             var pi = doc?.ProjectInformation;
             if (pi == null) return;
 
-            // Pre-flight 1 — a write outside a transaction cannot persist.
-            if (!doc.IsModifiable)
+            // Pre-flight — no transaction, Project Information owned by another user, or
+            // changed in central since the last reload (DTW-194: that one was refused at
+            // commit, so every item of a batch rolled back). See WriteBlockReason.
+            var block = WriteBlockReason(doc);
+            if (block != null)
             {
-                const string msg = "Sheet-sequence counters not persisted: no active transaction. " +
-                                   "The number handed out will be reissued next session.";
+                var msg = "Sheet-sequence counters not persisted — " + block + ".";
                 StingLog.Error("SheetSequenceStore.WriteAll: " + msg, null);
                 throw new InvalidOperationException(msg);
-            }
-
-            // Pre-flight 2 — worksharing ownership of ProjectInformation.
-            if (doc.IsWorkshared)
-            {
-                try
-                {
-                    var status = WorksharingUtils.GetCheckoutStatus(doc, pi.Id, out string owner);
-                    if (status == CheckoutStatus.OwnedByOtherUser)
-                    {
-                        var msg = "Sheet-sequence counters not persisted — Project Information is owned by " +
-                                  $"'{owner}'. Sheet numbers issued now may collide with theirs. " +
-                                  "Ask them to synchronise and relinquish, then re-run.";
-                        StingLog.Error("SheetSequenceStore.WriteAll: " + msg, null);
-                        throw new InvalidOperationException(msg);
-                    }
-                }
-                catch (InvalidOperationException) { throw; }
-                catch (Exception ex)
-                {
-                    // Ownership could not be determined — proceed and let the
-                    // write itself be the arbiter, but say so.
-                    StingLog.Warn($"SheetSequenceStore.WriteAll: checkout status unavailable ({ex.Message}); attempting write.");
-                }
             }
 
             try

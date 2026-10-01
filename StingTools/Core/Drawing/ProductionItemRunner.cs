@@ -38,6 +38,17 @@ namespace StingTools.Core.Drawing
         /// <summary>True once the user has asked the run to stop.</summary>
         internal bool Stopped { get; private set; }
 
+        /// <summary>
+        /// DTW-194: the run makes sheets, whose numbers come from the counters on Project
+        /// Information. Before the first item those are checked (owned by another user, not
+        /// up to date) and borrowed; if they cannot be written the run stops with the reason
+        /// and produces nothing. Set by the production commands, not by heal / sync passes.
+        /// </summary>
+        internal bool RequiresSheetCounters { get; set; }
+
+        private bool _countersChecked;
+        private string _blockedLine;
+
         /// <param name="total">Items the run will attempt; 0 = no progress window.</param>
         internal ProductionItemRunner(Document doc, string logTag, int total = 0)
         {
@@ -69,7 +80,28 @@ namespace StingTools.Core.Drawing
 
         /// <summary>The report line for a stopped run (null when it was not stopped).</summary>
         internal string StoppedLine(string unit)
-            => Stopped ? ProductionRunReport.Stopped(Done, _total, unit) : null;
+            => _blockedLine ?? (Stopped ? ProductionRunReport.Stopped(Done, _total, unit) : null);
+
+        /// <summary>DTW-194: the reason the run was stopped before it started, or null.</summary>
+        internal string BlockedLine => _blockedLine;
+
+        /// <summary>
+        /// DTW-194: once per run, before the first item — can the sheet-number counters be
+        /// written? False (and the run marked stopped) when they cannot.
+        /// </summary>
+        private bool CountersWritable()
+        {
+            if (!RequiresSheetCounters || _countersChecked) return _blockedLine == null;
+            _countersChecked = true;
+            string block = null;
+            try { block = Preflight.CheckSheetCounters(); }
+            catch (Exception ex) { StingLog.Warn($"{_logTag} counter pre-flight: {ex.Message} — not pre-checked."); }
+            if (block == null) return true;
+            _blockedLine = ProductionEdgeDecisions.CountersBlockedLine(block);
+            Stopped = true;
+            StingLog.Warn($"{_logTag}: {_blockedLine}");
+            return false;
+        }
 
         /// <summary>
         /// Run one item in its own transaction <paramref name="transactionName"/>.
@@ -82,6 +114,13 @@ namespace StingTools.Core.Drawing
         internal ItemResult Run(string transactionName, string label, Func<string> preflight, Action body,
             Func<TransactionStatus, string> notKept, List<string> warnings)
         {
+            if (!CountersWritable())
+            {
+                // DTW-194: nothing opened. The caller's ShouldStop() ends the loop and
+                // StoppedLine() carries the reason into its report.
+                SkippedCount++;
+                return ItemResult.Skipped;
+            }
             ShowProgress();
             Status(label);
             try { return RunCore(transactionName, label, preflight, body, notKept, warnings); }

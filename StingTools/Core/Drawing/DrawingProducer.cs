@@ -85,6 +85,21 @@ namespace StingTools.Core.Drawing
         public bool SheetReused { get; set; }
         public List<string> Warnings { get; } = new List<string>();
 
+        /// <summary>
+        /// Why this request must not be kept, or null. Set when production stopped short
+        /// of a drawing it could stand behind — a sheet whose number could not be reserved
+        /// (DTW-194), an area view its scope box could not crop (DTW-206). The line is in
+        /// <see cref="Warnings"/> too; a batch rolls the item back on it.
+        /// </summary>
+        public string Failure { get; set; }
+
+        internal void Fail(string reason)
+        {
+            if (string.IsNullOrWhiteSpace(reason)) return;
+            if (Failure == null) Failure = reason;
+            if (!Warnings.Contains(reason)) Warnings.Add(reason);
+        }
+
         /// <summary>DTW-114: what the annotation pass placed on each view this run found
         /// already produced (and refreshed).</summary>
         public List<AnnotationRefresh> AnnotationRefreshes { get; } = new List<AnnotationRefresh>();
@@ -111,7 +126,6 @@ namespace StingTools.Core.Drawing
         // cleared by Reset() / the IDisposable scope returned by Prime().
         [ThreadStatic] private static Dictionary<string, ElementId> _existingViewCache;
         [ThreadStatic] private static Dictionary<string, ElementId> _existingSheetCache;
-        [ThreadStatic] private static Dictionary<string, int>       _packageSheetCount;
         // GAP-L: the set of sheet numbers in use, primed once per batch so
         // EnsureUniqueSheetNumber doesn't re-collect every ViewSheet on each
         // assignment (was O(M²) across an M-sheet batch). Written back as each
@@ -210,7 +224,6 @@ namespace StingTools.Core.Drawing
                 _existingViewNames = new BatchNameLedger(names, StringComparer.Ordinal);
 
                 var s = new Dictionary<string, ElementId>(StringComparer.Ordinal);
-                var pkg = new Dictionary<string, int>(StringComparer.Ordinal);
                 var nums = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var sheet in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
                 {
@@ -221,14 +234,11 @@ namespace StingTools.Core.Drawing
                     // not-bound from bound-but-blank.
                     var shtCtx = DrawingTypeStamper.ReadSheetContext(sheet) ?? string.Empty;
                     if (!string.IsNullOrEmpty(dtId)) s[SheetKey(dtId, pkgId, ProductionContextKey.Identity(shtCtx))] = sheet.Id;
-                    if (pkg.TryGetValue(pkgId, out var n)) pkg[pkgId] = n + 1;
-                    else pkg[pkgId] = 1;
                     // Same pass feeds the sheet-number cache — no extra collector.
                     try { if (!string.IsNullOrEmpty(sheet.SheetNumber)) nums.Add(sheet.SheetNumber); }
                     catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
                 _existingSheetCache = s;
-                _packageSheetCount  = pkg;
                 _sheetNumberCache   = new BatchNameLedger(nums, StringComparer.OrdinalIgnoreCase);
             }
             catch (Exception ex)
@@ -276,7 +286,6 @@ namespace StingTools.Core.Drawing
             public Dictionary<string, ElementId> ExistingViewCache, ExistingSheetCache;
             public BatchNameLedger ExistingViewNames, SheetNumberCache;
             public Dictionary<string, BuiltInCategory> CategoryByName;
-            public Dictionary<string, int> PackageSheetCount;
             public string CacheDocKey, IsoLevelMapDocKey;
             public HashSet<long> RefreshedViews;
             public Dictionary<string, string> IsoLevelMap;
@@ -289,7 +298,6 @@ namespace StingTools.Core.Drawing
             ExistingViewNames  = _existingViewNames,
             CategoryByName     = _categoryByName,
             ExistingSheetCache = _existingSheetCache,
-            PackageSheetCount  = _packageSheetCount,
             SheetNumberCache   = _sheetNumberCache,
             CacheDocKey        = _cacheDocKey,
             RefreshedViews     = _refreshedViews,
@@ -304,7 +312,6 @@ namespace StingTools.Core.Drawing
             _existingViewNames  = s.ExistingViewNames;
             _categoryByName     = s.CategoryByName;
             _existingSheetCache = s.ExistingSheetCache;
-            _packageSheetCount  = s.PackageSheetCount;
             _sheetNumberCache   = s.SheetNumberCache;
             _cacheDocKey        = s.CacheDocKey;
             _refreshedViews     = s.RefreshedViews;
@@ -322,7 +329,6 @@ namespace StingTools.Core.Drawing
             _existingViewNames  = null;
             _categoryByName     = null;
             _existingSheetCache = null;
-            _packageSheetCount  = null;
             _sheetNumberCache   = null;
             _cacheDocKey        = null;
             _refreshedViews     = null;   // DTW-114
@@ -384,8 +390,11 @@ namespace StingTools.Core.Drawing
                 return result;
 
             if (opts.CreateSheet)
+            {
                 result.SheetId = CreateOrFindSheet(doc, dt, ctx, opts, result,
                     opts.Idempotent ? rules.Where(r => r != null).Select(r => r.Idx).ToList() : null);
+                if (result.Failure != null) return result;   // DTW-194: no number, no drawing
+            }
 
             // P1 — resolve the title-block family's slot grid once for this
             // sheet (null for norm-only profiles / no sheet) and reuse it across
@@ -456,7 +465,8 @@ namespace StingTools.Core.Drawing
             result.SheetId = CreateOrFindSheet(doc, dt, ctx, opts, result);
             if (result.SheetId == ElementId.InvalidElementId)
             {
-                result.Warnings.Add($"No sheet could be made for '{dt.Id}'; '{view.Name}' is not on a sheet.");
+                if (result.Failure == null)
+                    result.Warnings.Add($"No sheet could be made for '{dt.Id}'; '{view.Name}' is not on a sheet.");
                 return result;
             }
 
@@ -1714,10 +1724,6 @@ namespace StingTools.Core.Drawing
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
-            ViewSheet sheet;
-            try { sheet = ViewSheet.Create(doc, titleBlockId); }
-            catch (Exception ex) { result.Warnings.Add($"CreateSheet: {ex.Message}"); return ElementId.InvalidElementId; }
-
             // The sequence has to be resolved BEFORE the number is built —
             // the pattern's {seq} / {seq:Dn} needs it. It used to be consumed
             // further down, after numbering, and only stamped into
@@ -1743,7 +1749,19 @@ namespace StingTools.Core.Drawing
             }
             catch (Exception ex) { result.Warnings.Add($"Sheet-number policy: {ex.Message}"); }
 
-            int seq = ResolveSheetSequence(doc, dt, ctx, effectivePackage, policy, numberPattern, result);
+            // DTW-194: reserved BEFORE the sheet exists, so a number that cannot be
+            // reserved leaves no sheet behind — never one numbered from a guess.
+            var reserved = ResolveSheetSequence(doc, dt, ctx, effectivePackage, policy, numberPattern, result, out var seqFailure);
+            if (!reserved.HasValue)
+            {
+                result.Fail(ProductionEdgeDecisions.SheetNotNumberedLine(dt.Id, seqFailure));
+                return ElementId.InvalidElementId;
+            }
+            int seq = reserved.Value;
+
+            ViewSheet sheet;
+            try { sheet = ViewSheet.Create(doc, titleBlockId); }
+            catch (Exception ex) { result.Warnings.Add($"CreateSheet: {ex.Message}"); return ElementId.InvalidElementId; }
 
             // One token dict for the number, the name and the title-block
             // cells, built with the REAL doc handle so {project} /
@@ -2326,16 +2344,23 @@ namespace StingTools.Core.Drawing
         /// <summary>
         /// Resolve the next sheet sequence for this (drawing type, package).
         /// Extracted so numbering can consume it before the sheet number is
-        /// built. Behaviour is unchanged: persisted ES counter first, then the
-        /// per-batch cache, then a package sheet count.
+        /// built. The persisted ES counter only: null, with <paramref name="failure"/>
+        /// saying why, when it cannot be reserved.
+        ///
+        /// DTW-194: a counter that could not be written (Project Information owned by
+        /// another user, or changed in central) fell back to a count of the package's
+        /// sheets — a guess that collided with the numbers the other user had stored,
+        /// leaving "-A" sheets and numbers out of sequence. No sheet is numbered from a
+        /// guess now; the caller makes no sheet and says why.
         /// </summary>
-        private static int ResolveSheetSequence(Document doc, DrawingType dt, DrawingContext ctx,
-            string effectivePackage, SheetNumberPolicyKind policy, string numberPattern, ProduceResult result)
+        private static int? ResolveSheetSequence(Document doc, DrawingType dt, DrawingContext ctx,
+            string effectivePackage, SheetNumberPolicyKind policy, string numberPattern, ProduceResult result,
+            out string failure)
         {
+            failure = null;
             // Phase 169 — persisted sequence counter via ExtensibleStorage on
-            // ProjectInfo. Falls back to the per-batch cache (and ultimately a
-            // sheet count) when ES is unavailable. Survives Revit restarts and
-            // the renumber command's compaction so deleted sheets don't regrow gaps.
+            // ProjectInfo. Survives Revit restarts and the renumber command's
+            // compaction so deleted sheets don't regrow gaps.
             //
             // The bucket comes from SheetNumberEngine.CounterBucket: unchanged
             // (type, package, discipline, vol) under the Profile policy; under ISO,
@@ -2355,29 +2380,9 @@ namespace StingTools.Core.Drawing
             }
             catch (Exception ex)
             {
-                StingTools.Core.StingLog.Warn($"SheetSequenceStore.Next: {ex.Message}");
-            }
-
-            // Legacy fallback path — preserves prior behaviour for documents
-            // where ExtensibleStorage isn't writable.
-            try
-            {
-                if (_packageSheetCount != null && CacheMatchesDoc(doc))
-                {
-                    _packageSheetCount.TryGetValue(effectivePackage, out var n);
-                    var next = n + 1;
-                    _packageSheetCount[effectivePackage] = next;
-                    return next;
-                }
-                return new FilteredElementCollector(doc)
-                    .OfClass(typeof(ViewSheet))
-                    .Cast<ViewSheet>()
-                    .Count(s => string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "", effectivePackage, StringComparison.Ordinal));
-            }
-            catch (Exception ex)
-            {
-                StingTools.Core.StingLog.Warn($"ResolveSheetSequence fallback: {ex.Message}");
-                return 0;
+                StingTools.Core.StingLog.Warn($"SheetSequenceStore.Next ({dt?.Id}): {ex.Message}");
+                failure = ex.Message;
+                return null;
             }
         }
 
