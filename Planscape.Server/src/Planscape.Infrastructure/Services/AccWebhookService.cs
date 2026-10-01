@@ -58,7 +58,13 @@ public class AccWebhookService
 {
     public const string SystemIssues = "autodesk.construction.issues";
     public const string SystemData = "data";
+    /// <summary>AUT-5: Forma/ACC Reviews (webhooks/v1/tutorials/create-a-hook-reviews,
+    /// read 2026-10-01): scope <c>{"project": "&lt;uuid&gt;"}</c>, 3-legged token only, data:read +
+    /// data:create to create. Delivery is filtered by what the creating user may see.</summary>
+    public const string SystemReviews = "autodesk.construction.reviews";
     public static readonly IReadOnlyList<string> IssueEvents = new[] { "issue.created-1.0", "issue.updated-1.0" };
+    /// <summary>Only the close: that is when ACC's decision exists to be read back.</summary>
+    public static readonly IReadOnlyList<string> ReviewEvents = new[] { "review.closed-1.0" };
     public static readonly IReadOnlyList<string> DataEvents = new[] { "dm.version.added", "dm.version.modified" };
     public const string ReceiverPath = "/api/webhooks/autodesk/event";
 
@@ -83,6 +89,7 @@ public class AccWebhookService
                 "dm.folder.moved", "dm.folder.moved.out", "dm.folder.copied", "dm.folder.copied.out",
                 "dm.operation.started", "dm.operation.completed",
             },
+            [SystemReviews] = new HashSet<string> { "review.created-1.0", "review.closed-1.0" },
             [SystemIssues] = new HashSet<string>
             {
                 "issue.created-1.0", "issue.updated-1.0", "issue.deleted-1.0", "issue.restored-1.0", "issue.unlinked-1.0",
@@ -235,6 +242,8 @@ public class AccWebhookService
         // Event names: validated against the spec's enum (APS offers no list endpoint).
         var (issueEvents, unknownIssue) = ResolveEvents(_config, SystemIssues, IssueEvents);
         var (dataEvents, unknownData) = ResolveEvents(_config, SystemData, DataEvents);
+        var (reviewEvents, unknownReview) = ResolveEvents(_config, SystemReviews, ReviewEvents);
+        foreach (var u in unknownReview) warnings.Add($"Skipped unknown {SystemReviews} event '{u}' (not in the APS webhooks event list).");
         foreach (var u in unknownIssue) warnings.Add($"Skipped unknown {SystemIssues} event '{u}' (not in the APS webhooks event list).");
         foreach (var u in unknownData) warnings.Add($"Skipped unknown {SystemData} event '{u}' (not in the APS webhooks event list).");
 
@@ -266,6 +275,7 @@ public class AccWebhookService
         var wanted = new List<(string System, string Event, string ScopeKey, string ScopeValue)>();
         string accProject = ApsEndpoints.StripHubPrefix(conn.ExternalProjectId);
         foreach (var ev in issueEvents) wanted.Add((SystemIssues, ev, "project", accProject));
+        foreach (var ev in reviewEvents) wanted.Add((SystemReviews, ev, "project", accProject));
         foreach (var folder in folders)
             foreach (var ev in dataEvents) wanted.Add((SystemData, ev, "folder", folder));
 

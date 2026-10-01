@@ -4,6 +4,13 @@
 //   * docs.approval.completed  → DocumentRecord.CdeStatus WIP/SHARED → PUBLISHED
 //   * model.review.completed   → SignalR notice to the project's group
 //   * issue.created-1.0 / issue.updated-1.0 → "acc.issue.changed" to the project's group
+//   * review.closed-1.0 / review.created-1.0 (autodesk.construction.reviews, AUT-5) →
+//     "acc.review.closed" / "acc.review.created" to the project's group, carrying the
+//     documented payload fields (sequenceId, roundNum, status). Reported, not applied: the
+//     decision is read and proposed by ACC_ReadReviews / ACC_ReviewProposals, never here.
+//   NOTE: docs.approval.completed and model.review.completed are NOT in the APS supported
+//   events list (read 2026-10-01); those two cases are kept for any hook that was created
+//   under them, but no current subscription produces them.
 //
 // CONNECTION RESOLUTION: hooks registered by POST acc/webhooks/subscribe
 // (AccWebhookService) carry ?connectionId=… in their callback URL, and their hook
@@ -184,6 +191,18 @@ public class AutodeskWebhooksController : ControllerBase
                 // ACC (see AccSyncService READ-BACK). Clients refresh on this signal.
                 await Broadcast(conn.Value.ProjectId, "acc.issue.changed",
                     new { @event = ev, accIssueId = Str(root, "payload", "id"), at = DateTime.UtcNow });
+                break;
+            case "review.closed-1.0":
+            case "review.created-1.0":
+                await Broadcast(conn.Value.ProjectId, ev == "review.closed-1.0" ? "acc.review.closed" : "acc.review.created",
+                    new
+                    {
+                        @event = ev,
+                        reviewId = urn,
+                        sequenceId = Str(root, "payload", "sequenceId"),
+                        status = Str(root, "payload", "status"),
+                        at = DateTime.UtcNow,
+                    });
                 break;
             case "docs.approval.completed":
                 await HandleApprovalCompleted(conn.Value.TenantId, conn.Value.ProjectId, urn, root, ct);

@@ -154,10 +154,23 @@ public partial class AccServerIntegrationTests
         Assert.Contains(r.Warnings!, w => w.Contains("dm.version.bogus"));
         Assert.DoesNotContain(fx.Http.Calls, c => c.Url.Contains("dm.version.bogus"));
         Assert.Contains(r.Hooks, h => h.Event == "dm.version.added" && h.ScopeValue == "urn:f1");
-        Assert.Equal(3, r.Hooks.Count);   // 2 issue + 1 DM
+        Assert.Equal(4, r.Hooks.Count);   // 2 issue + 1 review + 1 DM
     }
 
     // ── ACC-SRV-5: 409 "hook already exists" → adopt when it is ours ────────
+
+    // AUT-5: Reviews events are documented under autodesk.construction.reviews (review.created-1.0 /
+    // review.closed-1.0); the receiver's old docs.approval.completed / model.review.completed cases
+    // are not in the APS event list, so a closed review never reached Planscape.
+    [Fact]
+    public void Review_events_are_known_and_the_default_subscribes_to_the_close_only()
+    {
+        var (valid, unknown) = AccWebhookService.ResolveEvents(Cfg(), AccWebhookService.SystemReviews, AccWebhookService.ReviewEvents);
+        Assert.Equal(new[] { "review.closed-1.0" }, valid);
+        Assert.Empty(unknown);
+        Assert.Contains("review.created-1.0", AccWebhookService.KnownEvents[AccWebhookService.SystemReviews]);
+        Assert.DoesNotContain("docs.approval.completed", AccWebhookService.KnownEvents.Values.SelectMany(v => v));
+    }
 
     [Fact]
     public async Task Hook_conflict_adopts_the_existing_hook_when_its_callback_is_ours()
@@ -251,8 +264,9 @@ public partial class AccServerIntegrationTests
         var r = await Hooks(fx, db, HookCfg(fx)).SubscribeAsync(fx.ProjectId, null, default);
         Assert.Equal(AccSyncService.StatusPartial, r.Status);
         Assert.Contains(r.Errors, e => e.Contains("hub") && e.Contains("folderUrns"));
-        Assert.Equal(2, r.Hooks.Count);
-        Assert.All(r.Hooks, h => Assert.Equal(AccWebhookService.SystemIssues, h.System));
+        Assert.Equal(3, r.Hooks.Count);   // project-scoped hooks need no hub: 2 issue + 1 review
+        Assert.All(r.Hooks, h => Assert.Contains(h.System, new[] { AccWebhookService.SystemIssues, AccWebhookService.SystemReviews }));
+        Assert.All(r.Hooks, h => Assert.Equal("project", h.ScopeKey));
     }
 
     [Fact]

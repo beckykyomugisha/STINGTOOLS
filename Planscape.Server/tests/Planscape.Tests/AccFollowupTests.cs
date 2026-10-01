@@ -372,6 +372,32 @@ public partial class AccServerIntegrationTests
         return await db.Documents.IgnoreQueryFilters().AsNoTracking().SingleAsync(d => d.Id == id);
     }
 
+    // AUT-5: the documented Reviews close event reaches the project's group (and only it).
+    // Payload copied from the APS "Creating a Webhook (Forma Reviews)" tutorial, read 2026-10-01.
+    [Fact]
+    public async Task Webhook_review_closed_is_broadcast_to_the_project_and_nothing_is_applied()
+    {
+        var fx = new Fx();
+        var (docA, _, _, projectB, _) = await SeedTwoTenantsAsync(fx, "urn:shared", sameAccProject: false);
+        var rx = new Receiver(fx);
+        string json = new JObject
+        {
+            ["version"] = "1.0",
+            ["resourceUrn"] = "a4a3613c-c9dd-4e59-9d38-7b5a9857db9d",
+            ["hook"] = new JObject { ["hookId"] = "h-r", ["event"] = "review.closed-1.0", ["system"] = "autodesk.construction.reviews",
+                                     ["scope"] = new JObject { ["project"] = "acc-proj" } },
+            ["payload"] = new JObject { ["roundNum"] = 1, ["sequenceId"] = "16", ["status"] = "CLOSED" },
+        }.ToString(Newtonsoft.Json.Formatting.None);
+
+        var (r, _) = await rx.PostAsync(json, fx.ConnId, deliveryId: "d-rev-1");
+
+        Assert.IsType<OkObjectResult>(r);
+        var send = Assert.Single(rx.Hub.Sends);
+        Assert.Equal($"group:project-{fx.ProjectId}", send.Target);
+        Assert.Equal("acc.review.closed", send.Method);
+        Assert.Equal("WIP", (await ReadDocAsync(fx, docA)).CdeStatus);       // reported, never applied here
+    }
+
     [Fact]
     public async Task Webhook_duplicate_delivery_is_processed_once()
     {
@@ -530,7 +556,8 @@ public partial class AccServerIntegrationTests
         Assert.Equal(HookSecret, (string?)JObject.Parse(calls[secretAt].Body!)["token"]);
 
         var creates = calls.Where(c => c.Method == HttpMethod.Post && c.Url.EndsWith("/hooks")).ToList();
-        Assert.Equal(4, creates.Count);
+        Assert.Equal(5, creates.Count);   // 2 issue + 1 review (AUT-5) + 2 DM
+        Assert.Contains(creates, c => c.Url == "https://aps.test/webhooks/v1/systems/autodesk.construction.reviews/events/review.closed-1.0/hooks");
         Assert.Contains(creates, c => c.Url == "https://aps.test/webhooks/v1/systems/autodesk.construction.issues/events/issue.created-1.0/hooks");
         Assert.Contains(creates, c => c.Url == "https://aps.test/webhooks/v1/systems/autodesk.construction.issues/events/issue.updated-1.0/hooks");
         Assert.Contains(creates, c => c.Url == "https://aps.test/webhooks/v1/systems/data/events/dm.version.added/hooks");
@@ -539,13 +566,14 @@ public partial class AccServerIntegrationTests
             var body = JObject.Parse(c.Body!);
             Assert.Equal($"https://planscape.test/api/webhooks/autodesk/event?connectionId={fx.ConnId}", (string?)body["callbackUrl"]);
             var scope = (JObject)body["scope"]!;
-            if (c.Url.Contains("construction.issues")) Assert.Equal("acc-proj", (string?)scope["project"]);   // bare id
+            if (c.Url.Contains("construction.issues") || c.Url.Contains("construction.reviews"))
+                Assert.Equal("acc-proj", (string?)scope["project"]);   // bare id; "project" is the documented scope name for both
             else Assert.Equal("urn:adsk.wipprod:fs.folder:co.F1", (string?)scope["folder"]);
         }
 
         var stored = await fx.ReadConnAsync();
         var hooks = AccWebhookService.ReadHooks(JObject.Parse(stored.ConfigJson!));
-        Assert.Equal(4, hooks.Count);
+        Assert.Equal(5, hooks.Count);
         Assert.All(hooks, h => Assert.StartsWith("hook-", h.HookId));
 
         // Idempotent: a second run creates nothing new.
@@ -556,13 +584,13 @@ public partial class AccServerIntegrationTests
 
         // A client PUT of ConfigJson cannot drop the recorded hooks.
         var (merged, _) = AccSyncService.MergeClientConfig(stored.ConfigJson, "{\"accIssueSubtypeId\":\"sub-2\"}");
-        Assert.Equal(4, AccWebhookService.ReadHooks(JObject.Parse(merged!)).Count);
+        Assert.Equal(5, AccWebhookService.ReadHooks(JObject.Parse(merged!)).Count);
 
         // Unsubscribe deletes each recorded hook and clears the record.
         fx.Http.Calls.Clear();
         using (var db = fx.Db())
             Assert.Equal(AccSyncService.StatusOk, (await Hooks(fx, db, cfg).UnsubscribeAsync(fx.ProjectId, default)).Status);
-        Assert.Equal(4, fx.Http.Calls.Count(c => c.Method == HttpMethod.Delete));
+        Assert.Equal(5, fx.Http.Calls.Count(c => c.Method == HttpMethod.Delete));
         Assert.Contains(fx.Http.Calls, c => c.Method == HttpMethod.Delete
             && c.Url.StartsWith("https://aps.test/webhooks/v1/systems/data/events/dm.version.added/hooks/hook-"));
         Assert.Empty(AccWebhookService.ReadHooks(JObject.Parse((await fx.ReadConnAsync()).ConfigJson!)));
@@ -581,8 +609,11 @@ public partial class AccServerIntegrationTests
         Assert.Equal("none", r.FolderSource);
         Assert.Single(r.Errors);
         var hooks = AccWebhookService.ReadHooks(JObject.Parse((await fx.ReadConnAsync()).ConfigJson!));
-        var h = Assert.Single(hooks);
-        Assert.Equal("issue.created-1.0", h.Event);
+        // The refused issue.updated hook is not recorded; the two that APS created are.
+        Assert.Equal(2, hooks.Count);
+        Assert.Contains(hooks, h => h.Event == "issue.created-1.0");
+        Assert.Contains(hooks, h => h.Event == "review.closed-1.0" && h.System == AccWebhookService.SystemReviews);
+        Assert.DoesNotContain(hooks, h => h.Event == "issue.updated-1.0");
     }
 
     [Fact]
