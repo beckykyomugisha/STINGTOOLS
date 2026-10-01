@@ -61,20 +61,71 @@ namespace StingTools.Core.Drawing
             if (doc == null || view == null || pack == null) return r;
             if (view.IsTemplate) return r;
 
-            // Cannot override graphics when a view template governs the view.
-            if (view.ViewTemplateId != null && view.ViewTemplateId != ElementId.InvalidElementId)
+            // DTW-173: this used to say overrides "will be applied to the template"
+            // and then wrote them to the view — where a template that controls V/G
+            // masks them, so they never showed. Ask the template what it controls:
+            // write each part only where the view, not the template, decides.
+            var masked = TemplateControlledVg(doc, view);
+            bool vgMasked = masked.Contains(BuiltInParameter.VIS_GRAPHICS_MODEL);
+            bool filtersMasked = masked.Contains(BuiltInParameter.VIS_GRAPHICS_FILTERS);
+            bool worksetsMasked = masked.Contains(BuiltInParameter.VIS_GRAPHICS_WORKSETS);
+            if (masked.Count > 0)
             {
-                r.Warnings.Add("View has an active template — pack VG overrides will be applied to the template, not the view.");
+                var parts = new List<string>();
+                if (vgMasked) parts.Add("category overrides");
+                if (filtersMasked) parts.Add("filters");
+                if (worksetsMasked) parts.Add("workset visibility");
+                if (parts.Count > 0)
+                    r.Warnings.Add($"Pack '{pack.Id}': the view's template controls {string.Join(", ", parts)} — "
+                        + "those parts of the pack are masked and were not written. Use a managed pack, or release "
+                        + "them in the template, for the pack to show.");
             }
 
-            ApplyCategoryOverrides(doc, view, pack, r);
-            ApplyLineWeightScale(doc, view, pack, r, extraLineWeightScale);
-            ApplyFilterRules(doc, view, pack, r);
-            ApplyWorksetVisibility(doc, view, pack, r);
-            ApplyLinkOverrides(doc, view, pack, r);
+            if (!vgMasked)
+            {
+                ApplyCategoryOverrides(doc, view, pack, r);
+                ApplyLineWeightScale(doc, view, pack, r, extraLineWeightScale);
+            }
+            if (!filtersMasked)
+            {
+                ApplyFilterRules(doc, view, pack, r);
+                ApplyMaterialClassOverrides(doc, view, pack, r);   // DTW-177: was never called
+            }
+            if (!worksetsMasked) ApplyWorksetVisibility(doc, view, pack, r);
+            ApplyLinkOverrides(doc, view, pack, r);   // element overrides: never template-controlled
             ApplyColorFillSchemes(doc, view, pack, r);
-            ApplyFilterEnabled(doc, view, pack, r);
+            if (!filtersMasked) ApplyFilterEnabled(doc, view, pack, r);
             return r;
+        }
+
+        /// <summary>
+        /// DTW-173: the V/G template parameters the view's template controls (empty
+        /// when the view has no template). A failed read is treated as "not
+        /// controlled", i.e. the pre-DTW-173 behaviour of writing to the view.
+        /// </summary>
+        private static HashSet<BuiltInParameter> TemplateControlledVg(Document doc, View view)
+        {
+            var result = new HashSet<BuiltInParameter>();
+            if (view?.ViewTemplateId == null || view.ViewTemplateId == ElementId.InvalidElementId) return result;
+            try
+            {
+                if (!(doc.GetElement(view.ViewTemplateId) is View template)) return result;
+                var all = new HashSet<ElementId>(template.GetTemplateParameterIds());
+                var nonControlled = new HashSet<ElementId>(template.GetNonControlledTemplateParameterIds());
+                foreach (var bip in new[] { BuiltInParameter.VIS_GRAPHICS_MODEL, BuiltInParameter.VIS_GRAPHICS_FILTERS,
+                                            BuiltInParameter.VIS_GRAPHICS_WORKSETS })
+                {
+                    var id = new ElementId(bip);
+                    if (all.Contains(id) && !nonControlled.Contains(id)) result.Add(bip);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("ViewStylePack.TemplateControl",
+                    $"ViewStylePackApplier: reading the template's controlled parameters failed — writing to the view: {ex.Message}");
+                result.Clear();
+            }
+            return result;
         }
 
         /// <summary>
@@ -182,6 +233,19 @@ namespace StingTools.Core.Drawing
                     }
                     if (!view.IsFilterApplied(filter.Id))
                         view.AddFilter(filter.Id);
+
+                    // DTW-177: the filter used to be added with no override, so it
+                    // changed nothing on the drawing. Apply the class's override.
+                    var ogs = view.GetFilterOverrides(filter.Id) ?? new OverrideGraphicSettings();
+                    if (src.Halftone.HasValue) ogs.SetHalftone(src.Halftone.Value);
+                    if (src.Transparency.HasValue) ogs.SetSurfaceTransparency(Clamp(src.Transparency.Value, 0, 100));
+                    ApplyWeight(src.ProjectionLineWeight, w => ogs.SetProjectionLineWeight(w), $"byMaterialClass '{className}'", "projectionLineWeight", r);
+                    ApplyWeight(src.CutLineWeight, w => ogs.SetCutLineWeight(w), $"byMaterialClass '{className}'", "cutLineWeight", r);
+                    if (!string.IsNullOrEmpty(src.ProjectionLineColor)) ogs.SetProjectionLineColor(HexColor(src.ProjectionLineColor));
+                    if (!string.IsNullOrEmpty(src.CutLineColor)) ogs.SetCutLineColor(HexColor(src.CutLineColor));
+                    view.SetFilterOverrides(filter.Id, ogs);
+                    view.SetFilterVisibility(filter.Id, true);
+                    r.AppliedByMaterialClass++;
                 }
                 catch (Exception ex)
                 {
@@ -334,6 +398,13 @@ namespace StingTools.Core.Drawing
                             continue;
                         }
                     }
+                    else
+                    {
+                        // DTW-167: an existing registry filter is brought up to its
+                        // current definition once per document per session, so a
+                        // data correction reaches projects that minted it earlier.
+                        RefreshRegistryFilterOnce(doc, rule.FilterName, r);
+                    }
 
                     if (!view.GetFilters().Contains(filterId))
                         view.AddFilter(filterId);
@@ -356,12 +427,8 @@ namespace StingTools.Core.Drawing
                     var projWeight = rule.ProjectionLineWeight ?? defaults?.ProjWeight;
                     ApplyWeight(projWeight, w => ogs.SetProjectionLineWeight(w),
                         rule.FilterName, "projectionLineWeight", r);
-                    var projLp = rule.ProjectionLinePattern ?? defaults?.ProjLinePattern;
-                    if (!string.IsNullOrEmpty(projLp))
-                    {
-                        var pid = ResolveLinePattern(doc, projLp);
-                        if (pid != ElementId.InvalidElementId) ogs.SetProjectionLinePatternId(pid);
-                    }
+                    ApplyLinePattern(doc, rule.ProjectionLinePattern ?? defaults?.ProjLinePattern,
+                        id => ogs.SetProjectionLinePatternId(id), rule.FilterName, r);
 
                     // Cut line
                     var cutColor = rule.CutLineColor ?? defaults?.CutColor;
@@ -369,64 +436,25 @@ namespace StingTools.Core.Drawing
                     var cutWeight = rule.CutLineWeight ?? defaults?.CutWeight;
                     ApplyWeight(cutWeight, w => ogs.SetCutLineWeight(w),
                         rule.FilterName, "cutLineWeight", r);
-                    var cutLp = rule.CutLinePattern ?? defaults?.CutLinePattern;
-                    if (!string.IsNullOrEmpty(cutLp))
-                    {
-                        var pid = ResolveLinePattern(doc, cutLp);
-                        if (pid != ElementId.InvalidElementId) ogs.SetCutLinePatternId(pid);
-                    }
+                    ApplyLinePattern(doc, rule.CutLinePattern ?? defaults?.CutLinePattern,
+                        id => ogs.SetCutLinePatternId(id), rule.FilterName, r);
 
-                    // Surface foreground / background patterns
-                    var sfgColor = rule.SurfaceFgColor ?? defaults?.SurfFgColor;
-                    if (!string.IsNullOrEmpty(sfgColor)) ogs.SetSurfaceForegroundPatternColor(HexColor(sfgColor));
-                    var sfgPattern = rule.SurfaceFgPattern ?? defaults?.SurfFgPattern;
-                    if (!string.IsNullOrEmpty(sfgPattern))
-                    {
-                        var fid = ResolveFillPattern(doc, sfgPattern);
-                        if (fid != ElementId.InvalidElementId)
-                        {
-                            ogs.SetSurfaceForegroundPatternId(fid);
-                            SafeWrite.Try(() => ogs.SetSurfaceForegroundPatternVisible(true), "ViewStylePack.Pattern", "surface fg pattern on", r?.Warnings);
-                        }
-                    }
-                    var sbgColor = rule.SurfaceBgColor ?? defaults?.SurfBgColor;
-                    if (!string.IsNullOrEmpty(sbgColor)) ogs.SetSurfaceBackgroundPatternColor(HexColor(sbgColor));
-                    var sbgPattern = rule.SurfaceBgPattern ?? defaults?.SurfBgPattern;
-                    if (!string.IsNullOrEmpty(sbgPattern))
-                    {
-                        var fid = ResolveFillPattern(doc, sbgPattern);
-                        if (fid != ElementId.InvalidElementId)
-                        {
-                            ogs.SetSurfaceBackgroundPatternId(fid);
-                            SafeWrite.Try(() => ogs.SetSurfaceBackgroundPatternVisible(true), "ViewStylePack.Pattern", "surface bg pattern on", r?.Warnings);
-                        }
-                    }
-
-                    // Cut foreground / background patterns (fire-rated walls etc.)
-                    var cfgColor = rule.CutFgColor ?? defaults?.CutFgColor;
-                    if (!string.IsNullOrEmpty(cfgColor)) ogs.SetCutForegroundPatternColor(HexColor(cfgColor));
-                    var cfgPattern = rule.CutFgPattern ?? defaults?.CutFgPattern;
-                    if (!string.IsNullOrEmpty(cfgPattern))
-                    {
-                        var fid = ResolveFillPattern(doc, cfgPattern);
-                        if (fid != ElementId.InvalidElementId)
-                        {
-                            ogs.SetCutForegroundPatternId(fid);
-                            SafeWrite.Try(() => ogs.SetCutForegroundPatternVisible(true), "ViewStylePack.Pattern", "cut fg pattern on", r?.Warnings);
-                        }
-                    }
-                    var cbgColor = rule.CutBgColor ?? defaults?.CutBgColor;
-                    if (!string.IsNullOrEmpty(cbgColor)) ogs.SetCutBackgroundPatternColor(HexColor(cbgColor));
-                    var cbgPattern = rule.CutBgPattern ?? defaults?.CutBgPattern;
-                    if (!string.IsNullOrEmpty(cbgPattern))
-                    {
-                        var fid = ResolveFillPattern(doc, cbgPattern);
-                        if (fid != ElementId.InvalidElementId)
-                        {
-                            ogs.SetCutBackgroundPatternId(fid);
-                            SafeWrite.Try(() => ogs.SetCutBackgroundPatternVisible(true), "ViewStylePack.Pattern", "cut bg pattern on", r?.Warnings);
-                        }
-                    }
+                    // Surface / cut, foreground / background fills. DTW-165: a colour
+                    // with no pattern draws nothing in Revit, so a stated colour with
+                    // no stated pattern means solid fill; a pattern that does not
+                    // resolve is reported once per name.
+                    ApplyFill(doc, rule.SurfaceFgColor ?? defaults?.SurfFgColor, rule.SurfaceFgPattern ?? defaults?.SurfFgPattern,
+                        c => ogs.SetSurfaceForegroundPatternColor(c), id => ogs.SetSurfaceForegroundPatternId(id),
+                        () => ogs.SetSurfaceForegroundPatternVisible(true), rule.FilterName, "surface foreground", r);
+                    ApplyFill(doc, rule.SurfaceBgColor ?? defaults?.SurfBgColor, rule.SurfaceBgPattern ?? defaults?.SurfBgPattern,
+                        c => ogs.SetSurfaceBackgroundPatternColor(c), id => ogs.SetSurfaceBackgroundPatternId(id),
+                        () => ogs.SetSurfaceBackgroundPatternVisible(true), rule.FilterName, "surface background", r);
+                    ApplyFill(doc, rule.CutFgColor ?? defaults?.CutFgColor, rule.CutFgPattern ?? defaults?.CutFgPattern,
+                        c => ogs.SetCutForegroundPatternColor(c), id => ogs.SetCutForegroundPatternId(id),
+                        () => ogs.SetCutForegroundPatternVisible(true), rule.FilterName, "cut foreground", r);
+                    ApplyFill(doc, rule.CutBgColor ?? defaults?.CutBgColor, rule.CutBgPattern ?? defaults?.CutBgPattern,
+                        c => ogs.SetCutBackgroundPatternColor(c), id => ogs.SetCutBackgroundPatternId(id),
+                        () => ogs.SetCutBackgroundPatternVisible(true), rule.FilterName, "cut background", r);
 
                     // Transparency
                     var transp = rule.Transparency ?? defaults?.Transparency;
@@ -464,6 +492,18 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        private static readonly HashSet<string> _refreshedFilters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private static void RefreshRegistryFilterOnce(Document doc, string filterName, PackApplyResult r)
+        {
+            string key = (doc?.PathName ?? doc?.Title ?? "_") + "|" + filterName;
+            lock (_refreshedFilters) { if (!_refreshedFilters.Add(key)) return; }
+            var def = AecFilterRegistry.GetByName(doc, filterName);
+            if (def == null) return;
+            var f = AecFilterFactory.FindOrCreate(doc, def);
+            foreach (var w in f.Warnings) r.Warnings.Add($"Filter '{filterName}': {w}");
+        }
+
         // ── Selective apply methods used by ManagedTemplateSyncer ─────────────────
 
         /// <summary>
@@ -488,6 +528,8 @@ namespace StingTools.Core.Drawing
             if (doc == null || view == null || pack == null || r == null) return;
             try { ApplyFilterRules(doc, view, pack, r); }
             catch (Exception ex) { r.Warnings.Add($"ApplyFilterRulesOnly: {ex.Message}"); }
+            try { ApplyMaterialClassOverrides(doc, view, pack, r); }
+            catch (Exception ex) { r.Warnings.Add($"ApplyFilterRulesOnly (byMaterialClass): {ex.Message}"); }
         }
 
         /// <summary>
@@ -796,26 +838,99 @@ namespace StingTools.Core.Drawing
             return ElementId.InvalidElementId;
         }
 
+        /// <summary>
+        /// DTW-169: a subcategory by name, under <paramref name="parent"/> when given
+        /// (BuiltInCategory or name), else under any category.
+        /// </summary>
+        private static ElementId ResolveSubCategoryId(Document doc, string parent, string sub)
+        {
+            if (doc == null || string.IsNullOrWhiteSpace(sub)) return ElementId.InvalidElementId;
+            var subName = sub.Trim().Trim('<', '>').Trim();
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(parent))
+                {
+                    var parentId = ResolveCategoryId(doc, parent);
+                    var parentCat = parentId == ElementId.InvalidElementId ? null : Category.GetCategory(doc, parentId);
+                    if (parentCat == null) return ElementId.InvalidElementId;
+                    foreach (Category s in parentCat.SubCategories)
+                        if (string.Equals(s.Name, subName, StringComparison.OrdinalIgnoreCase)) return s.Id;
+                    return ElementId.InvalidElementId;
+                }
+                foreach (Category c in doc.Settings.Categories)
+                    foreach (Category s in c.SubCategories)
+                        if (string.Equals(s.Name, subName, StringComparison.OrdinalIgnoreCase)) return s.Id;
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.WarnRateLimited("ViewStylePack.ResolveSubCategoryId",
+                    $"ViewStylePackApplier: subcategory lookup '{parent}' / '{sub}' threw — reported as not found: {ex.Message}");
+            }
+            return ElementId.InvalidElementId;
+        }
+
         private static ElementId ResolveLinePattern(Document doc, string name)
         {
             if (string.IsNullOrWhiteSpace(name)) return ElementId.InvalidElementId;
-            if (name.Equals("Solid", StringComparison.OrdinalIgnoreCase))
+            var trimmed = name.Trim().Trim('<', '>').Trim();
+            if (trimmed.Equals("Solid", StringComparison.OrdinalIgnoreCase))
                 return LinePatternElement.GetSolidPatternId();
             return new FilteredElementCollector(doc)
                 .OfClass(typeof(LinePatternElement))
                 .Cast<LinePatternElement>()
-                .FirstOrDefault(lp => string.Equals(lp.Name, name, StringComparison.OrdinalIgnoreCase))
+                .FirstOrDefault(lp => string.Equals(lp.Name, name.Trim(), StringComparison.OrdinalIgnoreCase))
                 ?.Id ?? ElementId.InvalidElementId;
         }
 
-        private static ElementId ResolveFillPatternId(Document doc, string name)
+        // DTW-165: pattern misses used to be skipped without a word. Each missing
+        // name is reported once per document per session — once is enough to act
+        // on, and a batch would otherwise repeat it per filter per view.
+        private static readonly HashSet<string> _patternMissReported = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private static void ReportPatternMissOnce(Document doc, string kind, string name, string subject, PackApplyResult r)
         {
-            if (string.IsNullOrWhiteSpace(name)) return ElementId.InvalidElementId;
-            return new FilteredElementCollector(doc)
-                .OfClass(typeof(FillPatternElement))
-                .Cast<FillPatternElement>()
-                .FirstOrDefault(fp => string.Equals(fp.Name, name, StringComparison.OrdinalIgnoreCase))
-                ?.Id ?? ElementId.InvalidElementId;
+            string key = (doc?.PathName ?? doc?.Title ?? "_") + "|" + kind + "|" + name;
+            lock (_patternMissReported) { if (!_patternMissReported.Add(key)) return; }
+            string hint = kind == "fill"
+                ? " Run Create Fill Patterns (STING - … patterns) or load a pattern of that name."
+                : " Load a line pattern of that name.";
+            r?.Warnings.Add($"{subject}: {kind} pattern '{name}' is not in this project — not applied (reported once).{hint}");
+            StingLog.Warn($"ViewStylePackApplier: {kind} pattern '{name}' not found ({subject}).");
+        }
+
+        /// <summary>Resolve and set a line pattern; a miss is reported once.</summary>
+        internal static void ApplyLinePattern(Document doc, string name, Action<ElementId> setter, string subject, PackApplyResult r)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return;
+            var pid = ResolveLinePattern(doc, name);
+            if (pid == ElementId.InvalidElementId) { ReportPatternMissOnce(doc, "line", name, subject, r); return; }
+            try { setter(pid); }
+            catch (Exception ex) { r?.Warnings.Add($"{subject}: line pattern '{name}' rejected by Revit ({ex.Message})."); }
+        }
+
+        /// <summary>
+        /// Set one fill slot (colour + pattern + visible). A colour with no pattern
+        /// means solid (<see cref="FillPatternNames.EffectivePattern"/>).
+        /// </summary>
+        internal static void ApplyFill(Document doc, string color, string pattern,
+            Action<Autodesk.Revit.DB.Color> setColor, Action<ElementId> setPattern, Action setVisible,
+            string subject, string slot, PackApplyResult r)
+        {
+            if (!string.IsNullOrEmpty(color))
+            {
+                try { setColor(HexColor(color)); }
+                catch (Exception ex) { r?.Warnings.Add($"{subject}: {slot} colour '{color}' rejected ({ex.Message})."); }
+            }
+            var effective = FillPatternNames.EffectivePattern(pattern, color);
+            if (string.IsNullOrEmpty(effective)) return;
+            var fid = ResolveFillPattern(doc, effective);
+            if (fid == ElementId.InvalidElementId) { ReportPatternMissOnce(doc, "fill", effective, subject, r); return; }
+            try
+            {
+                setPattern(fid);
+                SafeWrite.Try(setVisible, "ViewStylePack.Pattern", $"{slot} pattern on", r?.Warnings);
+            }
+            catch (Exception ex) { r?.Warnings.Add($"{subject}: {slot} pattern '{effective}' rejected by Revit ({ex.Message})."); }
         }
 
         private static Autodesk.Revit.DB.Color HexColor(string hex)
@@ -922,27 +1037,71 @@ namespace StingTools.Core.Drawing
             if (doc == null || view == null || overrides == null || r == null) return;
             foreach (var o in overrides)
             {
-                if (string.IsNullOrWhiteSpace(o.Category)) continue;
+                if (o == null) continue;
+                // DTW-169: a subcategory row (subCategory set, category optional)
+                // used to be dropped because only Category was read.
+                string label = string.IsNullOrWhiteSpace(o.SubCategory)
+                    ? o.Category
+                    : (string.IsNullOrWhiteSpace(o.Category) ? o.SubCategory : $"{o.Category} : {o.SubCategory}");
+                if (string.IsNullOrWhiteSpace(label)) continue;
                 try
                 {
-                    var catId = ResolveCategoryId(doc, o.Category);
+                    var catId = string.IsNullOrWhiteSpace(o.SubCategory)
+                        ? ResolveCategoryId(doc, o.Category)
+                        : ResolveSubCategoryId(doc, o.Category, o.SubCategory);
                     if (catId == ElementId.InvalidElementId)
                     {
-                        r.Warnings.Add($"PresetOverride: category '{o.Category}' not found.");
+                        r.Warnings.Add($"PresetOverride: category '{label}' not found.");
                         continue;
                     }
+                    if (o.Visible.HasValue)
+                        SafeWrite.Try(() => view.SetCategoryHidden(catId, !o.Visible.Value),
+                            "PresetOverride.Visibility", $"'{label}' in view '{view.Name}'", r.Warnings);
+
                     var ogs = view.GetCategoryOverrides(catId) ?? new OverrideGraphicSettings();
-                    if (o.Halftone.HasValue)          ogs.SetHalftone(o.Halftone.Value);
-                    if (o.ProjLineWeight.HasValue)     ogs.SetProjectionLineWeight(o.ProjLineWeight.Value);
+                    if (o.Halftone.HasValue) ogs.SetHalftone(o.Halftone.Value);
+
+                    // Weights go through ApplyWeight: 0 is "not stated", out-of-range
+                    // is reported, and neither throws away the rest of the override.
+                    ApplyWeight(o.ProjLineWeight, w => ogs.SetProjectionLineWeight(w), label, "projLineWeight", r);
                     if (!string.IsNullOrEmpty(o.ProjLineColor)) ogs.SetProjectionLineColor(HexColor(o.ProjLineColor));
-                    if (o.CutLineWeight.HasValue)      ogs.SetCutLineWeight(o.CutLineWeight.Value);
-                    if (!string.IsNullOrEmpty(o.CutLineColor))  ogs.SetCutLineColor(HexColor(o.CutLineColor));
-                    if (o.Transparency.HasValue)       ogs.SetSurfaceTransparency(Clamp(o.Transparency.Value, 0, 100));
-                    if (o.Visible.HasValue)            view.SetCategoryHidden(catId, !o.Visible.Value);
+                    ApplyLinePattern(doc, o.ProjLinePattern, id => ogs.SetProjectionLinePatternId(id), label, r);
+                    ApplyWeight(o.CutLineWeight, w => ogs.SetCutLineWeight(w), label, "cutLineWeight", r);
+                    if (!string.IsNullOrEmpty(o.CutLineColor)) ogs.SetCutLineColor(HexColor(o.CutLineColor));
+                    ApplyLinePattern(doc, o.CutLinePattern, id => ogs.SetCutLinePatternId(id), label, r);
+
+                    ApplyFill(doc, o.SurfFgColor, o.SurfFgPattern,
+                        c => ogs.SetSurfaceForegroundPatternColor(c), id => ogs.SetSurfaceForegroundPatternId(id),
+                        () => ogs.SetSurfaceForegroundPatternVisible(true), label, "surface foreground", r);
+                    ApplyFill(doc, o.SurfBgColor, o.SurfBgPattern,
+                        c => ogs.SetSurfaceBackgroundPatternColor(c), id => ogs.SetSurfaceBackgroundPatternId(id),
+                        () => ogs.SetSurfaceBackgroundPatternVisible(true), label, "surface background", r);
+                    ApplyFill(doc, o.CutFgColor, o.CutFgPattern,
+                        c => ogs.SetCutForegroundPatternColor(c), id => ogs.SetCutForegroundPatternId(id),
+                        () => ogs.SetCutForegroundPatternVisible(true), label, "cut foreground", r);
+                    ApplyFill(doc, o.CutBgColor, o.CutBgPattern,
+                        c => ogs.SetCutBackgroundPatternColor(c), id => ogs.SetCutBackgroundPatternId(id),
+                        () => ogs.SetCutBackgroundPatternVisible(true), label, "cut background", r);
+                    // Explicit pattern-visibility flags win over the "on" the fills set.
+                    if (o.SurfFgVisible.HasValue)
+                        SafeWrite.Try(() => ogs.SetSurfaceForegroundPatternVisible(o.SurfFgVisible.Value), "PresetOverride.Pattern", $"'{label}' surface fg visible", r.Warnings);
+                    if (o.SurfBgVisible.HasValue)
+                        SafeWrite.Try(() => ogs.SetSurfaceBackgroundPatternVisible(o.SurfBgVisible.Value), "PresetOverride.Pattern", $"'{label}' surface bg visible", r.Warnings);
+                    if (o.CutFgVisible.HasValue)
+                        SafeWrite.Try(() => ogs.SetCutForegroundPatternVisible(o.CutFgVisible.Value), "PresetOverride.Pattern", $"'{label}' cut fg visible", r.Warnings);
+
+                    if (o.Transparency.HasValue) ogs.SetSurfaceTransparency(Clamp(o.Transparency.Value, 0, 100));
+                    if (!string.IsNullOrEmpty(o.DetailLevel))
+                    {
+                        if (Enum.TryParse<ViewDetailLevel>(o.DetailLevel, true, out var dl))
+                            SafeWrite.Try(() => ogs.SetDetailLevel(dl), "PresetOverride.DetailLevel", $"'{label}' detail level", r.Warnings);
+                        else
+                            r.Warnings.Add($"PresetOverride '{label}': detail level '{o.DetailLevel}' is not Coarse / Medium / Fine — ignored.");
+                    }
                     view.SetCategoryOverrides(catId, ogs);
                     r.OverridesSet++;
                 }
-                catch (Exception ex) { r.Warnings.Add($"PresetOverride '{o.Category}': {ex.Message}"); }
+                catch (Exception ex) { r.Warnings.Add($"PresetOverride '{label}': {ex.Message}"); }
             }
         }
 

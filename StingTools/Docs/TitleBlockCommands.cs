@@ -696,9 +696,9 @@ namespace StingTools.Docs
                         StingLog.Info($"TB Populate: '{sheet.SheetNumber}' -> title block id {tb.Id}");
                     }
 
-                    // Lock gate — skip sheets the user has explicitly frozen
-                    int locked = ParameterHelpers.GetInt(tb, ParamRegistry.TB_LOCK, 0);
-                    if (locked != 0)
+                    // Lock gate — skip sheets the user has explicitly frozen.
+                    // DTW-154: instance, type AND sheet, not the instance alone.
+                    if (StingTools.Core.Drawing.TitleBlockParamApplier.IsTitleBlockLocked(tb, sheet))
                     {
                         lockedSkipped++;
                         skippedSheets.Add($"{sheet.SheetNumber}: locked");
@@ -1455,7 +1455,7 @@ namespace StingTools.Docs
                 .OrderBy(s => s.SheetNumber)
                 .ToList();
 
-            int swapped = 0, alreadyMatch = 0, noTb = 0, noMatch = 0;
+            int swapped = 0, alreadyMatch = 0, noTb = 0, noMatch = 0, locked = 0;
             var swapDetails = new List<string>();
 
             using (var tx = new Transaction(doc, "STING Title Block Set Variant"))
@@ -1475,6 +1475,10 @@ namespace StingTools.Docs
                     if (string.Equals(currentFn, targetFn, StringComparison.OrdinalIgnoreCase)
                         && tb.Symbol.Id == targetSym.Id)
                     { alreadyMatch++; continue; }
+
+                    // DTW-153: a locked title block (instance, type or sheet) is not swapped.
+                    if (StingTools.Core.Drawing.TitleBlockParamApplier.IsTitleBlockLocked(tb, sheet))
+                    { locked++; continue; }
 
                     try
                     {
@@ -1498,7 +1502,7 @@ namespace StingTools.Docs
             }
 
             StingLog.Info($"TB SetVariant: swapped {swapped}, already match {alreadyMatch}, " +
-                $"no TB {noTb}, no matching family {noMatch}");
+                $"no TB {noTb}, no matching family {noMatch}, locked {locked}");
 
             var b = StingResultPanel.Create("")
                 .SetTitle("Title Block Set Variant")
@@ -1510,6 +1514,7 @@ namespace StingTools.Docs
                 .Metric("Already matching", alreadyMatch.ToString())
                 .Metric("No title block", noTb.ToString())
                 .Metric("No matching variant family", noMatch.ToString())
+                .Metric("Skipped — title block locked", locked.ToString())
                 .AddSection("Available STING_TB_* Families");
             foreach (var kvp in byVariant.OrderBy(k => k.Key))
                 b.Metric(kvp.Key, kvp.Value.FamilyName ?? "");
@@ -1759,7 +1764,8 @@ namespace StingTools.Docs
                 {
                     var tb = TitleBlockEngine.GetTitleBlockOnSheet(doc, counted[i]);
                     if (tb == null) { noTbSkipped++; continue; }
-                    if (ParameterHelpers.GetInt(tb, ParamRegistry.TB_LOCK, 0) != 0)
+                    // DTW-154: instance, type and sheet lock — not the instance alone.
+                    if (StingTools.Core.Drawing.TitleBlockParamApplier.IsTitleBlockLocked(tb, counted[i]))
                     { lockedSkipped++; continue; }
 
                     string seq = (i + 1).ToString(CultureInfo.InvariantCulture).PadLeft(width, '0');
@@ -1876,8 +1882,12 @@ namespace StingTools.Docs
                     if (sheet == null) continue;
                     var tb = TitleBlockEngine.GetTitleBlockOnSheet(doc, sheet);
                     if (tb == null) continue;
-                    int locked = ParameterHelpers.GetInt(tb, ParamRegistry.TB_LOCK, 0);
-                    if (locked != 0) continue;
+                    // DTW-154: instance, type and sheet lock — not the instance alone.
+                    if (StingTools.Core.Drawing.TitleBlockParamApplier.IsTitleBlockLocked(tb, sheet))
+                    {
+                        StingLog.Info($"TB transmittal stamp: '{sheet.SheetNumber}' locked — not stamped");
+                        continue;
+                    }
 
                     // BOTH homes. Nearly every title-block parameter name exists twice
                     // -- once on the sheet as a project parameter, once on the family --

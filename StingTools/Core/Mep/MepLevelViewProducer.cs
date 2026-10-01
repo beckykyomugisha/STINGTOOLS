@@ -81,10 +81,13 @@ namespace StingTools.Core.Mep
         private static Dictionary<string, HashSet<ElementId>> CollectPresence(Document doc)
         {
             var found = new Dictionary<string, HashSet<ElementId>>(StringComparer.OrdinalIgnoreCase);
-            var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType()
-                .WherePasses(new ElementMulticategoryFilter(CategoryMap.Keys.ToList()));
+            // DTW-207: main model + primary options, nothing demolished — the host and
+            // every linked document alike (both are read through here).
+            var collector = ModelPresenceFilter.MainAndPrimary(new FilteredElementCollector(doc).WhereElementIsNotElementType()
+                .WherePasses(new ElementMulticategoryFilter(CategoryMap.Keys.ToList())), doc);
             foreach (var el in collector)
             {
+                if (ModelPresenceFilter.IsDemolished(el)) continue;
                 var catId = el.Category?.Id;
                 if (catId == null || !CategoryMap.TryGetValue((BuiltInCategory)catId.Value, out var cat)) continue;
                 var discs = MepPresenceClassifier.Classify(cat,

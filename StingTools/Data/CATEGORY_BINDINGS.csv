@@ -1,4 +1,5 @@
 ﻿# BINDSCOPE-1 | 20260916 | 14 rows Type -> Instance. A parameter the tagging pipeline writes per element cannot be Type-bound: the write is unreachable through the instance and returns false in silence (this is why a new door tagged A-BLD1-Z01-L01-ARC-FIT-DR- with no SEQ), and where it does land it stamps one element value across every sibling of that type. Derived by tools/check_binding_scope.py, not hand-listed.
+# v3.23 | 20261001 | DTW-152: PRJ_SHEET_BIM_MODE_TXT also bound to Project Information (+1 Yes row; the Sheets row flipped True -> Yes so its home is explicit). TitleBlockResolver.ResolveMode reads the project BIM mode from Project Information, and the parameter was bound to Sheets only, so the lookup always missed and every project resolved BIM: a NONBIM project never got its _NONBIM_ title blocks.
 # v3.22 | 20261001 | DTW-76: STING_PLACER_* and STING_PLACED_BY_SYMBOL_PLACER_BOOL homed on the categories the symbol placers write them to: Detail Items, Generic Annotations, Generic Models, Lines (the 5 Detail Items rows said False, which the resolver ignores; +15 Yes rows). They were <ALL>, which has no Generic Annotations or Lines, and Load Shared Parameters binds from RESOLVED_BINDINGS.csv, so its STING_PLACER group override never ran: a placed annotation or detail curve never took the idempotency stamp and every re-run placed the symbol again. Needs "Generic Annotations": "OST_GenericAnnotation" in PARAMETER_REGISTRY.json category_enum_map (added). Whether Revit accepts OST_GenericAnnotation / OST_Lines (Category.AllowsBoundParameters) is an in-Revit check.
 # v3.21 | 20261001 | DTW-59: +1 Yes row, STING_DEFAULT_TAG_STYLE_TXT on Views. ManagedTemplateSyncer writes a view style pack's defaultTagStyle onto the managed view template under this name, which no shared-parameter file defined, so the write never landed. Now in MR_PARAMETERS.txt (group 27, UUIDv5 4e90ed9d-5b3a-5791-ab43-c90a1f440310), PARAMETER_REGISTRY.json and ParamRegistry.DEFAULT_TAG_STYLE.
 # v3.20 | 20261001 | DTW-58: +61 Yes rows so every STING parameter an AEC filter's rule names is bound to every category that filter targets. Revit only offers a filter the parameters common to all its categories, so ParameterFilterElement.Create refused 49 filters in STING_AEC_FILTERS.json: 46 healthcare (clin-press-*, clin-infect-*, clin-decon-*, clin-room-dept-*, clin-accessible-routes, rad-*, lig-*, ceq-*, mgs-zone-valve-box / area-alarm / verify-fail / terminal-unit, ees-*) whose rule parameters sat on the HEALTH equipment set (Specialty / Mechanical Equipment, Plumbing Fixtures, Medical Equipment) while the filters target Rooms, Walls, Doors, Generic Models, pipes, devices; and 3 LPS (elec-lps-downcond / earth / bonding) whose ELC_LPS_ELEMENT_TYPE_TXT reached Electrical Equipment + Generic Models only. The filter's category list is taken as the statement of where the value lives. Additive. Computed, not hand-listed; checked by tools/check_drawing_bindings.py.
@@ -16079,7 +16080,7 @@ PRJ_TB_CDE_REF_FORMAT_TXT,Sheets,Instance,True
 PRJ_TB_SHEET_NUMBER_PATTERN_TXT,Sheets,Instance,True
 PRJ_DWG_LOIN_LOD_TXT,Project Information,Instance,True
 STING_NOGGIN_REQUIRED,Generic Models,Instance,True
-PRJ_SHEET_BIM_MODE_TXT,Sheets,Instance,True
+PRJ_SHEET_BIM_MODE_TXT,Sheets,Instance,Yes
 PRJ_SHEET_FULL_REF_TXT,Sheets,Instance,True
 PRJ_SHEET_LEVEL_TXT,Sheets,Instance,True
 PRJ_SHEET_OF_TOTAL_TXT,Sheets,Instance,True
@@ -19945,3 +19946,4 @@ STING_PLACER_SYMBOL_CODE_TXT,Lines,Instance,Yes
 STING_PLACER_VIEW_ID_TXT,Generic Annotations,Instance,Yes
 STING_PLACER_VIEW_ID_TXT,Generic Models,Instance,Yes
 STING_PLACER_VIEW_ID_TXT,Lines,Instance,Yes
+PRJ_SHEET_BIM_MODE_TXT,Project Information,Instance,Yes

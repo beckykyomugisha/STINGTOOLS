@@ -157,7 +157,7 @@ namespace StingTools.Tags.Tests
         // Schematic + Clarification (Excel — its import rejected ten shipped
         // rows as "not a valid purpose").
         [InlineData("Core/Drawing/Iso19650Vocabulary.cs",       "DrawingPurposes")]
-        [InlineData("BIMManager/DrawingTypeExcelCommands.cs",   "PurposeOptions")]
+        [InlineData("BIMManager/DrawingTypeExcelEngine.cs",     "PurposeOptions")]
         public void Purpose_pickers_are_derived_from_the_canonical_set(string file, string field)
         {
             var src = Source(file.Split('/'));

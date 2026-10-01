@@ -867,6 +867,129 @@ run against a live tenant yet (ROADMAP ACC-HARD-1).
 - **Not verified**: not run against a live ACC container or in Revit. `AccIssue` carries no due
   date, display id or updated-at yet (TODO in `AccIssueImportRecord`); ACC assignees are stored
   as ACC ids, not names. Nothing is pushed back to ACC.
+#### Completed (TAGFAM-7 tie-in tag families renamed to their declared names, 2026-10-01)
+
+- `TieInPointFamilies` carried the verbose declared name as the suffix for Pipe, Duct and Cable Tray, so
+  `GetTieInFamilyName` missed `VariantSuffixToCsvName` and appended " Tag": the families were built and
+  shipped as `STING - Tie-In Point Tag (Duct — HVAC) Tag` etc. while the MEP tag config and
+  `PerFamilyTierMap` declare them without it. The suffixes are now `Tie-In Pipe` / `Tie-In Duct` /
+  `Tie-In Cable Tray` (keys already in `VariantSuffixToCsvName`), and the three `.rfa` files in
+  `Data/TagFamilies` were `git mv`ed to the declared names. Manifest `familyFile` entries follow (ids and
+  checksums unchanged — `restamp_content_manifest.py` reports 210/210 match).
+- One alias table: `Tags/TagFamilyNameAliases.cs` (Revit-free, `TagFamilyConfig.LegacyFamilyNames` points
+  at it) maps each old name to its canonical one and holds the matching rule — trimmed, case-insensitive,
+  "/" read as "-" (a family loaded from a file cannot carry "/", so `LV/ELV` declared is `LV-ELV` loaded).
+  `PerFamilyTierMap.Resolve` now tries exact, then legacy alias, then that match.
+- Existing projects are migrated by **in-place rename on next load**: Load Tag Families and Create Tag
+  Families (`Tags/TagFamilyLegacyRename.cs`) rename a project family that has an old name to the library
+  name when the project does not already hold the new one — placed tags stay on it, and the load then
+  updates it rather than adding a second family. When both are present it is reported and nothing is
+  changed. No family is ever deleted. Renames and conflicts are logged and listed in the load report.
+- Gate: `StingTools.Tags.Tests/TagFamilyNameGateTests` — every creator name equals its CSV /
+  `PerFamilyTierMap` declaration (after "/"-"-") or has none; no doubled "…) Tag"; every shipped `.rfa` is
+  a generated or declared name; no legacy name ships; every alias maps to a name that is generated and
+  shipped; the tier map resolves legacy and "-" spellings. RED against the main creator and library
+  (4 failing), GREEN after. Two older disagreements of the same kind (Specialty Equipment Tag Asset /
+  General) are listed as known and logged as **TAGFAM-10**. Tags suite 5,169 passed; plugin build 0/0.
+- **Not run in Revit.** The rename path (`Family.Name` set inside a transaction) is untested against a
+  real project that holds the old names.
+
+#### Completed (TAGACC-25 discipline profiles: CollisionMode applied, five settings retired, 2026-10-01)
+
+- Decision (architect, TAGACC-25): implement `CollisionMode`; retire `SeqScheme`, `SeqPadWidth`,
+  `SeqIncludeZone`, `DefaultZone`, `DefaultLoc`. SEQ format stays project-wide — the counter rebuild,
+  `MergeSeqSidecar`, `NormaliseHeldSeq` and the validator (`EffectiveSeqPad`) assume one format — and LOC/ZONE
+  fallbacks live only in `STING_TAG_TOKEN_POLICY.json`.
+- `Core/TaggingModels.cs`: the five properties, the interim `IgnoredSettings()` and the unused snake_case
+  `FromDict` parser are gone. New Revit-free `DisciplineProfileKeys`: `Retired` (PascalCase + snake_case,
+  each with its replacement — `SEQ_SCHEME`, `SEQ_INCLUDE_ZONE`, `TAG_FORMAT.num_pad`, the token policy),
+  `Classify` / `Inspect` (Known / Retired / Unknown, with a "did you mean" for e.g. `collision_mode`), and
+  the generic `ResolvePrecedence`.
+- `Core/TagConfig.cs`: before deserialising `DISCIPLINE_PROFILES`, the raw keys of each profile are scanned;
+  every retired or unknown key gets one `StingLog.Warn` naming it (and its replacement) and is kept in
+  `TagConfig.DisciplineProfileKeyFindings`; the remaining fields still load. Newtonsoft used to drop such keys
+  without a word. New `TagConfig.ResolveCollisionMode(explicitChoice, disc)`: explicit dialog choice >
+  `DISCIPLINE_PROFILES[DISC].CollisionMode` > `DEFAULT_COLLISION_MODE` > AutoIncrement.
+- `Tags/TagAndCombineCommand.cs` — the only caller that used `DefaultCollisionMode` as the effective mode —
+  resolves per element from the stored DISC token, else the category's DISC. Paths where the user picks a mode
+  in a dialog are unchanged; SEQ allocation is untouched. (`StingAutoTagger` hard-codes AutoIncrement and never
+  read `DefaultCollisionMode`, though the property's doc comment said it did; the comment is corrected, the
+  behaviour is not changed.)
+- Discipline Profiles report: shows `CollisionMode` when set; "Set but NOT applied" is replaced by
+  "Retired (TAGACC-25): … — use …" and "Unknown key" lines from the raw config, including a profile whose
+  JSON failed to load.
+- Tests (`StingTools.Tags.Tests`): `DisciplineProfileIgnoredSettingsTests` replaced by
+  `DisciplineProfileSettingsReadTests` (every public `DisciplineProfile` property is read outside
+  `TaggingModels.cs`) — **RED** against the old model: 6 unread (`CollisionMode, SeqScheme, DefaultZone,
+  DefaultLoc, SeqIncludeZone, SeqPadWidth`); **GREEN** after. New `DisciplineProfileKeysTests` (22 cases:
+  both spellings of every retired key, known/unknown keys, all four precedence levels, enum binding from
+  JSON). Full Tags suite **5,180 passed, 0 failed**.
+- `dotnet build StingTools/StingTools.csproj -c Debug`: 0 errors, 0 warnings. `check_roadmap_ids`,
+  `check_docs_index`, `check_param_name_targets`, `check_token_policy_wired`: OK.
+- **Not run in Revit.**
+
+#### Completed (DRAW-9 in-Revit smoke failures: curved walls named, failed provenance stamps reported, deleted pipe's notes removed, 2026-10-01)
+
+Verified by unit tests only. The in-Revit smoke rerun (`tools/run_revit_smoke.ps1`) has not been done;
+DRAW-9 stays open in the ROADMAP until it is.
+
+- **Curved wall skipped silently (`ElementDimensionerSmokeTests.WallLength_…_CurvedWarns_…`).** The
+  warning "no pair of planar end faces (curved or joined?)" existed but could not be reached for a curved
+  wall: `TryWallAxis` returned false for any location curve that is not a `Line`, and `RunWallLength`
+  `continue`d on it. The smoke run showed `warnings: []`. `TryWallAxis` now says which kind of location it
+  found (`WallLocationKind`: arc, other curve, none, degenerate), and `WallAxisRules.SkipWarning` (Revit-free,
+  new `Core/Drawing/Dimensioning/WallAxisRules.cs`) names the wall for every kind it cannot dimension.
+  `AutoDimOpenings` had the same silent `continue` and uses the same warning.
+- **Drainage notes treated as orphans after the pipe moved (`DrainageInvertSmokeTests.Invert_PlanView_…`).**
+  Root cause: `StingAnnotationProvenanceSchema` is write-locked (`AccessLevel.Vendor`) to VendorId
+  `Planscape`. ricaun.RevitTest runs the tests inside its own add-in, VendorId `ricaun` (read from the
+  `.addin` bundled in ricaun.RevitTest.TestAdapter 1.11.1), so Revit refused every `SetEntity` — "not
+  allowed to the current add-in". `Stamp` caught that and wrote a `StingLog` line only. The notes were
+  placed, re-runs still matched them by text and position, and only when the pipe moved did the engine
+  report them as "older, unstamped" notes that "predate provenance stamping" — which was not true.
+  - The smoke project now carries `ricaun.RevitTest.Application.VendorId = Planscape`, which ricaun's
+    console writes into its application `.addin` (`UpdateRevitAddinFileUsingTestMetadata`), so the
+    harness writes Extensible Storage the way the plugin does in production.
+  - A stamp that fails is now a run warning, not just a log line: `Stamp(…, out error)` gives the reason,
+    `ProvenanceStampTally` (Revit-free, in `AnnotationProvenance.cs`) counts attempts and failures, and
+    `AutoSpotInvert`, `AutoDimWallLength`, `AutoDimOpenings` and `AutoDimColumnGrid` report
+    "N of M annotation(s) were placed but could not be provenance-stamped (reason)…", naming the required
+    VendorId when Revit's refusal is the vendor lock. The orphan warning no longer claims the notes
+    predate stamping; it says they carry no stamp, for either reason.
+- **Smoke rerun on 3bf1a78b6 (Revit 2025):** the wall-length test and the moved-pipe step now pass, so the
+  harness does write stamps. The drainage test then failed one step later: "deleted pipe: its IL/gradient
+  notes were left behind. warnings: []".
+- **Deleted pipe's notes left behind.** Root cause: `DrainageInvertDimensioner.Run` returned as soon as the
+  view had no drainage pipe (`if (pipes.Count == 0) return;`). The fixture has one drain, so once it was
+  deleted the note pass never ran. The pass holds the cleanup (a stamped note whose pipe no longer exists
+  is removed), so that cleanup was unreachable, and nothing was warned. `Run` now reads the stamped notes first
+  and runs the pass when the view has drainage pipes OR stamped notes (`InvertNoteRules.NeedsPass`). The
+  removal rule moved, unchanged, to `InvertNoteRules.KeysToRemove` (Revit-free). A stale note that cannot
+  be deleted is now a warning, not only a log line.
+- **Tests.** `StingTools.Tags.Tests/AnnotationSmokeFixTests.cs`:
+  - First round: RED 9 failed / 2 passed of 11, measured against helpers that encoded the pre-fix
+    behaviour (no warning). GREEN 12 passed. One case checks that the VendorId in the warning matches
+    `StingTools.addin` and `StingSchemaBuilder.VendorId`.
+  - Deleted pipe: RED 1 failed / 17 passed of 18, with the gate encoding the old "no pipes, no pass"
+    behaviour. GREEN 18/18. The four `KeysToRemove` cases passed from the start: they pin the existing
+    removal rule, which was correct but never reached.
+  - Full `StingTools.Tags.Tests`: 5,176 passing.
+- Not changed: the other stamp sites (`AnnotationRunner` grid/level chains and match-line frames,
+  `MatchLineEngine` captions, `MEPDimensioner`) still only log a failed stamp — listed under DRAW-9.
+#### Completed (TAGFAM-6 measured: the shared-parameter cost is Revit's, 2026-10-01)
+
+- Timed headlessly in Revit 2025 against the `origin/main` build (`pyrevit run
+  tools/pyrevit/headless/time_add_shared_params.py`; it loads `STING_DLL` or the smoke-test build and
+  calls `CreateTagFamiliesCommand.AddSharedParameters` by reflection on a throwaway Metric Door Tag family,
+  nothing saved). Door Tag, 163 parameters, 3,668-definition `MR_PARAMETERS.txt`:
+  - lookup alone — old per-name walk **2.42 s**, index (#1027 / #1029) **0.03 s**;
+  - `AddSharedParameters` end to end — **123.8 s**.
+- `profile_add_params.py` isolates it: `FamilyManager.AddParameter` costs ~0.78 s per parameter whether in
+  one transaction (127.5 s), with a full parameter scan before each add as `TagParamInjector` does
+  (130.1 s, the scans 0.1 s), or in transactions of 20 (131.0 s). **The earlier TAGFAM-6 entries
+  overstated what the index fix would do: it removed ~2 % of the time.** The lever left is the number of
+  parameters per family — logged as TAGFAM-9 for a decision.
+
 #### Completed (TAGFAM-3 finished: 3.5 mm copies and door boxes on all four specialist tags, run headlessly, 2026-10-01)
 
 - **Run without the Revit UI.** `pyrevit run` launches Revit 2025, runs a script and closes it, so the
@@ -27238,3 +27361,51 @@ Research and ranking: [`ACC_AUTOMATION_RESEARCH_2026-10.md`](ACC_AUTOMATION_RESE
 - **AUT-7** Secure Service Account tokens on the server, opt-in per connection (`accAuthMode: "ssa"`). The settings are `Acc:Ssa:*`; a placeholder or missing value fails with the setting's name.
 
 Tests: Acc 721; server ACC 196 + 6 SSA. Not exercised against a live ACC tenant.
+#### Completed (Drawing production round 8, the deeper pass, branch `fix/drawing-review-2`, PR #1040)
+
+Round 8 of the drawing review loop, findings DTW-149..214; details and the Revit checks are in
+`docs/WORKLOG_DRAWING_TYPES.md`.
+
+- **View graphics.**
+  - Managed style packs now control V/G overrides, filters, worksets, links and view range. Before,
+    they released them, so produced views got none of the packs' graphics.
+  - The structural filter enum values were wrong (concrete and steel were swapped, among others);
+    every enum rule is now pinned to its named member by a test.
+  - "Solid fill" now resolves and a colour with no pattern draws solid; a missing pattern is warned.
+  - Filters store a definition hash and are rebuilt in place when it drifts.
+  - CSV view filters no longer widen to whole categories.
+  - Preset VG applies subcategories and every field.
+  - Tight and room-boundary crops measure model elements only.
+- **Title blocks.**
+  - Families take the nearest base's template, so A0/A2/A3 no longer build from A1.
+  - Cover and clarification families have their own drawables.
+  - Fit-to-slot only coarsens the type's scale, adds an annotation margin, and warns on overflow.
+  - Schedules anchor at the slot's top-left.
+  - Family swaps and title-block writes honour every lock.
+  - The revision table is never duplicated on the master path.
+  - NONBIM mode is reachable.
+  - Sheet counters seed per discipline and volume.
+- **Authoring.**
+  - The drawing-type editor no longer erases saved project style packs.
+  - The Excel round-trip imports the shipped catalogue with zero changes and keeps every routing
+    predicate.
+  - Overrides are written atomically and never after a failed load.
+  - The newer of file and ES override wins.
+  - Clone ids are unique, and presets report save failures.
+- **Edge cases.**
+  - Worksharing: views, sheets and Project Information are pre-flighted and borrowed; a refused
+    item rolls back quietly with a report line instead of a modal.
+  - Production shows progress and honours Escape.
+  - Restore after undo is safe.
+  - Presence scans ignore secondary design options and demolished elements.
+  - Converting to the ISO policy keeps issued sheets unless asked.
+  - Sheets are created only once a view exists.
+  - Fitted scales are kept on refresh.
+  - Moved viewports are left where the user put them.
+  - `replaces` adopts views and sheets under a former id.
+  - A scope box that misses its level fails the item.
+  - New views get a phase filter.
+  - Generated sheet names refresh after a level rename unless edited by hand.
+
+Build 0/0; Tags.Tests 5,367; `run_ci_gates.py --quick` 36/36; checksums OK. Not yet run in Revit.
+

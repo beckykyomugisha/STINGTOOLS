@@ -63,15 +63,23 @@ second Revit; the Claude desktop window can sit over Revit and swallow clicks.
 
 ## NEEDS REVIT CHECK
 
-1. ~~**Size copies + door boxes**~~ **Done 2026-10-01 headlessly** (`pyrevit run tools/pyrevit/headless/run_size_copies.py --revit=2025 --purge`). Left: open any project, place a Room Finish and a Fire Compartment tag of each size type and look — the headless export drew no room tags at all, stock tag included, so they are verified by text and switches only.
-2. **TAGFAM-2 second run** (needs the redeployed KUT build): *Create Tag Fams* in a throwaway project —
-   families load (hub button now `Manual`), Temporary Structure / MEP Ancillary Framing tags are accepted
-   or reported.
-3. **TAGACC-12** — `pwsh tools/run_revit_smoke.ps1`, then protocol Part B with two users.
-4. **TAGFAM-6 timing** — on the next *Create Tag Fams* run, note seconds per family from the STING log
-   (`AddSharedParameters: added …` lines are one per family) and compare with ~300 s on 2026-09-30.
+1. ~~Size copies + door boxes~~ **Done 2026-10-01 headlessly** (`pyrevit run tools/pyrevit/headless/run_size_copies.py
+   --revit=2025 --purge`, #1041). Left: one look at a Room Finish and a Fire Compartment tag of each size in a project —
+   the headless export drew no room tags at all (stock tag included).
+2. **TAGFAM-2 second run** — *Create Tag Fams* in a throwaway project on the KUT build (now main through #1028).
+3. **TAGACC-12** — Part A **ran 2026-10-01** on origin/main `a7b7cff50` (`tools/run_revit_smoke.ps1`, add-in manifest
+   moved aside for the run and restored): **all 4 tagging-accuracy tests pass**, harness integrity passes. 4 annotation
+   smoke tests did not; the two real ones (drainage invert, wall-length) were fixed in #1043 (DRAW-9) and the re-run on
+   `f39abffa1` passed **11/13** — only the 2 spot-slope tests remain, inconclusive because the metric template's slope type
+   cannot be applied / deleted. Part B (two users on a central model) still needs two people.
+4. ~~TAGFAM-6 timing~~ **Measured 2026-10-01**: 124 s per door tag, ~0.78 s per parameter in Revit's `AddParameter`;
+   see TAGFAM-6 / TAGFAM-9.
 
 ## Decisions
+
+- *Style switches (TAGFAM-9)* — `tools/pyrevit/headless/audit_style_switches.py` (2026-10-01): all 211 shipped tag
+  families carry the 128 `TAG_*_BOOL` switches and in **none** is any switch associated with a family element; they cannot
+  change what a tag shows. New builds stop adding them (architect decision, delegated by Sting).
 
 - *Size copies via pyRevit now, plugin command later* — the live add-in slot belongs to the KUT build and
   this agent cannot redeploy it; pyRevit runs against the open family with no deploy. The same logic goes
@@ -94,7 +102,7 @@ second Revit; the Claude desktop window can sit over Revit and swallow clicks.
 | F4 | **High** | config | both whole-file writers of `project_config.json` reset every key they did not list (SEQ_*, folder layout, COST_*) — wizard, auto-tagger toggle, Save Config | **TAGACC-19**, PR #1023 |
 | F5 | Med | SEQ | multi-user borrow/defer/re-sequence/repair — no Revit run | open — TAGACC-12 protocol + smoke (NEEDS REVIT) |
 | F6 | Med | families | text types/sizes consistent; labels' params registered + bound; coverage; orphans | **part done** — manifest coverage + checksums gated (TAGFAM-8); label params gated earlier (`DeclaredTagFamiliesTests`); text types inside `.rfa` need Revit |
-| F7 | Low | families | three tie-in tags built as `… Tag` (doubled) — the tier map and config declare the name without it | logged **TAGFAM-7**; no effect today, renaming risky |
+| F7 | Low | families | three tie-in tags built as `… Tag` (doubled) — the tier map and config declare the name without it | **Fixed** — TAGFAM-7 DONE: renamed to the declared names, legacy alias table, in-place rename on load, gated; the same drift on Specialty Equipment logged TAGFAM-10 |
 | F8 | — | config | do any UI setters change in-memory TagConfig keys that `SaveToFile` does not write? | **Checked** — SEQ setters are the G2 in-memory restore; `AUTO_TAGGER_DISC_FILTER` uses `SetConfigValue`, which a later `SaveToFile` used to wipe — fixed by TAGACC-19 |
 | F9 | Med | coverage | which TAGACC fixes have a test or protocol step? 7/8, 11, 13, 14, 16, 17 had none by id | TAGACC-20 (#1030) and -21 (#1032) make 7/8 and 11 executable; #1031 names 2/13/17 in the protocol and says 14/16 call sites are untested |
 | F10 | Low | content | four specialist `.rfa` files not in `STING_CONTENT_MANIFEST.json` | **TAGFAM-8** (#1028), gated |

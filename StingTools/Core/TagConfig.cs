@@ -105,6 +105,29 @@ namespace StingTools.Core
             return DisciplineProfiles.TryGetValue(disc, out var profile) ? profile : null;
         }
 
+        /// <summary>
+        /// TAGACC-25: the keys in the project's DISCIPLINE_PROFILES that are not applied —
+        /// retired settings (with their project-wide replacement) and unknown keys. Captured
+        /// from the raw config at load so the Discipline Profiles report can show them; the
+        /// deserialiser alone would drop them without a trace.
+        /// </summary>
+        public static List<DisciplineProfileKeyFinding> DisciplineProfileKeyFindings { get; internal set; }
+            = new List<DisciplineProfileKeyFinding>();
+
+        /// <summary>
+        /// TAGACC-25: the collision mode that applies to an element of discipline
+        /// <paramref name="disc"/>. Precedence: the explicit choice the user made in a dialog
+        /// &gt; DISCIPLINE_PROFILES[DISC].CollisionMode &gt; the project-wide
+        /// DEFAULT_COLLISION_MODE (<see cref="DefaultCollisionMode"/>) &gt; AutoIncrement.
+        /// Pass null for <paramref name="explicitChoice"/> only when no dialog asked the user.
+        /// </summary>
+        public static TagCollisionMode ResolveCollisionMode(TagCollisionMode? explicitChoice, string disc)
+            => DisciplineProfileKeys.ResolvePrecedence(
+                explicitChoice,
+                GetDisciplineProfile(disc)?.CollisionMode,
+                DefaultCollisionMode,
+                TagCollisionMode.AutoIncrement);
+
         // ------------------------------------------------------------------
         // Tag-formula gate emission (Inconsistent-Units fix)
         // ------------------------------------------------------------------
@@ -237,10 +260,13 @@ namespace StingTools.Core
         public static double ProximityRadiusFt { get; internal set; } = 10.0;
 
         /// <summary>
-        /// Default collision mode for bulk commands that don't show an explicit user dialog
-        /// (TagAndCombine, StingAutoTagger). Loaded from project_config.json
+        /// Project-wide default collision mode for bulk commands that don't show an explicit
+        /// user dialog (TagAndCombine). Loaded from project_config.json
         /// <c>DEFAULT_COLLISION_MODE</c>: "skip" | "overwrite" | "increment" (default).
-        /// AutoTagCommand always shows its own dialog and ignores this setting.
+        /// Read it through <see cref="ResolveCollisionMode"/>, not directly — a
+        /// DISCIPLINE_PROFILES entry can override it per discipline (TAGACC-25).
+        /// AutoTagCommand always shows its own dialog and ignores this setting; the
+        /// StingAutoTagger updater always uses AutoIncrement.
         /// </summary>
         public static TagCollisionMode DefaultCollisionMode { get; internal set; } = TagCollisionMode.AutoIncrement;
 
@@ -933,6 +959,25 @@ namespace StingTools.Core
 
                 // Per-discipline tagging profiles
                 DisciplineProfiles = new Dictionary<string, DisciplineProfile>(StringComparer.OrdinalIgnoreCase);
+                DisciplineProfileKeyFindings = new List<DisciplineProfileKeyFinding>();
+                // TAGACC-25: scan the RAW keys before deserialising. A retired setting
+                // (SeqScheme, SeqPadWidth, SeqIncludeZone, DefaultZone, DefaultLoc) or a
+                // misspelt one binds to nothing, and Newtonsoft drops it without a word —
+                // so each one is named here, with its replacement, and the rest still load.
+                if (data.TryGetValue("DISCIPLINE_PROFILES", out object rawProfilesObj)
+                    && rawProfilesObj is JObject rawProfiles)
+                {
+                    foreach (var rawProfile in rawProfiles.Properties())
+                    {
+                        if (!(rawProfile.Value is JObject rawFields)) continue;
+                        foreach (var finding in DisciplineProfileKeys.Inspect(
+                                     rawProfile.Name, rawFields.Properties().Select(f => f.Name)))
+                        {
+                            DisciplineProfileKeyFindings.Add(finding);
+                            StingLog.Warn("TagConfig: " + finding.Message);
+                        }
+                    }
+                }
                 var profilesDict = TryDeserialize<Dictionary<string, DisciplineProfile>>(data, "DISCIPLINE_PROFILES");
                 if (profilesDict != null)
                 {
@@ -944,10 +989,8 @@ namespace StingTools.Core
                             if (string.IsNullOrEmpty(p.DefaultDisc))
                                 p.DefaultDisc = kvp.Key; // Use the dictionary key as DefaultDisc if not explicitly set
                             DisciplineProfiles[kvp.Key] = p;
-                            var ignored = p.IgnoredSettings();
-                            if (ignored.Count > 0)
-                                StingLog.Warn($"TagConfig: DISCIPLINE_PROFILES.{kvp.Key} sets {string.Join(", ", ignored)}, " +
-                                    "which tagging does not apply yet (TAGACC-25) — they have no effect.");
+                            if (p.CollisionMode.HasValue)
+                                StingLog.Info($"TagConfig: DISCIPLINE_PROFILES.{kvp.Key}.CollisionMode = {p.CollisionMode.Value}");
                         }
                     }
                     if (DisciplineProfiles.Count > 0)
@@ -1004,7 +1047,8 @@ namespace StingTools.Core
                     if (ResolveBatchSize > 5000) ResolveBatchSize = 5000;
                 }
 
-                // DEFAULT_COLLISION_MODE: controls TagAndCombineCommand and StingAutoTagger bulk path.
+                // DEFAULT_COLLISION_MODE: the project-wide default for TagAndCombineCommand, read
+                // through ResolveCollisionMode so DISCIPLINE_PROFILES can override it per DISC.
                 // AutoTagCommand always shows its own dialog and ignores this setting.
                 DefaultCollisionMode = TagCollisionMode.AutoIncrement;
                 if (data.TryGetValue("DEFAULT_COLLISION_MODE", out object dcmObj))
@@ -1314,6 +1358,7 @@ namespace StingTools.Core
             CategoryForceSys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             CategoryVisualPolicy = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             DisciplineProfiles = new Dictionary<string, DisciplineProfile>(StringComparer.OrdinalIgnoreCase);
+            DisciplineProfileKeyFindings = new List<DisciplineProfileKeyFinding>();
             LocPatterns = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
             {
                 { "BLD1", new List<string> { "building 1", "main building", "block a", "primary" } },

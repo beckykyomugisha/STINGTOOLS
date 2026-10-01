@@ -266,6 +266,23 @@ namespace StingTools.Core.Drawing
             /// made with no depth of its own (the producer's default section box).
             /// </summary>
             public bool ApplyTypeFarClip { get; set; }
+
+            /// <summary>
+            /// DTW-196: the scale to keep instead of the type's — the scale production
+            /// fitted this view to its sheet slot (ProducedViewState). 0 = apply the type's.
+            /// A re-run reset an auto-fitted view to the type scale, and the view, already on
+            /// its sheet, was never fitted again.
+            /// </summary>
+            public int KeepScale { get; set; }
+
+            /// <summary>
+            /// DTW-196: report when the view's template is replaced. Set on a production
+            /// re-run, where the view's current template may be one someone chose; it is
+            /// still replaced by the type's (lock the view's style to keep a hand-picked
+            /// one), but no longer silently. Off for new views, whose template is Revit's
+            /// view-type default.
+            /// </summary>
+            public bool ReportTemplateReplacement { get; set; }
         }
 
         public sealed class ApplyResult
@@ -578,6 +595,15 @@ namespace StingTools.Core.Drawing
             }
             DrawingTypeStamper.Stamp(view, dt.Id);
 
+            // DTW-196: the template the view had before this apply, so a replacement on a
+            // re-run is reported rather than silent.
+            ElementId priorTemplateId = ElementId.InvalidElementId;
+            if (options?.ReportTemplateReplacement == true)
+            {
+                try { priorTemplateId = view.ViewTemplateId ?? ElementId.InvalidElementId; }
+                catch (Exception ex) { StingLog.Warn($"Apply prior template of '{view.Name}': {ex.Message}"); }
+            }
+
             // Phase 183 — pack-fallback resolution. Resolve the bound pack
             // up-front so Scale / DetailLevel / ViewTemplate steps below can
             // fall back to pack defaults whenever the DrawingType leaves the
@@ -622,6 +648,14 @@ namespace StingTools.Core.Drawing
                 { effectiveScale = packScale; scaleFromPack = true; }
                 if (string.IsNullOrWhiteSpace(effectiveDetailLevel) && !string.IsNullOrWhiteSpace(fallbackPack.DetailLevel))
                 { effectiveDetailLevel = fallbackPack.DetailLevel; detailFromPack = true; }
+            }
+            // DTW-196: a view production fitted to its slot keeps that scale on a re-run.
+            if (options != null && options.KeepScale > 0)
+            {
+                if (effectiveScale != options.KeepScale)
+                    StingLog.Info($"DrawingType '{dt.Id}': '{view.Name}' keeps its fitted scale 1:{options.KeepScale} (type 1:{effectiveScale}).");
+                effectiveScale = options.KeepScale;
+                scaleFromPack = false;
             }
 
             // Scale -------------------------------------------------------
@@ -786,12 +820,41 @@ namespace StingTools.Core.Drawing
                             // dt.ViewTemplateName was resolved — explicit template wins (PACK-1).
                             if (!explicitTemplateApplied)
                             {
-                                try
+                                bool valid = true;
+                                try { valid = view.IsValidViewTemplate(templateId); }
+                                catch (Exception ex) { r.Warnings.Add($"Managed template validity check: {ex.Message}"); }
+                                if (!valid)
                                 {
-                                    view.ViewTemplateId = templateId;
-                                    r.TemplateApplied = true;
+                                    // DTW-176: e.g. a schedule template minted from a
+                                    // schedule of another category. Say so and style the
+                                    // view directly rather than throw on assignment.
+                                    r.Warnings.Add($"Managed template for pack '{resolvedPack.Id}' is not valid for "
+                                        + $"view '{view.Name}' ({view.ViewType}) — pack applied to the view directly.");
+                                    var directStats = ViewStylePackApplier.Apply(doc, view, resolvedPack,
+                                        DrawingPrintApplier.EffectiveLineWeightScale(resolvedPack, dt));
+                                    DrawingPrintApplier.ApplyHalftoneLinks(doc, view, dt, directStats);
+                                    r.Warnings.AddRange(directStats.Warnings);
                                 }
-                                catch (Exception ex) { r.Warnings.Add($"Assign managed template: {ex.Message}"); }
+                                else
+                                {
+                                    try
+                                    {
+                                        view.ViewTemplateId = templateId;
+                                        r.TemplateApplied = true;
+                                    }
+                                    catch (Exception ex) { r.Warnings.Add($"Assign managed template: {ex.Message}"); }
+                                }
+                            }
+
+                            // DTW-163: the template carries the pack's V/G and
+                            // filters and now controls them. What a template can
+                            // never carry — per-link element overrides — goes on
+                            // the view itself.
+                            if (resolvedPack.LinkOverrides != null)
+                            {
+                                var linkRes = new PackApplyResult();
+                                ViewStylePackApplier.ApplyLinkOverrides(doc, view, resolvedPack, linkRes);
+                                r.Warnings.AddRange(linkRes.Warnings);
                             }
                         }
                         else
@@ -822,6 +885,24 @@ namespace StingTools.Core.Drawing
             // stood here — the else branch of that very condition, so provably
             // unreachable. Its "pack not found" warning is already emitted
             // inside the if, where resolvedPack is actually tested.
+
+            // DTW-196: a re-run replacing the view's template says so.
+            if (options?.ReportTemplateReplacement == true && priorTemplateId != ElementId.InvalidElementId)
+            {
+                try
+                {
+                    var now = view.ViewTemplateId ?? ElementId.InvalidElementId;
+                    if (now != priorTemplateId)
+                    {
+                        var line = ProductionEdgeDecisions.TemplateReplacedLine(view.Name,
+                            (doc.GetElement(priorTemplateId) as View)?.Name,
+                            now == ElementId.InvalidElementId ? null : (doc.GetElement(now) as View)?.Name, dt.Id);
+                        r.Warnings.Add(line);
+                        StingLog.Info("DrawingTypePresentation: " + line);
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Apply template report for '{view.Name}': {ex.Message}"); }
+            }
 
             // Token Profile (Phase 135) — Step 7.5 -----------------------
             // Runs between the pack apply and the annotation pass so any

@@ -68,13 +68,15 @@ namespace StingTools.Core.Drawing.Dimensioning
 
             var dimType = ResolveDimType(doc, pack);
             var already = DimensionedHostIndex(doc, view, result, AnnotationProvenance.DimWallLength);
+            var stamps = new ProvenanceStampTally();
 
             foreach (var wall in walls)
             {
                 try
                 {
                     if (rule?.SkipIfTagged != false && already.Contains(wall.Id)) { result.Skipped++; continue; }
-                    if (!TryWallAxis(wall, out var start, out var end, out var dir)) continue;
+                    if (!TryWallAxis(wall, out var start, out var end, out var dir, out var axisKind))
+                    { WarnNoAxis(result, "AutoDimWallLength", wall, axisKind); continue; }
 
                     // Minimum-length gate so a plan isn't buried in 100mm
                     // dimensions for every stub and reveal.
@@ -101,11 +103,12 @@ namespace StingTools.Core.Drawing.Dimensioning
                     // origin overshoots the wall by half its length.
                     var line = DimensionStrategy.BuildWitnessLine(start, dir, WallDimOffsetMm, lengthFt);
                     if (Emit(doc, view, line, refs, dimType, result, $"wall {wall.Id}",
-                            AnnotationProvenance.DimWallLength, wall))
+                            AnnotationProvenance.DimWallLength, wall, stamps))
                         already.Add(wall.Id);
                 }
                 catch (Exception ex) { result.Warnings.Add($"AutoDimWallLength wall {wall.Id}: {ex.Message}"); }
             }
+            ReportStamps(result, stamps, "AutoDimWallLength");
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -167,6 +170,7 @@ namespace StingTools.Core.Drawing.Dimensioning
             // Exact: walls whose opening chain STING stamped. The reference test
             // below stays for chains placed before stamping existed.
             var stampedChains = StampedHosts(doc, view, AnnotationProvenance.DimOpeningChain);
+            var stamps = new ProvenanceStampTally();
 
             foreach (var kv in byHost)
             {
@@ -178,7 +182,8 @@ namespace StingTools.Core.Drawing.Dimensioning
                             || (already.Contains(wall.Id) && kv.Value.All(o => already.Contains(o.Id)))))
                     { result.Skipped++; continue; }
 
-                    if (!TryWallAxis(wall, out var start, out var end, out var dir)) continue;
+                    if (!TryWallAxis(wall, out var start, out var end, out var dir, out var axisKind))
+                    { WarnNoAxis(result, "AutoDimOpenings", wall, axisKind); continue; }
 
                     // Openings ordered along the wall so the chain reads left
                     // to right rather than in collector order.
@@ -214,7 +219,7 @@ namespace StingTools.Core.Drawing.Dimensioning
                     double lengthFt = (end - start).GetLength();
                     var line = DimensionStrategy.BuildWitnessLine(start, dir, OpeningDimOffsetMm, lengthFt);
                     if (Emit(doc, view, line, refs, dimType, result, $"openings in wall {wall.Id}",
-                            AnnotationProvenance.DimOpeningChain, wall))
+                            AnnotationProvenance.DimOpeningChain, wall, stamps))
                     {
                         already.Add(wall.Id);
                         foreach (var t in ordered) already.Add(t.Inst.Id);
@@ -222,6 +227,7 @@ namespace StingTools.Core.Drawing.Dimensioning
                 }
                 catch (Exception ex) { result.Warnings.Add($"AutoDimOpenings host {kv.Key}: {ex.Message}"); }
             }
+            ReportStamps(result, stamps, "AutoDimOpenings");
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -279,6 +285,7 @@ namespace StingTools.Core.Drawing.Dimensioning
 
             var dimType = ResolveDimType(doc, pack);
             var already = DimensionedHostIndex(doc, view, result, AnnotationProvenance.DimColumnGrid);
+            var stamps = new ProvenanceStampTally();
 
             foreach (var col in columns)
             {
@@ -325,11 +332,20 @@ namespace StingTools.Core.Drawing.Dimensioning
                     var line = DimensionStrategy.BuildWitnessLine(origin, across, ColumnGridOffsetMm, Math.Max(nearest.D, 1.0));
                     var gridLabel = nearest.G.Linked ? $"linked grid {nearest.G.Name}" : $"grid {nearest.G.Name}";
                     if (Emit(doc, view, line, refs, dimType, result, $"column {col.Id} → {gridLabel}",
-                            AnnotationProvenance.DimColumnGrid, col))
+                            AnnotationProvenance.DimColumnGrid, col, stamps))
                         already.Add(col.Id);
                 }
                 catch (Exception ex) { result.Warnings.Add($"AutoDimColumnGrid column {col.Id}: {ex.Message}"); }
             }
+            ReportStamps(result, stamps, "AutoDimColumnGrid");
+        }
+
+        private static void ReportStamps(AnnotationResult result, ProvenanceStampTally stamps, string pass)
+        {
+            var w = stamps?.Warning(pass);
+            if (w == null) return;
+            result.Warnings.Add(w);
+            StingLog.Warn(w);
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -357,7 +373,7 @@ namespace StingTools.Core.Drawing.Dimensioning
 
         private static bool Emit(Document doc, View view, Line line, ReferenceArray refs,
             DimensionType dimType, AnnotationResult result, string label,
-            string producer = null, Element host = null)
+            string producer = null, Element host = null, ProvenanceStampTally stamps = null)
         {
             try
             {
@@ -370,7 +386,10 @@ namespace StingTools.Core.Drawing.Dimensioning
                     // Provenance: the next run finds this dimension by what it is FOR,
                     // even when Revit can no longer read its references.
                     if (producer != null && host != null)
-                        StingAnnotationProvenanceSchema.Stamp(dim, producer, AnnotationProvenance.Key(host.UniqueId));
+                    {
+                        bool ok = StingAnnotationProvenanceSchema.Stamp(dim, producer, AnnotationProvenance.Key(host.UniqueId), out var stampErr);
+                        stamps?.Record(ok, stampErr);
+                    }
                     return true;
                 }
                 result.Warnings.Add($"NewDimension returned null for {label}.");
@@ -428,18 +447,33 @@ namespace StingTools.Core.Drawing.Dimensioning
             return null;
         }
 
-        private static bool TryWallAxis(Wall wall, out XYZ start, out XYZ end, out XYZ dir)
+        /// <summary>
+        /// The wall's straight axis. False for a curved / non-linear / missing /
+        /// zero-length location, with <paramref name="kind"/> saying which. The
+        /// callers turn that into a warning naming the wall (WallAxisRules), so a
+        /// skipped wall is never silent.
+        /// </summary>
+        private static bool TryWallAxis(Wall wall, out XYZ start, out XYZ end, out XYZ dir, out WallLocationKind kind)
         {
             start = end = dir = null;
+            kind = WallLocationKind.Degenerate;
             try
             {
-                if (!(wall.Location is LocationCurve lc) || !(lc.Curve is Line ln)) return false;
+                if (!(wall.Location is LocationCurve lc) || lc.Curve == null) { kind = WallLocationKind.NoLocationCurve; return false; }
+                if (lc.Curve is Arc) { kind = WallLocationKind.Arc; return false; }
+                if (!(lc.Curve is Line ln)) { kind = WallLocationKind.OtherCurve; return false; }
                 start = ln.GetEndPoint(0); end = ln.GetEndPoint(1);
                 dir = ln.Direction;
-                return dir != null && dir.GetLength() > 1e-9;
+                if (dir == null || dir.GetLength() <= 1e-9) { kind = WallLocationKind.Degenerate; return false; }
+                kind = WallLocationKind.Line;
+                return true;
             }
-            catch (Exception ex) { StingLog.Warn($"TryWallAxis {wall?.Id}: {ex.Message}"); return false; }
+            catch (Exception ex) { StingLog.Warn($"TryWallAxis {wall?.Id}: {ex.Message}"); kind = WallLocationKind.Degenerate; return false; }
         }
+
+        private static void WarnNoAxis(AnnotationResult result, string pass, Wall wall, WallLocationKind kind)
+            => result.Warnings.Add(WallAxisRules.SkipWarning(pass, wall.Id.ToString(), kind)
+                                   ?? $"{pass}: wall {wall.Id} has no straight axis — skipped.");
 
         /// <summary>
         /// The wall's two end-cap face references — the planar faces whose

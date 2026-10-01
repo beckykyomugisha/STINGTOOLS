@@ -14,7 +14,8 @@
 //   * paperSize     → any size STING_TITLE_BLOCKS.json declares (A0-A3);
 //                     blank / unsupported sizes are REPORTED, never guessed
 //   * orientation   → Portrait inserts "_PORT"
-//   * BIM mode      → PRJ_SHEET_BIM_MODE_TXT on ProjectInformation,
+//   * BIM mode      → PRJ_SHEET_BIM_MODE_TXT on the sheet (when given), then on
+//                     ProjectInformation (bound there since DTW-152),
 //                     default "BIM"
 // so an A1 landscape MEP plan resolves to STING_TB_A1_BIM_v2.0, an A3
 // portrait to STING_TB_A3_PORT_BIM_v2.0, a spool to STING_TB_ASSEMBLY_PIPE_v1.0.
@@ -53,9 +54,9 @@ namespace StingTools.Core.Drawing
         /// logs why. Callers that can show the operator a message should use
         /// <see cref="Resolve"/> and surface its warnings.
         /// </summary>
-        public static string ToConcreteFamily(Document doc, DrawingType dt, string declaredFamily)
+        public static string ToConcreteFamily(Document doc, DrawingType dt, string declaredFamily, ViewSheet sheet = null)
         {
-            var res = Resolve(doc, dt, declaredFamily);
+            var res = Resolve(doc, dt, declaredFamily, sheet);
             foreach (var w in res.Warnings)
                 StingLog.Warn($"TitleBlockResolver [{dt?.Id}]: {w}");
             return res.IsResolved ? res.Family : declaredFamily;
@@ -66,12 +67,12 @@ namespace StingTools.Core.Drawing
         /// warnings an operator needs to see (paper blank, size unsupported,
         /// presentation variant missing, name/paper mismatch).
         /// </summary>
-        public static TitleBlockResolution Resolve(Document doc, DrawingType dt, string declaredFamily)
+        public static TitleBlockResolution Resolve(Document doc, DrawingType dt, string declaredFamily, ViewSheet sheet = null)
         {
             try
             {
                 return TitleBlockFamilyNaming.Resolve(
-                    declaredFamily, dt?.PaperSize, dt?.Orientation, ResolveMode(doc, dt),
+                    declaredFamily, dt?.PaperSize, dt?.Orientation, ResolveMode(doc, dt, sheet),
                     ConcreteFamilies(), n => IsLoadedTitleBlock(doc, n));
             }
             catch (Exception ex)
@@ -82,23 +83,59 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        private const string BimModeParam = "PRJ_SHEET_BIM_MODE_TXT";
+
+        // DTW-152: "not bound on Project Information" is said once per document,
+        // not once per drawing type.
+        private static readonly HashSet<string> _unboundWarned =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>
-        /// Resolve the BIM mode ("BIM" / "NONBIM") for a drawing type. Reads
-        /// PRJ_SHEET_BIM_MODE_TXT from ProjectInformation when bound;
-        /// defaults to "BIM".
+        /// Resolve the BIM mode ("BIM" / "NONBIM") for a drawing type.
+        /// <list type="number">
+        /// <item>The sheet's own PRJ_SHEET_BIM_MODE_TXT, when a sheet is given
+        /// and carries a value (the variant it is already on).</item>
+        /// <item>PRJ_SHEET_BIM_MODE_TXT on Project Information — the project's
+        /// mode.</item>
+        /// <item>"BIM".</item>
+        /// </list>
+        /// DTW-152: the parameter was bound to Sheets only, so step 2 always
+        /// missed and every project resolved BIM — a NONBIM project never got its
+        /// _NONBIM_ families. It is now also bound to Project Information
+        /// (CATEGORY_BINDINGS v3.23); a project whose Project Information still
+        /// lacks it (shared parameters not reloaded) is warned once.
         /// </summary>
-        public static string ResolveMode(Document doc, DrawingType dt)
+        public static string ResolveMode(Document doc, DrawingType dt, ViewSheet sheet = null)
         {
             try
             {
+                var sv = ReadMode(sheet?.LookupParameter(BimModeParam));
+                if (sv != null) return sv;
+
                 var pi = doc?.ProjectInformation;
-                var p = pi?.LookupParameter("PRJ_SHEET_BIM_MODE_TXT");
-                var v = p?.StorageType == StorageType.String ? p.AsString() : null;
-                if (!string.IsNullOrWhiteSpace(v))
-                    return v.IndexOf("NON", StringComparison.OrdinalIgnoreCase) >= 0 ? "NONBIM" : "BIM";
+                var p = pi?.LookupParameter(BimModeParam);
+                if (p == null && pi != null)
+                {
+                    string key = doc.PathName ?? doc.Title ?? "";
+                    bool first;
+                    lock (_unboundWarned) first = _unboundWarned.Add(key);
+                    if (first)
+                        StingLog.Warn($"TitleBlockResolver: {BimModeParam} is not bound on Project Information " +
+                                      $"in '{doc.Title}' — title blocks resolve to the BIM variant. Run Load Shared " +
+                                      "Parameters to bind it, then set it to NONBIM for a non-BIM project.");
+                }
+                var pv = ReadMode(p);
+                if (pv != null) return pv;
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"TitleBlockResolver.ResolveMode: {ex.Message}"); }
             return "BIM";
+        }
+
+        private static string ReadMode(Parameter p)
+        {
+            var v = p?.StorageType == StorageType.String ? p.AsString() : null;
+            if (string.IsNullOrWhiteSpace(v)) return null;
+            return v.IndexOf("NON", StringComparison.OrdinalIgnoreCase) >= 0 ? "NONBIM" : "BIM";
         }
 
         /// <summary>

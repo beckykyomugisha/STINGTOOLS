@@ -277,11 +277,12 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
-                    var policy = SheetNumberPolicy.Parse(DrawingProducer.ReadSheetNumberPolicy(doc));
-                    var numberPattern = SheetNumberPolicy.ResolvePattern(dt, policy) ?? dt?.SheetNumberPattern;
-                    level = SheetNumberPolicy.ExistingSheetLevelToken(
-                        numberPattern, level, known.LevelIsName,
-                        SheetNumberPolicy.IsAlreadyIso(numberPattern) ? DrawingProducer.BuildIsoLevelMap(doc) : null);
+                    // DTW-210: by the sheet's OWN number, not the policy in force now —
+                    // after a policy switch the policy describes sheets numbered under
+                    // the old one, and the healed title block stopped matching its number.
+                    var number = sheet?.SheetNumber;
+                    level = SheetNumberEngine.ExistingSheetLevel(number, level, known.LevelIsName,
+                        SheetNumberEngine.IsIsoShapedNumber(number) ? DrawingProducer.BuildIsoLevelMap(doc) : null);
                 }
                 catch (Exception ex) { StingLog.Warn($"BuildForExistingSheet level code ({sheet?.Id}): {ex.Message}"); }
             }

@@ -75,6 +75,19 @@
       <_Parameter1>NUnit.Close</_Parameter1>
       <_Parameter2>true</_Parameter2>
     </AssemblyAttribute>
+    <!-- Run the tests under the plugin's VendorId. ricaun's own add-in ships with
+         VendorId "ricaun", and STING's Extensible Storage schemas are write-locked to
+         VendorId "Planscape" (StingSchemaBuilder.VendorId / StingTools.addin), so every
+         provenance stamp an engine wrote under the harness was refused — "Writing of
+         Entities of this Schema is not allowed to the current add-in" — and the drainage
+         IL notes could not follow a moved pipe (DRAW-9). In production the engines run
+         inside the StingTools add-in, where the write succeeds; this makes the harness
+         match. ricaun.RevitTest.Console rewrites its application .addin from this
+         metadata (UpdateRevitAddinFileUsingTestMetadata). -->
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>ricaun.RevitTest.Application.VendorId</_Parameter1>
+      <_Parameter2>Planscape</_Parameter2>
+    </AssemblyAttribute>
   </ItemGroup>
 
   <!-- Local Revit install: real DLLs by HintPath, never copied (Revit supplies its own). -->

@@ -215,6 +215,70 @@ namespace StingTools.Core.Drawing
         private static bool PredicateCovers(string a, string b)
             => string.IsNullOrEmpty(a) || string.Equals(a, b, StringComparison.Ordinal);
 
+        /// <summary>
+        /// The match key of a routing rule: every field that takes part in
+        /// matching, and nothing else. Two rules with the same signature are
+        /// the same predicate, so the later one can never fire (first match
+        /// wins). DTW-185: the de-dup in DrawingTypeRegistry.Merge used to
+        /// leave OptionMatches out, so a value-engineering rule and its
+        /// baseline twin — identical but for optionMatches, which is exactly
+        /// how the Phase 175 design-option routing is meant to be written —
+        /// collapsed to one and the option split vanished.
+        /// </summary>
+        public static string Signature(DrawingRoutingRule rule)
+        {
+            if (rule == null) return "";
+            static string N(string s) => string.IsNullOrEmpty(s) ? "" : s.Trim();
+            static string W(string s) => string.IsNullOrWhiteSpace(s) ? "*" : s.Trim();
+            return string.Join("|",
+                W(rule.Discipline), W(rule.Phase), W(rule.DocType),
+                N(rule.DisciplineMatches), N(rule.PhaseMatches), N(rule.DocTypeMatches),
+                N(rule.LevelMatches), N(rule.ProjectCodeMatches), N(rule.OptionMatches));
+        }
+
+        /// <summary>Signature plus target: two rules that match the same calls
+        /// AND send them to the same drawing type are the same rule.</summary>
+        public static string SignatureWithTarget(DrawingRoutingRule rule)
+            => Signature(rule) + "=>" + (rule?.DrawingTypeId ?? "").Trim();
+
+        /// <summary>
+        /// Layer project routing over the corporate table: project rules are
+        /// prepended (first match wins), and a later rule whose
+        /// <see cref="Signature"/> was already seen is dropped because it can
+        /// never be reached.
+        ///
+        /// DTW-191: a project rule identical (signature AND target) to a
+        /// corporate rule is dropped from the project side before the
+        /// prepend, so the corporate rule keeps its "corporate" origin. Project
+        /// files written before routing carried an origin froze all ~113
+        /// corporate rules into the override, where they loaded as project
+        /// rules and were re-saved for ever — a later corporate edit to one of
+        /// those keys could never reach that project. Returns the number of
+        /// such stale copies dropped.
+        /// </summary>
+        public static List<DrawingRoutingRule> MergeRouting(
+            IEnumerable<DrawingRoutingRule> corporate,
+            IEnumerable<DrawingRoutingRule> project,
+            out int droppedStaleCopies)
+        {
+            droppedStaleCopies = 0;
+            var corp = (corporate ?? Enumerable.Empty<DrawingRoutingRule>()).Where(r => r != null).ToList();
+            var corpKeys = new HashSet<string>(corp.Select(SignatureWithTarget), StringComparer.OrdinalIgnoreCase);
+            var combined = new List<DrawingRoutingRule>();
+            foreach (var r in project ?? Enumerable.Empty<DrawingRoutingRule>())
+            {
+                if (r == null) continue;
+                if (corpKeys.Contains(SignatureWithTarget(r))) { droppedStaleCopies++; continue; }
+                combined.Add(r);
+            }
+            combined.AddRange(corp);
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var deduped = new List<DrawingRoutingRule>(combined.Count);
+            foreach (var r in combined)
+                if (seen.Add(Signature(r))) deduped.Add(r);
+            return deduped;
+        }
+
         private static bool IsMatchEverything(string pattern)
             => pattern == ".*" || pattern == "^.*$" || pattern == ".+" || pattern == "^.+$" || pattern == ".*?";
 

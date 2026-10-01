@@ -630,11 +630,14 @@ namespace StingTools.Temp
                 }
             }
 
-            // Check 2: Missing STING filters
+            // Check 2: Missing STING filters. DTW-175: only the filters the STING VG
+            // scheme styles (CreateVGOverridesCommand.SchemeStyles) — every STING
+            // filter (300+, most with no override for this template) used to count,
+            // so every template always reported this issue and the fix attached them all.
             var stingFilters = new FilteredElementCollector(doc)
                 .OfClass(typeof(ParameterFilterElement))
                 .Cast<ParameterFilterElement>()
-                .Where(f => f.Name.StartsWith("STING"))
+                .Where(f => f.Name.StartsWith("STING - ") && CreateVGOverridesCommand.SchemeStyles(f.Name))
                 .ToList();
 
             var appliedIds = new HashSet<ElementId>(template.GetFilters());
@@ -906,9 +909,14 @@ namespace StingTools.Temp
 
         /// <summary>
         /// Loads VIEW_FILTER records from MR_SCHEDULES.csv.
-        /// Returns filter name, categories, rule type, parameter, value, override settings.
+        /// Returns filter name, discipline, categories (column 6) and the rule text
+        /// (column 8 — "System_Type Contains Chilled Water Supply", "Fire_Rating
+        /// HasValue", "Type=Visibility (no parameter rules)"; parse it with
+        /// <see cref="StingTools.Core.Drawing.ViewFilterRuleText.Parse"/>). DTW-168:
+        /// this returned column 7, the override recipe, and the caller looked for a
+        /// "Rule=…, Param=…" grammar in it that no row uses.
         /// </summary>
-        public static List<(string name, string discipline, string categories, string fields)>
+        public static List<(string name, string discipline, string categories, string ruleText)>
             LoadViewFiltersFromCsv()
         {
             var results = new List<(string, string, string, string)>();
@@ -920,15 +928,17 @@ namespace StingTools.Temp
                 {
                     if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
                     string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 8) continue;
+                    if (cols.Length < 7) continue;
                     if (cols[0].Trim() != "VIEW_FILTER") continue;
 
                     string name = cols[3].Trim();        // Schedule_Name = filter name
                     string discipline = cols[2].Trim();   // Discipline
                     string categories = cols[6].Trim();   // Multi_Categories
-                    string fields = cols[7].Trim();       // Fields = rules
+                    // Column 8 holds the rule; a short row has none, which the
+                    // caller refuses rather than reading as "no rule".
+                    string ruleText = cols.Length > 8 ? cols[8].Trim() : "";
 
-                    results.Add((name, discipline, categories, fields));
+                    results.Add((name, discipline, categories, ruleText));
                 }
             }
             catch (Exception ex) { StingLog.Warn($"LoadViewFiltersFromCsv: {ex.Message}"); }
@@ -2336,6 +2346,22 @@ namespace StingTools.Temp
                 { "Gas", new Color(255, 255, 0) },
             };
 
+        /// <summary>
+        /// DTW-175: the filters this command's layers style (status, QA, discipline
+        /// colour). Must match the branches in Execute — a filter outside them would
+        /// be attached with no override.
+        /// </summary>
+        internal static bool SchemeStyles(string filterName)
+        {
+            if (string.IsNullOrEmpty(filterName)) return false;
+            return filterName.Contains("Status: Demolished")
+                || filterName.Contains("Status: Existing")
+                || filterName.Contains("Status: Temporary")
+                || filterName.Contains("Untagged") || filterName.Contains("Missing")
+                || filterName.Contains("Incomplete")
+                || DisciplineColors.ContainsKey(filterName);
+        }
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
@@ -2344,16 +2370,32 @@ namespace StingTools.Temp
             UIDocument uidoc = ctx.UIDoc;
             Document doc = ctx.Doc;
 
-            // Determine target views
+            // Determine target views. DTW-175: the "all STING templates" branch was
+            // the else of "active view is not a template", which the UI never
+            // produces — so it was unreachable. The target is now an explicit choice.
             View activeView = uidoc.ActiveView;
-            List<View> targets = new List<View>();
+            var stingTemplates = new FilteredElementCollector(doc)
+                .OfClass(typeof(View)).Cast<View>()
+                .Where(v => v.IsTemplate && v.Name.StartsWith("STING")).ToList();
+            bool activeUsable = activeView != null && !activeView.IsTemplate;
 
-            if (activeView != null && !activeView.IsTemplate)
-                targets.Add(activeView);
-            else
-                targets = new FilteredElementCollector(doc)
-                    .OfClass(typeof(View)).Cast<View>()
-                    .Where(v => v.IsTemplate && v.Name.StartsWith("STING")).ToList();
+            List<View> targets = new List<View>();
+            if (activeUsable && stingTemplates.Count > 0 && !PresetDialog.Quiet)
+            {
+                var pick = new TaskDialog("VG Overrides")
+                {
+                    MainInstruction = "Apply STING VG overrides to…",
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                };
+                pick.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, $"Active view — {activeView.Name}");
+                pick.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, $"All {stingTemplates.Count} STING view templates");
+                var choice = pick.Show();
+                if (choice == TaskDialogResult.CommandLink1) targets.Add(activeView);
+                else if (choice == TaskDialogResult.CommandLink2) targets = stingTemplates;
+                else return Result.Cancelled;
+            }
+            else if (activeUsable) targets.Add(activeView);
+            else targets = stingTemplates;
 
             if (targets.Count == 0)
             {
@@ -2417,6 +2459,10 @@ namespace StingTools.Temp
                         foreach (var kvp in filters)
                         {
                             if (!kvp.Key.StartsWith("STING - ")) continue;
+                            // DTW-175: add only the filters this scheme styles. Every
+                            // "STING - *" filter (300+) used to be attached, most with
+                            // no override — clutter that also slows every view.
+                            if (!SchemeStyles(kvp.Key)) continue;
 
                             try
                             {

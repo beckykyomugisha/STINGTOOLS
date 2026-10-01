@@ -61,7 +61,23 @@ namespace StingTools.Core.Drawing
         /// carried through the extends fold — and read by nothing, so the
         /// presentation packs' 0.6–0.8 rendered identically to production.
         /// </summary>
-        [JsonProperty("lineWeightScale")] public double LineWeightScale { get; set; } = 1.0;
+        [JsonProperty("lineWeightScale")]
+        public double LineWeightScale
+        {
+            get => _lineWeightScale;
+            set { _lineWeightScale = value; _lineWeightScaleStated = true; }
+        }
+        private double _lineWeightScale = 1.0;
+        private bool _lineWeightScaleStated;
+
+        /// <summary>
+        /// DTW-174: true when the pack (its JSON, its appearance block, or code)
+        /// actually set <see cref="LineWeightScale"/>. The extends fold used to copy
+        /// any non-zero value, so a child's unstated DEFAULT 1.0 replaced its
+        /// parent's authored 0.6. Read-only (no setter) so ExtendsMerge's
+        /// reflection overlay never carries it.
+        /// </summary>
+        [JsonIgnore] public bool LineWeightScaleStated => _lineWeightScaleStated;
 
         /// <summary>
         /// DECLARATIVE — the text style a drawing produced with this pack
