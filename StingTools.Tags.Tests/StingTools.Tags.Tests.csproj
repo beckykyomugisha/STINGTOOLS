@@ -215,6 +215,7 @@
     <Compile Include="..\StingTools\Core\DisciplineFolderMatcher.cs" Link="Core\DisciplineFolderMatcher.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SuitabilityPresentation.cs" Link="Core\Drawing\SuitabilityPresentation.cs" />
     <Compile Include="..\StingTools\Core\Drawing\AnnotationProvenance.cs" Link="Core\Drawing\AnnotationProvenance.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\MatchLineKeys.cs" Link="Core\Drawing\MatchLineKeys.cs" />
     <Compile Include="..\StingTools\Core\Drawing\TagSizeVariant.cs" Link="Core\Drawing\TagSizeVariant.cs" />
     <Compile Include="..\StingTools\Core\Drawing\TagRuleIdentity.cs" Link="Core\Drawing\TagRuleIdentity.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SpatialTagRouting.cs" Link="Core\Drawing\SpatialTagRouting.cs" />
