@@ -23,7 +23,18 @@
 //   3. No idempotency: every re-run duplicated. Both now stamp provenance
 //      (AnnotationProvenance.DimMepRun / DimMepGridDrop) and skip what they find.
 //
-// Linked MEP is reported, not dimensioned (DTW-85); grids may be linked.
+// DTW-102: runs in loaded links the view shows are dimensioned too (they used
+// to be counted and reported only). The same planning walks the LINKED
+// document's connector graph (through its fittings, not its equipment);
+// geometry is mapped into host coordinates with the link instance's total
+// transform; each fitting-plane / pipe-end / centreline reference is made a
+// link reference (Reference.CreateLinkReference) and the dimension is created
+// in the host view. Provenance keys name the link instance and the linked
+// element (AnnotationProvenance.LinkedHost), so re-runs are idempotent and a
+// linked run never collides with a host one. A linked line whose references
+// Revit will not carry through the link — or whose dimension Revit refuses —
+// is counted and reported (LinkedMepTally), never dropped silently.
+// Grids may be host or linked.
 // 3D views are skipped — Revit's Dimension API doesn't accept them.
 // NOT VERIFIED IN REVIT.
 
@@ -76,30 +87,34 @@ namespace StingTools.Core.Drawing.Dimensioning
                 return;
             }
 
-            var elements = CollectMepCurves(doc, view, rule);
-            ReportLinkedMep(doc, view, rule, "MEP chain dim", result);
-            if (elements.Count == 0) return;
-
-            var byId = elements.ToDictionary(e => e.Id.Value);
-            var runs = MepRunPlanning.Cluster(byId.Keys, id => Neighbours(doc, id), id => IsJoint(doc, id));
+            const string label = "MEP chain dim";
+            var sources = Sources(doc, view, rule, label, result);
+            if (sources.Count == 0) return;
 
             var strategy = DimensionStrategy.Parse(pack.DimensionStrategy);
             var dimType  = DimensionStrategy.ResolveType(doc, strategy, pack.DimensionStyle);
             var stamped  = StampedHosts(doc, view, AnnotationProvenance.DimMepRun);
             int tooShort = 0;
+            var linked = new LinkedMepTally();
 
-            foreach (var run in runs)
+            foreach (var (src, elements) in sources)
             {
-                try
+                var byId = elements.ToDictionary(e => e.Id.Value);
+                var runs = MepRunPlanning.Cluster(byId.Keys, id => Neighbours(src.Doc, id), id => IsJoint(src.Doc, id));
+                foreach (var run in runs)
                 {
-                    var curves = run.Curves.Select(id => byId[id]).ToList();
-                    var joints = run.Joints.Select(id => doc.GetElement(new ElementId(id))).Where(e => e != null).ToList();
-                    EmitRunChains(doc, view, curves, joints, dimType, stamped, rule, result, ref tooShort);
+                    try
+                    {
+                        var curves = run.Curves.Select(id => byId[id]).ToList();
+                        var joints = run.Joints.Select(id => src.Doc.GetElement(new ElementId(id))).Where(e => e != null).ToList();
+                        EmitRunChains(doc, view, src, curves, joints, dimType, stamped, rule, result, linked, ref tooShort);
+                    }
+                    catch (Exception ex) { result.Warnings.Add($"{label} ({src.Label}): {ex.Message}"); }
                 }
-                catch (Exception ex) { result.Warnings.Add($"MEP chain dim: {ex.Message}"); }
             }
             if (tooShort > 0)
-                result.Warnings.Add($"MEP chain dim: {tooShort} straight line(s) had fewer than two points to dimension — skipped.");
+                result.Warnings.Add($"{label}: {tooShort} straight line(s) had fewer than two points to dimension — skipped.");
+            ReportLinked(view, label, linked, result);
         }
 
         public static void RunGridDrop(Document doc, View view, AnnotationRulePack pack,
@@ -120,13 +135,15 @@ namespace StingTools.Core.Drawing.Dimensioning
                 return;
             }
 
-            var elements = CollectMepCurves(doc, view, rule);
-            ReportLinkedMep(doc, view, rule, "MEP grid-drop dim", result);
-            if (elements.Count == 0) return;
+            const string label = "MEP grid-drop dim";
+            var sources = Sources(doc, view, rule, label, result);
+            if (sources.Count == 0) return;
 
             // DTW-85: host grids and the grids of loaded links the view shows — an
             // MEP model's grids usually live in the linked architectural model.
-            var grids = ViewLinks.StraightGrids(doc, view, result.Warnings, out _);
+            var gridWarnings = new List<string>();
+            var grids = ViewLinks.StraightGrids(doc, view, gridWarnings, out _);
+            AddUnique(result.Warnings, gridWarnings);
             if (grids.Count == 0)
             {
                 result.Warnings.Add("MEP grid-drop dim: view shows no straight grids, host or linked — skipped.");
@@ -137,19 +154,24 @@ namespace StingTools.Core.Drawing.Dimensioning
             var dimType  = DimensionStrategy.ResolveType(doc, strategy, pack.DimensionStyle);
             var stamped  = StampedHosts(doc, view, AnnotationProvenance.DimMepGridDrop);
             int noGrid = 0;
+            var linked = new LinkedMepTally();
 
-            foreach (var el in elements)
+            foreach (var (src, elements) in sources)
             {
-                try
+                foreach (var el in elements)
                 {
-                    if (rule?.SkipIfTagged != false && stamped.Contains(el.UniqueId)) { result.Skipped++; continue; }
-                    if (!EmitGridDrop(doc, view, el, grids, dimType, result)) noGrid++;
+                    try
+                    {
+                        if (rule?.SkipIfTagged != false && stamped.Contains(src.HostKey(el))) { result.Skipped++; continue; }
+                        if (!EmitGridDrop(doc, view, src, el, grids, dimType, result, linked)) noGrid++;
+                    }
+                    catch (Exception ex) { result.Warnings.Add($"{label} {src.Label}/{el.Id}: {ex.Message}"); }
                 }
-                catch (Exception ex) { result.Warnings.Add($"MEP grid-drop dim {el.Id}: {ex.Message}"); }
             }
             if (noGrid > 0)
-                result.Warnings.Add($"MEP grid-drop dim: {noGrid} run(s) have no parallel grid within {MaxGridDropFt:0} ft " +
+                result.Warnings.Add($"{label}: {noGrid} run(s) have no parallel grid within {MaxGridDropFt:0} ft " +
                                     "(or sit on one, or run into the view) — not dimensioned.");
+            ReportLinked(view, label, linked, result);
         }
 
         // ── Collection ──
@@ -169,26 +191,110 @@ namespace StingTools.Core.Drawing.Dimensioning
         }
 
         /// <summary>
-        /// DTW-85: this pass dimensions host runs only — a dimension to a linked
-        /// pipe's centreline or end needs geometry references through the link,
-        /// which it does not build. Linked runs the view shows are counted and
-        /// reported, so an MEP-in-link drawing does not read as "nothing to do".
+        /// DTW-102: where a pass's runs come from — the host document, or one loaded
+        /// link the view shows. Elements are in their own document's coordinates; the
+        /// source maps points, vectors and references into the host.
         /// </summary>
-        private static void ReportLinkedMep(Document doc, View view, AutoAnnotationRule rule, string label,
-            AnnotationResult result)
+        private sealed class MepSource
         {
-            int n = 0;
-            foreach (var link in ViewLinks.InView(doc, view, null))
+            public Document Doc;
+            public ViewLink Link;   // null for the host
+            public bool IsLinked => Link != null;
+            public string Label => Link == null ? "host" : $"link '{Link.Name}'";
+
+            public XYZ Pt(XYZ p) => Link == null ? p : Link.Transform.OfPoint(p);
+            public XYZ Vec(XYZ v) => Link == null ? v : Link.Transform.OfVector(v);
+            public Line LineOf(Line l) => Link == null ? l : (Line)l.CreateTransformed(Link.Transform);
+
+            /// <summary>The provenance host: the element's UniqueId, or link instance + linked element.</summary>
+            public string HostKey(Element e) => Link == null
+                ? e.UniqueId
+                : AnnotationProvenance.LinkedHost(Link.Instance.UniqueId, e.UniqueId);
+
+            /// <summary>
+            /// A reference the host view can dimension to: the reference itself for a host
+            /// element, a link reference for a linked one. Null, with the reason, when Revit
+            /// will not make the link reference.
+            /// </summary>
+            public Reference Ref(Reference r, string what, out string why)
             {
-                foreach (var bic in RuleCategories(rule))
+                why = null;
+                if (r == null) { why = $"{Label}: {what} has no reference"; return null; }
+                if (Link == null) return r;
+                try
                 {
-                    try { n += ViewLinks.Visible(doc, view, link, bic).Count; }
-                    catch (Exception ex) { StingLog.Warn($"{label}: link {link.Name} {bic}: {ex.Message}"); }
+                    var lr = r.CreateLinkReference(Link.Instance);
+                    if (lr == null) why = $"{Label}: {what} — CreateLinkReference returned null";
+                    return lr;
+                }
+                catch (Exception ex)
+                {
+                    why = $"{Label}: {what} — CreateLinkReference: {ex.Message}";
+                    return null;
                 }
             }
-            if (n > 0)
-                result.Warnings.Add($"{label}: {n} MEP run(s) in linked models not dimensioned — " +
-                                    "dimensioning linked MEP is not supported by this pass; dimension them in the MEP model.");
+
+            /// <summary>
+            /// Geometry options: the host view for host elements; the view's detail level
+            /// for linked ones (Options.View must be a view of the element's own document).
+            /// </summary>
+            public Options GeometryOptions(View view)
+            {
+                var opt = new Options { ComputeReferences = true, IncludeNonVisibleObjects = true };
+                if (Link == null) opt.View = view;
+                else if (view.DetailLevel != ViewDetailLevel.Undefined) opt.DetailLevel = view.DetailLevel;
+                return opt;
+            }
+        }
+
+        /// <summary>
+        /// The host's runs and each visible loaded link's runs, sources with none left
+        /// out. A link that cannot be read is a warning (once), never a silent omission.
+        /// </summary>
+        private static List<(MepSource Src, List<MEPCurve> Elements)> Sources(Document doc, View view,
+            AutoAnnotationRule rule, string label, AnnotationResult result)
+        {
+            var list = new List<(MepSource, List<MEPCurve>)>();
+            var host = CollectMepCurves(doc, view, rule);
+            if (host.Count > 0) list.Add((new MepSource { Doc = doc }, host));
+
+            var warnings = new List<string>();
+            foreach (var link in ViewLinks.InView(doc, view, warnings))
+            {
+                var els = new List<MEPCurve>();
+                foreach (var bic in RuleCategories(rule))
+                {
+                    try
+                    {
+                        els.AddRange(ViewLinks.Visible(doc, view, link, bic)
+                            .OfType<MEPCurve>()
+                            .Where(m => m.ConnectorManager != null));
+                    }
+                    catch (Exception ex)
+                    {
+                        warnings.Add($"{label}: {bic} in link '{link.Name}' could not be read ({ex.Message}) — not dimensioned.");
+                    }
+                }
+                els = ApplyMinSize(els, rule);
+                if (els.Count > 0) list.Add((new MepSource { Doc = link.Doc, Link = link }, els));
+            }
+            AddUnique(result.Warnings, warnings);
+            return list;
+        }
+
+        private static void AddUnique(List<string> into, IEnumerable<string> items)
+        {
+            foreach (var w in items)
+                if (!into.Contains(w)) into.Add(w);
+        }
+
+        /// <summary>The linked-run outcome: a warning when any linked line was not dimensioned, a log line otherwise.</summary>
+        private static void ReportLinked(View view, string label, LinkedMepTally linked, AnnotationResult result)
+        {
+            var w = linked.Warning(label);
+            if (w != null) result.Warnings.Add(w);
+            else if (linked.DimensionedCount > 0)
+                StingLog.Info($"{label} in '{view.Name}': {linked.DimensionedCount} linked line(s) dimensioned through their link.");
         }
 
         private static List<MEPCurve> CollectMepCurves(Document doc, View view, AutoAnnotationRule rule)
@@ -207,15 +313,16 @@ namespace StingTools.Core.Drawing.Dimensioning
                 }
                 catch (Exception ex) { StingLog.Warn($"MEP collect {bic}: {ex.Message}"); }
             }
+            return ApplyMinSize(els, rule);
+        }
 
+        private static List<MEPCurve> ApplyMinSize(List<MEPCurve> els, AutoAnnotationRule rule)
+        {
             // Min-size filter — pack uses mm, MEPCurve.Diameter / Width are in feet.
-            if (rule?.MinSizeMm != null)
-            {
-                // A-2: shared size definition + gate (ElementSize / AnnotationMinSize).
-                els = els.Where(e => AnnotationMinSize.Keeps(
-                    ElementSize.SectionFt(e) * AnnotationMinSize.MmPerFt, rule.MinSizeMm)).ToList();
-            }
-            return els;
+            if (rule?.MinSizeMm == null) return els;
+            // A-2: shared size definition + gate (ElementSize / AnnotationMinSize).
+            return els.Where(e => AnnotationMinSize.Keeps(
+                ElementSize.SectionFt(e) * AnnotationMinSize.MmPerFt, rule.MinSizeMm)).ToList();
         }
 
         // ── Connector graph ──
@@ -264,26 +371,28 @@ namespace StingTools.Core.Drawing.Dimensioning
 
         private sealed class Stop
         {
-            public Reference Ref;
-            public XYZ Point;
+            public Reference Ref;   // host-view reference; null when a link reference was refused
+            public XYZ Point;       // host coordinates
+            public string Why;      // why Ref is null
         }
 
         /// <summary>
         /// One chain per straight line of the run (MepRunPlanning.CollinearGroups):
         /// fitting centre planes that cross the line, then the free pipe ends, merged
         /// where they coincide; the witness line runs along the line, offset across it
-        /// in the view plane.
+        /// in the view plane. All geometry is in host coordinates (DTW-102).
         /// </summary>
-        private static void EmitRunChains(Document doc, View view, List<MEPCurve> curves, List<Element> joints,
-            DimensionType dimType, HashSet<string> stamped, AutoAnnotationRule rule, AnnotationResult result,
-            ref int tooShort)
+        private static void EmitRunChains(Document doc, View view, MepSource src, List<MEPCurve> curves,
+            List<Element> joints, DimensionType dimType, HashSet<string> stamped, AutoAnnotationRule rule,
+            AnnotationResult result, LinkedMepTally linked, ref int tooShort)
         {
             var viewDir = view.ViewDirection.Normalize();
             var lines = new Dictionary<long, (MEPCurve C, Line L)>();
             var segs = new List<MepSeg>();
             foreach (var c in curves)
             {
-                if (!(c.Location is LocationCurve lc) || !(lc.Curve is Line ln)) continue;
+                if (!(c.Location is LocationCurve lc) || !(lc.Curve is Line local)) continue;
+                var ln = src.LineOf(local);
                 // A straight running into the view (a riser on plan) has no length to chain.
                 if (Math.Abs(ln.Direction.Normalize().DotProduct(viewDir)) > 1 - ParallelTol) continue;
                 var a = ToViewPlane(ln.GetEndPoint(0), view); var b = ToViewPlane(ln.GetEndPoint(1), view);
@@ -296,7 +405,7 @@ namespace StingTools.Core.Drawing.Dimensioning
                 var members = group.Select(id => lines[id]).ToList();
                 // One stamp per line, keyed by its lowest-id straight — skip when ANY
                 // straight of the line already carries this pass's chain.
-                if (rule?.SkipIfTagged != false && members.Any(m => stamped.Contains(m.C.UniqueId)))
+                if (rule?.SkipIfTagged != false && members.Any(m => stamped.Contains(src.HostKey(m.C))))
                 { result.Skipped++; continue; }
 
                 var axis = members.OrderByDescending(m => m.L.Length).First().L.Direction.Normalize();
@@ -306,23 +415,35 @@ namespace StingTools.Core.Drawing.Dimensioning
                 var stops = new List<Stop>();
                 foreach (var j in joints)
                 {
-                    if (!Neighbours(doc, j.Id.Value).Any(memberIds.Contains)) continue;
-                    var s = FittingCentreStop(j, axis);
-                    if (s != null) stops.Add(s);
+                    if (!Neighbours(src.Doc, j.Id.Value).Any(memberIds.Contains)) continue;
+                    var st = FittingCentreStop(src, j, axis);
+                    if (st != null) stops.Add(st);
                 }
                 foreach (var m in members)
-                    stops.AddRange(FreeEndStops(doc, view, m.C, m.L, joints));
+                    stops.AddRange(FreeEndStops(view, src, m.C, joints));
                 if (stops.Count < 2)
-                    foreach (var m in members) stops.AddRange(EndStops(view, m.C));   // nothing better: every end
+                    foreach (var m in members) stops.AddRange(EndStops(view, src, m.C));   // nothing better: every end
 
-                var keep = MepRunPlanning.ChainStops(stops.Select(s => s.Point.DotProduct(axis)).ToList());
-                if (keep.Count < 2) { tooShort++; continue; }
+                // Positions on the line, then the ones that still have a reference. On the
+                // host they are the same; through a link, a refused link reference loses one.
+                int positions = MepRunPlanning.ChainStops(stops.Select(st => st.Point.DotProduct(axis)).ToList()).Count;
+                var usable = stops.Where(st => st.Ref != null).ToList();
+                var keep = MepRunPlanning.ChainStops(usable.Select(st => st.Point.DotProduct(axis)).ToList());
+                var host = members.OrderBy(m => m.C.Id.Value).First().C;
+                var outcome = MepRunPlanning.LineOutcome(positions, keep.Count);
+                if (outcome == MepLineOutcome.TooShort) { tooShort++; continue; }
+                if (outcome == MepLineOutcome.LinkReferencesRefused)
+                {
+                    linked.RefRefused(stops.FirstOrDefault(st => st.Ref == null)?.Why
+                                      ?? $"{src.Label}: run at {host.Id} lost a stop");
+                    continue;
+                }
 
                 var refs = new ReferenceArray();
-                foreach (var i in keep) refs.Append(stops[i].Ref);
+                foreach (var i in keep) refs.Append(usable[i].Ref);
 
-                double first = stops[keep[0]].Point.DotProduct(axis);
-                double last  = stops[keep[keep.Count - 1]].Point.DotProduct(axis);
+                double first = usable[keep[0]].Point.DotProduct(axis);
+                double last  = usable[keep[keep.Count - 1]].Point.DotProduct(axis);
                 if (last - first < MinDimFt) { tooShort++; continue; }
 
                 var across = viewDir.CrossProduct(axis);
@@ -332,39 +453,48 @@ namespace StingTools.Core.Drawing.Dimensioning
                 var p0 = basePt + axis * (first - basePt.DotProduct(axis)) + across * (RunOffsetMm / DimensionStrategy.MmPerFt);
                 var line = Line.CreateBound(p0, p0 + axis * (last - first));
 
-                var host = members.OrderBy(m => m.C.Id.Value).First().C;
-                if (Emit(doc, view, line, refs, dimType, result, $"MEP run at {host.Id}",
-                        AnnotationProvenance.DimMepRun, host))
-                    stamped.Add(host.UniqueId);
+                var hostKey = src.HostKey(host);
+                if (Emit(doc, view, line, refs, dimType, result, $"MEP run at {src.Label}/{host.Id}",
+                        AnnotationProvenance.DimMepRun, hostKey, out var failure))
+                {
+                    stamped.Add(hostKey);
+                    if (src.IsLinked) linked.Placed();
+                }
+                else if (src.IsLinked) linked.DimRefused(failure);
+                else result.Warnings.Add(failure);
             }
         }
 
         /// <summary>The fitting / accessory's centre plane perpendicular to <paramref name="axis"/>, or null.</summary>
-        private static Stop FittingCentreStop(Element joint, XYZ axis)
+        private static Stop FittingCentreStop(MepSource src, Element joint, XYZ axis)
         {
             if (!(joint is FamilyInstance fi) || !(fi.Location is LocationPoint lp)) return null;
             try
             {
                 var tf = fi.GetTransform();
                 // CenterLeftRight is the plane normal to BasisX; CenterFrontBack to BasisY.
-                var pick = Math.Abs(tf.BasisX.Normalize().DotProduct(axis)) > 1 - ParallelTol
+                // The basis is in the fitting's document; the axis is in the host.
+                var bx = src.Vec(tf.BasisX).Normalize();
+                var by = src.Vec(tf.BasisY).Normalize();
+                var pick = Math.Abs(bx.DotProduct(axis)) > 1 - ParallelTol
                     ? FamilyInstanceReferenceType.CenterLeftRight
-                    : Math.Abs(tf.BasisY.Normalize().DotProduct(axis)) > 1 - ParallelTol
+                    : Math.Abs(by.DotProduct(axis)) > 1 - ParallelTol
                         ? FamilyInstanceReferenceType.CenterFrontBack
                         : (FamilyInstanceReferenceType?)null;
                 if (pick == null) return null;
                 var refs = fi.GetReferences(pick.Value);
                 if (refs == null || refs.Count == 0) return null;
-                return new Stop { Ref = refs[0], Point = lp.Point };
+                var r = src.Ref(refs[0], $"fitting {joint.Id} centre plane", out var why);
+                return new Stop { Ref = r, Point = src.Pt(lp.Point), Why = why };
             }
-            catch (Exception ex) { StingLog.Warn($"MEP fitting centre {joint.Id}: {ex.Message}"); return null; }
+            catch (Exception ex) { StingLog.Warn($"MEP fitting centre {src.Label}/{joint.Id}: {ex.Message}"); return null; }
         }
 
         /// <summary>Ends of a straight not joined to a fitting of the run — open ends, equipment, terminals.</summary>
-        private static IEnumerable<Stop> FreeEndStops(Document doc, View view, MEPCurve c, Line ln, List<Element> joints)
+        private static IEnumerable<Stop> FreeEndStops(View view, MepSource src, MEPCurve c, List<Element> joints)
         {
             var jointIds = new HashSet<long>(joints.Select(j => j.Id.Value));
-            var ends = EndStops(view, c);
+            var ends = EndStops(view, src, c);
             if (ends.Count < 2) return Enumerable.Empty<Stop>();
             var free = new List<Stop>();
             foreach (var end in ends)
@@ -375,12 +505,12 @@ namespace StingTools.Core.Drawing.Dimensioning
                     foreach (Connector con in c.ConnectorManager.Connectors)
                     {
                         if (con == null || con.ConnectorType == ConnectorType.Logical) continue;
-                        if (con.Origin.DistanceTo(end.Point) > 0.01) continue;
+                        if (src.Pt(con.Origin).DistanceTo(end.Point) > 0.01) continue;
                         foreach (Connector r in con.AllRefs)
                             if (r?.Owner != null && jointIds.Contains(r.Owner.Id.Value)) joined = true;
                     }
                 }
-                catch (Exception ex) { StingLog.Warn($"MEP free end {c.Id}: {ex.Message}"); }
+                catch (Exception ex) { StingLog.Warn($"MEP free end {src.Label}/{c.Id}: {ex.Message}"); }
                 if (!joined) free.Add(end);
             }
             return free;
@@ -389,34 +519,38 @@ namespace StingTools.Core.Drawing.Dimensioning
         /// <summary>
         /// The two end-point references of a run's centreline. Revit exposes them on
         /// the centreline curve of the element's geometry (ComputeReferences, with
-        /// non-visible objects, since the centreline is hidden at fine detail).
+        /// non-visible objects, since the centreline is hidden at fine detail). A
+        /// linked end whose link reference Revit refuses is kept with a null Ref, so
+        /// the line is reported rather than dimensioned without it.
         /// </summary>
-        private static List<Stop> EndStops(View view, MEPCurve c)
+        private static List<Stop> EndStops(View view, MepSource src, MEPCurve c)
         {
             var stops = new List<Stop>();
-            var line = CentrelineOf(c, view);
+            var line = CentrelineOf(src, c, view);
             if (line == null) return stops;
             for (int i = 0; i < 2; i++)
             {
                 Reference r = null;
                 try { r = line.GetEndPointReference(i); }
-                catch (Exception ex) { StingLog.Warn($"MEP end reference {c.Id}/{i}: {ex.Message}"); }
-                if (r != null) stops.Add(new Stop { Ref = r, Point = line.GetEndPoint(i) });
+                catch (Exception ex) { StingLog.Warn($"MEP end reference {src.Label}/{c.Id}/{i}: {ex.Message}"); }
+                if (r == null) continue;
+                var hr = src.Ref(r, $"run {c.Id} end {i}", out var why);
+                stops.Add(new Stop { Ref = hr, Point = src.Pt(line.GetEndPoint(i)), Why = why });
             }
             return stops;
         }
 
-        private static Line CentrelineOf(MEPCurve c, View view)
+        /// <summary>The centreline curve of the element's geometry, in its own document's coordinates.</summary>
+        private static Line CentrelineOf(MepSource src, MEPCurve c, View view)
         {
             try
             {
-                var opt = new Options { ComputeReferences = true, IncludeNonVisibleObjects = true, View = view };
-                var geo = c.get_Geometry(opt);
+                var geo = c.get_Geometry(src.GeometryOptions(view));
                 if (geo == null) return null;
                 foreach (GeometryObject go in geo)
                     if (go is Line l && l.Reference != null) return l;
             }
-            catch (Exception ex) { StingLog.Warn($"MEP centreline {c.Id}: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"MEP centreline {src.Label}/{c.Id}: {ex.Message}"); }
             return null;
         }
 
@@ -429,13 +563,15 @@ namespace StingTools.Core.Drawing.Dimensioning
         /// <summary>
         /// Dimension one straight to the nearest grid parallel to it: the grid and the
         /// straight's centreline are parallel references, so the line runs ACROSS
-        /// them (from the straight to the grid), offset along the straight.
+        /// them (from the straight to the grid), offset along the straight. Host or
+        /// linked straight, host or linked grid (DTW-102).
         /// Returns false when the straight has no such grid.
         /// </summary>
-        private static bool EmitGridDrop(Document doc, View view, MEPCurve el,
-            List<ViewGridLine> grids, DimensionType dimType, AnnotationResult result)
+        private static bool EmitGridDrop(Document doc, View view, MepSource src, MEPCurve el,
+            List<ViewGridLine> grids, DimensionType dimType, AnnotationResult result, LinkedMepTally linked)
         {
-            if (!(el.Location is LocationCurve lc) || !(lc.Curve is Line pipe)) return false;
+            if (!(el.Location is LocationCurve lc) || !(lc.Curve is Line local)) return false;
+            var pipe = src.LineOf(local);
             var viewDir = view.ViewDirection.Normalize();
             var d = pipe.Direction.Normalize();
             if (Math.Abs(d.DotProduct(viewDir)) > 1 - ParallelTol) return false;   // running into the view
@@ -459,11 +595,17 @@ namespace StingTools.Core.Drawing.Dimensioning
             }
             if (best == null) return false;
 
-            var pipeRef = CentrelineOf(el, view)?.Reference;
+            var centreRef = CentrelineOf(src, el, view)?.Reference;
+            if (centreRef == null)
+            {
+                result.Warnings.Add($"MEP grid-drop dim: {src.Label}/{el.Id} exposes no centreline reference — skipped.");
+                return true;   // reported here, not as "no grid"
+            }
+            var pipeRef = src.Ref(centreRef, $"run {el.Id} centreline", out var why);
             if (pipeRef == null)
             {
-                result.Warnings.Add($"MEP grid-drop dim: {el.Id} exposes no centreline reference — skipped.");
-                return true;   // reported here, not as "no grid"
+                linked.RefRefused(why);   // only a link can refuse; counted in the linked report
+                return true;
             }
 
             var refArr = new ReferenceArray();
@@ -472,30 +614,46 @@ namespace StingTools.Core.Drawing.Dimensioning
 
             var shift = d * (GridDropOffsetMm / DimensionStrategy.MmPerFt);
             var line = Line.CreateBound(mid + shift, bestFoot + shift);
-            Emit(doc, view, line, refArr, dimType, result, $"MEP {el.Id} → grid {best.Name}",
-                AnnotationProvenance.DimMepGridDrop, el);
+            if (Emit(doc, view, line, refArr, dimType, result, $"MEP {src.Label}/{el.Id} → grid {best.Name}",
+                    AnnotationProvenance.DimMepGridDrop, src.HostKey(el), out var failure))
+            {
+                if (src.IsLinked) linked.Placed();
+            }
+            else if (src.IsLinked) linked.DimRefused(failure);
+            else result.Warnings.Add(failure);
             return true;
         }
 
         // ── Shared ──
 
+        /// <summary>
+        /// Create the dimension and stamp it for <paramref name="hostKey"/> (a UniqueId,
+        /// or AnnotationProvenance.LinkedHost for a linked run). On failure returns false
+        /// with the reason; the caller reports it (a warning for a host run, the linked
+        /// tally for a linked one).
+        /// </summary>
         private static bool Emit(Document doc, View view, Line line, ReferenceArray refs,
-            DimensionType dimType, AnnotationResult result, string label, string producer, Element host)
+            DimensionType dimType, AnnotationResult result, string label, string producer, string hostKey,
+            out string failure)
         {
+            failure = null;
             try
             {
                 var dim = dimType != null
                     ? doc.Create.NewDimension(view, line, refs, dimType)
                     : doc.Create.NewDimension(view, line, refs);
-                if (dim == null) { result.Warnings.Add($"NewDimension returned null for {label}."); return false; }
+                if (dim == null) { failure = $"NewDimension returned null for {label}."; return false; }
                 result.DimsPlaced++;
-                StingAnnotationProvenanceSchema.Stamp(dim, producer, AnnotationProvenance.Key(host.UniqueId));
+                StingAnnotationProvenanceSchema.Stamp(dim, producer, AnnotationProvenance.Key(hostKey));
                 return true;
             }
-            catch (Exception ex) { result.Warnings.Add($"NewDimension {label}: {ex.Message}"); return false; }
+            catch (Exception ex) { failure = $"NewDimension {label}: {ex.Message}"; return false; }
         }
 
-        /// <summary>UniqueIds of the hosts this view's <paramref name="producer"/> dimensions were stamped for.</summary>
+        /// <summary>
+        /// Host keys this view's <paramref name="producer"/> dimensions were stamped for:
+        /// element UniqueIds for host runs, AnnotationProvenance.LinkedHost for linked ones.
+        /// </summary>
         private static HashSet<string> StampedHosts(Document doc, View view, string producer)
             => new HashSet<string>(
                 StingAnnotationProvenanceSchema.Index(doc, view, typeof(Dimension), producer).Keys
