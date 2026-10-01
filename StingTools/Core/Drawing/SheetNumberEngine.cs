@@ -98,6 +98,78 @@ namespace StingTools.Core.Drawing
             return new string(s.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-').Take(8).ToArray());
         }
 
+        // ── DTW-198: names are not numbers ────────────────────────────
+
+        /// <summary>Characters Revit refuses in a view or sheet name.</summary>
+        private static readonly char[] RevitNameIllegal = { '\\', ':', '{', '}', '[', ']', '|', ';', '<', '>', '?', '`', '~' };
+
+        /// <summary>
+        /// A value for a sheet NAME: kept whole, with only the characters Revit refuses
+        /// in a name replaced (and the spacing tidied). <see cref="SafeShort"/> is number
+        /// shaping — it stripped spaces and cut at eight, so "Ground Floor" printed
+        /// "GroundFl" on the sheet's name. Empty is "XX", as in a number.
+        /// </summary>
+        public static string SheetNameSafe(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return "XX";
+            var chars = s.Select(c => RevitNameIllegal.Contains(c) || char.IsControl(c) ? ' ' : c).ToArray();
+            var tidy = Regex.Replace(new string(chars), @"\s+", " ").Trim();
+            return tidy.Length == 0 ? "XX" : tidy;
+        }
+
+        /// <summary>
+        /// A sheet NAME from <paramref name="pattern"/>: {lvl}, {mark}, {spool}, {sys} and
+        /// {disc} take the full values (<see cref="SheetNameSafe"/>), everything else —
+        /// the ISO extras, {seq} — exactly as <see cref="ApplyTokenPattern"/> resolves
+        /// them for the number. <paramref name="levelName"/> is the level's NAME, never
+        /// its code.
+        /// </summary>
+        public static string ApplyNamePattern(string pattern,
+            string disc, string levelName, string sys, string mark, string spool, string purpose,
+            int seq, IDictionary<string, string> extras)
+        {
+            if (string.IsNullOrEmpty(pattern)) return pattern;
+            var p = pattern;
+            if (p.IndexOf("{lvl}", StringComparison.Ordinal) >= 0) p = p.Replace("{lvl}", SheetNameSafe(levelName));
+            if (p.IndexOf("{mark}", StringComparison.Ordinal) >= 0) p = p.Replace("{mark}", SheetNameSafe(mark));
+            if (p.IndexOf("{spool}", StringComparison.Ordinal) >= 0) p = p.Replace("{spool}", SheetNameSafe(spool));
+            if (p.IndexOf("{sys}", StringComparison.Ordinal) >= 0) p = p.Replace("{sys}", SheetNameSafe(sys));
+            if (p.IndexOf("{disc}", StringComparison.Ordinal) >= 0) p = p.Replace("{disc}", SheetNameSafe(disc));
+            return ApplyTokenPattern(p, disc, levelName, sys, mark, spool, purpose, seq, extras);
+        }
+
+        /// <summary>
+        /// A level for a sheet NUMBER when no code is known: <see cref="SafeShort"/>, but
+        /// a trailing number survives the eight-character cut — "Basement 1" is
+        /// "Basemen1", not "Basement" (which "Basement 2" also became).
+        /// </summary>
+        public static string ShortLevel(string levelName)
+        {
+            if (string.IsNullOrWhiteSpace(levelName)) return "XX";
+            var clean = new string(levelName.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-').ToArray());
+            if (clean.Length == 0) return "XX";
+            if (clean.Length <= 8) return clean;
+            var digits = Regex.Match(clean, @"\d+$").Value;
+            if (digits.Length == 0 || digits.Length >= 8) return clean.Substring(0, 8);
+            return clean.Substring(0, 8 - digits.Length) + digits;
+        }
+
+        /// <summary>
+        /// {lvl} for a sheet NUMBER: the level's CODE (ScopeBoxRevit.LevelCodes, or the
+        /// ISO level code under an ISO pattern) when the caller has one, else
+        /// <see cref="ShortLevel"/> of the name. Two levels never share a code; two
+        /// truncated names did.
+        /// </summary>
+        public static string NumberLevelToken(string levelCode, string levelName)
+        {
+            if (!string.IsNullOrWhiteSpace(levelCode))
+            {
+                var code = SafeShort(levelCode);
+                if (!string.IsNullOrEmpty(code)) return code;
+            }
+            return ShortLevel(levelName);
+        }
+
         /// <summary>
         /// The pattern resolved in every token except the sequence, which is
         /// left as <see cref="SeqSentinel"/>, then tidied. The shape every
