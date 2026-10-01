@@ -74,6 +74,10 @@ jobs:
       - name: No new parameter with two owners
         run: python3 tools/validate_dual_owner.py
 
+      # DSCH-7: the QS NRM2 review round trip (export -> verdict -> apply) works.
+      - name: QS NRM2 review round trip
+        run: python3 tools/check_qs_nrm2_review.py
+
       - name: Binding scope has not grown
         run: python3 tools/check_binding_scope.py --check
 
