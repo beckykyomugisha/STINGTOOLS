@@ -39,6 +39,7 @@ namespace StingTools.Core.Placement
         public int SkippedNotHosted { get; set; }    // PlacementHostPreflight returned Skipped
         public int SkippedExplodedNoPoint { get; set; } // layer mapped but nothing capturable
         public int DedupedAgainstBlock { get; set; } // layer point coincided with a block insert
+        public int SkippedAlreadyPlaced { get; set; } // DTW-112: a previous bridge run placed this capture
         public bool DryRun { get; set; }
         public bool IncludedLineClusters { get; set; }  // the experimental cluster pass ran
         public Dictionary<string, int> PlacedByCategory { get; } =
@@ -272,6 +273,17 @@ namespace StingTools.Core.Placement
                 return res;
             }
 
+            // ── DTW-112 — idempotency. A capture a previous bridge run already placed (same
+            //    category, provenance engine = this bridge, same plan point) is skipped, so a
+            //    re-run does not place every fixture twice. ──
+            placeable = DropAlreadyPlaced(doc, placeable, res);
+            if (placeable.Count == 0)
+            {
+                res.Messages.Add($"Nothing new to place: all {res.SkippedAlreadyPlaced} remaining fixture(s) were placed by a previous run.");
+                CheckPlaceInvariant(res, dryRun);
+                return res;
+            }
+
             // F4 — non-blocking height range validation (warns once per standard+height).
             ValidateHeights(placeable, res);
 
@@ -337,8 +349,10 @@ namespace StingTools.Core.Placement
                                 TrySetMntHgtMm(placed.Placed, c.MountingHeightMm);
 
                             // Provenance + the source DWG block/layer + capture mode (audit) — caller owns the tx.
+                            // DTW-112 — the capture point is recorded so a re-run recognises it.
                             try { StingProvenanceSchema.Stamp(placed.Placed, EngineName,
-                                $"DWG:{c.BlockName}|{c.LayerName}|seed:{c.SeedId}|var:{c.Variant}|mode:{c.Mode}|mh:{c.MountingHeightMm:F0}"); }
+                                $"DWG:{c.BlockName}|{c.LayerName}|seed:{c.SeedId}|var:{c.Variant}|mode:{c.Mode}|mh:{c.MountingHeightMm:F0}|" +
+                                DwgCaptureDedup.PointToken(c.Point.X, c.Point.Y)); }
                             catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge.Stamp: {ex.Message}"); }
 
                             // I2 — post-placement hooks, inside this transaction and after the
@@ -382,10 +396,63 @@ namespace StingTools.Core.Placement
         private static void CheckPlaceInvariant(DwgFixtureBridgeResult res, bool dryRun)
         {
             int placedOrWouldPlace = dryRun ? res.PlacedByCategory.Values.Sum() : res.Placed;
-            int accounted = placedOrWouldPlace + res.SkippedNoSymbol + res.SkippedNotHosted;
+            int accounted = placedOrWouldPlace + res.SkippedNoSymbol + res.SkippedNotHosted + res.SkippedAlreadyPlaced;
             if (accounted != res.TotalCaptured)
                 StingLog.Warn($"DwgFixtureBridge accounting drift (captured): captured {res.TotalCaptured} != " +
-                              $"{(dryRun ? "wouldPlace" : "placed")} {placedOrWouldPlace} + noSymbol {res.SkippedNoSymbol} + notHosted {res.SkippedNotHosted} = {accounted}.");
+                              $"{(dryRun ? "wouldPlace" : "placed")} {placedOrWouldPlace} + noSymbol {res.SkippedNoSymbol} + notHosted {res.SkippedNotHosted} + alreadyPlaced {res.SkippedAlreadyPlaced} = {accounted}.");
+        }
+
+        /// <summary>DTW-112 — drop captures a previous bridge run already placed. Prior
+        /// instances are those of the capture's category whose provenance engine is this
+        /// bridge; matched on the recorded capture point (or, for instances stamped before
+        /// the point was recorded, the instance location with a wider tolerance).</summary>
+        private static List<Captured> DropAlreadyPlaced(Document doc, List<Captured> placeable, DwgFixtureBridgeResult res)
+        {
+            var priorByCat = new Dictionary<string, DwgCaptureDedup.PriorIndex>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var cat in placeable.Select(c => c.Category).Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    var idx = new DwgCaptureDedup.PriorIndex();
+                    priorByCat[cat] = idx;
+                    BuiltInCategory bic = BuiltInCategory.INVALID;
+                    try { bic = FixturePlacementEngine.ResolveBuiltInCategoryByName(doc, cat); }
+                    catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge.DropAlreadyPlaced category '{cat}': {ex.Message}"); }
+                    if (bic == BuiltInCategory.INVALID) continue;
+                    foreach (var el in new FilteredElementCollector(doc).OfCategory(bic)
+                                 .OfClass(typeof(FamilyInstance)).WhereElementIsNotElementType())
+                    {
+                        var prov = StingProvenanceSchema.Read(el);
+                        if (prov == null || !string.Equals(prov.Engine, EngineName, StringComparison.Ordinal)) continue;
+                        XYZ loc = (el.Location as LocationPoint)?.Point;
+                        if (loc == null && el is FamilyInstance fi)
+                        {
+                            try { loc = fi.GetTransform()?.Origin; }
+                            catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge.DropAlreadyPlaced transform {el.Id}: {ex.Message}"); }
+                        }
+                        idx.Add(prov.RuleId, loc?.X ?? 0, loc?.Y ?? 0, loc != null);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Without the index a re-run would duplicate — say so rather than place blind.
+                StingLog.Error("DwgFixtureBridge.DropAlreadyPlaced", ex);
+                res.Messages.Add($"Could not check for fixtures placed by a previous run ({ex.Message}); a re-run may duplicate them.");
+                return placeable;
+            }
+
+            var keep = new List<Captured>();
+            foreach (var c in placeable)
+            {
+                if (c.Point != null && priorByCat.TryGetValue(c.Category, out var idx) && idx.Count > 0
+                    && idx.IsDuplicate(c.Point.X, c.Point.Y))
+                { res.SkippedAlreadyPlaced++; continue; }
+                keep.Add(c);
+            }
+            if (res.SkippedAlreadyPlaced > 0)
+                res.Messages.Add($"Skipped {res.SkippedAlreadyPlaced} fixture(s) already placed by a previous DWG bridge run (same category and DWG point).");
+            return keep;
         }
 
         // ── Helpers ──────────────────────────────────────────────────────────
