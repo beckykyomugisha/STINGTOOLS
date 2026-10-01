@@ -833,30 +833,51 @@ namespace StingTools.Tags
         }
 
         /// <summary>
-        /// Style/appearance parameters — all 128 TAG_{size}{style}_{colour}_BOOL variants plus
-        /// box colour/visibility/style, leader colour, scale-tier-auto, and depth-tier cache.
-        /// Added to every tag family by Create/Migrate so the Tag Style Engine can switch
-        /// visible label rows and box/leader overrides per type.
+        /// Style/appearance parameters added to every NEW tag family by Create / declared
+        /// families / Migrate / Propagate / FamilyParamCreator: TAG_STYLE_CODE_TXT, the
+        /// style switches the catalogue opts in (<c>family_style_switches</c>, none by
+        /// default), then box colour/visibility/style, leader colour, scale-tier-auto and
+        /// the depth-tier cache.
+        /// TAGFAM-9: the 128 TAG_{size}{style}_{colour}_BOOL switches are no longer added
+        /// by default — no shipped family associated any of them with an element, and they
+        /// cost ~100 s a build. A family's style is its type plus TAG_STYLE_CODE_TXT.
         /// </summary>
         public static string[] StyleParams
         {
             get
             {
-                var list = new List<string>();
-                list.AddRange(ParamRegistry.AllTagStyleParams); // 128 variants
-                list.Add(ParamRegistry.TAG_BOX_COLOR_R);
-                list.Add(ParamRegistry.TAG_BOX_COLOR_G);
-                list.Add(ParamRegistry.TAG_BOX_COLOR_B);
-                list.Add(ParamRegistry.TAG_BOX_VISIBLE);
-                list.Add(ParamRegistry.TAG_BOX_STYLE);
-                list.Add(ParamRegistry.TAG_LEADER_COLOR_R);
-                list.Add(ParamRegistry.TAG_LEADER_COLOR_G);
-                list.Add(ParamRegistry.TAG_LEADER_COLOR_B);
-                list.Add(ParamRegistry.TAG_SCALE_TIER_AUTO);
-                list.Add(ParamRegistry.TAG_DEPTH_TIER);
-                return list.ToArray();
+                return TagStyleFamilyParams.Compose(
+                    TagStyleCatalogue.FamilyStyleSwitchParams,
+                    new[]
+                    {
+                        ParamRegistry.TAG_BOX_COLOR_R,
+                        ParamRegistry.TAG_BOX_COLOR_G,
+                        ParamRegistry.TAG_BOX_COLOR_B,
+                        ParamRegistry.TAG_BOX_VISIBLE,
+                        ParamRegistry.TAG_BOX_STYLE,
+                        ParamRegistry.TAG_LEADER_COLOR_R,
+                        ParamRegistry.TAG_LEADER_COLOR_G,
+                        ParamRegistry.TAG_LEADER_COLOR_B,
+                        ParamRegistry.TAG_SCALE_TIER_AUTO,
+                        ParamRegistry.TAG_DEPTH_TIER,
+                    }).ToArray();
             }
         }
+
+        /// <summary>
+        /// The explicit names a tag family must carry as TYPE parameters: the depth gates,
+        /// <see cref="StyleParams"/>, TAG_POS and the depth-tier cache. Build once per run and
+        /// pass to <see cref="IsTypeScopedParam"/>; the rule itself is
+        /// <see cref="TagFamilyParamScope.IsType"/>. Every path that adds parameters to a tag
+        /// family (Create / declared / tie-in, Migrate, Family Parameter Creator) uses it.
+        /// </summary>
+        public static HashSet<string> TypeScopedParamNames()
+            => TagFamilyParamScope.NameSet(VisibilityParams, StyleParams,
+                new[] { ParamRegistry.TAG_POS, ParamRegistry.TAG_DEPTH_TIER });
+
+        /// <summary>True when <paramref name="paramName"/> is added to a tag family as TYPE.</summary>
+        public static bool IsTypeScopedParam(string paramName, HashSet<string> typeScoped = null)
+            => TagFamilyParamScope.IsType(paramName, typeScoped ?? TypeScopedParamNames());
 
         /// <summary>
         /// Get all parameters that should be added to a tag family for a specific
@@ -2890,6 +2911,12 @@ namespace StingTools.Tags
                     // once, then pre-skip any GUID/name/type conflict so a stale
                     // TEXT vs YESNO gate never reaches the unrecoverable Error modal.
                     var idx = TagParamInjector.BuildIndex(famDoc);
+                    // TAGFAM-9: the type-level machinery (variant writer, Set Depth, Tag
+                    // Style Engine) writes to TYPES, so style / depth / box / leader params
+                    // are added as TYPE — the same rule Migrate and Family Parameter Creator
+                    // use. Everything else stays INSTANCE. This used to pass true for every
+                    // parameter, leaving TAG_STYLE_CODE_TXT no per-type value to hold.
+                    var typeScoped = TagFamilyConfig.TypeScopedParamNames();
                     foreach (string paramName in paramsToAdd)
                     {
                         ExternalDefinition extDef = SharedParamDefinitionIndex.Find(defsByName, paramName);
@@ -2898,7 +2925,8 @@ namespace StingTools.Tags
                             StingLog.Warn($"Shared parameter '{paramName}' not found in file");
                             continue;
                         }
-                        switch (TagParamInjector.EnsureFamilyParam(famMan, extDef, idx, GroupTypeId.General, true))
+                        bool isInstance = !TagFamilyConfig.IsTypeScopedParam(paramName, typeScoped);
+                        switch (TagParamInjector.EnsureFamilyParam(famMan, extDef, idx, GroupTypeId.General, isInstance))
                         {
                             case TagParamInjector.InjectResult.Added: added++; break;
                             case TagParamInjector.InjectResult.SkippedExists: skippedExists++; break;

@@ -338,16 +338,10 @@ namespace StingTools.Tags
                     // TAG_POS is also type (it drives the type-level offset Calculated Value).
                     // Everything else (ASS_TAG_* containers, tokens, description, category
                     // label params) is per-element and stays INSTANCE.
-                    var typeParamSet = new HashSet<string>(
-                        TagFamilyConfig.VisibilityParams
-                            .Concat(TagFamilyConfig.StyleParams)
-                            .Append(ParamRegistry.TAG_POS),
-                        StringComparer.OrdinalIgnoreCase);
-                    bool IsTypeParam(string p) =>
-                        typeParamSet.Contains(p) ||
-                        p == ParamRegistry.TAG_DEPTH_TIER ||
-                        p.StartsWith("TAG_BOX_", StringComparison.Ordinal) ||
-                        p.StartsWith("TAG_LEADER_", StringComparison.Ordinal);
+                    // The rule is shared with Create Tag Families and Migrate
+                    // (TagFamilyConfig.IsTypeScopedParam -> TagFamilyParamScope).
+                    var typeParamSet = TagFamilyConfig.TypeScopedParamNames();
+                    bool IsTypeParam(string p) => TagFamilyConfig.IsTypeScopedParam(p, typeParamSet);
 
                     foreach (string paramName in paramNames)
                     {

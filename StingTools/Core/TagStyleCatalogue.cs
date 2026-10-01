@@ -144,6 +144,9 @@ namespace StingTools.Core
         private static Dictionary<string, DisciplineDefault> _defaults =
             new Dictionary<string, DisciplineDefault>(StringComparer.OrdinalIgnoreCase);
         private static IReadOnlyList<TypeVariantSpec> _standardVariants = Array.Empty<TypeVariantSpec>();
+        // TAGFAM-9: switch params still added to NEW families. Empty unless the
+        // catalogue's family_style_switches opts some in (TagStyleFamilyParams).
+        private static IReadOnlyList<string> _familyStyleSwitchParams = Array.Empty<string>();
 
         public static IReadOnlyList<string> Sizes      { get { EnsureLoaded(); return _sizes; } }
         /// <summary>The size every default uses — always an ISO 3098 height (2.5 mm unless the
@@ -153,6 +156,14 @@ namespace StingTools.Core
         public static IReadOnlyList<string> Colours    { get { EnsureLoaded(); return _colours; } }
         public static IReadOnlyList<string> Arrowheads { get { EnsureLoaded(); return _arrowheads; } }
         public static IReadOnlyList<int>    DepthTiers { get { EnsureLoaded(); return _depthTiers; } }
+
+        /// <summary>
+        /// TAGFAM-9: the TAG_{size}{style}_{colour}_BOOL switch parameters a NEW tag
+        /// family still receives — those listed in the catalogue's
+        /// <c>family_style_switches</c> (empty by default). Style otherwise lives in the
+        /// type plus TAG_STYLE_CODE_TXT. Never used to remove a switch from a family.
+        /// </summary>
+        public static IReadOnlyList<string> FamilyStyleSwitchParams { get { EnsureLoaded(); return _familyStyleSwitchParams; } }
 
         /// <summary>
         /// Disciplinary default for the given discipline code (M/E/P/A/S/FP/LV/G).
@@ -296,9 +307,20 @@ namespace StingTools.Core
             if (variants.Count == 0) BuildBuiltInStandardVariants(seen, variants);
             _standardVariants = variants;
 
+            // TAGFAM-9: opted-in style switches. A rejected entry is named, not dropped
+            // silently — it would otherwise read as "the switch was added".
+            var rejected = new List<string>();
+            _familyStyleSwitchParams = TagStyleFamilyParams.ParseSwitches(
+                root, _sizes, _styles, _colours, rejected);
+            if (rejected.Count > 0)
+                StingLog.Warn($"TagStyleCatalogue: {TagStyleFamilyParams.CatalogueKey} has " +
+                    $"{rejected.Count} entr{(rejected.Count == 1 ? "y" : "ies")} that are not a " +
+                    "size × style × colour code and were ignored: " + string.Join(", ", rejected));
+
             StingLog.Info($"TagStyleCatalogue: loaded {_sizes.Count} sizes, {_styles.Count} styles, " +
                 $"{_colours.Count} colours, {_arrowheads.Count} arrowheads, " +
-                $"{_defaults.Count} disc defaults, {_standardVariants.Count} standard variants");
+                $"{_defaults.Count} disc defaults, {_standardVariants.Count} standard variants, " +
+                $"{_familyStyleSwitchParams.Count} family style switches");
         }
 
         private static IReadOnlyList<string> ReadStringArray(JObject root, string name, IReadOnlyList<string> fallback)
@@ -311,6 +333,7 @@ namespace StingTools.Core
 
         private static void BuildBuiltInDefaults()
         {
+            _familyStyleSwitchParams = Array.Empty<string>(); // TAGFAM-9: none by default
             _defaults = new Dictionary<string, DisciplineDefault>(StringComparer.OrdinalIgnoreCase)
             {
                 ["M"]  = new DisciplineDefault { Disc = "M",  Size = "2.5", Style = "BOLD",   Colour = "BLUE",   Arrowhead = "Arrow Filled 30", DepthTier = 2 },
