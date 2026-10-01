@@ -306,8 +306,6 @@ namespace StingTools.Commands.TagStudio
                 StingLog.Info($"PropagateUniversalTag: purged {junkDeleted} temp-named duplicate families");
             }
 
-            // ── Pre-resolve shared arrowhead types ──
-            var arrowheads = TagTypeVariantWriter.BuildArrowheadLookup(doc);
             List<string> styleAndVisParams = TagFamilyConfig.StyleParams
                 .Concat(TagFamilyConfig.VisibilityParams)
                 .Distinct()
@@ -537,7 +535,7 @@ namespace StingTools.Commands.TagStudio
                 // 206 times. A stale reference throws InvalidObjectException
                 // on the first one - the whole run lost to a speed fix.
                 master = PrimeMaster(doc, app, master, sharedParamFile,
-                                     styleAndVisParams, variants, arrowheads) ?? master;
+                                     styleAndVisParams, variants) ?? master;
 
                 // Prove the master is still usable before spending the run on
                 // it. A dead reference fails EVERY family identically, and the
@@ -572,7 +570,7 @@ namespace StingTools.Commands.TagStudio
                     progress.Increment($"Propagating → {targetName} ({i + 1}/{targets.Count})");
 
                     var r = PropagateOne(doc, app, master, target, sharedParamFile,
-                        styleAndVisParams, variants, arrowheads, mode, masterGroup);
+                        styleAndVisParams, variants, mode, masterGroup);
                     totalTypes += r.TypesCreated;
                     totalParams += r.ParamsAdded;
                     totalScope += r.ScopeFixed;
@@ -740,7 +738,6 @@ namespace StingTools.Commands.TagStudio
             Autodesk.Revit.ApplicationServices.Application app,
             Family master, Family target, string sharedParamFile,
             List<string> styleAndVisParams, List<TypeVariantSpec> variants,
-            Dictionary<string, ElementId> arrowheads,
             RecategoriseMode mode = RecategoriseMode.EnforceDeclared,
             string masterGroup = null)
         {
@@ -911,7 +908,11 @@ namespace StingTools.Commands.TagStudio
                         result.MsParams = swPhase.ElapsedMilliseconds;
                         result.ScopeFixed = MakeVisibilityParamsType(fm);
                         swPhase.Restart();
-                        result.TypesCreated = TagTypeVariantWriter.CreateStandardVariants(fm, variants, arrowheads);
+                        // TAGFAM-5: arrowhead ids belong to the document that holds them. This used to
+                        // pass a lookup built from the PROJECT, whose ids mean nothing in a family
+                        // document; resolve them in the family being edited.
+                        result.TypesCreated = TagTypeVariantWriter.CreateStandardVariants(
+                            fm, variants, TagTypeVariantWriter.BuildArrowheadLookup(famDoc));
                         result.MsVariants = swPhase.ElapsedMilliseconds;
 
                         tx.Commit();
@@ -1240,8 +1241,7 @@ namespace StingTools.Commands.TagStudio
         private static Family PrimeMaster(Document doc,
             Autodesk.Revit.ApplicationServices.Application app,
             Family master, string sharedParamFile,
-            List<string> styleAndVisParams, List<TypeVariantSpec> variants,
-            Dictionary<string, ElementId> arrowheads)
+            List<string> styleAndVisParams, List<TypeVariantSpec> variants)
         {
             Document mfd = null;
 
@@ -1299,7 +1299,7 @@ namespace StingTools.Commands.TagStudio
                 {
                     tx.Start();
                     added = AddMissingParams(mfd.FamilyManager, defFile, styleAndVisParams);
-                    try { types = TagTypeVariantWriter.CreateStandardVariants(mfd.FamilyManager, variants, arrowheads); }
+                    try { types = TagTypeVariantWriter.CreateStandardVariants(mfd.FamilyManager, variants, TagTypeVariantWriter.BuildArrowheadLookup(mfd)); }
                     catch (Exception vex) { StingLog.Warn($"PrimeMaster: type variants: {vex.Message}"); }
                     tx.Commit();
                 }

@@ -81,16 +81,13 @@ namespace StingTools.Commands.TagStudio
                 $"For each family this will:\n" +
                 $"  • Add ~{TagFamilyConfig.StyleParams.Length + TagFamilyConfig.VisibilityParams.Length} style & visibility params (if missing)\n" +
                 $"  • (Re)create up to {variants.Count} standard type variants\n" +
-                $"  • Assign arrowheads by name (OST_ArrowHeads)\n\n" +
+                $"  • Assign arrowheads by name (from each family's own arrowhead types)\n\n" +
                 $"Label ROWS are NOT authored here — they come from the universal master\n" +
                 $"via 'Propagate Universal'. This command only syncs params + type variants.\n\n" +
                 $"Runtime: ~3–8 minutes for {stingFamilies.Count} families.\n" +
                 $"Press Escape at any time to cancel.";
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() != TaskDialogResult.Ok) return Result.Cancelled;
-
-            // ── Pre-resolve arrowhead types in the project ──
-            var arrowheads = TagTypeVariantWriter.BuildArrowheadLookup(doc);
 
             var rows = new List<List<string>>();
             var progress = StingProgressDialog.Show("Migrate Tag Families", stingFamilies.Count);
@@ -116,7 +113,7 @@ namespace StingTools.Commands.TagStudio
                     string catName = fam.FamilyCategory?.Name ?? "";
                     progress.Increment($"Migrating {famName} ({i + 1}/{stingFamilies.Count})");
 
-                    var result = MigrateOne(doc, app, fam, variants, arrowheads);
+                    var result = MigrateOne(doc, app, fam, variants);
                     totalParamsAdded += result.ParamsAdded;
                     totalTypesCreated += result.TypesCreated;
                     if (result.Success) migrated++; else failed++;
@@ -182,7 +179,7 @@ namespace StingTools.Commands.TagStudio
 
         private MigrationResult MigrateOne(
             Document doc, Autodesk.Revit.ApplicationServices.Application app,
-            Family fam, List<TypeVariantSpec> variants, Dictionary<string, ElementId> arrowheads)
+            Family fam, List<TypeVariantSpec> variants)
         {
             var result = new MigrationResult();
             Document famDoc = null;
@@ -215,7 +212,11 @@ namespace StingTools.Commands.TagStudio
                             .Distinct()
                             .ToList());
 
-                    result.TypesCreated = TagTypeVariantWriter.CreateStandardVariants(fm, variants, arrowheads);
+                    // TAGFAM-5: arrowhead ids belong to the document that holds them. This used to
+                    // pass a lookup built from the PROJECT, whose ids mean nothing in a family
+                    // document; resolve them in the family being edited.
+                    result.TypesCreated = TagTypeVariantWriter.CreateStandardVariants(
+                        fm, variants, TagTypeVariantWriter.BuildArrowheadLookup(famDoc));
 
                     tx.Commit();
                 }
