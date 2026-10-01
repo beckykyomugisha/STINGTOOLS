@@ -357,7 +357,9 @@ namespace StingTools.Core.Drawing
 
         /// <summary>The name of the filter a pack's byMaterialClass entry is drawn through
         /// (ViewStylePackApplier.EnsureMaterialClassFilter creates it under this name).</summary>
-        internal static string MaterialClassFilterName(string className) => "STING_MAT_CLASS_" + className;
+        // DT-R11-C: a material class is user text, and Revit refuses a filter name holding
+        // \ : { } [ ] | ; < > ? ` ~ — one rule for the name, RevitNameRules.
+        internal static string MaterialClassFilterName(string className) => RevitNameRules.Sanitize("STING_MAT_CLASS_" + className);
 
         /// <summary>
         /// DTW-227: the names of the filters a pack's filter pass edits — its named filters
@@ -370,7 +372,10 @@ namespace StingTools.Core.Drawing
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);   // Revit filter names: case-insensitive
             if (filterNames != null)
                 foreach (var n in filterNames)
-                    if (!string.IsNullOrWhiteSpace(n) && seen.Add(n.Trim())) result.Add(n.Trim());
+                    // DT-R11-C: the Revit name (sanitised) first, then the name as written,
+                    // so the filter is found whichever spelling the model holds.
+                    foreach (var c in RevitNameRules.Candidates(n))
+                        if (seen.Add(c)) result.Add(c);
             if (materialClasses != null)
                 foreach (var c in materialClasses)
                 {

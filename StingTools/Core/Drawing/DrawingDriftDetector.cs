@@ -357,7 +357,11 @@ namespace StingTools.Core.Drawing
                     foreach (var rule in pack.Filters)
                     {
                         if (string.IsNullOrWhiteSpace(rule.FilterName)) continue;
-                        filterIndex.Value.TryGetValue(rule.FilterName, out var filter);
+                        // DT-R11-C: the element carries the Revit name (RevitNameRules), the
+                        // pack the name as written — try both.
+                        ParameterFilterElement filter = null;
+                        foreach (var candidate in RevitNameRules.Candidates(rule.FilterName))
+                            if (filterIndex.Value.TryGetValue(candidate, out filter) && filter != null) break;
                         if (filter == null)
                         {
                             // Filter not in document yet — pack-side issue, not view-side drift.

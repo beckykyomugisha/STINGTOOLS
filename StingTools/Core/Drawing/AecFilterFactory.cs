@@ -52,12 +52,22 @@ namespace StingTools.Core.Drawing
             if (doc == null || def == null || string.IsNullOrWhiteSpace(def.Name))
             { r.Error = "definition or document is null/empty"; return r; }
 
-            // Existing match by name?
+            // DT-R11-C: the data names filters for people ("STING - Struct: Concrete");
+            // Revit refuses \ : { } [ ] | ; < > ? ` ~ in a name, so the element is
+            // created — and looked for — under RevitNameRules.Sanitize of it.
+            string revitName = RevitNameRules.Sanitize(def.Name.Trim());
+
+            // Existing match by name — the Revit name first, then the raw one.
             var all = new FilteredElementCollector(doc)
                 .OfClass(typeof(ParameterFilterElement))
                 .Cast<ParameterFilterElement>()
                 .ToList();
-            var existing = all.FirstOrDefault(f => string.Equals(f.Name, def.Name, StringComparison.OrdinalIgnoreCase));
+            ParameterFilterElement existing = null;
+            foreach (var candidate in RevitNameRules.Candidates(def.Name))
+            {
+                existing = all.FirstOrDefault(f => string.Equals(f.Name, candidate, StringComparison.OrdinalIgnoreCase));
+                if (existing != null) break;
+            }
             if (existing != null) { r.Filter = existing; r.Created = false; Refresh(doc, existing, def, r); return r; }
 
             // A project may hold this filter under the mojibake name the corporate
@@ -67,17 +77,18 @@ namespace StingTools.Core.Drawing
             var garbled = Utf8Mojibake.Garble(def.Name);
             if (garbled != null)
             {
-                var legacy = all.FirstOrDefault(f => string.Equals(f.Name, garbled, StringComparison.OrdinalIgnoreCase));
+                var legacy = all.FirstOrDefault(f => RevitNameRules.Matches(f.Name, garbled));
                 if (legacy != null)
                 {
+                    string oldName = legacy.Name;
                     try
                     {
-                        legacy.Name = def.Name;
-                        r.Warnings.Add($"Renamed filter '{garbled}' to '{def.Name}' (text-encoding repair).");
+                        legacy.Name = revitName;
+                        r.Warnings.Add($"Renamed filter '{oldName}' to '{revitName}' (text-encoding repair).");
                     }
                     catch (Exception ex)
                     {
-                        r.Warnings.Add($"Filter '{garbled}' matches '{def.Name}' but could not be renamed: {ex.Message}");
+                        r.Warnings.Add($"Filter '{oldName}' matches '{revitName}' but could not be renamed: {ex.Message}");
                     }
                     r.Filter = legacy; r.Created = false;
                     Refresh(doc, legacy, def, r);
@@ -90,13 +101,15 @@ namespace StingTools.Core.Drawing
 
             try
             {
-                r.Filter = ParameterFilterElement.Create(doc, def.Name, catIds, elementFilter);
+                r.Filter = ParameterFilterElement.Create(doc, revitName, catIds, elementFilter);
                 r.Created = true;
                 DefinitionStamp.Write(r.Filter, AecFilterRuleLogic.DefinitionHash(def.Categories, def.Rule));
             }
             catch (Exception ex)
             {
-                r.Error = $"ParameterFilterElement.Create failed for '{def.Name}': {ex.Message}";
+                r.Error = $"ParameterFilterElement.Create failed for '{revitName}'"
+                    + (string.Equals(revitName, def.Name, StringComparison.Ordinal) ? "" : $" (from '{def.Name}')")
+                    + $": {ex.Message}";
             }
             return r;
         }

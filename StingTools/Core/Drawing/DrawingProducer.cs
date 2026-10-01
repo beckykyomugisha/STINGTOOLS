@@ -1393,7 +1393,10 @@ namespace StingTools.Core.Drawing
 
                         // Create fresh schedule
                         var schedule = ViewSchedule.CreateSchedule(doc, bicCatId);
-                        schedule.Name = $"STING - {dt.Name ?? dt.Id}";
+                        // DT-R11-C: drawing-type names carry "1:100" — Revit refuses ":" in a
+                        // name, and the schedule kept "Schedule 1". Found again by its stamp,
+                        // never by name, so the sanitised name is safe to change.
+                        schedule.Name = RevitNameRules.Sanitize($"STING - {dt.Name ?? dt.Id}");
 
                         // Add declared fields if specified
                         if (rule.ScheduleFields?.Count > 0)
@@ -2588,7 +2591,9 @@ namespace StingTools.Core.Drawing
             if (string.IsNullOrEmpty(raw)) return raw;
             var bad = new[] { '{', '}', '[', ']', '|', ':', ';', '<', '>', '?', '\\', '/' };
             foreach (var c in bad) raw = raw.Replace(c, '-');
-            return raw.Trim();
+            // DT-R11-C: the list above (kept, so existing view names do not change)
+            // missed "`" and "~"; RevitNameRules catches what is left.
+            return RevitNameRules.Sanitize(raw.Trim());
         }
 
         /// <summary>

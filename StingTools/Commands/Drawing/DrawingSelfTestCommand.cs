@@ -562,7 +562,7 @@ namespace StingTools.Commands.Drawing
                 Add(rows, CkManaged, $"'{pack.Id}' filters on the template", SelfTestStatus.Skip, "the pack names no filters");
             else
             {
-                var missing = wanted.Where(n => !onTemplate.Contains(n)).ToList();
+                var missing = wanted.Where(n => !RevitNameRules.Candidates(n).Any(onTemplate.Contains)).ToList();   // DT-R11-C
                 Add(rows, CkManaged, $"'{pack.Id}' filters on the template", missing.Count == 0 ? SelfTestStatus.Pass : SelfTestStatus.Fail,
                     $"{wanted.Count - missing.Count} of {wanted.Count} present"
                     + (missing.Count > 0 ? "; missing: " + string.Join(", ", missing.Take(8)) + (missing.Count > 8 ? " …" : "") : "")
