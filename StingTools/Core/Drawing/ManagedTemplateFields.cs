@@ -36,7 +36,6 @@ namespace StingTools.Core.Drawing
         internal static readonly IReadOnlyDictionary<string, string[]> FieldBipNames =
             new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
-            ["scale"]             = new[] { "VIEW_SCALE" },
             ["detailLevel"]       = new[] { "VIEW_DETAIL_LEVEL" },
             ["discipline"]        = new[] { "VIEW_DISCIPLINE" },
             ["visualStyle"]       = new[] { "MODEL_GRAPHICS_STYLE" },
@@ -53,13 +52,25 @@ namespace StingTools.Core.Drawing
         };
 
         /// <summary>
+        /// DTW-170: fields a pack may list that the template must NOT control.
+        /// </summary>
+        internal static readonly IReadOnlyDictionary<string, string> NeverControlled =
+            new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["scale"] = "VIEW_SCALE belongs to the drawing type (DrawingType.Scale), not the pack; "
+                      + "a template that controls it pins every assigned view to the seed view's scale.",
+        };
+
+        /// <summary>
         /// The fields a managed pack actually controls: what it declares (or the
         /// syncer's defaults), minus <see cref="NeverControlled"/>, plus every
-        /// field whose payload the pack carries. Order-stable, de-duplicated.
+        /// field whose payload the pack carries, minus <see cref="NeverControlled"/>.
+        /// Order-stable, de-duplicated. <paramref name="ignored"/> receives each
+        /// declared field that was refused.
         /// </summary>
         internal static List<string> Effective(IEnumerable<string> declared,
             bool hasVgOverrides, bool hasFilters, bool hasWorksetVisibility,
-            bool hasViewRange)
+            bool hasViewRange, Action<string> ignored = null)
         {
             var result = new List<string>();
             void Add(string f) { if (!result.Contains(f, StringComparer.Ordinal)) result.Add(f); }
@@ -67,6 +78,7 @@ namespace StingTools.Core.Drawing
             foreach (var f in declared ?? Enumerable.Empty<string>())
             {
                 if (string.IsNullOrWhiteSpace(f)) continue;
+                if (NeverControlled.ContainsKey(f)) { ignored?.Invoke(f); continue; }
                 Add(f);
             }
             if (hasVgOverrides)       Add("vgOverrides");

@@ -69,8 +69,21 @@ namespace StingTools.Core.Drawing
                 hasVgOverrides: pack.VgOverrides != null && pack.VgOverrides.Count > 0,
                 hasFilters: pack.Filters != null && pack.Filters.Count > 0,
                 hasWorksetVisibility: !string.IsNullOrWhiteSpace(pack.WorksetVisibility),
-                hasViewRange: pack.ViewRange != null);
+                hasViewRange: pack.ViewRange != null,
+                ignored: f =>
+                {
+                    // DTW-170: logged once per pack per session, not per view.
+                    lock (_ignoredLogged)
+                    {
+                        if (!_ignoredLogged.Add(pack.Id + "|" + f)) return;
+                    }
+                    StingLog.Warn($"ManagedTemplateSyncer: pack '{pack.Id}' lists managed field '{f}', "
+                        + "which a managed template never controls — ignored. "
+                        + ManagedTemplateFields.NeverControlled[f]);
+                });
         }
+
+        private static readonly HashSet<string> _ignoredLogged = new HashSet<string>(StringComparer.Ordinal);
 
         private static string DocKey(Document doc)
         {

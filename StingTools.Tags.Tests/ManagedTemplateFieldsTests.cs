@@ -74,6 +74,29 @@ namespace StingTools.Tags.Tests
             Assert.DoesNotContain(ManagedTemplateFields.BipNamesFor(eff), n => n.StartsWith("VIS_GRAPHICS_"));
         }
 
+        // DTW-170: scale belongs to DrawingType.Scale; a template controlling
+        // VIEW_SCALE pins every assigned view to the seed's scale.
+        [Fact]
+        public void ScaleIsNeverControlledAndIsReportedWhenListed()
+        {
+            var refused = new List<string>();
+            var eff = ManagedTemplateFields.Effective(new[] { "scale", "detailLevel" },
+                false, false, false, false, refused.Add);
+            Assert.DoesNotContain("scale", eff);
+            Assert.Equal(new[] { "scale" }, refused);
+            Assert.DoesNotContain("VIEW_SCALE", ManagedTemplateFields.BipNamesFor(new[] { "scale" }));
+        }
+
+        [Fact]
+        public void NoShippedPackListsScaleAsAManagedField()
+        {
+            var lib = JsonConvert.DeserializeObject<ViewStylePackLibrary>(
+                File.ReadAllText(Path.Combine(RepoRoot(), "StingTools", "Data", "STING_VIEW_STYLE_PACKS.json")));
+            var listing = lib.Packs.Where(p => p.ManagedFields != null && p.ManagedFields.Contains("scale"))
+                .Select(p => p.Id).ToList();
+            Assert.True(listing.Count == 0, "Packs listing 'scale' as managed: " + string.Join(", ", listing));
+        }
+
         [Fact]
         public void EveryShippedManagedPackControlsTheGraphicsItCarries()
         {
