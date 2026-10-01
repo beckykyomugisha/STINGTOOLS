@@ -622,8 +622,12 @@ namespace StingTools.Core.Drawing
         }
 
         // ── C4 — material-class filter cache + factory ──
-        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, ElementId> _matClassFilterCache
-            = new System.Collections.Concurrent.ConcurrentDictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
+        // DTW-125: each entry remembers the material ids its rules were built from. A hit
+        // whose class has since gained or lost a material is rebuilt, not returned as is —
+        // the cached filter used to keep matching the class as it was at first use for
+        // the rest of the session. AecFilters_Reload and Sync Styles also clear it.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (ElementId Id, string Materials)> _matClassFilterCache
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, (ElementId Id, string Materials)>(StringComparer.OrdinalIgnoreCase);
 
         public static void InvalidateMaterialClassFilterCache() => _matClassFilterCache.Clear();
 
@@ -633,9 +637,18 @@ namespace StingTools.Core.Drawing
             {
                 string filterName = $"STING_MAT_CLASS_{className}";
                 string cacheKey = (doc?.PathName ?? doc?.Title ?? "_") + "|" + className;
-                if (_matClassFilterCache.TryGetValue(cacheKey, out var cachedId) &&
-                    cachedId != null && cachedId.Value > 0 &&
-                    doc.GetElement(cachedId) is ParameterFilterElement cachedPfe &&
+
+                var matIds = new FilteredElementCollector(doc).OfClass(typeof(Material))
+                    .Cast<Material>()
+                    .Where(m => string.Equals(m.MaterialClass ?? "", className, StringComparison.OrdinalIgnoreCase))
+                    .Select(m => m.Id)
+                    .ToList();
+                string signature = string.Join(",", matIds.Select(id => id.Value).OrderBy(v => v));
+
+                if (_matClassFilterCache.TryGetValue(cacheKey, out var cached) &&
+                    cached.Id != null && cached.Id.Value > 0 &&
+                    string.Equals(cached.Materials, signature, StringComparison.Ordinal) &&
+                    doc.GetElement(cached.Id) is ParameterFilterElement cachedPfe &&
                     string.Equals(cachedPfe.Name, filterName, StringComparison.OrdinalIgnoreCase))
                 {
                     return cachedPfe;
@@ -645,12 +658,7 @@ namespace StingTools.Core.Drawing
                     .Cast<ParameterFilterElement>()
                     .FirstOrDefault(f => string.Equals(f.Name, filterName, StringComparison.OrdinalIgnoreCase));
 
-                var matIds = new FilteredElementCollector(doc).OfClass(typeof(Material))
-                    .Cast<Material>()
-                    .Where(m => string.Equals(m.MaterialClass ?? "", className, StringComparison.OrdinalIgnoreCase))
-                    .Select(m => m.Id)
-                    .ToList();
-                if (matIds.Count == 0) { if (existing != null) _matClassFilterCache[cacheKey] = existing.Id; return existing; }
+                if (matIds.Count == 0) { if (existing != null) _matClassFilterCache[cacheKey] = (existing.Id, signature); return existing; }
 
                 var cats = new List<ElementId>
                 {
@@ -703,7 +711,7 @@ namespace StingTools.Core.Drawing
                     try { existing.SetElementFilter(elemFilter); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     built = existing;
                 }
-                if (built != null) _matClassFilterCache[cacheKey] = built.Id;
+                if (built != null) _matClassFilterCache[cacheKey] = (built.Id, signature);
                 return built;
             }
             catch (Exception ex)
