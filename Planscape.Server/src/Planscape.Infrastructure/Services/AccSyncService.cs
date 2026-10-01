@@ -71,9 +71,16 @@ public class AccSyncService
     public const string KeyHubId         = "accHubId";
     public const string KeyRegion        = "accRegion";
     public const string KeyWebhookHooks  = "accWebhookHooks";
+    /// <summary>ACC-SRV-11: when this connection first synced. Issues closed in Planscape and
+    /// never pushed are considered only if raised after it; older ones are history.</summary>
+    public const string KeyIssueSyncSince = "accIssueSyncSince";
+    /// <summary>ACC-SRV-11: closed-never-pushed issues already reported, so each is reported once.</summary>
+    public const string KeyIssueClosedReported = "accIssueClosedReported";
+    /// <summary>ACC-SRV-11 policy (client-set): "report" (default) or "create".</summary>
+    public const string KeyClosedBetweenSweeps = "accClosedBetweenSweeps";
 
     /// <summary>ConfigJson keys only the server writes. A client PUT must not replace them.</summary>
-    public static readonly IReadOnlyList<string> ServerOwnedConfigKeys = new[] { KeyIssueMap, KeyIssueStatus, KeyIssueStatusAt, KeyIssuePushedAt, KeyIssuePushedState, KeyIssuePendingVerify, KeyWebhookHooks, AccWebhookService.KeySecretSetBy };
+    public static readonly IReadOnlyList<string> ServerOwnedConfigKeys = new[] { KeyIssueMap, KeyIssueStatus, KeyIssueStatusAt, KeyIssuePushedAt, KeyIssuePushedState, KeyIssuePendingVerify, KeyWebhookHooks, KeyIssueSyncSince, KeyIssueClosedReported, AccWebhookService.KeySecretSetBy };
 
     // Documented Issues v1 POST limits.
     private const int TitleMax = 100;
@@ -114,7 +121,8 @@ public class AccSyncService
         string? Error = null,
         IReadOnlyList<string>? Failures = null,
         int Updated = 0,
-        int Diverged = 0);
+        int Diverged = 0,
+        int ClosedNotSent = 0);
 
     private static AccSyncReport Fail(string error) => new(false, StatusFailed, Error: error);
     private static AccSyncReport Reconnect(string error) => new(false, StatusReconnect, Error: error);
@@ -409,6 +417,7 @@ public class AccSyncService
         var pendingVerify = ReadPendingVerify(cfg);
         int unverified = 0;
 
+        var sweepStartedUtc = DateTime.UtcNow;
         var open = await _db.Issues
             .Where(i => i.ProjectId == conn.ProjectId
                      && (i.Status == "OPEN" || i.Status == "IN_PROGRESS"))
@@ -503,6 +512,14 @@ public class AccSyncService
             }
         }
 
+        // ACC-SRV-11: an issue raised AND closed in Planscape between two sweeps was never in
+        // the open set above, so it never reached ACC and nothing said so.
+        var (closedPushed, closedNotSent, closedFailures, closedNote) =
+            await HandleClosedBetweenSweepsAsync(http, conn, cfg, map, pushedAt, pendingVerify, subtypeId!, region, sweepStartedUtc, ct);
+        pushed += closedPushed;
+        failed += closedFailures.Count;
+        failures.AddRange(closedFailures);
+
         // C10: a mapped issue edited in Planscape since its last push (title, description,
         // status) is PATCHed to ACC. Before this a mapped issue was never touched again, so an
         // issue closed or retitled in Planscape stayed open with the old text in ACC while the
@@ -540,6 +557,7 @@ public class AccSyncService
         if (readBackError != null) errors.Add($"Status read-back failed: {readBackError}");
         if (failed > 0) errors.Add($"{failed} of {failed + pushed + updated} push(es) failed; first: {failures[0]}");
         if (diverged > 0) errors.Add($"{diverged} issue(s) closed in ACC are still open in Planscape (status not pushed back)");
+        if (closedNote != null) errors.Add(closedNote);
 
         if (pullError != null || (failed > 0 && pushed == 0 && updated == 0)) status = StatusFailed;
         else if (failed > 0 || readBackError != null) status = StatusPartial;
@@ -547,8 +565,111 @@ public class AccSyncService
 
         var report = new AccSyncReport(
             status == StatusOk, status, pushed, skipped, pulledOpen, failed, closedInAcc, statusRead,
-            errors.Count == 0 ? null : string.Join(" | ", errors), failures, updated, diverged);
+            errors.Count == 0 ? null : string.Join(" | ", errors), failures, updated, diverged, closedNotSent);
         return Mark(conn, report);
+    }
+
+    /// <summary>
+    /// ACC-SRV-11: Planscape-born issues that are closed but were never mapped to ACC, and were
+    /// raised after this connection's first sync (so they fell between two sweeps). Policy
+    /// <see cref="KeyClosedBetweenSweeps"/>: "report" (default) names each once and sends
+    /// nothing; "create" creates it in ACC with its closed status and maps it. The first sync
+    /// only records the baseline, so turning ACC on never back-fills a project's history.
+    /// </summary>
+    private async Task<(int pushed, int notSent, List<string> failures, string? note)> HandleClosedBetweenSweepsAsync(
+        HttpClient http, PlatformConnection conn, JObject cfg, Dictionary<string, string> map,
+        Dictionary<string, DateTime> pushedAt, Dictionary<string, DateTime> pendingVerify,
+        string subtypeId, string? region, DateTime sweepStartedUtc, CancellationToken ct)
+    {
+        var failures = new List<string>();
+        var sinceTok = cfg[KeyIssueSyncSince];
+        DateTime? since = sinceTok?.Type == JTokenType.Date ? sinceTok.Value<DateTime>()
+            : DateTime.TryParse((string?)sinceTok, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var d) ? d : null;
+        if (since == null)
+        {
+            cfg[KeyIssueSyncSince] = sweepStartedUtc.ToString("o");
+            conn.ConfigJson = cfg.ToString(Newtonsoft.Json.Formatting.None);
+            await _db.SaveChangesAsync(ct);
+            return (0, 0, failures, null);
+        }
+
+        var mode = AccClosedSweepPolicy.Parse((string?)cfg[KeyClosedBetweenSweeps], out string? policyError);
+        var closed = await _db.Issues
+            .Where(i => i.ProjectId == conn.ProjectId
+                     && (i.Status == "RESOLVED" || i.Status == "CLOSED")
+                     && i.CreatedAt >= since.Value)
+            .OrderBy(i => i.CreatedAt)
+            .ToListAsync(ct);
+        var reported = new HashSet<string>(
+            (cfg[KeyIssueClosedReported] as JArray)?.Select(t => (string?)t).Where(t => !string.IsNullOrEmpty(t))!
+                ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+
+        int pushed = 0, notSent = 0;
+        var notSentCodes = new List<string>();
+        bool dirty = false;
+        foreach (var issue in closed)
+        {
+            string key = issue.Id.ToString();
+            if (map.ContainsKey(key) || AccOriginId(issue) != null
+                || string.Equals(issue.Source, "acc", StringComparison.OrdinalIgnoreCase)) continue;
+            if (pendingVerify.ContainsKey(key))
+            {
+                // An earlier create of it got no answer; it may already be in ACC. Never post blind.
+                if (reported.Add(key)) { notSent++; notSentCodes.Add(issue.IssueCode + " (earlier create unconfirmed)"); dirty = true; }
+                continue;
+            }
+            if (mode == AccClosedSweepPolicy.Mode.Report)
+            {
+                if (reported.Add(key)) { notSent++; notSentCodes.Add(issue.IssueCode); dirty = true; }
+                continue;
+            }
+
+            var fresh = await RefreshMidRunAsync(conn, ct);
+            if (fresh != null) { failures.Add($"{issue.IssueCode}: {fresh}"); break; }
+            var (success, accId, error, unclear) = await PushIssueAsync(http, conn, issue, subtypeId, region, ct);
+            if (success)
+            {
+                map[key] = accId!;
+                pushedAt[key] = issue.UpdatedAt;
+                var states = cfg[KeyIssuePushedState] as JObject ?? new JObject();
+                states[key] = AccIssueUpdatePlan.Snapshot.Of(issue.Title, issue.Description, issue.Status).ToJson();
+                cfg[KeyIssuePushedState] = states;
+                cfg[KeyIssueMap] = JObject.FromObject(map);
+                cfg[KeyIssuePushedAt] = PushedAtJson(pushedAt);
+                reported.Remove(key);
+                pushed++;
+                dirty = true;
+                conn.ConfigJson = cfg.ToString(Newtonsoft.Json.Formatting.None);
+                await _db.SaveChangesAsync(ct);
+            }
+            else
+            {
+                failures.Add($"{issue.IssueCode} (raised and closed between sweeps): {error}" +
+                             (unclear ? " — outcome unknown; it is checked in ACC before any re-send" : ""));
+                if (unclear)
+                {
+                    pendingVerify[key] = DateTime.UtcNow.AddMinutes(-2);
+                    cfg[KeyIssuePendingVerify] = PendingJson(pendingVerify);
+                    dirty = true;
+                }
+            }
+        }
+
+        if (dirty)
+        {
+            cfg[KeyIssueClosedReported] = new JArray(reported.OrderBy(k => k, StringComparer.Ordinal));
+            conn.ConfigJson = cfg.ToString(Newtonsoft.Json.Formatting.None);
+            await _db.SaveChangesAsync(ct);
+        }
+
+        var notes = new List<string>();
+        if (policyError != null) notes.Add(policyError);
+        if (notSent > 0)
+            notes.Add($"{notSent} issue(s) were raised and closed in Planscape between syncs and were NOT created in ACC: " +
+                      string.Join(", ", notSentCodes.Take(10)) + (notSentCodes.Count > 10 ? ", …" : "") +
+                      $". Set {KeyClosedBetweenSweeps}=\"create\" to create such issues in ACC, closed.");
+        return (pushed, notSent, failures, notes.Count == 0 ? null : string.Join(" | ", notes));
     }
 
     /// <summary>C10: PATCH mapped Planscape-born issues edited since their last push.</summary>
@@ -1079,6 +1200,24 @@ public class AccSyncService
 /// The status is withheld when ACC last reported the issue closed and Planscape would reopen
 /// it — ACC's close is the later fact the read-back has not yet carried into Planscape.
 /// </summary>
+/// <summary>ACC-SRV-11: what to do with an issue raised and closed between two sweeps.</summary>
+public static class AccClosedSweepPolicy
+{
+    public enum Mode { Report, Create }
+
+    /// <summary>Absent or blank means Report. An unrecognised value is reported and treated as
+    /// Report, the choice that sends nothing to ACC.</summary>
+    public static Mode Parse(string? value, out string? error)
+    {
+        error = null;
+        string v = (value ?? "").Trim();
+        if (v.Length == 0 || v.Equals("report", StringComparison.OrdinalIgnoreCase)) return Mode.Report;
+        if (v.Equals("create", StringComparison.OrdinalIgnoreCase)) return Mode.Create;
+        error = $"{AccSyncService.KeyClosedBetweenSweeps}=\"{v}\" is not one of report|create — treated as report.";
+        return Mode.Report;
+    }
+}
+
 public static class AccIssueUpdatePlan
 {
     /// <summary>What was last pushed for one issue: its Planscape status, and hashes of the
