@@ -2,16 +2,17 @@
 //
 // StingTools/V6/IfcPsetMapping.cs — S6.9 (N-G14).
 //
-// Loads STING_IFC_PSET_MAPPING.json (S6.10) and exposes a
-// lookup-per-parameter API: GetIfcPsetMapping(stingParam) returns a
-// tuple (ifcPsetName, ifcPropertyName, ifcDataType) that the IFC
-// export pipeline (future ExporterIfcUtils integration) can use to
-// place the STING value in the correct IFC 4.3 property set.
+// Loads STING_IFC_PSET_MAPPING.json and answers "where does this STING parameter
+// go in IFC?" for the IFC export pipeline (future ExporterIfcUtils integration).
 //
-// The mapping is the bridge between STING's 2,307 MR_PARAMETERS and
-// the IFC 4.3 schema. MVP scaffolds ~50 representative mappings so
-// downstream code can wire up without a complete table. The runner's
-// full-mapping deliverable (S6.10) is tracked as follow-up work.
+// DSCH-24: there is ONE mapping file, shared/ifc/mappings/STING_IFC_PSET_MAPPING.json,
+// linked into this plugin's data/IFC/ and into Planscape.API (whose ingest reads the
+// same rows). Rows are ordered; for export the FIRST row for a parameter whose
+// direction is not "import" (and whose element_types admit the entity) wins. One
+// field spelling: pset_name / property_name — a row spelled ifc_pset / ifc_property
+// is refused and logged, never guessed at.
+//
+// Revit-free: parsed and tested in StingTools.Tags.Tests.
 
 using System;
 using System.Collections.Generic;
@@ -29,20 +30,32 @@ namespace StingTools.V6
         public string IfcPropertyName { get; set; } = string.Empty;
         public string IfcDataType { get; set; } = "IfcText";
         public string IfcEntity { get; set; } = string.Empty;     // optional restriction
+        public string[] ElementTypes { get; set; }                // null = every IFC class
+        public string Direction { get; set; } = "both";           // both | export | import
         public string Notes { get; set; } = string.Empty;
+        public string Verify { get; set; } = string.Empty;        // non-empty = unconfirmed target
+
+        public bool IsExport => !string.Equals(Direction, "import", StringComparison.OrdinalIgnoreCase);
+
+        public bool AppliesTo(string ifcEntity) =>
+            string.IsNullOrEmpty(ifcEntity) || ElementTypes == null || ElementTypes.Length == 0
+            || ElementTypes.Any(t => string.Equals(t, ifcEntity, StringComparison.OrdinalIgnoreCase));
     }
 
     public static class IfcPsetMapping
     {
-        private static Dictionary<string, IfcPsetEntry> _cache;
+        private static List<IfcPsetEntry> _cache;
         private static readonly object _lk = new object();
 
-        public static IfcPsetEntry GetMapping(string stingParam)
+        /// <summary>The export target for <paramref name="stingParam"/>: the first
+        /// non-import row, optionally restricted to an IFC entity (e.g. "IfcWall").
+        /// Null when the map has no export row for it.</summary>
+        public static IfcPsetEntry GetMapping(string stingParam, string ifcEntity = null)
         {
             lock (_lk)
             {
                 _cache ??= Load();
-                return _cache.TryGetValue(stingParam, out var v) ? v : null;
+                return FirstExport(_cache, stingParam, ifcEntity);
             }
         }
 
@@ -51,7 +64,7 @@ namespace StingTools.V6
             lock (_lk)
             {
                 _cache ??= Load();
-                return _cache.Values.ToList();
+                return _cache.ToList();
             }
         }
 
@@ -60,41 +73,69 @@ namespace StingTools.V6
             lock (_lk) { _cache = null; }
         }
 
-        private static Dictionary<string, IfcPsetEntry> Load()
+        /// <summary>First export row for the parameter, in file order.</summary>
+        public static IfcPsetEntry FirstExport(IEnumerable<IfcPsetEntry> rows, string stingParam, string ifcEntity = null)
         {
-            var dict = new Dictionary<string, IfcPsetEntry>(StringComparer.OrdinalIgnoreCase);
+            if (rows == null || string.IsNullOrEmpty(stingParam)) return null;
+            return rows.FirstOrDefault(e =>
+                string.Equals(e.StingParam, stingParam, StringComparison.OrdinalIgnoreCase)
+                && e.IsExport && e.AppliesTo(ifcEntity));
+        }
+
+        /// <summary>Parse the mapping JSON (array root). Rows keep file order.
+        /// Throws <see cref="InvalidDataException"/> on the retired field spelling or a
+        /// row missing sting_param / property_name.</summary>
+        public static List<IfcPsetEntry> Parse(string json)
+        {
+            var arr = JArray.Parse(json);
+            var list = new List<IfcPsetEntry>(arr.Count);
+            int i = 0;
+            foreach (var t in arr)
+            {
+                if (t["ifc_pset"] != null || t["ifc_property"] != null)
+                    throw new InvalidDataException(
+                        $"STING_IFC_PSET_MAPPING.json row {i}: uses ifc_pset / ifc_property; the only spelling is pset_name / property_name");
+                var e = new IfcPsetEntry
+                {
+                    StingParam      = (string)t["sting_param"] ?? string.Empty,
+                    IfcPsetName     = (string)t["pset_name"] ?? string.Empty,
+                    IfcPropertyName = (string)t["property_name"] ?? string.Empty,
+                    IfcDataType     = (string)t["ifc_data_type"] ?? "IfcText",
+                    IfcEntity       = (string)t["ifc_entity"] ?? string.Empty,
+                    ElementTypes    = (t["element_types"] as JArray)?.Select(x => (string)x).ToArray(),
+                    Direction       = (string)t["direction"] ?? "both",
+                    Notes           = (string)t["notes"] ?? string.Empty,
+                    Verify          = (string)t["verify"] ?? string.Empty,
+                };
+                if (string.IsNullOrEmpty(e.StingParam) || string.IsNullOrEmpty(e.IfcPropertyName))
+                    throw new InvalidDataException(
+                        $"STING_IFC_PSET_MAPPING.json row {i}: sting_param and property_name are required");
+                list.Add(e);
+                i++;
+            }
+            return list;
+        }
+
+        private static List<IfcPsetEntry> Load()
+        {
+            string dir = Path.GetDirectoryName(typeof(IfcPsetMapping).Assembly.Location) ?? "";
+            string path = Path.Combine(dir, "data", "IFC", "STING_IFC_PSET_MAPPING.json");
             try
             {
-                string dir = Path.GetDirectoryName(typeof(IfcPsetMapping).Assembly.Location) ?? "";
-                string path = Path.Combine(dir, "Data", "IFC", "STING_IFC_PSET_MAPPING.json");
                 if (!File.Exists(path))
                 {
-                    StingLog.Warn($"IfcPsetMapping: file missing {path}");
-                    return dict;
+                    StingLog.Error($"IfcPsetMapping: mapping file missing ({path}) — no IFC export targets");
+                    return new List<IfcPsetEntry>();
                 }
-                var arr = JArray.Parse(File.ReadAllText(path));
-                foreach (var t in arr)
-                {
-                    var e = new IfcPsetEntry
-                    {
-                        StingParam      = (string)t["sting_param"] ?? string.Empty,
-                        // DSCH-18: 75 of the shipped rows use the server's spelling
-                        // (pset_name / property_name, IfcIngestController); both bind.
-                        IfcPsetName     = (string)t["ifc_pset"] ?? (string)t["pset_name"] ?? string.Empty,
-                        IfcPropertyName = (string)t["ifc_property"] ?? (string)t["property_name"] ?? string.Empty,
-                        IfcDataType     = (string)t["ifc_data_type"] ?? "IfcText",
-                        IfcEntity       = (string)t["ifc_entity"] ?? string.Empty,
-                        Notes           = (string)t["notes"] ?? string.Empty,
-                    };
-                    if (!string.IsNullOrEmpty(e.StingParam)) dict[e.StingParam] = e;
-                }
-                StingLog.Info($"IfcPsetMapping: loaded {dict.Count} mappings from {path}");
+                var list = Parse(File.ReadAllText(path));
+                StingLog.Info($"IfcPsetMapping: loaded {list.Count} rows from {path}");
+                return list;
             }
             catch (Exception ex)
             {
-                StingLog.Error("IfcPsetMapping.Load failed", ex);
+                StingLog.Error($"IfcPsetMapping: mapping file invalid ({path}) — no IFC export targets", ex);
+                return new List<IfcPsetEntry>();
             }
-            return dict;
         }
 
         /// <summary>
