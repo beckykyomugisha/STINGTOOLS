@@ -116,6 +116,24 @@ namespace StingTools.Boq.Tests
             => Assert.Equal(31, Shipped().NotMeasured.Count);
 
         [Fact]
+        public void Shipped_Card_Has_No_Row_For_A_Not_Measured_Category()
+        {
+            // One owner of "this category is never billed": the benchmark file. The
+            // corporate rate card (cost_rates_5d.csv) must not also price, NIL or INCL
+            // such a category — a row there could never be reached, and would read as
+            // a second decision that disagrees with the first.
+            var notMeasured = Shipped().NotMeasured;
+            var card = CostRateCsv.Parse(
+                File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, "Data", "cost_rates_5d.csv")),
+                CommodityRateResolver.SplitCsvLine);
+            var clash = card.Rows.Where(r => notMeasured.Contains(r.Category))
+                .Select(r => $"line {r.LineNumber}: {r.Category}").ToList();
+            Assert.True(clash.Count == 0,
+                "cost_rates_5d.csv rates a NOT MEASURED category: " + string.Join("; ", clash));
+            Assert.NotEmpty(card.Rows);   // not vacuous
+        }
+
+        [Fact]
         public void Shipped_Measured_Categories_Still_Price()
         {
             var t = Shipped();
