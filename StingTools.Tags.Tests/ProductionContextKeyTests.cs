@@ -68,5 +68,28 @@ namespace StingTools.Tags.Tests
             var b = ProductionContextKey.Compose("Level 1", 312, null, null, null, null);
             Assert.False(ProductionContextKey.Matches(a, b, null));
         }
+    
+        // DTW-103: a sheet found by its pre-id (name-only) stamp is adopted only when the
+        // views already on it are on this context's level.
+
+        [Fact]
+        public void A_legacy_sheet_whose_views_are_on_another_level_is_not_adopted()
+            => Assert.False(ProductionContextKey.LegacyStampOnLevel(900, new long[] { 312 }));
+
+        [Fact]
+        public void A_legacy_sheet_whose_view_is_on_this_level_is_adopted()
+            => Assert.True(ProductionContextKey.LegacyStampOnLevel(312, new long[] { 312 }));
+
+        [Fact]
+        public void A_legacy_sheet_carrying_this_level_among_others_is_adopted()
+            => Assert.True(ProductionContextKey.LegacyStampOnLevel(312, new long[] { 900, 312 }));
+
+        [Fact]
+        public void A_legacy_sheet_with_no_levelled_views_is_adopted_as_before()
+            => Assert.True(ProductionContextKey.LegacyStampOnLevel(312, Array.Empty<long>()));
+
+        [Fact]
+        public void A_context_with_no_level_adopts_a_legacy_sheet_as_before()
+            => Assert.True(ProductionContextKey.LegacyStampOnLevel(null, new long[] { 312 }));
     }
 }

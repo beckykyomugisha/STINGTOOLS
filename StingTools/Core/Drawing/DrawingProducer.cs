@@ -112,6 +112,8 @@ namespace StingTools.Core.Drawing
         // parameter may be unbindable, but within one run we always know which
         // context we just used a sheet for, so claims are tracked here instead.
         [ThreadStatic] private static Dictionary<long, string>      _sheetCtxClaims;
+        // DTW-108: nesting of PrimeBatchCaches / ResetBatchCaches scopes.
+        [ThreadStatic] private static BatchScopeDepth               _scopeDepth;
         [ThreadStatic] private static string                        _cacheDocKey;
         // P-12: view names, collected once per batch. NameExists ran a full
         // OfClass(View) collector and MakeUniqueViewName calls it up to 100
@@ -155,7 +157,12 @@ namespace StingTools.Core.Drawing
         /// </summary>
         public static void PrimeBatchCaches(Document doc)
         {
-            ResetBatchCaches();
+            // DTW-108: a batch opened inside another on the same document (the Setup
+            // Wizard inside an outer batch) keeps the outer batch's caches — including the
+            // STACK-1 sheet claims — rather than wiping them on entry and again on exit.
+            var depth = _scopeDepth ?? (_scopeDepth = new BatchScopeDepth());
+            if (!depth.Enter(doc == null ? null : CacheDocKey(doc))) return;
+            ResetCachesCore();
             if (doc == null) return;
             _cacheDocKey = CacheDocKey(doc);
             // P4: the annotation pass's loaded-symbol index + tag-type memo share
@@ -228,7 +235,18 @@ namespace StingTools.Core.Drawing
             _sheetCtxClaims[sheetId.Value] = ctx ?? "";
         }
 
+        /// <summary>
+        /// Ends the batch scope <see cref="PrimeBatchCaches"/> opened. The caches are dropped
+        /// only when the outermost scope ends (DTW-108); a nested scope's end leaves them.
+        /// </summary>
         public static void ResetBatchCaches()
+        {
+            var depth = _scopeDepth ?? (_scopeDepth = new BatchScopeDepth());
+            if (!depth.Exit()) return;
+            ResetCachesCore();
+        }
+
+        private static void ResetCachesCore()
         {
             _sheetCtxClaims     = null;   // STACK-1
             _existingViewCache  = null;
@@ -296,7 +314,8 @@ namespace StingTools.Core.Drawing
                 return result;
 
             if (opts.CreateSheet)
-                result.SheetId = CreateOrFindSheet(doc, dt, ctx, opts, result);
+                result.SheetId = CreateOrFindSheet(doc, dt, ctx, opts, result,
+                    opts.Idempotent ? rules.Where(r => r != null).Select(r => r.Idx).ToList() : null);
 
             // P1 — resolve the title-block family's slot grid once for this
             // sheet (null for norm-only profiles / no sheet) and reuse it across
@@ -1264,13 +1283,15 @@ namespace StingTools.Core.Drawing
             return XYZ.Zero;
         }
 
-        private static ElementId CreateOrFindSheet(Document doc, DrawingType dt, DrawingContext ctx, ProduceOptions opts, ProduceResult result)
+        private static ElementId CreateOrFindSheet(Document doc, DrawingType dt, DrawingContext ctx, ProduceOptions opts, ProduceResult result,
+            IReadOnlyCollection<int> reusableRuleIdxs = null)
         {
             string effectivePackage = ctx.PackageId ?? dt.PackageId ?? "";
             string sheetCtx = BuildContextTag(ctx);
             string legacyCtx = BuildLegacyContextTag(ctx);
 
-            var existing = FindExistingSheet(doc, dt.Id, effectivePackage, sheetCtx, legacyCtx, result);
+            ReadContextParts(ctx, out _, out var ctxLevelId, out _, out _, out _);
+            var existing = FindExistingSheet(doc, dt.Id, effectivePackage, sheetCtx, legacyCtx, ctxLevelId, result);
             if (existing != null) return existing;
 
             // A sheet stamped with an id this request used to route to (the shipped id,
@@ -1279,7 +1300,7 @@ namespace StingTools.Core.Drawing
             foreach (var former in (ctx.FormerDrawingTypeIds ?? Array.Empty<string>())
                          .Where(f => !string.IsNullOrWhiteSpace(f) && !string.Equals(f, dt.Id, StringComparison.OrdinalIgnoreCase)))
             {
-                existing = FindExistingSheet(doc, former, effectivePackage, sheetCtx, legacyCtx, result);
+                existing = FindExistingSheet(doc, former, effectivePackage, sheetCtx, legacyCtx, ctxLevelId, result);
                 if (existing == null) continue;
                 try
                 {
@@ -1295,7 +1316,63 @@ namespace StingTools.Core.Drawing
                 return existing;
             }
 
+            existing = SheetOfReusedView(doc, dt, ctx, reusableRuleIdxs, sheetCtx, legacyCtx, ctxLevelId, effectivePackage, result);
+            if (existing != null) return existing;
+
             return CreateSheet(doc, dt, ctx, opts, result, effectivePackage, sheetCtx);
+        }
+
+        /// <summary>
+        /// DTW-106: a view's identity is (type, context, rule) -- the package is not part of
+        /// it -- while a sheet's is (type, package, context). So the same grid section
+        /// produced by the Setup Wizard (no package) and by DOCS / Produce Sections (the
+        /// preset's package) reused one view but looked for two sheets: the second run
+        /// minted an empty sheet and then could not place the view, which already sat on
+        /// the first. When no sheet matches this package, a view this run will reuse that
+        /// is already on a sheet of the same drawing type and context is followed to that
+        /// sheet, which is reused as it is (its package stamp is left alone, so every
+        /// existing lookup keeps finding it). Null when there is no such sheet.
+        /// </summary>
+        private static ElementId SheetOfReusedView(Document doc, DrawingType dt, DrawingContext ctx,
+            IReadOnlyCollection<int> ruleIdxs, string sheetCtx, string legacyCtx, long? ctxLevelId,
+            string effectivePackage, ProduceResult result)
+        {
+            if (ruleIdxs == null || ruleIdxs.Count == 0) return null;
+            try
+            {
+                var viewIds = new HashSet<long>();
+                foreach (var idx in ruleIdxs.Distinct())
+                {
+                    var v = FindExistingView(doc, dt.Id, ctx, idx);
+                    if (v != null) viewIds.Add(v.Id.Value);
+                }
+                if (viewIds.Count == 0) return null;
+
+                foreach (var vp in new FilteredElementCollector(doc).OfClass(typeof(Viewport)).Cast<Viewport>())
+                {
+                    if (!viewIds.Contains(vp.ViewId.Value)) continue;
+                    if (!(doc.GetElement(vp.SheetId) is ViewSheet sheet) || !sheet.IsValidObject) continue;
+                    if (!string.Equals(StingTools.Core.ParameterHelpers.GetString(sheet, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID),
+                            dt.Id, StringComparison.OrdinalIgnoreCase)) continue;
+                    var stamp = DrawingTypeStamper.ReadSheetContext(sheet);
+                    bool sameContext = ProductionContextKey.Matches(stamp, sheetCtx, null)
+                        || (legacyCtx != null && string.Equals(stamp, legacyCtx, StringComparison.Ordinal)
+                            && SheetOnContextLevel(doc, sheet, ctxLevelId));
+                    if (!sameContext) continue;
+
+                    var pkg = StingTools.Core.ParameterHelpers.GetString(sheet, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "";
+                    result.SheetReused = true;
+                    result.Warnings.Add(
+                        $"Sheet {sheet.SheetNumber} already holds this {dt.Id} view under package " +
+                        $"'{(pkg.Length == 0 ? "(none)" : pkg)}'; it was reused rather than minting a second sheet for " +
+                        $"package '{(effectivePackage.Length == 0 ? "(none)" : effectivePackage)}'.");
+                    if (_existingSheetCache != null && CacheMatchesDoc(doc))
+                        _existingSheetCache[SheetKey(dt.Id, effectivePackage, ProductionContextKey.Identity(sheetCtx))] = sheet.Id;
+                    return sheet.Id;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SheetOfReusedView {dt?.Id}: {ex.Message}"); }
+            return null;
         }
 
         /// <summary>
@@ -1303,7 +1380,7 @@ namespace StingTools.Core.Drawing
         /// production context, or null. Sets <see cref="ProduceResult.SheetReused"/> on a hit.
         /// </summary>
         private static ElementId FindExistingSheet(Document doc, string typeId, string effectivePackage, string sheetCtx,
-            string legacyCtx, ProduceResult result)
+            string legacyCtx, long? ctxLevelId, ProduceResult result)
         {
             try
             {
@@ -1311,11 +1388,18 @@ namespace StingTools.Core.Drawing
                 // stamp — falling back to a fresh collector.
                 if (_existingSheetCache != null && CacheMatchesDoc(doc))
                 {
-                    foreach (var key in new[] { ProductionContextKey.Identity(sheetCtx), legacyCtx })
+                    var keys = new[] { ProductionContextKey.Identity(sheetCtx), legacyCtx };
+                    for (int k = 0; k < keys.Length; k++)
                     {
+                        var key = keys[k];
                         if (key == null || !_existingSheetCache.TryGetValue(SheetKey(typeId, effectivePackage, key), out var cachedSheetId)) continue;
                         if (doc.GetElement(cachedSheetId) is ViewSheet vsCached && vsCached.IsValidObject)
                         {
+                            // DTW-103: a hit on the pre-id stamp names the level by name only.
+                            // When the identity and legacy keys differ, accept it only when the
+                            // sheet's views are on this context's level (as FindExistingView does).
+                            if (k == 1 && !string.Equals(keys[0], key, StringComparison.Ordinal)
+                                && !SheetOnContextLevel(doc, vsCached, ctxLevelId)) continue;
                             result.SheetReused = true;   // P-9: reuse is not production
                             RestampSheetContext(vsCached, sheetCtx, typeId, effectivePackage, result);
                             return vsCached.Id;
@@ -1338,7 +1422,8 @@ namespace StingTools.Core.Drawing
                 var exact = candidates.FirstOrDefault(s =>
                                 ProductionContextKey.Matches(DrawingTypeStamper.ReadSheetContext(s), sheetCtx, null))
                          ?? (legacyCtx == null ? null : candidates.FirstOrDefault(s =>
-                                string.Equals(DrawingTypeStamper.ReadSheetContext(s), legacyCtx, StringComparison.Ordinal)));
+                                string.Equals(DrawingTypeStamper.ReadSheetContext(s), legacyCtx, StringComparison.Ordinal)
+                                && SheetOnContextLevel(doc, s, ctxLevelId)));
                 if (exact != null)
                 {
                     result.SheetReused = true;
@@ -1383,6 +1468,25 @@ namespace StingTools.Core.Drawing
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
+        }
+
+        /// <summary>
+        /// DTW-103: a sheet matched by its pre-id stamp (level by name only) belongs to this
+        /// context's level when one of the views placed on it is on that level, or when none
+        /// of them has a level. Otherwise a level that took a renamed level's old name would
+        /// adopt that level's sheet, and the re-stamp would make the mix-up permanent.
+        /// </summary>
+        private static bool SheetOnContextLevel(Document doc, ViewSheet sheet, long? ctxLevelId)
+        {
+            if (!ctxLevelId.HasValue || sheet == null) return true;
+            var levels = new List<long>();
+            try
+            {
+                foreach (var vid in sheet.GetAllPlacedViews())
+                    if (doc.GetElement(vid) is View v && v.GenLevel != null) levels.Add(v.GenLevel.Id.Value);
+            }
+            catch (Exception ex) { StingLog.Warn($"SheetOnContextLevel {sheet.Id}: {ex.Message}"); return true; }
+            return ProductionContextKey.LegacyStampOnLevel(ctxLevelId, levels);
         }
 
         /// <summary>
@@ -2358,9 +2462,9 @@ namespace StingTools.Core.Drawing
         [ThreadStatic] private static Dictionary<string, string> _isoLevelMap;
         [ThreadStatic] private static string _isoLevelMapDocKey;
 
-        /// <summary>ISO 19650 level codes for every level, by name — built as
-        /// ParameterHelpers.DeriveSheetLevel builds them, so a sheet's number and its level
-        /// stamp agree. Cached per document for the batch.</summary>
+        /// <summary>ISO 19650 level codes for every level, by name — the elevation stack
+        /// ParameterHelpers.DeriveSheetLevel also uses, with the project's declared level
+        /// codes laid over it (DTW-105). Cached per document for the batch.</summary>
         private static Dictionary<string, string> IsoLevelMap(Document doc)
         {
             if (doc == null) return null;
@@ -2380,14 +2484,27 @@ namespace StingTools.Core.Drawing
             try
             {
                 var storeys = new List<StoreyDatum>();
+                var declared = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var l in new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>())
-                    if (!string.IsNullOrWhiteSpace(l?.Name))
-                        storeys.Add(new StoreyDatum
-                        {
-                            Name = l.Name,
-                            ElevationMm = UnitUtils.ConvertFromInternalUnits(l.Elevation, UnitTypeId.Millimeters),
-                        });
-                return IsoLevelCode.BuildMap(storeys);
+                {
+                    if (string.IsNullOrWhiteSpace(l?.Name)) continue;
+                    storeys.Add(new StoreyDatum
+                    {
+                        Name = l.Name,
+                        ElevationMm = UnitUtils.ConvertFromInternalUnits(l.Elevation, UnitTypeId.Millimeters),
+                    });
+                    // DTW-105: the level code the project declares (spatial_codes.json, the
+                    // one ParameterHelpers.GetLevelCodeForLevel gives tags and box names) wins
+                    // here too, so ISO sheet numbers, spool sheets and title-block heal agree
+                    // with it. Undeclared levels keep the elevation-derived code.
+                    try
+                    {
+                        var dc = SpatialCodeRegistry.MatchProjectLevel(doc, l.Name);
+                        if (!string.IsNullOrWhiteSpace(dc?.Code)) declared[l.Name] = dc.Code;
+                    }
+                    catch (Exception ex) { StingLog.WarnRateLimited("IsoLevelMapDeclared", $"Project level codes: {ex.Message}"); }
+                }
+                return IsoLevelCode.BuildMap(storeys, declared);
             }
             catch (Exception ex) { StingLog.Warn($"DrawingProducer.IsoLevelMap: {ex.Message}"); return null; }
         }
