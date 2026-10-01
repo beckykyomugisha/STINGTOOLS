@@ -39,18 +39,26 @@ namespace StingTools.Commands.Drawing
                     return Result.Failed;
                 }
 
-                var rows = ReadCsv(csvPath);
-                if (rows.Count == 0)
+                // DSCH-2: ParameterName / DefaultValue by header name; every other
+                // column is a discipline code (ARCH/STR/…).
+                var table = CsvTable.Parse(File.ReadAllLines(csvPath), StingToolsApp.ParseCsvLine);
+                if (table.HeaderLine == 0)
                 {
                     TaskDialog.Show("STING — Migrate CSV", $"TITLE_BLOCK.csv at\n{csvPath}\nis empty or unreadable.");
                     return Result.Failed;
                 }
 
-                // Header inferred from row 0 — first 2 cols are ParameterName + DefaultValue,
-                // remaining cols are discipline codes (ARCH/STR/…).
-                var header = rows[0];
-                if (header.Count < 3) { TaskDialog.Show("STING — Migrate CSV", "Header row missing discipline columns."); return Result.Failed; }
-                var discCols = header.Skip(2).ToList();
+                int nameCol = table.Col("ParameterName"), dfltCol = table.Col("DefaultValue");
+                if (nameCol < 0 || dfltCol < 0)
+                {
+                    string missing = string.Join(", ", table.Missing("ParameterName", "DefaultValue"));
+                    StingLog.Warn($"TitleBlockMigrateCsv: {csvPath} header lacks {missing}");
+                    TaskDialog.Show("STING — Migrate CSV", $"TITLE_BLOCK.csv header has no {missing} column.");
+                    return Result.Failed;
+                }
+                var discIdx = Enumerable.Range(0, table.Header.Count).Where(i => i != nameCol && i != dfltCol).ToList();
+                if (discIdx.Count == 0) { TaskDialog.Show("STING — Migrate CSV", "Header row missing discipline columns."); return Result.Failed; }
+                var discCols = discIdx.Select(i => table.Header[i]).ToList();
 
                 // For each discipline, collect (paramName → value) entries that
                 // differ from DefaultValue; map each as a literal title-block
@@ -59,19 +67,19 @@ namespace StingTools.Commands.Drawing
                 foreach (var d in discCols) perDiscipline[d] = new Dictionary<string, string>(StringComparer.Ordinal);
                 var globals = new Dictionary<string, string>(StringComparer.Ordinal);
 
-                for (int r = 1; r < rows.Count; r++)
+                foreach (var csvRow in table.Rows)
                 {
-                    var row = rows[r];
-                    if (row.Count == 0) continue;
-                    var paramName = row.Count > 0 ? row[0]?.Trim() : null;
+                    var row = csvRow.Fields;
+                    if (row.Length == 0) continue;
+                    var paramName = csvRow["ParameterName"];
                     if (string.IsNullOrEmpty(paramName)) continue;
-                    var defVal = row.Count > 1 ? row[1] ?? "" : "";
+                    var defVal = dfltCol < row.Length ? row[dfltCol] ?? "" : "";
 
                     if (!string.IsNullOrEmpty(defVal)) globals[paramName] = defVal;
                     for (int c = 0; c < discCols.Count; c++)
                     {
-                        int col = c + 2;
-                        var v = col < row.Count ? row[col] : "";
+                        int col = discIdx[c];
+                        var v = col < row.Length ? row[col] : "";
                         if (string.IsNullOrEmpty(v)) continue;
                         if (!string.Equals(v, defVal, StringComparison.Ordinal))
                             perDiscipline[discCols[c]][paramName] = v;
@@ -165,14 +173,6 @@ namespace StingTools.Commands.Drawing
             // Not Path.GetTempPath(): per-session under Revit. OutputLocationHelper has a
             // stable step before temp and warns once when it uses it.
             return OutputLocationHelper.GetOutputDirectory(doc);
-        }
-
-        private static List<List<string>> ReadCsv(string path)
-        {
-            var rows = new List<List<string>>();
-            foreach (var line in File.ReadAllLines(path))
-                rows.Add(new List<string>(StingToolsApp.ParseCsvLine(line)));
-            return rows;
         }
     }
 }
