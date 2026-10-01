@@ -4629,8 +4629,18 @@ namespace StingTools.Core
         private static Dictionary<string, string> BuildLevelMap(Document doc)
         {
             if (doc == null) return null;
-            string key = doc.PathName + "|" + doc.GetHashCode();
-            if (_levelMap != null && _levelMapDocKey == key) return _levelMap;
+            // DTW-138: keyed on what the map is built from — every level's id, name,
+            // elevation and storey flag, and spatial_codes.json's timestamp — not the
+            // document alone. The retag inside SheetNumbering.Apply reused a map from
+            // before a level rename / insert or a level-code edit.
+            string key;
+            try { key = LevelMapKey(doc); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BuildLevelMap key: {ex.Message} — map rebuilt, not cached.");
+                key = null;
+            }
+            if (key != null && _levelMap != null && _levelMapDocKey == key) return _levelMap;
 
             try
             {
@@ -4649,6 +4659,46 @@ namespace StingTools.Core
                 StingLog.Warn($"BuildLevelMap: {ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>Last-seen spatial_codes.json timestamp per document, so an edit also
+        /// reloads SpatialCodeRegistry (which caches the file for the session).</summary>
+        private static string _levelCodesStampDocKey;
+        private static DateTime? _levelCodesStamp;
+
+        /// <summary>DTW-138 — the level-map cache key (LevelMapCacheKey).</summary>
+        private static string LevelMapKey(Document doc)
+        {
+            string docKey = doc.PathName + "|" + doc.GetHashCode();
+            var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
+                .Select(l =>
+                {
+                    bool? storey = null;
+                    try
+                    {
+                        var p = l.get_Parameter(BuiltInParameter.LEVEL_IS_BUILDING_STORY);
+                        if (p != null && p.HasValue) storey = p.AsInteger() != 0;
+                    }
+                    catch (Exception ex) { StingLog.WarnRateLimited("LevelMapKeyStorey", $"Level storey flag: {ex.Message}"); }
+                    return (l.Id.Value, l.Name, l.Elevation, storey);
+                })
+                .ToList();
+
+            DateTime? codesUtc = null;
+            if (!string.IsNullOrEmpty(doc.PathName))
+            {
+                string path = ProjectFolderEngine.ResolveProjectOverridePath(doc, SpatialCodeRegistry.ProjectOverrideRelPath);
+                if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
+                    codesUtc = System.IO.File.GetLastWriteTimeUtc(path);
+            }
+            // The registry caches the file per document; a changed timestamp means its copy
+            // is stale too, or the rebuilt map would read the old codes.
+            if (_levelCodesStampDocKey == docKey && _levelCodesStamp != codesUtc)
+                SpatialCodeRegistry.Reload(doc);
+            _levelCodesStampDocKey = docKey;
+            _levelCodesStamp = codesUtc;
+
+            return StingTools.Core.Drawing.LevelMapCacheKey.Compose(docKey, levels, codesUtc);
         }
 
         /// <summary>Build human-readable sheet narrative for SHT_TAG_7.
