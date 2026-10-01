@@ -61,6 +61,10 @@ namespace StingTools.Core.Drawing
             new KeyValuePair<string, string>("Legend",      Legend),
         };
 
+        public static bool IsCanonical(string name)
+            => !string.IsNullOrWhiteSpace(name)
+            && Canonical.Any(c => string.Equals(c, name.Trim(), StringComparison.OrdinalIgnoreCase));
+
         /// <summary>The canonical name for a canonical or legacy STING name; null for anything else.</summary>
         public static string CanonicalFor(string name)
         {
