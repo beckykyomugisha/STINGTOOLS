@@ -174,6 +174,29 @@ namespace StingTools.Tags.Tests
             return t.DeepClone();
         }
 
+        // ── DTW-183 ───────────────────────────────────────────────────────
+
+        [Fact]
+        public void Corporate_pack_routing_is_never_written_into_the_project_file()
+        {
+            var corp = ShippedPacks();
+            Assert.True((corp.Routing?.Count ?? 0) >= 10, "fixture: shipped pack routing");
+
+            // No project file: nothing of the corporate table may be written.
+            var merged = DrawingTypeExcelEngine.MergeStylePacks(corp, null);
+            var (_, none) = DrawingTypeExcelEngine.BuildProjectOverride(new DrawingTypeLibrary(), merged);
+            Assert.True(none.Routing == null || none.Routing.Count == 0, $"{none.Routing?.Count} corporate rules written");
+
+            // A project file that froze the corporate table plus one rule of its own.
+            var frozen = JsonConvert.DeserializeObject<StylePackDoc>(JsonConvert.SerializeObject(corp));
+            frozen.StylePacks.Clear();
+            frozen.Routing.Insert(0, new StylePackRoutingRule { Purpose = "Plan", Discipline = "A", StylePackId = "my-pack" });
+            var merged2 = DrawingTypeExcelEngine.MergeStylePacks(corp, frozen);
+            var (_, mine) = DrawingTypeExcelEngine.BuildProjectOverride(new DrawingTypeLibrary(), merged2);
+            var only = Assert.Single(mine.Routing);
+            Assert.Equal("my-pack", only.StylePackId);
+        }
+
         // ── DTW-180 ───────────────────────────────────────────────────────
 
         [Fact]

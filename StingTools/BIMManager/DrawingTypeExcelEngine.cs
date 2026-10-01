@@ -1599,26 +1599,50 @@ namespace StingTools.BIMManager
             return (projectDt, projectPacks);
         }
 
+        /// <summary>
+        /// Corporate packs with the project's packs layered on top by id.
+        ///
+        /// DTW-183: <see cref="StylePackDoc.Routing"/> of the result holds the
+        /// PROJECT's own pack routing only. It used to be "project routing, or
+        /// else the corporate table", and ApplyImport wrote it to the project
+        /// file — freezing all 28 corporate rules there, where
+        /// ViewStylePackRegistry.Merge prepends them, duplicated and immune to
+        /// later corporate changes. A project rule identical to a corporate
+        /// rule is such a frozen copy and is dropped. The corporate table is
+        /// not needed here: the workbook does not carry pack routing.
+        /// Also first-wins by id (a duplicate id no longer throws).
+        /// </summary>
         public static StylePackDoc MergeStylePacks(StylePackDoc baseDoc, StylePackDoc over)
         {
-            if (over == null) return baseDoc ?? new StylePackDoc();
+            var corporateRouting = (baseDoc?.Routing ?? new())
+                .Where(r => r != null).Select(r => JsonConvert.SerializeObject(r)).ToHashSet(StringComparer.Ordinal);
+            var projectRouting = (over?.Routing ?? new())
+                .Where(r => r != null && !corporateRouting.Contains(JsonConvert.SerializeObject(r))).ToList();
+
             var merged = new StylePackDoc {
-                SchemaVersion = over.SchemaVersion ?? baseDoc?.SchemaVersion,
-                Name          = over.Name          ?? baseDoc?.Name,
-                Description   = over.Description   ?? baseDoc?.Description,
-                Namespace     = over.Namespace     ?? baseDoc?.Namespace,
-                LastUpdated   = over.LastUpdated   ?? baseDoc?.LastUpdated,
-                StylePacks    = new List<StylePackEntry>(baseDoc?.StylePacks ?? new()),
-                Routing       = over.Routing ?? baseDoc?.Routing,
+                SchemaVersion = over?.SchemaVersion ?? baseDoc?.SchemaVersion,
+                Name          = over?.Name          ?? baseDoc?.Name,
+                Description   = over?.Description   ?? baseDoc?.Description,
+                Namespace     = over?.Namespace     ?? baseDoc?.Namespace,
+                LastUpdated   = over?.LastUpdated   ?? baseDoc?.LastUpdated,
+                StylePacks    = new List<StylePackEntry>(),
+                Routing       = projectRouting.Count > 0 ? projectRouting : null,
             };
-            var byId = merged.StylePacks.ToDictionary(p => p.Id ?? "", StringComparer.OrdinalIgnoreCase);
-            foreach (var p in over.StylePacks ?? new())
+            var order = new List<string>();
+            var byId = new Dictionary<string, StylePackEntry>(StringComparer.OrdinalIgnoreCase);
+            foreach (var p in baseDoc?.StylePacks ?? new())
             {
-                if (string.IsNullOrWhiteSpace(p.Id)) continue;
+                if (p == null || string.IsNullOrWhiteSpace(p.Id) || byId.ContainsKey(p.Id)) continue;
+                byId[p.Id] = p; order.Add(p.Id);
+            }
+            foreach (var p in over?.StylePacks ?? new())
+            {
+                if (p == null || string.IsNullOrWhiteSpace(p.Id)) continue;
                 if (string.IsNullOrEmpty(p.Origin)) p.Origin = "project";
+                if (!byId.ContainsKey(p.Id)) order.Add(p.Id);
                 byId[p.Id] = p;
             }
-            merged.StylePacks = byId.Values.ToList();
+            merged.StylePacks = order.Select(k => byId[k]).ToList();
             return merged;
         }
     }
