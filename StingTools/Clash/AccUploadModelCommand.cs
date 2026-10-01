@@ -92,9 +92,14 @@ namespace StingTools.Core.Clash
                 if (pre.Gate.Decision == AccUploadGateDecision.SkipIdentical)
                 {
                     // Not a failure: the deliverable is already in ACC, byte for byte.
+                    // P1: a re-run after an earlier upload whose transmittal was never marked
+                    // SENT (the save failed) still completes that bookkeeping here.
+                    string skipTx = MarkBundleTransmittalSent(doc, file, null, null, out bool skipTxProblem);
                     AccPullClashesCommand.Report(policy, DialogTitle,
-                        $"{Path.GetFileName(file)} was not uploaded again: {pre.Gate.Reason}.");
+                        $"{Path.GetFileName(file)} was not uploaded again: {pre.Gate.Reason}." +
+                        (skipTx == null ? "" : "\n\n" + skipTx));
                     StingLog.Info($"ACC upload: '{file}' skipped - {pre.Gate.Reason}");
+                    if (skipTxProblem) { msg = skipTx; StingLog.Warn("ACC upload: " + skipTx); return Result.Failed; }
                     return Result.Succeeded;
                 }
                 result = AccModelUpload.UploadAsync(creds, file, options).GetAwaiter().GetResult();
@@ -123,12 +128,17 @@ namespace StingTools.Core.Clash
                     $"Folder: {(policy.CdeFolders.Count > 0 ? "by CDE state (project cdeFolders)" : string.IsNullOrWhiteSpace(creds.FolderUrn) ? "the project's 'Project Files' folder" : creds.FolderUrn)}\n\n" +
                     AccCommandOutcome.Remedy(status));
                 StingLog.Warn($"ACC upload FAILED ({status}, HTTP {result?.HttpStatus ?? 0}) for '{file}': {why}");
+                msg = $"NOT uploaded to ACC ({status}): {why}";   // P3: the workflow run records the reason
                 return Result.Failed;
             }
 
             string ledgerNote = RecordInLedger(file, pre, result);
             var cover = UploadTransmittalCover(doc, creds, file, options);
-            string txNote = MarkBundleTransmittalSent(doc, file, result, cover.versionUrn);
+            string txNote = MarkBundleTransmittalSent(doc, file, result, cover.versionUrn, out bool txProblem);
+            // P1: the file is in ACC, but what records it is not. That used to return Succeeded,
+            // and an unattended run only logged it - step 7 went green while the transmittal stayed
+            // PREPARED and the ledger did not know the file, so a re-run could send it again.
+            bool bookkeepingFailed = ledgerNote != null || txProblem;
             if (!string.IsNullOrEmpty(ledgerNote)) txNote = (txNote == null ? "" : txNote + "\n") + ledgerNote;
             if (!string.IsNullOrEmpty(cover.note)) txNote = (txNote == null ? "" : txNote + "\n") + cover.note;
             AccPullClashesCommand.Report(policy, DialogTitle,
@@ -138,9 +148,16 @@ namespace StingTools.Core.Clash
                 (string.IsNullOrWhiteSpace(result.NamingNote) ? "" : "\n\n" + result.NamingNote) +
                 (string.IsNullOrWhiteSpace(result.MetadataNote) ? "" : "\n\n" + result.MetadataNote) +
                 (options?.Metadata == null || factNotes == null || factNotes.Count == 0 ? "" : "\n\n" + string.Join("\n", factNotes)) +
-                (txNote == null ? "" : "\n\n" + txNote));
+                (txNote == null ? "" : "\n\n" + txNote) +
+                (bookkeepingFailed ? "\n\nPARTIAL: the file IS in ACC, but its record above was not completed." : ""));
             if (!result.MetadataComplete) StingLog.Warn("ACC upload: " + result.MetadataNote);
             StingLog.Info($"ACC upload: uploaded '{file}' -> {result.ItemUrn}");
+            if (bookkeepingFailed)
+            {
+                msg = "Uploaded to ACC, but not fully recorded: " + (ledgerNote ?? txNote);
+                StingLog.Warn("ACC upload PARTIAL: " + msg);
+                return Result.Failed;
+            }
             return Result.Succeeded;
         }
 
@@ -362,8 +379,13 @@ namespace StingTools.Core.Clash
             return s;
         }
 
-        private static string MarkBundleTransmittalSent(Document doc, string file, AccModelUpload.UploadResult result, string coverVersionUrn)
+        /// <summary>Mark the bundle's transmittal SENT. <paramref name="problem"/> is true when it
+        /// should have been marked and was not (unreadable store, no PREPARED/DRAFT row, save
+        /// failed); a row already SENT is not a problem.</summary>
+        private static string MarkBundleTransmittalSent(Document doc, string file, AccModelUpload.UploadResult result, string coverVersionUrn,
+            out bool problem)
         {
+            problem = false;
             string itemUrn = result?.ItemUrn;
             try
             {
@@ -374,23 +396,38 @@ namespace StingTools.Core.Clash
 
                 string txPath = BIMManager.BIMManagerEngine.GetBIMManagerFilePath(doc, "transmittals.json");
                 if (!BIMManager.BIMManagerEngine.TryLoadJsonArray(txPath, out var rows, out string txErr))
+                {
+                    problem = true;
                     return $"The upload succeeded, but transmittal {rec.TransmittalId} was NOT marked SENT: {txErr}.";
+                }
                 var row = BIMManager.TransmittalRecord.MarkSent(rows, rec.TransmittalId, DateTime.Now,
                     Environment.UserName, "uploaded to ACC" + (string.IsNullOrWhiteSpace(itemUrn) ? "" : " as " + itemUrn));
-                if (row == null) return null;
+                if (row == null)
+                {
+                    // P1: say why nothing was marked. Already SENT (a re-run) is fine; a missing
+                    // row or another status means the register does not match what went to ACC.
+                    string why = BIMManager.TransmittalRecord.WhyNotMarkedSent(rows, rec.TransmittalId);
+                    if (why == null) return null;
+                    problem = true;
+                    return $"The upload succeeded, but {why} - it was NOT marked SENT.";
+                }
                 // Traceability to ACC: the uploaded bundle and its cover sheet, by version.
                 if (!string.IsNullOrWhiteSpace(result?.ItemUrn)) row["acc_item_urn"] = result.ItemUrn;
                 if (!string.IsNullOrWhiteSpace(result?.VersionUrn)) row["acc_version_urn"] = result.VersionUrn;
                 if (!string.IsNullOrWhiteSpace(result?.FolderUrn)) row["acc_folder_urn"] = result.FolderUrn;
                 if (!string.IsNullOrWhiteSpace(coverVersionUrn)) row["acc_cover_version_urn"] = coverVersionUrn;
                 if (!BIMManager.BIMManagerEngine.SaveJsonFile(txPath, rows))
+                {
+                    problem = true;
                     return $"The upload succeeded, but transmittal {rec.TransmittalId} could NOT be saved as SENT — see the log.";
+                }
                 StingLog.Info($"ACC upload: transmittal {rec.TransmittalId} marked SENT");
                 return $"Transmittal {rec.TransmittalId} is now recorded as SENT.";
             }
             catch (Exception ex)
             {
                 StingLog.Warn("ACC upload: could not mark the bundle's transmittal SENT: " + ex.Message);
+                problem = true;
                 return "The upload succeeded, but its transmittal could not be marked SENT — see the log.";
             }
         }

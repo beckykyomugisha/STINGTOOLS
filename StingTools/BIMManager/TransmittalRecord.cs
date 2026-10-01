@@ -102,6 +102,18 @@ namespace StingTools.BIMManager
         /// uses. Only a PREPARED or DRAFT row moves: a row that already went further
         /// (SENT, ACKNOWLEDGED…) is left alone, so re-uploading a bundle cannot rewind
         /// or re-date a record. Returns the row changed, or null.</summary>
+        /// <summary>P1: why <see cref="MarkSent"/> returned null - or null when that is fine (the
+        /// row is already SENT, e.g. a re-run). A missing row or another status means the register
+        /// does not match what went to ACC, and the caller must say so.</summary>
+        public static string WhyNotMarkedSent(JArray rows, string id)
+        {
+            var row = rows?.OfType<JObject>().FirstOrDefault(r => string.Equals(Id(r), id, StringComparison.OrdinalIgnoreCase));
+            if (row == null) return $"transmittal {id} is not in transmittals.json";
+            string st = TransmittalStatus.Normalise(row["status"]?.ToString());
+            if (st == TransmittalStatus.Sent) return null;
+            return $"transmittal {id} is {st}, not PREPARED/DRAFT";
+        }
+
         public static JObject MarkSent(JArray rows, string id, DateTime now, string user, string note)
         {
             if (rows == null || string.IsNullOrWhiteSpace(id)) return null;

@@ -92,5 +92,16 @@ namespace StingTools.Tags.Tests
             Assert.Equal("2026-09-01", (string)rows[1]["date_issued"]);
             Assert.Null(TransmittalRecord.MarkSent(rows, "TX-9999", now, "me", "x"));
         }
+
+        // P1: an upload whose transmittal was not marked SENT used to say nothing - MarkSent
+        // returned null whether the row was already SENT (fine), missing, or in another state.
+        [Fact]
+        public void Why_a_transmittal_was_not_marked_sent_is_said_and_already_sent_is_fine()
+        {
+            var rows = Newtonsoft.Json.Linq.JArray.Parse(@"[{""transmittal_id"":""TR-1"",""status"":""SENT""},{""transmittal_id"":""TR-2"",""status"":""VOID""}]");
+            Assert.Null(StingTools.BIMManager.TransmittalRecord.WhyNotMarkedSent(rows, "TR-1"));
+            Assert.Contains("VOID", StingTools.BIMManager.TransmittalRecord.WhyNotMarkedSent(rows, "TR-2"));
+            Assert.Contains("not in transmittals.json", StingTools.BIMManager.TransmittalRecord.WhyNotMarkedSent(rows, "TR-9"));
+        }
     }
 }
