@@ -3,9 +3,9 @@
 Standing task (2026-10-01): unattended loop — resume → research → record → fix → verify → commit → merge → update ROADMAP/WORKLOG → repeat. Priority: (1) ACC integration, (2) everything ACC touches, (3) rest of the codebase.
 
 ## Resume here
-1. Deploy the INTEGRATION branch (`claude/acc-work-review-gaps-7e2ac7`, = origin/main + all ACC work) to `C:\Dev\STING_KUT_LIVE` once `tasklist | grep Revit` is empty. Revit has been open all session. Verify per "Deploy".
-2. Area 3, continued: the 74 UNGATED lines in `tools/unattended_cycle_baseline.txt`. Next: Mobilisation (CDEStatus, LoadSharedParams, CreateFilters/Worksets), Deliverable A–D (LOD, ProgramAudit, OwnerStandards, DeviceCoordination, Fohlio), LifecycleReconcile (CSI, SpecLink, Niagara, KUT valuation), MonthlyReport. Pattern: PresetDialog.Show(..., ref message); a picker reads WorkflowEngine.StepParam and fails when the param is missing.
-3. Then a fresh deeper ACC audit pass (round 3): auth/token expiry, paging and rate limits across every ACC client (AccHttp consumers), the BCC ACC card end to end, and webhooks.
+1. Deploy the INTEGRATION branch to `C:\Dev\STING_KUT_LIVE` once `tasklist | grep Revit` is empty (a background watcher is armed). Verify per "Deploy".
+2. Fresh ACC audit pass, round 4: issue import/export field mapping and CSV headers, assignee and account data, custom attributes, escalation, approvals read-back, local-change reports and incremental reads. These are the parts of the standing brief rounds 1–3 covered least.
+3. Area 2/3: the Document Manager IsoNote display (DOCX-REG-1); ACC-SRV-11 (create-and-close between sweeps); then the rest of the codebase (tagging, drawing production, MEP).
 
 ## Branches
 - **Integration branch:** `claude/acc-work-review-gaps-7e2ac7` (worktree `.claude/worktrees/acc-work-review-gaps-7e2ac7`). Not pushed.
@@ -65,16 +65,31 @@ ACC seam audit A1–A16: all fixed (see "Findings (done)"). Open work is the rev
 ## Findings — ACC round 3: transport and lifecycle (audit 2026-10-01)
 | Id | Area | Where | Sev | Defect | Plan |
 |---|---|---|---|---|---|
-| D1 | Plugin auth | UI/BIMCoordinationCenter.cs:5626-5642 Gather/SaveAcc; V6/AccIssueSync.cs:267,413 | P1 | The card writes the refresh token loaded at open over a rotated one (Save/Test/Sign in/Find/Upload); ResolveIssueTypeAsync saves unlocked; adopt takes any DIFFERENT token, so a stale file poisons valid sessions | Gather keeps the token only if the user edited it; SaveCredentials never replaces a newer RefreshTokenIssuedAt; adopt only newer |
-| D2 | Server sync | Aps/ApsRetry.cs:49,57; AccSyncService catches `!OperationCanceledException` | P1 | An HttpClient timeout (TaskCanceledException) escapes, aborts the multi-tenant sweep, leaves the old OK status, Hangfire retries 10x; an unclear create is POSTed again → duplicate ACC issues | Catch timeouts as failures; unclear create = pending-verify, not re-posted; job retries 0 |
-| D3 | Clash paging | V6/AccModelCoordSync.cs:178-262,367-391 | P1 | Clash tests / model sets read one page; continuationToken not followed → latest test may be missed | Follow continuationToken; fail loudly at cap (NEEDS MANUAL CHECK live sort) |
-| D4 | Plugin refresh race | AccIssueSync.cs:222,242 | P2 | Losing a refresh race (lock wait 20 s < possible hold) reports "sign in again" though the file holds a rotated token | Re-adopt from file on 400/401 before Rejected |
-| D5 | Server token | AccSyncService.cs:389 | P2 | Token refreshed once per sync; a long push outlives it → 401s counted as rejections | Refresh-and-retry once on 401 |
-| D6 | Server token | AccTokenRefresher.cs:118-123 | P2 | Rotated refresh token saved under the request's cancellation → lost rotation → RECONNECT_REQUIRED for the team | Refresh + save with CancellationToken.None, bounded |
-| D7 | BCC card | BIMCoordinationCenter.cs:5605,5673 | P2 | "Saved" shown when the credentials save failed | Use SaveCredentials(c, out err); stop follow-on action |
-| D8 | Paging caps | V6/AccReviews.cs:321-361,481-509; server GetDmPagedAsync, issue types, read-back | P2 | Caps return success with next pages unread | INCOMPLETE failure at the cap |
-| D9 | Retire copy | V6/AccDocsLifecycle.cs:73,112-130 | P2 | Own HttpClient: no 429/Retry-After, no refresh | Route through AccHttp |
-| D10 | Policy key | AccOperatingPolicy.cs:199; AccRetireDeliverable.ReadMode | P2 | retireSupersededInAcc accepted but never validated; a typo silently = "ask" | Parse in Load (ask/always/never, else Malformed); drop ReadMode |
+| D1 | Plugin auth | UI/BIMCoordinationCenter.cs:5626-5642 Gather/SaveAcc; V6/AccIssueSync.cs:267,413 | P1 | The card writes the refresh token loaded at open over a rotated one (Save/Test/Sign in/Find/Upload); ResolveIssueTypeAsync saves unlocked; adopt takes any DIFFERENT token, so a stale file poisons valid sessions | **Done** 48eea85b2: Gather keeps the current token unless edited; SaveCredentials keeps a newer file token (KeepNewerFileToken); adopt only newer — red without the guard |
+| D2 | Server sync | Aps/ApsRetry.cs:49,57; AccSyncService catches `!OperationCanceledException` | P1 | An HttpClient timeout (TaskCanceledException) escapes, aborts the multi-tenant sweep, leaves the old OK status, Hangfire retries 10x; an unclear create is POSTed again → duplicate ACC issues | **Done** 1fa814d89: timeouts are failures; unclear creates go to accIssuePendingVerify and are verified (filter[createdAt] + title) before any re-send; job AutomaticRetry 0 |
+| D3 | Clash paging | V6/AccModelCoordSync.cs:178-262,367-391 | P1 | Clash tests / model sets read one page; continuationToken not followed → latest test may be missed | **Done** 0bc418825: ReadAllTestsAsync follows continuationToken; model sets too (NEEDS MANUAL CHECK live) |
+| D4 | Plugin refresh race | AccIssueSync.cs:222,242 | P2 | Losing a refresh race (lock wait 20 s < possible hold) reports "sign in again" though the file holds a rotated token | **Done** 1dac10c1f: refused grant re-reads the file and adopts the winner — red without it |
+| D5 | Server token | AccSyncService.cs:389 | P2 | Token refreshed once per sync; a long push outlives it → 401s counted as rejections | **Done** 1fa814d89: RefreshMidRunAsync before each request — red without it |
+| D6 | Server token | AccTokenRefresher.cs:118-123 | P2 | Rotated refresh token saved under the request's cancellation → lost rotation → RECONNECT_REQUIRED for the team | **Done** 22ff9add6: rotation + save on CancellationToken.None — red without it |
+| D7 | BCC card | BIMCoordinationCenter.cs:5605,5673 | P2 | "Saved" shown when the credentials save failed | **Done** 48eea85b2: card reports a failed credential save; project ids still saved |
+| D8 | Paging caps | V6/AccReviews.cs:321-361,481-509; server GetDmPagedAsync, issue types, read-back | P2 | Caps return success with next pages unread | **Done** 44c09f6ed (plugin) + server commit after the suite: INCOMPLETE at every cap |
+| D9 | Retire copy | V6/AccDocsLifecycle.cs:73,112-130 | P2 | Own HttpClient: no 429/Retry-After, no refresh | **Done** e7c19d905: copy through AccHttp (429/503 retry, per-attempt timeout, 401 refresh with creds) |
+| D10 | Policy key | AccOperatingPolicy.cs:199; AccRetireDeliverable.ReadMode | P2 | retireSupersededInAcc accepted but never validated; a typo silently = "ask" | **Done** e7c19d905: parsed in Load (ask/always/never else Malformed); ReadMode removed |
+
+## Findings — ACC round 4: data contract (audit 2026-10-01)
+| Id | Area | Where | Sev | Defect | Plan |
+|---|---|---|---|---|---|
+| E1 | Escalation | Clash/AccSyncIssueStatusCommand.cs:119-138; AccPullClashesCommand.cs:226 | P1 | An escalation closed/voided in ACC Issues is untracked while the clash stays active → re-escalated every cycle; a deleted issue stays tracked forever | Untrack only on clash absence; remember closed-in-ACC per signature; pure decision fn + tests |
+| E2 | Server update (my C10) | AccSyncService.cs MapStatus/AccIssueUpdatePlan | P1 | MapStatus case-sensitive, IN_PROGRESS→open; Plan always sends status/title/description → reverts an assignee's ACC in_progress/completed, overwrites ACC wording | Normalise status; send only fields changed since last push (per-issue pushed baseline); withhold status unless ACC still shows the baseline |
+| E3 | Reviews | V6/AccReviewProposals.cs:348-362 FindTransmittal | P1 | version-or-item match, first hit → approval recorded on the v1 transmittal | Exact version first; item only when unique; refuse ambiguity |
+| E4 | Reviews → register | AccReviewProposals.cs:394-397; BIMManagerCommands UpdateDocumentSuitability | P1 | Register rows matched on doc_id only (never matches export rows); write failure silent but reported applied; no revision check on accept | Match doc_number/file_name/doc_id; return result; pairing check; refuse revision mismatch |
+| E5 | MIDP dates | Core/Delivery/MidpCsv.cs:120-127 | P1 | dd/MM dates with day <= 12 parsed as MM/dd (invariant TryParse first) | ISO first, declared order, ambiguous refused/flagged |
+| E6 | Import defaults | V6/AccIssueImport.cs:387-427; IssueSchema.Create | P1 | Imported ACC issues get MEDIUM priority, now as created date, importer as raiser → SLA/overdue wrong | Map createdAt/createdBy; priority not defaulted; SLA "no SLA"; export display id + assignee name |
+| E7 | MIDP header | MidpCsv.cs:72,88-89 | P2 | Renamed code column → all rows dropped silently | Required-column check; skipped counts; synonyms |
+| E8 | Watermark | V6/AccIssueImportState.cs:96-118 | P2 | Local clock watermark; skew > overlap loses updates until the weekly full read | Watermark from ACC (max updatedAt / Date header) |
+| E9 | Comments push | V6/AccIssuePush.cs:110-131,237 | P2 | Comment-only changes never pushed; notes lost on AgreeFields/non-pushable status | Comments a candidate reason; hash-keyed pushed comments |
+| E10 | CSV injection | AccClashCsv.cs:41; AccImport/Push/SyncIssueStatus CSV writers | P2 | Leading = + - @ from third-party names not neutralised | One shared CSV cell helper with the guard |
+| E11 | Culture | V6/AccIssueSync.cs:554 | P2 | dueDate formatted in current culture | InvariantCulture |
 
 ## Findings (done)
 - 2026-10-01 audit fixes on `claude/acc-audit-fixes-y` (not pushed): **A7** `eec4bf778` (review on the live tip version) ·
@@ -169,4 +184,8 @@ Seam audit (2026-10-01):
   - `CanAsk`, `Param(key)` and `MissingParam(...)`.
   - `InputFile(doc, command, key, what, ask, ref msg, out stop)`, where `ask` is the command's own picker lambda. Keeping the picker in the command keeps it visible to the unattended gate.
   - `Show(title, instruction, content, ref msg)` for the hand-built result window.
+- **D1:** the token fix is at the one choke point (SaveCredentials) and in the adoption rule, not in each card button. Any future writer gets the same protection.
+- **D2:** an unclear create is VERIFIED, not abandoned. The issue is still created when ACC proves it absent. Unknown (search failed) = not sent and reported. A duplicate assigned to real people is worse than one more sweep's delay.
+- **D9:** the copy goes through AccHttp with an optional AccCredentials, so the token-only signature still works. Moving the rest of AccDocsMetadata stays deferred (see A11).
+- **Area 3 input rule (final, 6fc1d2de4):** a step param, when set, is always used; when missing, a person present is asked (PresetDialog.CanAsk = !IsUnattended); unattended runs fail naming the param. Result windows are quiet in any preset. Exception: ExportSheetRegister's unattended output defaults to the project's routed SheetRegister folder, which is a project convention rather than an invented value, so it does not fail.
 - **CHANGELOG merge conflicts:** always keep both entries (tool: scratchpad keepboth.py refuses >1 region).
