@@ -182,18 +182,20 @@ namespace StingTools.Core.Drawing
 
         // ── P12.A — fit-to-slot scaling ─────────────────────────────────────
 
-        private static readonly int[] StandardScales =
-            { 1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 1250, 2000, 2500, 5000, 10000 };
-
-        /// <summary>P12.A — set the view's scale so its paper footprint fits
-        /// inside the slot rect. Computes the required scale from the view's
-        /// crop-region outline (paper feet at its current scale) versus the
-        /// slot's paper width/height, rounds UP to the next standard scale, and
-        /// treats <see cref="SlotPlacement.ScaleHint"/> as a floor/override
-        /// (used when it also fits). Only applied to cropped graphical views;
-        /// schedules / legends / 3D and uncropped views are left untouched.
-        /// Never throws.</summary>
-        internal static void ApplyFitScale(Document doc, View v, SlotPlacement sp)
+        /// <summary>P12.A — make the view's paper footprint fit inside the slot
+        /// rect. Computes the required scale from the view's extent versus the
+        /// slot's paper width/height and rounds UP to the next standard scale.
+        ///
+        /// DTW-150: fitting only ever COARSENS. The baseline is
+        /// <paramref name="typeScale"/> (the drawing type's scale; 0 = use the
+        /// view's current scale), and the view moves off it only when it does
+        /// not fit — a small plan on a 1:100 type stays 1:100 instead of
+        /// becoming 1:50 or 1:20. <see cref="SlotPlacement.ScaleHint"/> stays a
+        /// floor. A coarsening is reported in <paramref name="warnings"/>.
+        ///
+        /// Only applied to cropped graphical views; schedules / legends / 3D and
+        /// uncropped views are left untouched. Never throws.</summary>
+        internal static void ApplyFitScale(Document doc, View v, SlotPlacement sp, int typeScale = 0, List<string> warnings = null)
         {
             if (v == null || sp == null || !sp.HasSize) return;
             if (!IsScalableView(v)) return;
@@ -271,8 +273,12 @@ namespace StingTools.Core.Drawing
                     fit = Math.Max(curW * curScale / sp.WidthFt,
                                    curH * curScale / sp.HeightFt);
                 }
-                int fitScale = RoundUpToStandardScale(fit);
-                int target = sp.ScaleHint.HasValue ? Math.Max(fitScale, sp.ScaleHint.Value) : fitScale;
+                int target = SlotFitScale.Decide(fit, typeScale, v.Scale, sp.ScaleHint, out bool coarsened);
+                if (coarsened)
+                {
+                    int baseline = typeScale > 0 ? typeScale : v.Scale;
+                    warnings?.Add($"View '{v.Name}' does not fit slot '{sp.Slot?.Label}' at 1:{baseline} — coarsened to 1:{target}.");
+                }
                 if (target > 0 && target != v.Scale)
                 {
                     try { v.Scale = target; } catch { /* view type rejects scale */ }
@@ -317,13 +323,6 @@ namespace StingTools.Core.Drawing
                 default:
                     return false;
             }
-        }
-
-        private static int RoundUpToStandardScale(double v)
-        {
-            if (v <= 1) return 1;
-            foreach (var s in StandardScales) if (s >= v - 1e-9) return s;
-            return (int)(Math.Ceiling(v / 1000.0) * 1000);
         }
 
         private static XYZ GetTitleBlockOrigin(Element titleBlock)
@@ -434,7 +433,7 @@ namespace StingTools.Core.Drawing
                         // per-slot Scale override pins it. Runs after the slot
                         // overrides so an explicit pin always wins.
                         if (sp != null && slot.Scale == null)
-                            ApplyFitScale(doc, v, sp);
+                            ApplyFitScale(doc, v, sp, dt.Scale, pr.Warnings);
                     }
 
                     // SLOT-3: warn when view type doesn't match slot expectation

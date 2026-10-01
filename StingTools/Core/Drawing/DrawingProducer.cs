@@ -1878,7 +1878,7 @@ namespace StingTools.Core.Drawing
                 if (sp != null && !rule.ScaleOverride.HasValue && !pinScale
                     && doc.GetElement(viewId) is View vFit
                     && PrimaryViewIdValue(vFit) < 0)
-                    SheetPlacementBridge.ApplyFitScale(doc, vFit, sp);
+                    SheetPlacementBridge.ApplyFitScale(doc, vFit, sp, dt.Scale, result.Warnings);
 
                 // SLOT-3: warn on a view/slot type mismatch rather than
                 // placing it silently into the wrong slot. DTW-63: slot terms
