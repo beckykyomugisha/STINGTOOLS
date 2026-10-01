@@ -70,11 +70,15 @@ namespace StingTools.Core.Clash
                 }
 
                 var policy = AccProjectSettingsFile.LoadFor(doc, "ACC retire");
+                // D10: a settings file that does not load is named, never read as "ask".
+                if (policy.Source == AccPolicySource.Malformed)
+                    return $"ACC: {docNumber} NOT retired — the project's ACC settings file could not be read " +
+                           $"({policy.LoadError}). Fix it and supersede again, or retire it in ACC by hand.";
                 string archive = policy.CdeFolders.TryGetValue("ARCHIVE", out var a) ? a : null;
                 if (!AccCdeRouting.LooksLikeFolderUrn(archive))
                     return $"ACC: {docNumber} NOT retired — acc_settings.json has no \"cdeFolders\".\"ARCHIVE\" folder.";
 
-                string mode = ReadMode(doc);
+                string mode = policy.RetireSupersededInAcc;
                 if (mode == "never")
                     return $"ACC: {docNumber} left in place ({SettingKey} = never).";
                 if (mode != "always")
@@ -105,7 +109,7 @@ namespace StingTools.Core.Clash
                 foreach (var (version, folder, entry) in renditions)
                 {
                     var res = AccDocsLifecycle.RetireAsync(creds.AccessToken, creds.ProjectId,
-                        version, folder, archive, retireSuitability, names).GetAwaiter().GetResult();
+                        version, folder, archive, retireSuitability, names, creds).GetAwaiter().GetResult();
                     string label = entry != null ? $"{docNumber} ({entry.Format} {entry.Revision})" : docNumber;
                     allOk &= res.Ok;
                     if (res.Ok) StingLog.Info($"ACC retire {label}: {res.Detail}");
@@ -136,18 +140,6 @@ namespace StingTools.Core.Clash
                 StingLog.Error($"ACC retire {docNumber}", ex);
                 return $"ACC: {docNumber} NOT retired — {ex.Message}";
             }
-        }
-
-        private static string ReadMode(Document doc)
-        {
-            try
-            {
-                string p = AccProjectSettingsFile.PathFor(doc);
-                if (string.IsNullOrEmpty(p) || !File.Exists(p)) return "ask";
-                string v = (JObject.Parse(File.ReadAllText(p))[SettingKey]?.ToString() ?? "").Trim().ToLowerInvariant();
-                return v == "always" || v == "never" ? v : "ask";
-            }
-            catch (Exception ex) { StingLog.Warn("ACC retire setting: " + ex.Message); return "ask"; }
         }
     }
 }

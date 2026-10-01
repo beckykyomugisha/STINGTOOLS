@@ -37,6 +37,33 @@ namespace StingTools.Acc.Tests
 
         public void Dispose() { try { Directory.Delete(_dir, true); } catch { } }
 
+        // D10: the key was accepted but never validated, so a typo read as "ask".
+        [Theory]
+        [InlineData("ask", "ask")]
+        [InlineData("Always", "always")]
+        [InlineData(" never ", "never")]
+        public void RetireSupersededInAcc_TakesTheThreeModes(string value, string expected)
+        {
+            var p = Write("{\"retireSupersededInAcc\": \"" + value + "\"}");
+            Assert.Equal(AccPolicySource.Loaded, p.Source);
+            Assert.Equal(expected, p.RetireSupersededInAcc);
+        }
+
+        [Theory]
+        [InlineData("\"alwasy\"")]
+        [InlineData("true")]
+        [InlineData("\"\"")]
+        public void RetireSupersededInAcc_AnythingElse_IsMalformed_NotAsk(string json)
+        {
+            var p = Write("{\"retireSupersededInAcc\": " + json + "}");
+            Assert.Equal(AccPolicySource.Malformed, p.Source);
+            Assert.Contains("retireSupersededInAcc", p.LoadError);
+        }
+
+        [Fact]
+        public void RetireSupersededInAcc_AbsentMeansAsk()
+            => Assert.Equal("ask", Write("{\"unattended\": false}").RetireSupersededInAcc);
+
         private AccOperatingPolicy Write(string json)
         {
             File.WriteAllText(_path, json);

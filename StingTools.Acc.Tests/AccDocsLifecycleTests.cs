@@ -92,6 +92,44 @@ namespace StingTools.Acc.Tests
             Assert.Equal("folders", (string)body["data"]["relationships"]["parent"]["data"]["type"]);
         }
 
+        // D9: the copy had its own HttpClient, so a throttled bulk supersede failed on the first 429.
+        [Fact]
+        public async Task Copy_RetriesAThrottle_ThenSucceeds()
+        {
+            var waits = new System.Collections.Generic.List<TimeSpan>();
+            var saved = AccHttp.DelayHook;
+            AccHttp.DelayHook = t => { lock (waits) waits.Add(t); return Task.CompletedTask; };
+            try
+            {
+                int posts = 0;
+                using var s = Serve((i, r, b) =>
+                {
+                    if (System.Threading.Interlocked.Increment(ref posts) == 1)
+                    {
+                        var throttled = new CannedResponse(429, "{\"detail\":\"slow down\"}");
+                        throttled.Headers["Retry-After"] = "2";
+                        return throttled;
+                    }
+                    return new CannedResponse(201, CopyCreated(), "application/vnd.api+json");
+                });
+                var res = await AccDocsLifecycle.CopyToFolderAsync(Token, Project, Version, Archive);
+                Assert.True(res.Succeeded, res.Detail);
+                Assert.Equal(2, posts);
+                Assert.Contains(waits, w => w >= TimeSpan.FromSeconds(2));
+            }
+            finally { AccHttp.DelayHook = saved; }
+        }
+
+        [Fact]
+        public async Task Copy_AHardRejection_IsNotRetried()
+        {
+            int posts = 0;
+            using var s = Serve((i, r, b) => { System.Threading.Interlocked.Increment(ref posts); return new CannedResponse(403, "{}"); });
+            var res = await AccDocsLifecycle.CopyToFolderAsync(Token, Project, Version, Archive);
+            Assert.False(res.Succeeded);
+            Assert.Equal(1, posts);   // a POST is never repeated blind
+        }
+
         [Fact]
         public async Task Copy_VersionFromIncluded_WhenNoTip()
         {

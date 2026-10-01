@@ -70,7 +70,6 @@ namespace StingTools.V6
     {
         internal const string DefaultHost = "https://developer.api.autodesk.com";
         private static string _host = DefaultHost;
-        private static readonly HttpClient _http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
 
         /// <summary>Test seam: point at a loopback listener. Production never calls this.</summary>
         internal static void OverrideHostForTests(string host)
@@ -104,7 +103,7 @@ namespace StingTools.V6
         /// <summary>Copy a document version into <paramref name="targetFolderUrn"/>.
         /// Value = (new item URN, new version URN); a 2xx without an item id is a failure.</summary>
         public static async Task<AccFetchResult<(string itemUrn, string versionUrn)>> CopyToFolderAsync(
-            string accessToken, string projectId, string versionUrn, string targetFolderUrn)
+            string accessToken, string projectId, string versionUrn, string targetFolderUrn, AccCredentials creds = null)
         {
             var empty = (string.Empty, string.Empty);
             string bad = Check(accessToken, projectId, versionUrn, targetFolderUrn);
@@ -113,22 +112,28 @@ namespace StingTools.V6
             string url = $"{_host}/data/v1/projects/{Uri.EscapeDataString(DmProjectId(projectId))}/items" +
                          $"?copyFrom={Uri.EscapeDataString(versionUrn.Trim())}";
             int status; string body;
-            try
+            // D9: through the shared ACC transport — a 429 (or 503 with Retry-After) on this
+            // POST is retried after the wait it asks for (the server did not process it), each
+            // attempt has its own timeout, and with credentials a 401 refreshes once. A bulk
+            // supersede used to fail its copies on the first throttle, leaving "finish it in ACC".
+            string json = BuildCopyBody(targetFolderUrn.Trim()).ToString(Formatting.None);
+            HttpRequestMessage Build()
             {
-                using var req = new HttpRequestMessage(HttpMethod.Post, url);
-                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                var req = new HttpRequestMessage(HttpMethod.Post, url);
+                if (creds == null) req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
                 req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.api+json"));
-                req.Content = new StringContent(BuildCopyBody(targetFolderUrn.Trim()).ToString(Formatting.None),
-                                                Encoding.UTF8, "application/vnd.api+json");
-                using var resp = await _http.SendAsync(req).ConfigureAwait(false);
-                status = (int)resp.StatusCode;
-                body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                req.Content = new StringContent(json, Encoding.UTF8, "application/vnd.api+json");
+                return req;
             }
-            catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is IOException)
-            {
+            var sent = await AccHttp.SendAsync(Build, creds, idempotent: false, timeout: TimeSpan.FromSeconds(60)).ConfigureAwait(false);
+            if (sent.Auth != null && !sent.Auth.Ok)
+                return AccFetchResult<(string, string)>.Failure(AccFetchStatus.AuthFailed, empty, 0,
+                    "the copy was not sent: " + sent.Auth.Detail);
+            if (sent.Status == 0)
                 return AccFetchResult<(string, string)>.Failure(AccFetchStatus.TransportFailed, empty, 0,
-                    "the copy request did not complete: " + ex.Message);
-            }
+                    "the copy request did not complete: " + sent.Error);
+            status = sent.Status;
+            body = sent.Body;
 
             if (status < 200 || status >= 300)
             {
@@ -163,7 +168,7 @@ namespace StingTools.V6
         /// </summary>
         public static async Task<AccRetireResult> RetireAsync(string accessToken, string projectId,
             string versionUrn, string sourceFolderUrn, string archiveFolderUrn, string retireSuitability,
-            AccAttributeNames names = null)
+            AccAttributeNames names = null, AccCredentials creds = null)
         {
             // The project's own attribute names (docsAttributeNames): the default constants
             // would stamp attributes a project that renamed them does not have.
@@ -177,7 +182,7 @@ namespace StingTools.V6
                 return r;
             }
 
-            var copy = await CopyToFolderAsync(accessToken, projectId, versionUrn, archiveFolderUrn).ConfigureAwait(false);
+            var copy = await CopyToFolderAsync(accessToken, projectId, versionUrn, archiveFolderUrn, creds).ConfigureAwait(false);
             if (!copy.Succeeded)
             {
                 r.Status = copy.Status;

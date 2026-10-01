@@ -391,6 +391,11 @@ namespace StingTools.V6
         /// create. Null = not configured, which on an unattended project means create NONE.</summary>
         public int? LifecycleGapMaxCount { get; private set; }
 
+        /// <summary>D10: "retireSupersededInAcc" — "ask" (default), "always" or "never". Validated
+        /// here like every other key: anything else makes the file Malformed, so a typo can no
+        /// longer read as "ask" and leave a superseded deliverable live in ACC unexplained.</summary>
+        public string RetireSupersededInAcc { get; private set; } = "ask";
+
         /// <summary>The ACC issue type / subtype lifecycle-gap issues are filed under. Empty =
         /// resolve a type named "Lifecycle" in the container; never the clash type.</summary>
         public string LifecycleGapIssueTypeId { get; private set; } = string.Empty;
@@ -496,6 +501,7 @@ namespace StingTools.V6
             int? namingFields = null;
             int? gapMax = null;
             string gapTypeId = string.Empty, gapSubtypeId = string.Empty;
+            string retireMode = "ask";
 
             try
             {
@@ -646,10 +652,17 @@ namespace StingTools.V6
                     if (gapSubtypeId.Length > 0 && gapTypeId.Length == 0)
                         throw new FormatException("'lifecycleGapEscalation.issueSubtypeId' is set without 'issueTypeId' - give the type too, so the pair can be checked");
                 }
+                if (TryGet(o, "retireSupersededInAcc", out var rsTok))
+                {
+                    retireMode = RequireString(rsTok, "retireSupersededInAcc").Trim().ToLowerInvariant();
+                    if (retireMode != "ask" && retireMode != "always" && retireMode != "never")
+                        throw new FormatException($"'retireSupersededInAcc' must be \"ask\", \"always\" or \"never\", found \"{retireMode}\"");
+                }
             }
             catch (FormatException ex) { return Malformed(policy, ex.Message); }
 
             policy.Source = AccPolicySource.Loaded;
+            policy.RetireSupersededInAcc = retireMode;
             policy.MayPrompt = !unattended;
             policy.CoordModelSetId = modelSetId.Trim();
             policy.CoordModelSetName = modelSetName.Trim();
