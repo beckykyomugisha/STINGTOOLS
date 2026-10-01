@@ -2617,11 +2617,6 @@ namespace StingTools.UI
 
             public static JArray GetMembers() => _teamData?["members"] as JArray ?? new JArray();
 
-            public static List<string> GetMemberNames()
-            {
-                return GetMembers().Select(m => m["name"]?.ToString() ?? "").Where(n => !string.IsNullOrEmpty(n)).ToList();
-            }
-
             /// <summary>Get members filtered by status (default: ACTIVE only).</summary>
             public static List<JToken> GetActiveMembers(string status = "ACTIVE")
             {
@@ -2714,14 +2709,6 @@ namespace StingTools.UI
             // ── DISTRIBUTION GROUPS ──
 
             public static JArray GetDistributionGroups() => _teamData?["distribution_groups"] as JArray ?? new JArray();
-
-            /// <summary>Get display list for distribution group picker.</summary>
-            public static List<string> GetGroupPickerList()
-            {
-                return GetDistributionGroups()
-                    .Select(g => $"{g["id"]} — {g["name"]} ({g["description"]})")
-                    .ToList();
-            }
 
             /// <summary>Resolve a distribution group to member names using auto_rule or explicit member_ids.</summary>
             public static List<string> ResolveGroupMembers(string groupId)

@@ -2,8 +2,13 @@
 //
 // StingTools/V6/IfcPsetMapping.cs — S6.9 (N-G14).
 //
-// Loads STING_IFC_PSET_MAPPING.json and answers "where does this STING parameter
-// go in IFC?" for the IFC export pipeline (future ExporterIfcUtils integration).
+// Parses STING_IFC_PSET_MAPPING.json and answers "where does this STING parameter
+// go in IFC?". NOTHING IN THE PLUGIN CONSUMES THIS AT RUNTIME YET (DSCH-46): no IFC
+// export path reads the map, so the runtime loader (GetMapping / AllMappings / Reload)
+// was deleted rather than left looking wired. What remains is the parse / translate
+// contract shared with the server's reader (Planscape.API IfcPsetMappingTable), held
+// by StingTools.Tags.Tests. An export that needs it loads the linked file at
+// data/IFC/STING_IFC_PSET_MAPPING.json and calls Parse + FirstExport.
 //
 // DSCH-24: there is ONE mapping file, shared/ifc/mappings/STING_IFC_PSET_MAPPING.json,
 // linked into this plugin's data/IFC/ and into Planscape.API (whose ingest reads the
@@ -83,34 +88,6 @@ namespace StingTools.V6
 
     public static class IfcPsetMapping
     {
-        private static List<IfcPsetEntry> _cache;
-        private static readonly object _lk = new object();
-
-        /// <summary>The export target for <paramref name="stingParam"/>: the first
-        /// non-import row, optionally restricted to an IFC entity (e.g. "IfcWall").
-        /// Null when the map has no export row for it.</summary>
-        public static IfcPsetEntry GetMapping(string stingParam, string ifcEntity = null)
-        {
-            lock (_lk)
-            {
-                _cache ??= Load();
-                return FirstExport(_cache, stingParam, ifcEntity);
-            }
-        }
-
-        public static IEnumerable<IfcPsetEntry> AllMappings()
-        {
-            lock (_lk)
-            {
-                _cache ??= Load();
-                return _cache.ToList();
-            }
-        }
-
-        public static void Reload()
-        {
-            lock (_lk) { _cache = null; }
-        }
 
         /// <summary>First export row for the parameter, in file order.</summary>
         public static IfcPsetEntry FirstExport(IEnumerable<IfcPsetEntry> rows, string stingParam, string ifcEntity = null)
@@ -174,28 +151,6 @@ namespace StingTools.V6
             if (map.Count == 0)
                 throw new InvalidDataException($"STING_IFC_PSET_MAPPING.json row {row}: value_map is empty");
             return map;
-        }
-
-        private static List<IfcPsetEntry> Load()
-        {
-            string dir = Path.GetDirectoryName(typeof(IfcPsetMapping).Assembly.Location) ?? "";
-            string path = Path.Combine(dir, "data", "IFC", "STING_IFC_PSET_MAPPING.json");
-            try
-            {
-                if (!File.Exists(path))
-                {
-                    StingLog.Error($"IfcPsetMapping: mapping file missing ({path}) — no IFC export targets");
-                    return new List<IfcPsetEntry>();
-                }
-                var list = Parse(File.ReadAllText(path));
-                StingLog.Info($"IfcPsetMapping: loaded {list.Count} rows from {path}");
-                return list;
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error($"IfcPsetMapping: mapping file invalid ({path}) — no IFC export targets", ex);
-                return new List<IfcPsetEntry>();
-            }
         }
 
         /// <summary>

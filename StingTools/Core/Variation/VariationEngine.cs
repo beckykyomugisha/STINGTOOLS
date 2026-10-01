@@ -194,13 +194,6 @@ namespace StingTools.Core.Variation
             return path;
         }
 
-        public static StarRate LoadStarRate(string path)
-        {
-            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
-            try { return JsonConvert.DeserializeObject<StarRate>(File.ReadAllText(path), _json); }
-            catch (Exception ex) { StingLog.Warn($"VariationEngine.LoadStarRate: {ex.Message}"); return null; }
-        }
-
         private static string SafeName(string s)
         {
             if (string.IsNullOrEmpty(s)) return "variation";
