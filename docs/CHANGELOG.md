@@ -2,6 +2,18 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGFAM-9 measured in Revit 2025: 163 → 36 parameters per door tag, 2026-10-01)
+
+- `tools/pyrevit/headless/time_add_shared_params.py` on main `6710ad2c1` (TAGFAM-9 merged), headless Revit 2025:
+  `GetAllFamilyParams` for `STING - Door Tag` now returns **36** parameters (was 163), and `AddSharedParameters`
+  built them in **71.9 s** end to end (124 s for 163 on the morning baseline).
+- **The seconds are not a clean figure.** The machine was under load during this run: the same lookup took
+  0.19 s (0.03 s in the morning), and a repeated profile of the same 36 parameters as INSTANCE took 37.2 s and
+  then 72.8 s, with each later family in the session slower. So the earlier ~28 s estimate is neither confirmed
+  nor refuted, and whether TYPE parameters (#1047 made 22 of the 36 TYPE) add more slowly than INSTANCE ones
+  could not be separated from that noise. What is measured is the count: 78 % fewer `AddParameter` calls,
+  which is where all the time goes (TAGFAM-6). Re-time on a quiet machine before quoting a per-family figure.
+
 #### Completed (TAGFAM-10 Specialty Equipment tag families renamed to their declared names, 2026-10-01)
 
 - Same fault as TAGFAM-7, found by its gate: the healthcare variant suffixes `Specialty Equipment Tag Asset`
