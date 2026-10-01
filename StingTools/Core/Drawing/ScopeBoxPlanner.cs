@@ -243,10 +243,9 @@ namespace StingTools.Core.Drawing
                 foreach (var cls in result.Classes)
                 {
                     if (cls.TileWidthM <= req.OverlapM + Eps || cls.TileDepthM <= req.OverlapM + Eps) continue;
-                    foreach (var tile in Tile(fp.Points, frame, cls.TileWidthM, cls.TileDepthM, req.OverlapM, req.PaddingM))
+                    string groupPrefix = (string.IsNullOrWhiteSpace(fp.Loc) ? "" : fp.Loc + "-") + cls.Key + "-";
+                    foreach (var (tile, code) in LayoutGroup(req, fp, frame, cls, groupPrefix, result.Warnings))
                     {
-                        string code = (string.IsNullOrWhiteSpace(fp.Loc) ? "" : fp.Loc + "-")
-                                    + cls.Key + "-" + tile.Index.ToString("D2", CultureInfo.InvariantCulture);
                         string name = ScopeBoxNames.ComposeArea(code, fp.Level);
                         if (string.IsNullOrEmpty(name))
                         {
@@ -277,6 +276,166 @@ namespace StingTools.Core.Drawing
                     + "something far from the building (a stray line, a site element); check it before creating.");
             }
             return result;
+        }
+
+        /// <summary>A box of one planning group already in the model: its name, number and where it is.</summary>
+        private sealed class GroupBox
+        {
+            public string Name; public int Index; public ExistingScopeBox Box; public double U, V;
+        }
+
+        /// <summary>
+        /// The tiles of one (footprint, size class) group and the area code each is named by.
+        ///
+        /// DTW-91: tiles used to be numbered 1.. row by row over a run centred on the
+        /// footprint, and matched to the model by name alone. When the model grew, the run
+        /// re-centred and renumbered, so every existing box was judged "Moved" onto other
+        /// ground — silently changing what its views, sheets and match lines showed.
+        ///
+        /// Now, when boxes of this group are already in the model:
+        ///   • the run is laid on their lattice (same pitch, anchored on the lowest-numbered
+        ///     box that is the tile size and square to the frame), so they stay where they are;
+        ///   • each tile takes the name of the existing box whose centre lies inside it
+        ///     (nearest first) — position before name;
+        ///   • tiles with no existing box get numbers after the group's highest, skipping any
+        ///     name already in the model;
+        ///   • an existing box no tile covers is named in a warning — it is left in the model
+        ///     and dropped from the plan, never moved onto another tile.
+        /// With no existing boxes the layout and numbering are exactly as before.
+        /// </summary>
+        private static List<(ScopeBoxTile Tile, string Code)> LayoutGroup(ScopeBoxPlanRequest req, ScopeBoxFootprint fp,
+            double frame, ScopeBoxSizeClass cls, string groupPrefix, List<string> warnings)
+        {
+            double w = cls.TileWidthM, d = cls.TileDepthM, c = Math.Cos(frame), s = Math.Sin(frame);
+            string level = string.IsNullOrWhiteSpace(fp.Level) ? null : fp.Level;
+
+            // Boxes of this group in the model (measured), and the highest number any name of
+            // the group already uses (measured or not).
+            var group = new List<GroupBox>();
+            int maxIndex = 0;
+            var names = new HashSet<string>(req.ExistingNames ?? new HashSet<string>(), StringComparer.OrdinalIgnoreCase);
+            if (req.ExistingBoxes != null) foreach (var k in req.ExistingBoxes.Keys) names.Add(k);
+            foreach (var n in names)
+            {
+                if (!TryGroupIndex(n, groupPrefix, level, out int idx)) continue;
+                maxIndex = Math.Max(maxIndex, idx);
+                if (req.ExistingBoxes != null && req.ExistingBoxes.TryGetValue(n, out var ex) && ex != null)
+                    group.Add(new GroupBox { Name = n, Index = idx, Box = ex,
+                        U = ex.CentreX * c + ex.CentreY * s, V = -ex.CentreX * s + ex.CentreY * c });
+            }
+
+            string Code(int i) => groupPrefix + i.ToString("D2", CultureInfo.InvariantCulture);
+            // Nothing measured to anchor on: the original layout. A name in the model that
+            // could not be measured still matches by name in Judge ("left as it is").
+            if (group.Count == 0)
+                return Tile(fp.Points, frame, w, d, req.OverlapM, req.PaddingM).Select(t => (t, Code(t.Index))).ToList();
+
+            var anchor = group.Where(g => FitsTile(g.Box, w, d, frame)).OrderBy(g => g.Index).FirstOrDefault();
+            var tiles = anchor == null
+                ? Tile(fp.Points, frame, w, d, req.OverlapM, req.PaddingM)
+                : TileOnLattice(fp.Points, frame, w, d, req.OverlapM, req.PaddingM, anchor.U, anchor.V);
+
+            // Position before name: each existing box goes to the tile that contains its
+            // centre, nearest pairs first, one box per tile.
+            var pairs = new List<(int T, GroupBox G, double Dist)>();
+            for (int t = 0; t < tiles.Count; t++)
+            {
+                double tu = tiles[t].X * c + tiles[t].Y * s, tv = -tiles[t].X * s + tiles[t].Y * c;
+                foreach (var g in group)
+                {
+                    double du = g.U - tu, dv = g.V - tv;
+                    if (Math.Abs(du) <= w / 2 + Eps && Math.Abs(dv) <= d / 2 + Eps)
+                        pairs.Add((t, g, Math.Sqrt(du * du + dv * dv)));
+                }
+            }
+            var codes = new string[tiles.Count];
+            var used = new HashSet<GroupBox>();
+            foreach (var p in pairs.OrderBy(p => p.Dist).ThenBy(p => p.G.Index))
+            {
+                if (codes[p.T] != null || used.Contains(p.G)) continue;
+                codes[p.T] = Code(p.G.Index);
+                used.Add(p.G);
+            }
+            int next = maxIndex;
+            for (int t = 0; t < tiles.Count; t++)
+            {
+                if (codes[t] != null) continue;
+                string code;
+                do
+                {
+                    next++;
+                    code = Code(next);
+                    var clash = ScopeBoxNames.ComposeArea(code, level);
+                    if (!names.Contains(clash)) break;
+                    warnings.Add($"'{clash}' is already in the model but not where a box of this layout goes — the new box is numbered past it.");
+                } while (true);
+                codes[t] = code;
+            }
+            foreach (var g in group.Where(g => !used.Contains(g)).OrderBy(g => g.Index))
+                warnings.Add($"'{g.Name}' is not covered by the new layout — it is left in the model where it is, "
+                           + "dropped from the saved plan, and not moved onto another box's ground. Delete it if it is no longer wanted.");
+            return tiles.Select((t, i) => (t, codes[i])).ToList();
+        }
+
+        /// <summary>The number of an area name in a planning group (same building + size class prefix, same level).</summary>
+        private static bool TryGroupIndex(string name, string groupPrefix, string level, out int index)
+        {
+            index = 0;
+            if (!ScopeBoxNames.TryParseArea(name, out var area, out var lvl, out _)) return false;
+            if (!string.Equals(lvl ?? "", level ?? "", StringComparison.OrdinalIgnoreCase)) return false;
+            if (!area.StartsWith(groupPrefix, StringComparison.OrdinalIgnoreCase)) return false;
+            return int.TryParse(area.Substring(groupPrefix.Length), NumberStyles.None, CultureInfo.InvariantCulture, out index) && index > 0;
+        }
+
+        /// <summary>The box is the tile size (either way round) and square to the frame (mod a quarter turn).</summary>
+        private static bool FitsTile(ExistingScopeBox ex, double w, double d, double frame)
+        {
+            bool same = Math.Abs(ex.WidthM - w) < SizeToleranceM && Math.Abs(ex.DepthM - d) < SizeToleranceM;
+            bool crossed = Math.Abs(ex.WidthM - d) < SizeToleranceM && Math.Abs(ex.DepthM - w) < SizeToleranceM;
+            double turn = NormaliseHalfTurn(ex.AngleRad - frame);
+            double rest = turn - Math.Round(turn / (Math.PI / 2)) * Math.PI / 2;
+            if (Math.Abs(rest) > AngleToleranceRad) return false;
+            bool quarter = ((int)Math.Round(turn / (Math.PI / 2)) & 1) != 0;
+            return quarter ? crossed : same;
+        }
+
+        /// <summary>
+        /// Cover the points with tiles on the lattice through (<paramref name="anchorU"/>,
+        /// <paramref name="anchorV"/>) in the frame, at the overlap pitch: the fewest lattice
+        /// tiles whose union covers the padded extent. Rows top first, columns left to right;
+        /// <see cref="ScopeBoxTile.Index"/> is 1-based in that order.
+        /// </summary>
+        public static List<ScopeBoxTile> TileOnLattice(IList<(double X, double Y)> points, double angleRad,
+            double boxW, double boxD, double overlap, double padding, double anchorU, double anchorV)
+        {
+            var tiles = new List<ScopeBoxTile>();
+            if (points == null || points.Count == 0) return tiles;
+            if (boxW <= overlap || boxD <= overlap) throw new ArgumentException("box must be larger than overlap");
+            double c = Math.Cos(angleRad), s = Math.Sin(angleRad);
+            double minU = double.MaxValue, maxU = double.MinValue, minV = double.MaxValue, maxV = double.MinValue;
+            foreach (var p in points)
+            {
+                double u = p.X * c + p.Y * s, v = -p.X * s + p.Y * c;
+                minU = Math.Min(minU, u); maxU = Math.Max(maxU, u);
+                minV = Math.Min(minV, v); maxV = Math.Max(maxV, v);
+            }
+            minU -= padding; maxU += padding; minV -= padding; maxV += padding;
+            double stepU = boxW - overlap, stepV = boxD - overlap;
+            // Leftmost tile whose left edge still reaches minU; rightmost whose right edge reaches maxU.
+            int i0 = (int)Math.Floor((minU + boxW / 2 - anchorU) / stepU + Eps);
+            int i1 = (int)Math.Ceiling((maxU - boxW / 2 - anchorU) / stepU - Eps);
+            int j0 = (int)Math.Floor((minV + boxD / 2 - anchorV) / stepV + Eps);
+            int j1 = (int)Math.Ceiling((maxV - boxD / 2 - anchorV) / stepV - Eps);
+            if (i1 < i0) i1 = i0;
+            if (j1 < j0) j1 = j0;
+            int index = 0;
+            for (int j = j1, row = 0; j >= j0; j--, row++)                // top row first
+                for (int i = i0, col = 0; i <= i1; i++, col++)
+                {
+                    double u = anchorU + i * stepU, v = anchorV + j * stepV;
+                    tiles.Add(new ScopeBoxTile(u * c - v * s, u * s + v * c, row, col, ++index));
+                }
+            return tiles;
         }
 
         /// <summary>Distance and angle within which an existing box counts as "where planned".</summary>

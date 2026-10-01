@@ -64,6 +64,81 @@ namespace StingTools.Tags.Tests
             Assert.Equal(100, box.CentreY, 6);
         }
 
+        // ── DTW-91: growth keeps the boxes already drawn ────────────────
+
+        private static void AddExisting(ScopeBoxPlanRequest req, PlannedScopeBox b)
+        {
+            req.ExistingNames.Add(b.Name);
+            req.ExistingBoxes[b.Name] = new ExistingScopeBox
+                { CentreX = b.CentreX, CentreY = b.CentreY, WidthM = b.WidthM, DepthM = b.DepthM, AngleRad = b.AngleRad };
+        }
+
+        private static ScopeBoxPlanRequest Planned90x30Existing()
+        {
+            // 90 × 30 m (+1 m padding): two 50 × 35 boxes, -01 west at x = 21, -02 east at x = 69.
+            var first = ScopeBoxPlanner.Plan(Request(Rect(0, 0, 90, 30)));
+            Assert.Equal(new[] { "STING-AREA::BLD1-A1-100-01", "STING-AREA::BLD1-A1-100-02" }, first.Boxes.Select(b => b.Name).ToArray());
+            Assert.Equal(21, first.Boxes[0].CentreX, 6);
+            Assert.Equal(69, first.Boxes[1].CentreX, 6);
+            var req = Request();
+            foreach (var b in first.Boxes) AddExisting(req, b);
+            return req;
+        }
+
+        [Fact]
+        public void Growth_keeps_every_existing_box_where_it_is_and_numbers_new_ones_after_them()
+        {
+            var req = Planned90x30Existing();
+            req.Footprints.Add(Rect(-30, 0, 90, 30));        // the building grew 30 m west
+            var res = ScopeBoxPlanner.Plan(req);
+
+            Assert.DoesNotContain(res.Boxes, b => b.Status == PlannedBoxStatus.Moved);
+            var b1 = res.Boxes.Single(b => b.Name == "STING-AREA::BLD1-A1-100-01");
+            var b2 = res.Boxes.Single(b => b.Name == "STING-AREA::BLD1-A1-100-02");
+            Assert.Equal(PlannedBoxStatus.Exists, b1.Status);
+            Assert.Equal(PlannedBoxStatus.Exists, b2.Status);
+            Assert.Equal(21, b1.CentreX, 6);
+            Assert.Equal(69, b2.CentreX, 6);
+            var added = res.Boxes.Single(b => b.Status == PlannedBoxStatus.New);
+            Assert.Equal("STING-AREA::BLD1-A1-100-03", added.Name);
+            Assert.Equal(-27, added.CentreX, 6);                 // on the same 48 m pitch, west of -01
+            Assert.Equal(3, res.Boxes.Count);
+        }
+
+        [Fact]
+        public void A_shrunk_footprint_keeps_the_box_that_still_covers_it_and_names_the_one_it_dropped()
+        {
+            var req = Planned90x30Existing();
+            req.Footprints.Add(Rect(50, 0, 90, 30));         // only the east part is left
+            var res = ScopeBoxPlanner.Plan(req);
+
+            // Before: one tile named -01 was planned at x = 70, so the existing -01 was
+            // "Moved" 49 m onto the ground -02 already covers.
+            var kept = Assert.Single(res.Boxes);
+            Assert.Equal("STING-AREA::BLD1-A1-100-02", kept.Name);
+            Assert.Equal(PlannedBoxStatus.Exists, kept.Status);
+            Assert.Contains(res.Warnings, w => w.Contains("STING-AREA::BLD1-A1-100-01"));
+        }
+
+        [Fact]
+        public void A_new_tile_never_takes_a_name_already_in_the_model()
+        {
+            var req = Planned90x30Existing();
+            req.ExistingNames.Add("STING-AREA::BLD1-A1-100-03");   // in the model, could not be measured
+            req.Footprints.Add(Rect(-30, 0, 90, 30));
+            var res = ScopeBoxPlanner.Plan(req);
+            var added = res.Boxes.Single(b => b.Status == PlannedBoxStatus.New);
+            Assert.Equal("STING-AREA::BLD1-A1-100-04", added.Name);
+        }
+
+        [Fact]
+        public void With_no_boxes_in_the_model_the_layout_is_centred_and_numbered_as_before()
+        {
+            var res = ScopeBoxPlanner.Plan(Request(Rect(-30, 0, 90, 30)));
+            Assert.Equal(new[] { -18.0, 30.0, 78.0 }, res.Boxes.Select(b => Math.Round(b.CentreX, 6)).ToArray());
+            Assert.Equal(new[] { "-01", "-02", "-03" }, res.Boxes.Select(b => b.Name.Substring(b.Name.Length - 3)).ToArray());
+        }
+
         [Fact]
         public void A_footprint_with_no_angle_of_its_own_follows_the_grid()
         {
