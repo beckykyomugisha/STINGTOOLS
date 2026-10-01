@@ -81,6 +81,91 @@ namespace StingTools.Commands.Electrical.ArcFlash
         }
     }
 
+    /// <summary>A 2D point in label coordinates: x to the right, y UP, origin at the
+    /// top-left corner of the label (so the header strip occupies y in [-H, 0]).</summary>
+    public readonly struct ArcPt
+    {
+        public double X { get; }
+        public double Y { get; }
+        public ArcPt(double x, double y) { X = x; Y = y; }
+    }
+
+    /// <summary>
+    /// ANSI Z535 safety-alert symbol (DSCH-32): an equilateral triangle, apex up, with an
+    /// exclamation mark in it, at the left of the signal-word header strip. Drawn as filled
+    /// regions, never a font glyph (fonts could not be relied on for it). Revit-free so the
+    /// geometry is tested; ArcFlashLabelSheetCommand turns it into filled regions.
+    /// <para>Colours, per ANSI Z535.4 as we read it (VERIFY against the printed standard):
+    /// the triangle takes the signal-word TEXT colour and the exclamation mark the panel
+    /// BACKGROUND colour — black triangle / orange mark on WARNING, white triangle / red mark
+    /// on DANGER.</para>
+    /// Every polygon is returned counter-clockwise (y up), the order a filled region needs.
+    /// </summary>
+    public sealed class ArcSafetyAlertSymbol
+    {
+        /// <summary>Triangle height as a fraction of the header strip height.</summary>
+        public const double HeightFraction = 0.8;
+
+        public ArcPt[] Triangle { get; private set; }
+        /// <summary>The exclamation bar: a quadrilateral, slightly wider at the top.</summary>
+        public ArcPt[] Bar { get; private set; }
+        public ArcPt DotCentre { get; private set; }
+        public double DotRadius { get; private set; }
+        /// <summary>Where the signal-word text may start (x), clear of the triangle.</summary>
+        public double TextStartX { get; private set; }
+
+        /// <param name="left">x of the triangle's left base corner.</param>
+        /// <param name="headerHeight">height of the header strip (same unit as the result).</param>
+        /// <param name="gap">space between the triangle and the signal word.</param>
+        public static ArcSafetyAlertSymbol Compute(double left, double headerHeight, double gap)
+        {
+            if (headerHeight <= 0) throw new ArgumentOutOfRangeException(nameof(headerHeight));
+            double h = headerHeight * HeightFraction;
+            double s = 2.0 * h / Math.Sqrt(3.0);          // equilateral side
+            double top = -(headerHeight - h) / 2.0;          // apex y (centred vertically)
+            double baseY = top - h;
+            double cx = left + s / 2.0;
+
+            double barTop = top - 0.30 * h, barBottom = top - 0.68 * h;
+            double halfTop = 0.07 * s, halfBottom = 0.05 * s;
+            return new ArcSafetyAlertSymbol
+            {
+                Triangle = new[] { new ArcPt(left, baseY), new ArcPt(left + s, baseY), new ArcPt(cx, top) },
+                Bar = new[]
+                {
+                    new ArcPt(cx - halfBottom, barBottom), new ArcPt(cx + halfBottom, barBottom),
+                    new ArcPt(cx + halfTop, barTop), new ArcPt(cx - halfTop, barTop)
+                },
+                DotCentre = new ArcPt(cx, top - 0.82 * h),
+                DotRadius = 0.065 * s,
+                TextStartX = left + s + gap,
+            };
+        }
+
+        /// <summary>Twice the signed area: positive when counter-clockwise (y up).</summary>
+        public static double SignedArea2(IReadOnlyList<ArcPt> pts)
+        {
+            double a = 0;
+            for (int i = 0; i < pts.Count; i++)
+            {
+                var p = pts[i]; var q = pts[(i + 1) % pts.Count];
+                a += p.X * q.Y - q.X * p.Y;
+            }
+            return a;
+        }
+
+        /// <summary>True when <paramref name="p"/> lies strictly inside the triangle.</summary>
+        public bool InsideTriangle(ArcPt p)
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                var a = Triangle[i]; var b = Triangle[(i + 1) % 3];
+                if ((b.X - a.X) * (p.Y - a.Y) - (b.Y - a.Y) * (p.X - a.X) <= 0) return false;
+            }
+            return true;
+        }
+    }
+
     public static class ArcFlashPresentation
     {
         public const string FileName = "STING_ARC_FLASH_PPE.json";

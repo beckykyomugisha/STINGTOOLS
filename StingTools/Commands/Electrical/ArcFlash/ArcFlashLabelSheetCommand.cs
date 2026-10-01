@@ -13,7 +13,9 @@ namespace StingTools.Commands.Electrical.ArcFlash
     /// panel that <see cref="ArcFlashCommand"/> calculated (IEEE 1584-2018 —
     /// every label text carries <see cref="ArcFlashEngine.Basis"/>). Each label is a
     /// white body, an ANSI Z535.4 signal-word header strip (WARNING black on orange;
-    /// DANGER white on red above the configured incident energy) and the label text,
+    /// DANGER white on red above the configured incident energy) led by the ANSI Z535
+    /// safety-alert triangle drawn as filled regions (<see cref="ArcSafetyAlertSymbol"/>,
+    /// DSCH-32 — no font glyph), and the label text,
     /// laid out 5 per row at 110 mm column pitch (paper-side units, drafting-view
     /// scale 1:1). Header colours and the DANGER threshold come only from
     /// STING_ARC_FLASH_PPE.json (DSCH-25); if it does not load, no sheet is drawn.
@@ -27,6 +29,8 @@ namespace StingTools.Commands.Electrical.ArcFlash
         private const double LabelHeightMm = 115;  // header strip + label text (~13 lines) + DRAFT line
         private const double HeaderHeightMm = 12;
         private const double MarginMm      = 5;
+        private const double SymbolLeftMm  = 3;    // safety-alert triangle inset from the label edge
+        private const double SymbolGapMm   = 2;    // triangle to signal word
         private const double RowSpacingMm  = 125;
         private const double ColWidthMm    = 110;
         private const int    LabelsPerRow  = 5;
@@ -90,19 +94,28 @@ namespace StingTools.Commands.Electrical.ArcFlash
                     double y = -row * Ft(RowSpacingMm);
                     var origin = new XYZ(x, y, 0);
                     var header = presentation.HeaderFor(r.IncidentEnergy_CalCm2);
+                    // Safety-alert triangle at the left of the header strip, in the signal-word
+                    // text colour; the exclamation mark in the header background colour.
+                    var alert = ArcSafetyAlertSymbol.Compute(SymbolLeftMm, HeaderHeightMm, SymbolGapMm);
+                    XYZ P(ArcPt p) => new XYZ(x + Ft(p.X), y + Ft(p.Y), 0);
+                    var bg = new Color(header.Background.R, header.Background.G, header.Background.B);
+                    var fg = new Color(header.Text.R, header.Text.G, header.Text.B);
                     if (frt != null)
                     {
                         DrawLabelBorder(doc, view, origin, Ft(LabelWidthMm), Ft(LabelHeightMm), frt, solidFill, new Color(255, 255, 255));
-                        DrawLabelBorder(doc, view, origin, Ft(LabelWidthMm), Ft(HeaderHeightMm), frt, solidFill,
-                            new Color(header.Background.R, header.Background.G, header.Background.B));
+                        DrawLabelBorder(doc, view, origin, Ft(LabelWidthMm), Ft(HeaderHeightMm), frt, solidFill, bg);
+                        DrawFilledPolygon(doc, view, alert.Triangle.Select(P).ToList(), frt, solidFill, fg);
+                        DrawFilledPolygon(doc, view, alert.Bar.Select(P).ToList(), frt, solidFill, bg);
+                        DrawFilledCircle(doc, view, P(alert.DotCentre), Ft(alert.DotRadius), frt, solidFill, bg);
                     }
+                    else StingLog.Warn("Arc flash labels: no filled region type — header strip and safety-alert symbol not drawn.");
 
                     if (textType != null)
                     {
                         try
                         {
                             var hdrType = HeaderTextType(doc, textType, header, headerText);
-                            TextNote.Create(doc, view.Id, new XYZ(x + Ft(MarginMm), y - Ft(3), 0),
+                            TextNote.Create(doc, view.Id, new XYZ(x + Ft(alert.TextStartX), y - Ft(3), 0),
                                 header.SignalWord, hdrType.Id);
                             var pos = new XYZ(x + Ft(MarginMm), y - Ft(HeaderHeightMm + MarginMm), 0);
                             TextNote.Create(doc, view.Id, pos, r.LabelText + "\n" + DraftLine, textType.Id);
@@ -182,6 +195,44 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 }
             }
             catch (Exception ex) { StingLog.Warn($"DrawLabelBorder: {ex.Message}"); }
+        }
+
+        /// <summary>A solid filled region on a counter-clockwise polygon (see
+        /// <see cref="ArcSafetyAlertSymbol"/>, which returns them that way).</summary>
+        private static void DrawFilledPolygon(Document doc, View view, IList<XYZ> pts,
+            FilledRegionType frt, FillPatternElement fill, Color color)
+        {
+            try
+            {
+                var loop = new CurveLoop();
+                for (int i = 0; i < pts.Count; i++)
+                    loop.Append(Line.CreateBound(pts[i], pts[(i + 1) % pts.Count]));
+                ColourRegion(view, FilledRegion.Create(doc, frt.Id, view.Id, new List<CurveLoop> { loop }), fill, color);
+            }
+            catch (Exception ex) { StingLog.Warn($"Arc flash safety-alert symbol: {ex.Message}"); }
+        }
+
+        private static void DrawFilledCircle(Document doc, View view, XYZ c, double r,
+            FilledRegionType frt, FillPatternElement fill, Color color)
+        {
+            try
+            {
+                var loop = new CurveLoop();
+                loop.Append(Arc.Create(c, r, 0, Math.PI, XYZ.BasisX, XYZ.BasisY));
+                loop.Append(Arc.Create(c, r, Math.PI, 2 * Math.PI, XYZ.BasisX, XYZ.BasisY));
+                ColourRegion(view, FilledRegion.Create(doc, frt.Id, view.Id, new List<CurveLoop> { loop }), fill, color);
+            }
+            catch (Exception ex) { StingLog.Warn($"Arc flash safety-alert dot: {ex.Message}"); }
+        }
+
+        private static void ColourRegion(View view, FilledRegion fr, FillPatternElement fill, Color color)
+        {
+            if (fr == null || fill == null) return;
+            var ogs = new OverrideGraphicSettings();
+            ogs.SetSurfaceForegroundPatternId(fill.Id);
+            ogs.SetSurfaceForegroundPatternColor(color);
+            ogs.SetProjectionLineColor(color);
+            view.SetElementOverrides(fr.Id, ogs);
         }
 
         private static void StampDrawingType(View v, string drawingTypeId)
