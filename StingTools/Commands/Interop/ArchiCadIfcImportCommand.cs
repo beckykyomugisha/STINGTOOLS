@@ -2129,21 +2129,22 @@ namespace StingTools.Commands.Interop
 
                 if (string.IsNullOrWhiteSpace(val)) continue;
 
-                bool wrote = false;
+                bool wrote = false, missingTarget = false;
                 if (!string.IsNullOrEmpty(m.StingParam))
                 {
                     var target = revitEl.LookupParameter(m.StingParam);
-                    // A mapping whose target is not bound to this element writes
-                    // nothing; say so once rather than counting it as "no value".
-                    if (target == null)
-                        StingLog.WarnRateLimited("ArchiCadMap.NoParam." + m.StingParam,
-                            $"ArchiCAD mapping {m.ArchiCadPset}.{m.ArchiCadProp} -> {m.StingParam}: " +
-                            "parameter not found on the element (not bound, or not in MR_PARAMETERS).");
                     wrote = Write(target, val);
+                    missingTarget = target == null;
                 }
                 if (!wrote && !string.IsNullOrEmpty(m.RevitBuiltIn) &&
                     Enum.TryParse<BuiltInParameter>(m.RevitBuiltIn, out var bip))
                     wrote = Write(revitEl.get_Parameter(bip), val);
+                // A mapping whose target is not on this element writes nothing; say so
+                // once - but only when no built-in fallback wrote the value instead.
+                if (!wrote && missingTarget)
+                    StingLog.WarnRateLimited("ArchiCadMap.NoParam." + m.StingParam,
+                        $"ArchiCAD mapping {m.ArchiCadPset}.{m.ArchiCadProp} -> {m.StingParam}: " +
+                        "parameter not found on the element (not bound, or not in MR_PARAMETERS).");
                 if (wrote) Written++;
             }
         }
