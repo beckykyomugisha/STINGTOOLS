@@ -204,6 +204,19 @@ namespace StingTools.Tags.Tests
             Assert.True(promotions >= 2, "found " + promotions + " promotions");
         }
 
+        // ── DTW-190 ───────────────────────────────────────────────────────
+
+        [Theory]
+        [InlineData("Core/StingToolsApp.cs")]
+        [InlineData("Commands/Drawing/DrawingTypesInspectCommand.cs")]
+        public void Reload_points_drop_every_drawing_registry(string relPath)
+        {
+            var src = DrawingCatalogueFixture.Source(relPath.Split('/'));
+            Assert.Contains("DrawingTypeRegistry.Reload(", src);
+            Assert.Contains("ViewStylePackRegistry.Reload(", src);
+            Assert.Contains("MatchLineConfigRegistry.Reload(", src);
+        }
+
         // ── DTW-186 ───────────────────────────────────────────────────────
 
         [Fact]

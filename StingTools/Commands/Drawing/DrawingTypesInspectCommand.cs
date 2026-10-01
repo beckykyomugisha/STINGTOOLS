@@ -393,9 +393,17 @@ namespace StingTools.Commands.Drawing
             {
                 var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
                 DrawingTypeRegistry.Reload(doc);
+                // DTW-190: "Reload JSON" re-read drawing types only; a pack or
+                // match-line edit needed a Revit restart.
+                ViewStylePackRegistry.Reload(doc);
+                MatchLineConfigRegistry.Reload(doc);
                 var lib = DrawingTypeRegistry.GetLibrary(doc);
+                var packs = ViewStylePackRegistry.ListAll(doc);
+                var loadError = DrawingTypeRegistry.ProjectOverrideLoadError(doc);
                 TaskDialog.Show("STING — Drawing Types",
-                    $"Reloaded — {lib.DrawingTypes.Count} type(s), {lib.Routing.Count} routing rule(s).");
+                    $"Reloaded — {lib.DrawingTypes.Count} type(s), {lib.Routing.Count} routing rule(s), "
+                    + $"{packs.Count} style pack(s), match-line config."
+                    + (loadError != null ? $"\n\nThe project drawing_types.json could not be read: {loadError}" : ""));
                 return Result.Succeeded;
             }
             catch (Exception ex)
