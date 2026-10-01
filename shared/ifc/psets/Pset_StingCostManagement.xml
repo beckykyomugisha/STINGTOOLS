@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<StingPropertySetTemplate xmlns="https://stingtools.io/schema/ifc/psets/v1" version="1.0.0" schema_version="1">
+<StingPropertySetTemplate xmlns="https://stingtools.io/schema/ifc/psets/v1" version="1.1.0" schema_version="1">
 
   <Identity>
     <Name>Pset_StingCostManagement</Name>
-    <Definition>STING cost management and BOQ parameters — NRM2 rates, embodied carbon tracking, labour, and procurement metadata. Written by BOQPrepForExportCommand, BOQCostManager, and CostStamp.</Definition>
+    <Definition>STING cost management and BOQ parameters — NRM2 rates, embodied carbon tracking (whole and per BS EN 15978 module), labour, and procurement metadata. Written by BOQPrepForExportCommand, BOQCostManager, and CostStamp.</Definition>
     <IfdGuid>uuid:a1d15c11-0007-4001-9000-000000000007</IfdGuid>
   </Identity>
 
@@ -12,7 +12,7 @@
     <Origin>baseline</Origin>
     <SinceVersion>5.7.0</SinceVersion>
     <Maintainer>STING Tools (Planscape)</Maintainer>
-    <StandardsBasis>RICS NRM2 (2nd ed.); ICE Database v3; BS ISO 15686-5 whole-life costing; ICMS 3rd edition</StandardsBasis>
+    <StandardsBasis>RICS NRM2 (2nd ed.); ICE Database v3; BS EN 15978:2011 life-cycle modules A1-C4; BS ISO 15686-5 whole-life costing; ICMS 3rd edition</StandardsBasis>
   </Governance>
 
   <TemplateType>PSET_TYPEDRIVENOVERRIDE</TemplateType>
@@ -111,10 +111,66 @@
       <SinceVersion>5.7.0</SinceVersion>
     </Property>
 
+    <Property name="CST_INSTALL_HRS" cardinality="optional">
+      <Definition>Install time in hours per element for labour takeoff. STING parameter CST_INSTALL_HRS. DSCH-38: moved here from Pset_ConstructionResource.InstallHours, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>h</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="CBN_A1_A3_KG_CO2E" cardinality="optional">
+      <Definition>Embodied carbon A1-A3 product stage (manufacturing) kgCO2e. STING parameter CBN_A1_A3_KG_CO2E. DSCH-38: moved here from Pset_EnvironmentalImpactValues.ProductStageCarbon, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>kg CO2e</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="CBN_A4_KG_CO2E" cardinality="optional">
+      <Definition>Embodied carbon A4 transport to site kgCO2e. STING parameter CBN_A4_KG_CO2E. DSCH-38: moved here from Pset_EnvironmentalImpactValues.TransportCarbon, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>kg CO2e</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="CBN_A5_KG_CO2E" cardinality="optional">
+      <Definition>Embodied carbon A5 construction-install kgCO2e. STING parameter CBN_A5_KG_CO2E. DSCH-38: moved here from Pset_EnvironmentalImpactValues.ConstructionCarbon, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>kg CO2e</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="CBN_B6_KG_CO2E_YR" cardinality="optional">
+      <Definition>Operational carbon B6 energy annual kgCO2e/yr. STING parameter CBN_B6_KG_CO2E_YR. DSCH-38: moved here from Pset_EnvironmentalImpactValues.OperationalEnergyCarbonPerYr, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>kg CO2e/yr</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="CBN_C1_KG_CO2E" cardinality="optional">
+      <Definition>End-of-life C1 deconstruction kgCO2e. STING parameter CBN_C1_KG_CO2E. DSCH-38: moved here from Pset_EnvironmentalImpactValues.DeconstructionCarbon, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>kg CO2e</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="CBN_C2_KG_CO2E" cardinality="optional">
+      <Definition>End-of-life C2 transport to disposal kgCO2e. STING parameter CBN_C2_KG_CO2E. DSCH-38: moved here from Pset_EnvironmentalImpactValues.DisposalTransportCarbon, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>kg CO2e</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="CBN_C3_C4_KG_CO2E" cardinality="optional">
+      <Definition>End-of-life C3-C4 waste processing and disposal kgCO2e. STING parameter CBN_C3_C4_KG_CO2E. DSCH-38: moved here from Pset_EnvironmentalImpactValues.DisposalCarbon, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>kg CO2e</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
   </Properties>
 
   <CorporateLock>
-    <Sha256>a4a31828c8a871252a2714df60260a5586228665b02c16cf6aa1d3bc229ef29b</Sha256>
+    <Sha256>2e1c63329318493c888fa830e052cf08fa1a5cb6463ac52c59c362dc4bdf446d</Sha256>
     <LockedAtVersion>5.0.0</LockedAtVersion>
     <Algorithm>sha256(canonical_json(properties_with_metadata_plus_validation_rules))</Algorithm>
   </CorporateLock>
