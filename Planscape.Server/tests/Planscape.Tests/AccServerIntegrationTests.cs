@@ -707,13 +707,19 @@ public partial class AccServerIntegrationTests
         Assert.Single(map);                                    // the push that landed is remembered
         Assert.Equal("acc-1", (string?)map.Properties().Single().Value);
 
-        // A re-run pushes only the two not yet mapped — no duplicate of acc-1.
+        // S1: the POST that was in flight when the host stopped may have landed in ACC, so it
+        // is recorded as UNCLEAR (D2), not forgotten: it was being re-posted blind.
+        var pending = (JObject)JObject.Parse(stored.ConfigJson!)[AccSyncService.KeyIssuePendingVerify]!;
+        Assert.Single(pending.Properties());
+
+        // A re-run posts only the issue never started (no duplicate of acc-1), and does not
+        // re-post the unclear one until ACC proves it absent (StubAcc cannot answer that check).
         posts = 10;
         fx.Http.Calls.Clear();
         StubAcc(fx.Http, okPosts: 10);
         using (var db = fx.Db())
             await fx.Service(db).SyncProjectAsync(fx.ProjectId);
-        Assert.Equal(2, fx.Http.Calls.Count(c => c.Method == HttpMethod.Post));
+        Assert.Equal(1, fx.Http.Calls.Count(c => c.Method == HttpMethod.Post));
     }
 
     [Fact]
