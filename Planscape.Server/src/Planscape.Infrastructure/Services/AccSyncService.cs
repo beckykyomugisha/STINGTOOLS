@@ -79,6 +79,9 @@ public class AccSyncService
     /// <summary>ACC-SRV-11 policy (client-set): "report" (default) or "create".</summary>
     public const string KeyClosedBetweenSweeps = "accClosedBetweenSweeps";
 
+    /// <summary>The read-back status of a mapped id ACC no longer returns.</summary>
+    internal const string NotFoundStatus = "not_found";
+
     /// <summary>S3: earlier ACC projects' issue state, archived (never deleted) when the
     /// connection is pointed at a different ACC project.</summary>
     public const string KeyProjectArchive = "accProjectArchive";
@@ -538,9 +541,9 @@ public class AccSyncService
             // D2: an earlier create of this issue got no clear answer. Look for it in ACC first:
             // found → link it; proven absent → post; can't tell → leave it, never post blind
             // (a blind re-post put a duplicate, assigned to real people, into ACC every run).
-            if (pendingVerify.TryGetValue(key, out var since))
+            if (pendingVerify.TryGetValue(key, out var pendingSince))
             {
-                var (found, verifyErr) = await FindCreatedSinceAsync(http, conn, issue, since, region, ct);
+                var (found, verifyErr) = await FindCreatedSinceAsync(http, conn, issue, pendingSince, region, ct);
                 if (verifyErr != null)
                 {
                     unverified++;
@@ -617,7 +620,7 @@ public class AccSyncService
         // sync reported OK. ACC-owned issues are never PATCHed (they flow ACC → Planscape), and
         // an issue ACC last reported closed is never reopened from here (the status is withheld
         // and the divergence reported).
-        var (updated, diverged, updFailures) = await PushUpdatesAsync(http, conn, cfg, map, pushedAt, region, ct);
+        var (updated, diverged, updFailures, deletedInAcc) = await PushUpdatesAsync(http, conn, cfg, map, pushedAt, region, ct);
         failed += updFailures.Count;
         failures.AddRange(updFailures);
 
@@ -650,6 +653,8 @@ public class AccSyncService
         if (diverged > 0) errors.Add($"{diverged} issue(s) changed status in Planscape but ACC changed it too since the last push, " +
                                      "so Planscape's status was not sent (re-checked every sync)");
         if (closedNote != null) errors.Add(closedNote);
+        if (deletedInAcc > 0)
+            errors.Add($"{deletedInAcc} mapped issue(s) no longer exist in ACC (deleted there); their Planscape edits are not sent.");
 
         if (pullError != null || (failed > 0 && pushed == 0 && updated == 0)) status = StatusFailed;
         else if (failed > 0 || readBackError != null) status = StatusPartial;
@@ -705,11 +710,36 @@ public class AccSyncService
             string key = issue.Id.ToString();
             if (map.ContainsKey(key) || AccOriginId(issue) != null
                 || string.Equals(issue.Source, "acc", StringComparison.OrdinalIgnoreCase)) continue;
-            if (pendingVerify.ContainsKey(key))
+            if (pendingVerify.TryGetValue(key, out var pendingSince))
             {
-                // An earlier create of it got no answer; it may already be in ACC. Never post blind.
-                if (reported.Add(key)) { notSent++; notSentCodes.Add(issue.IssueCode + " (earlier create unconfirmed)"); dirty = true; }
-                continue;
+                // S4: an earlier create of it got no answer, then the issue was closed. It used to
+                // be reported once and never checked again - an issue ACC did create stayed open
+                // and unlinked. Verify it like the open pass does (D2): found -> link (the update
+                // pass then sends the close); proven absent -> carry on below; unknown -> wait.
+                var (found, verifyErr) = await FindCreatedSinceAsync(http, conn, issue, pendingSince, region, ct);
+                if (verifyErr != null)
+                {
+                    if (reported.Add(key)) { notSent++; notSentCodes.Add(issue.IssueCode + " (earlier create unconfirmed; ACC could not be checked)"); dirty = true; }
+                    continue;
+                }
+                pendingVerify.Remove(key);
+                cfg[KeyIssuePendingVerify] = PendingJson(pendingVerify);
+                dirty = true;
+                if (found != null)
+                {
+                    map[key] = found;
+                    // Baseline = what was sent (OPEN); the close is then a change the update pass sends.
+                    pushedAt[key] = DateTime.MinValue;
+                    var states = cfg[KeyIssuePushedState] as JObject ?? new JObject();
+                    states[key] = AccIssueUpdatePlan.Snapshot.Of(issue.Title, issue.Description, "OPEN").ToJson();
+                    cfg[KeyIssuePushedState] = states;
+                    cfg[KeyIssueMap] = JObject.FromObject(map);
+                    cfg[KeyIssuePushedAt] = PushedAtJson(pushedAt);
+                    conn.ConfigJson = cfg.ToString(Newtonsoft.Json.Formatting.None);
+                    await _db.SaveChangesAsync(CancellationToken.None);
+                    _logger.LogInformation("AccSyncService: closed issue {Code} was created in ACC by an earlier unclear push — linked to {Id}", issue.IssueCode, found);
+                    continue;
+                }
             }
             if (mode == AccClosedSweepPolicy.Mode.Report)
             {
@@ -769,13 +799,14 @@ public class AccSyncService
     }
 
     /// <summary>C10: PATCH mapped Planscape-born issues edited since their last push.</summary>
-    private async Task<(int updated, int diverged, List<string> failures)> PushUpdatesAsync(
+    private async Task<(int updated, int diverged, List<string> failures, int deletedInAcc)> PushUpdatesAsync(
         HttpClient http, PlatformConnection conn, JObject cfg, Dictionary<string, string> map,
         Dictionary<string, DateTime> pushedAt, string? region, CancellationToken ct)
     {
         int updated = 0, diverged = 0;
         var failures = new List<string>();
-        if (map.Count == 0) return (0, 0, failures);
+        int deletedInAcc = 0;
+        if (map.Count == 0) return (0, 0, failures, 0);
 
         var ids = map.Keys.Select(k => Guid.TryParse(k, out var g) ? g : Guid.Empty).Where(g => g != Guid.Empty).ToList();
         var mapped = await _db.Issues.Where(i => i.ProjectId == conn.ProjectId && ids.Contains(i.Id)).ToListAsync(ct);
@@ -803,6 +834,14 @@ public class AccSyncService
                 dirty = true;
                 continue;
             }
+            // S6: the ACC issue no longer exists (the last read-back did not return it). A PATCH
+            // would 404 on every sweep and keep the sync PARTIAL forever, and a status change was
+            // reported as "ACC changed it too". It is counted and said, never PATCHed.
+            if (lastStatus.TryGetValue(accId, out var lastSeen) && string.Equals(lastSeen, NotFoundStatus, StringComparison.Ordinal))
+            {
+                deletedInAcc++;
+                continue;
+            }
             if (issue.UpdatedAt <= at) continue;
 
             var decision = AccIssueUpdatePlan.Plan(prev, issue.Title, issue.Description, issue.Status,
@@ -813,7 +852,13 @@ public class AccSyncService
                 // old (or absent). A status is only sent against ACC's status as it is NOW; if
                 // that cannot be read, the status is withheld and re-tried next sweep.
                 var (nowStatuses, nowErr) = await ReadBackStatusesAsync(http, conn, new List<string> { accId }, region, ct);
-                if (nowStatuses != null && nowStatuses.TryGetValue(accId, out var accNow))
+                if (nowStatuses != null && nowStatuses.TryGetValue(accId, out var accNow)
+                    && string.Equals(accNow, NotFoundStatus, StringComparison.Ordinal))
+                {
+                    deletedInAcc++;   // S6: deleted since the last sweep
+                    continue;
+                }
+                if (nowStatuses != null && nowStatuses.TryGetValue(accId, out accNow))
                     decision = AccIssueUpdatePlan.Plan(prev, issue.Title, issue.Description, issue.Status, accNow);
                 else
                 {
@@ -857,7 +902,7 @@ public class AccSyncService
             conn.ConfigJson = cfg.ToString(Newtonsoft.Json.Formatting.None);
             await _db.SaveChangesAsync(ct);
         }
-        return (updated, diverged, failures);
+        return (updated, diverged, failures, deletedInAcc);
     }
 
     private async Task<(bool ok, string? error)> PatchIssueAsync(
@@ -1086,7 +1131,7 @@ public class AccSyncService
             }
             // Mapped ids ACC no longer returns (deleted, or no longer visible to this grant).
             foreach (var id in accIds)
-                if (!result.ContainsKey(id)) result[id] = "not_found";
+                if (!result.ContainsKey(id)) result[id] = NotFoundStatus;
             return (result, null);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)

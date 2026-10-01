@@ -753,6 +753,87 @@ public partial class AccServerIntegrationTests
         Assert.NotNull(e2);
     }
 
+    // S6: an issue deleted in ACC made every later sync PARTIAL (PATCH 404) for ever, and a status
+    // change against it was reported as "ACC changed it too".
+    [Fact]
+    public async Task An_issue_deleted_in_ACC_is_said_and_never_PATCHed()
+    {
+        var fx = new Fx();
+        await fx.SeedAsync(openIssues: 1);
+        StubAcc(fx.Http, okPosts: 10);
+        ReadBackAs(fx.Http, "open");
+        using (var db = fx.Db()) await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+
+        // ACC deletes it: the id read-back returns nothing for it.
+        var inner = fx.Http.Respond;
+        fx.Http.Respond = (req, x) =>
+        {
+            var url = Uri.UnescapeDataString(req.RequestUri!.ToString());
+            if (req.Method == HttpMethod.Get && url.Contains("filter[id]="))
+                return Json(HttpStatusCode.OK, new { pagination = new { limit = 100, offset = 0, totalResults = 0 }, results = new object[0] });
+            return inner(req, x);
+        };
+        using (var db = fx.Db()) await fx.Service(db).SyncProjectAsync(fx.ProjectId);   // read-back records not_found
+        using (var db = fx.Db())
+        {
+            var i = await db.Issues.SingleAsync();
+            i.Title = "Edited"; i.Status = "CLOSED"; i.UpdatedAt = DateTime.UtcNow.AddMinutes(5);
+            await db.SaveChangesAsync();
+        }
+        fx.Http.Calls.Clear();
+        AccSyncService.AccSyncReport r;
+        using (var db = fx.Db()) r = await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+
+        Assert.DoesNotContain(fx.Http.Calls, c => c.Method == HttpMethod.Patch);
+        Assert.Equal(AccSyncService.StatusOk, r.Status);
+        Assert.Equal(0, r.Diverged);
+        Assert.Contains("no longer exist in ACC", r.Error);
+    }
+
+    // S4: an unclear create whose issue was then closed in Planscape was reported once and never
+    // verified - an issue ACC did create stayed open and unlinked.
+    [Fact]
+    public async Task An_unclear_create_closed_since_is_verified_linked_and_then_closed_in_ACC()
+    {
+        var fx = new Fx();
+        var since = DateTime.UtcNow.AddHours(-2);
+        var issueId = Guid.NewGuid();
+        await fx.SeedAsync(configJson: new JObject
+        {
+            ["accIssueSubtypeId"] = "sub-1",
+            [AccSyncService.KeyIssueSyncSince] = since.ToString("o"),
+            [AccSyncService.KeyIssuePendingVerify] = new JObject { [issueId.ToString()] = DateTime.UtcNow.AddHours(-1).ToString("o") },
+        }.ToString(), openIssues: 0);
+        using (var seed = fx.Db())
+        {
+            seed.Issues.Add(new BimIssue { Id = issueId, TenantId = fx.TenantId, ProjectId = fx.ProjectId, IssueCode = "RFI-0042",
+                Title = "Landed after all", Status = "CLOSED", CreatedAt = DateTime.UtcNow.AddHours(-1), UpdatedAt = DateTime.UtcNow.AddMinutes(-30) });
+            await seed.SaveChangesAsync();
+        }
+        StubAcc(fx.Http, okPosts: 10);
+        var inner = fx.Http.Respond;
+        fx.Http.Respond = (req, x) =>
+        {
+            var url = Uri.UnescapeDataString(req.RequestUri!.ToString());
+            if (req.Method == HttpMethod.Get && url.Contains("filter[createdAt]="))
+                return Json(HttpStatusCode.OK, new { pagination = new { limit = 100, offset = 0, totalResults = 1 },
+                    results = new[] { new { id = "acc-landed", title = "Landed after all", status = "open" } } });
+            if (req.Method == HttpMethod.Get && url.Contains("filter[id]="))
+                return Json(HttpStatusCode.OK, new { pagination = new { limit = 100, offset = 0, totalResults = 1 },
+                    results = new[] { new { id = "acc-landed", status = "open" } } });
+            return inner(req, x);
+        };
+
+        using (var db = fx.Db()) await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+
+        Assert.DoesNotContain(fx.Http.Calls, c => c.Method == HttpMethod.Post && c.Url.EndsWith("/issues"));   // never posted blind
+        var cfg = JObject.Parse((await fx.ReadConnAsync()).ConfigJson!);
+        Assert.Equal("acc-landed", (string?)cfg[AccSyncService.KeyIssueMap]![issueId.ToString()]);
+        Assert.Null(cfg[AccSyncService.KeyIssuePendingVerify]![issueId.ToString()]);
+        var patch = Assert.Single(fx.Http.Calls, c => c.Method == HttpMethod.Patch);                         // the close is sent
+        Assert.Equal("closed", (string?)JObject.Parse(patch.Body!)["status"]);
+    }
+
     // S1: a sync cancelled while a create was in flight (closed browser tab, a redeploy stopping
     // the job) lost the mapping although ACC had the issue, so the next sweep made a duplicate.
     [Fact]
