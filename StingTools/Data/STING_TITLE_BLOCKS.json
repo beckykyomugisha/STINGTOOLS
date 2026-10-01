@@ -10211,8 +10211,8 @@
       "abstract": true,
       "extends": "A1_common_v2.0",
       "replacesInheritedGeometry": true,
-      "description": "A3 landscape working sheet (420 \u00d7 297 mm) \u2014 A2 size; geometry scaled from A3_LAND_common_v2.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).",
-      "templateRft": "Annotations/Titleblocks/A3 metric.rft",
+      "description": "A2 landscape working sheet (594 \u00d7 420 mm); geometry scaled from A3_LAND_common_v2.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).",
+      "templateRft": "Annotations/Titleblocks/A2 metric.rft",
       "drawable": {
         "x": 14.1,
         "y": 106.1,
@@ -10984,8 +10984,8 @@
       "abstract": true,
       "extends": "A1_common_v2.0",
       "replacesInheritedGeometry": true,
-      "description": "A3 portrait working sheet (297 \u00d7 420 mm) \u2014 A2 size; geometry scaled from A3_PORT_common_v2.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).",
-      "templateRft": "Annotations/Titleblocks/A3 metric.rft",
+      "description": "A2 portrait working sheet (420 \u00d7 594 mm); geometry scaled from A3_PORT_common_v2.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).",
+      "templateRft": "Annotations/Titleblocks/A2 metric.rft",
       "drawable": {
         "x": 14.1,
         "y": 106.1,
@@ -17090,7 +17090,7 @@
       "replacesInheritedGeometry": true,
       "description": "Project / package cover sheet \u2014 A0 landscape (1189 \u00d7 841 mm), NO drawable zone (viewport placement deliberately blocked). A0 mirror of STING_TB_COVER_A1_v1.0 with geometry scaled from A1; same identity labels / captions / dark-blue banner + amber strip. Provide a seed at Families/TitleBlocks/_seeds/STING_TB_COVER_A0_v1.0.rfa to carry the full authored layout; TitleBlock_CreateAll augments it from this spec.",
       "saveAs": "Families/TitleBlocks/STING_TB_COVER_A0_v1.0.rfa",
-      "templateRft": "Annotations/Titleblocks/A1 metric.rft",
+      "templateRft": "Annotations/Titleblocks/A0 metric.rft",
       "category": "OST_TitleBlocks",
       "parameters": [
         {
@@ -17384,7 +17384,7 @@
       "replacesInheritedGeometry": true,
       "description": "Project / package cover sheet \u2014 A3 landscape (420 \u00d7 297 mm), NO drawable zone (viewport placement deliberately blocked). A3 mirror of STING_TB_COVER_A1_v1.0 with geometry scaled from A1; same identity labels / captions / dark-blue banner + amber strip. Provide a seed at Families/TitleBlocks/_seeds/STING_TB_COVER_A3_v1.0.rfa to carry the full authored layout; TitleBlock_CreateAll augments it from this spec.",
       "saveAs": "Families/TitleBlocks/STING_TB_COVER_A3_v1.0.rfa",
-      "templateRft": "Annotations/Titleblocks/A1 metric.rft",
+      "templateRft": "Annotations/Titleblocks/A3 metric.rft",
       "category": "OST_TitleBlocks",
       "parameters": [
         {
@@ -17678,7 +17678,7 @@
       "replacesInheritedGeometry": true,
       "description": "Project / package cover sheet \u2014 A2 size; geometry scaled from STING_TB_COVER_A1_v1.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).",
       "saveAs": "Families/TitleBlocks/STING_TB_COVER_A2_v1.0.rfa",
-      "templateRft": "Annotations/Titleblocks/A1 metric.rft",
+      "templateRft": "Annotations/Titleblocks/A2 metric.rft",
       "category": "OST_TitleBlocks",
       "parameters": [
         {
