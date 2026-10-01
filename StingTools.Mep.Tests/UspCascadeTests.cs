@@ -1,5 +1,7 @@
 using System.Linq;
 using StingTools.Core.Validation.Healthcare;
+using StingTools.Standards.ASHRAE170;
+using StingTools.Standards.HTM;
 using Xunit;
 
 namespace StingTools.Mep.Tests
@@ -134,6 +136,18 @@ namespace StingTools.Mep.Tests
                 .Where(c => c.Length >= 2 && c[0] == "ClinicalRoomClass")
                 .Select(c => c[1]).ToList();
             Assert.All(Shipped().Rooms, r => Assert.Contains(r.RoomClass, picklist));
+        }
+
+        // DSCH-36: one owner for PH-CSP air changes / polarity / ΔP — the USP file. The HTM
+        // and ASHRAE 170 tables used to repeat them.
+        [Fact]
+        public void VentilationTablesHoldNoPharmacyRows()
+        {
+            static bool Csp(string k) => k.StartsWith("PH-CSP", System.StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(HTMStandards.MinAchByRoomClass.Keys, Csp);
+            Assert.DoesNotContain(HTMStandards.DesignPressureRegime.Keys, Csp);
+            Assert.DoesNotContain(HTMStandards.DesignDeltaPaPaByRoomClass.Keys, Csp);
+            Assert.DoesNotContain(ASHRAE170Standards.Table71.Keys, Csp);
         }
 
         [Fact]

@@ -46,6 +46,10 @@
     <Compile Include="..\StingTools\Core\Refrigerant\RefrigerantVendorLimits.cs" Link="Linked\RefrigerantVendorLimits.cs" />
     <Compile Include="..\StingTools\Core\Plumbing\WaterSafetyLimits.cs" Link="Linked\WaterSafetyLimits.cs" />
     <Compile Include="..\StingTools\Core\Validation\Healthcare\UspCascade.cs" Link="Linked\UspCascade.cs" />
+    <!-- DSCH-36: the healthcare ventilation tables, so a test can hold that they carry no
+         PH-CSP rows (STING_HC_PHARMACY_USP.json owns those). Revit-free. -->
+    <Compile Include="..\StingTools.Standards\HTM\HTMStandards.cs" Link="Standards\HTMStandards.cs" />
+    <Compile Include="..\StingTools.Standards\ASHRAE170\ASHRAE170Standards.cs" Link="Standards\ASHRAE170Standards.cs" />
   </ItemGroup>
 
 </Project>
