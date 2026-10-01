@@ -1209,6 +1209,9 @@ namespace StingTools.Tags
                 double catOffset = offset;
                 if (scaleMultipliers.TryGetValue(catName, out double scaleMult))
                     catOffset = offset * scaleMult;
+                // DSCH-27: the Tag Studio Scale-tab multipliers (DUCTS / PIPES / EQUIPMENT /
+                // FIXTURES) were saved to project_config.json and never applied.
+                catOffset *= ScaleTiers.GetCategoryMultiplier(ScaleTierCategoryKey.For(catName), doc);
 
                 // Use smart preferred side that considers element orientation
                 int preferred = GetSmartPreferredSide(elem, view);

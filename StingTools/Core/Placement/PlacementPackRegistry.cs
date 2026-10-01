@@ -88,6 +88,7 @@ namespace StingTools.Core.Placement
                     "opt-in two-phase first-fix rules — TwoPhaseBoxPlacer, via a project override",
             };
 
+        // D1: test-oracle - StingTools.Tags.Tests/PlacementPackRegistryTests.cs
         /// <summary>True when the file is a discipline pack merged into every run.</summary>
         public static bool IsAutoMerged(string fileName) =>
             DisciplinePacks.Any(p => string.Equals(p.FileName, fileName, StringComparison.OrdinalIgnoreCase));

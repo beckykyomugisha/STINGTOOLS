@@ -62,16 +62,5 @@ namespace StingTools.Core.Units
 
         public static string PressureSymbol
             => FlowDisplayUnits.Symbol(FlowDisplayUnits.Quantity.Pressure, Imperial);
-
-        /// <summary>Read a value the user typed in the CURRENT display unit and return SI.
-        /// The entry half of the round trip — a field that displays CFM must parse CFM.</summary>
-        public static bool TryParseAirFlow(string text, out double litresPerSecond)
-            => FlowDisplayUnits.TryParseToSi(text, FlowDisplayUnits.Quantity.AirFlow, Imperial, out litresPerSecond);
-
-        public static bool TryParseWaterFlow(string text, out double litresPerSecond)
-            => FlowDisplayUnits.TryParseToSi(text, FlowDisplayUnits.Quantity.WaterFlow, Imperial, out litresPerSecond);
-
-        public static bool TryParsePressure(string text, out double pascals)
-            => FlowDisplayUnits.TryParseToSi(text, FlowDisplayUnits.Quantity.Pressure, Imperial, out pascals);
     }
 }

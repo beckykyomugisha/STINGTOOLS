@@ -1867,9 +1867,6 @@ namespace StingTools.Core
         /// <summary>All universal category display names.</summary>
         public static string[] UniversalCategories { get; private set; } = Array.Empty<string>();
 
-        // ── Discipline bindings (Pass 2): param → category enums ────────
-        private static Dictionary<string, string[]> _disciplineCategoryNames;
-
         // ════════════════════════════════════════════════════════════════
         // Public API
         // ════════════════════════════════════════════════════════════════
@@ -1953,24 +1950,6 @@ namespace StingTools.Core
                     result.AddRange(specific);
                 return result.ToArray();
             });
-        }
-
-        /// <summary>Get category display names for a discipline-specific parameter.</summary>
-        public static string[] GetCategoryNamesForParam(string paramName)
-        {
-            EnsureLoaded();
-            if (_disciplineCategoryNames != null && _disciplineCategoryNames.TryGetValue(paramName, out string[] cats))
-                return cats;
-            return Array.Empty<string>();
-        }
-
-        /// <summary>Resolve token preset name to index array. Returns raw indices if not a preset name.</summary>
-        public static int[] ResolveTokenPreset(string presetOrRaw)
-        {
-            EnsureLoaded();
-            if (TokenPresets.TryGetValue(presetOrRaw, out int[] preset))
-                return preset;
-            return Array.Empty<int>();
         }
 
         /// <summary>
@@ -2423,10 +2402,6 @@ namespace StingTools.Core
                 BuildUniversalParams(root);
                 StingLog.Info($"ParamRegistry.LoadFromFile: {UniversalParams?.Length ?? 0} universal params");
 
-                // Build discipline category name mappings
-                StingLog.Info("ParamRegistry.LoadFromFile: building discipline category names");
-                BuildDisciplineCategoryNames();
-
                 // CRASH FIX: Build _allContainers here instead of lazily in the AllContainers
                 // property. The old code used AllContainers.Length in the success log line below,
                 // which called EnsureLoaded() — but _loaded is still false at this point, causing
@@ -2829,17 +2804,6 @@ namespace StingTools.Core
                 }
             }
             UniversalParams = list.Distinct().ToArray();
-        }
-
-        private static void BuildDisciplineCategoryNames()
-        {
-            _disciplineCategoryNames = new Dictionary<string, string[]>(StringComparer.Ordinal);
-            foreach (var group in ContainerGroups)
-            {
-                if (group.Categories == null) continue;
-                foreach (var param in group.Params)
-                    _disciplineCategoryNames[param.ParamName] = group.Categories;
-            }
         }
 
         private static void BuildCategoryIndex()

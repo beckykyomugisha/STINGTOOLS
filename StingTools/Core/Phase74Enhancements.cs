@@ -2,7 +2,6 @@
 // Phase74Enhancements.cs — Deep Review Fixes & Automation Enhancements
 //
 // Implements fixes and enhancements from 5-agent deep review:
-//   1. ModelCreationValidator     — Post-creation acoustic/MEP/structural checks
 //   2. WarningPredictionEngine    — Trend-based warning prediction
 //   3. DeliverableTracker         — Milestone deliverable matrix
 //   4. ViewScheduleLinkEngine     — View↔Schedule cross-referencing
@@ -29,108 +28,6 @@ using Newtonsoft.Json;
 
 namespace StingTools.Core
 {
-    // ════════════════════════════════════════════════════════════════
-    //  MODEL CREATION VALIDATOR — Post-creation checks (Agent 1 INT-01..03)
-    // ════════════════════════════════════════════════════════════════
-
-    internal static class ModelCreationValidator
-    {
-        /// <summary>Run post-creation validation for newly created elements.</summary>
-        public static List<string> ValidateCreatedElements(Document doc, List<ElementId> createdIds)
-        {
-            var warnings = new List<string>();
-            if (createdIds == null || createdIds.Count == 0) return warnings;
-
-            foreach (var id in createdIds)
-            {
-                try
-                {
-                    var el = doc.GetElement(id);
-                    if (el == null) continue;
-
-                    string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
-
-                    // INT-01: Acoustic check for walls
-                    if (catName.Contains("Wall"))
-                    {
-                        var host = el as HostObject;
-                        if (host != null)
-                        {
-                            var layers = Model.AcousticAnalysisOrchestrator.ExtractAcousticLayers(doc, host);
-                            if (layers.Count > 0)
-                            {
-                                double rw = Model.SoundInsulationChecker.CalculateRwComposite(layers);
-                                if (rw < 45.0)
-                                    warnings.Add($"Wall {el.Name}: Rw={rw:F0}dB < 45dB (Approved Document E minimum). Add mass or decouple.");
-                            }
-                        }
-                    }
-
-                    // INT-02: MEP velocity check for ducts/pipes
-                    if (catName.Contains("Duct"))
-                    {
-                        var flowP = el.get_Parameter(BuiltInParameter.RBS_DUCT_FLOW_PARAM);
-                        var widthP = el.get_Parameter(BuiltInParameter.RBS_CURVE_WIDTH_PARAM);
-                        var heightP = el.get_Parameter(BuiltInParameter.RBS_CURVE_HEIGHT_PARAM);
-                        if (flowP != null && widthP != null && heightP != null)
-                        {
-                            // Revit stores duct flow in ft³/s internally.
-                            // 1 ft³/s = 0.0283168 m³/s (NOT 0.000471947 which is CFM→m³/s)
-                            double flowM3s = flowP.AsDouble() * 0.0283168;
-                            double wMm = widthP.AsDouble() * 304.8;
-                            double hMm = heightP.AsDouble() * 304.8;
-                            double area = (wMm / 1000.0) * (hMm / 1000.0);
-                            double velocity = area > 0 ? flowM3s / area : 0;
-                            if (velocity > 6.0)
-                                warnings.Add($"Duct {el.Name}: velocity {velocity:F1} m/s > 6.0 m/s (CIBSE Guide C limit). Increase duct size.");
-                            else if (velocity > 0 && velocity < 2.0)
-                                warnings.Add($"Duct {el.Name}: velocity {velocity:F1} m/s < 2.0 m/s — oversized, consider reducing.");
-                        }
-                    }
-
-                    if (catName.Contains("Pipe"))
-                    {
-                        var flowP = el.get_Parameter(BuiltInParameter.RBS_PIPE_FLOW_PARAM);
-                        var diamP = el.get_Parameter(BuiltInParameter.RBS_PIPE_DIAMETER_PARAM);
-                        if (flowP != null && diamP != null)
-                        {
-                            double diamM = diamP.AsDouble() * 0.3048;
-                            // Revit stores pipe flow in ft³/s internally.
-                            // 1 ft³/s = 0.0283168 m³/s. Velocity = flow(m³/s) / area(m²).
-                            double flowM3s = flowP.AsDouble() * 0.0283168;
-                            double area = Math.PI * diamM * diamM / 4.0;
-                            double velocity = area > 0 ? flowM3s / area : 0;
-                            double maxV = diamM * 1000 < 50 ? 1.5 : 3.0;
-                            if (velocity > maxV)
-                                warnings.Add($"Pipe {el.Name}: velocity {velocity:F1} m/s > {maxV:F1} m/s. Increase pipe diameter.");
-                        }
-                    }
-
-                    // INT-03: Structural beam — check if needs LTB restraint
-                    if (catName.Contains("Framing") || catName.Contains("Beam"))
-                    {
-                        var loc = el.Location as LocationCurve;
-                        if (loc?.Curve is Line line)
-                        {
-                            double spanMm = line.Length * 304.8;
-                            if (spanMm > 6000) // >6m spans may need intermediate restraint
-                                warnings.Add($"Beam {el.Name}: span {spanMm:F0}mm > 6m — verify lateral-torsional buckling restraint per EC3 §6.3.2.");
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"ModelCreationValidator el {id}: {ex.Message}");
-                }
-            }
-
-            if (warnings.Count > 0)
-                StingLog.Info($"ModelCreationValidator: {warnings.Count} post-creation warnings");
-
-            return warnings;
-        }
-    }
-
     // ════════════════════════════════════════════════════════════════
     //  WARNING PREDICTION ENGINE — Trend-based (Agent 3 WM-04)
     // ════════════════════════════════════════════════════════════════

@@ -128,19 +128,6 @@ namespace StingTools.Core.Plumbing
             }
         }
 
-        /// <summary>
-        /// Returns true when the updater is currently registered and enabled.
-        /// The doc parameter is accepted for call-site compatibility but is not used.
-        /// </summary>
-        public static bool IsRegistered(Document doc = null)
-        {
-            try
-            {
-                return UpdaterRegistry.IsUpdaterRegistered(_updaterId);
-            }
-            catch { return false; }
-        }
-
         // ── Core sizing logic ─────────────────────────────────────────────
 
         private static void SizeSinglePipe(Document doc, ElementId eid, string code)

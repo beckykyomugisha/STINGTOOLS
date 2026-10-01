@@ -166,14 +166,6 @@ namespace StingTools.Core.Drawing
             return false;
         }
 
-        /// <summary>Read-only provisioning check (no transaction needed): is the
-        /// concrete family present — either already loaded in the document, or a
-        /// built .rfa on disk under Families/TitleBlocks/ that the producer would
-        /// lazy-load on demand? Used by DrawingTypeValidator to distinguish
-        /// "not built" (needs TitleBlock_CreateAll) from "built but not loaded".</summary>
-        public static bool IsProvisioned(Document doc, string familyName)
-            => IsLoadedTitleBlock(doc, familyName) || BuiltRfaExists(doc, familyName);
-
         /// <summary>True when a built .rfa for the family exists on disk.</summary>
         public static bool BuiltRfaExists(Document doc, string familyName)
         {

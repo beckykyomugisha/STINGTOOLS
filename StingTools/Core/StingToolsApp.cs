@@ -695,7 +695,12 @@ namespace StingTools.Core
         /// Elements skipped during auto-tagging due to workset ownership are retried here.</summary>
         private static void OnDocumentSynchronizedWithCentral(object sender,
             Autodesk.Revit.DB.Events.DocumentSynchronizedWithCentralEventArgs e)
-            => RetryAfterCentralRefresh(e.Document, "sync-to-central");
+        {
+            RetryAfterCentralRefresh(e.Document, "sync-to-central");
+            // ED-03 (DSCH-27): workset ownership is current after a sync; record who
+            // checked out or released a workset since the last sync in team activity.
+            WorksetChangeNotifier.CheckWorksetChanges(e.Document);
+        }
 
         /// <summary>
         /// TAGACC-17: Reload Latest also brings in other users' SEQ counters and tags, so it
@@ -1550,6 +1555,7 @@ namespace StingTools.Core
                     int warnCount = doc.GetWarnings()?.Count ?? 0;
                     briefing.AppendLine($"\nModel Warnings: {warnCount}");
                     if (warnCount > 100) { briefing.AppendLine("  (HIGH warning count — run Warnings Auto-Fix)"); hasAlerts = true; }
+                    WorkflowScheduler.CheckWarningThresholdTriggers(doc, warnCount);
                 }
                 catch (Exception wEx) { StingLog.Warn($"Morning briefing warnings: {wEx.Message}"); }
 
@@ -2085,6 +2091,13 @@ namespace StingTools.Core
             try { Planscape.Docs.Workflow.AuditLog.Shutdown(); }
             catch (Exception ex) { StingLog.Warn($"AuditLog shutdown: {ex.Message}"); }
             StingMcpServer.Stop();
+            // DSCH-27: with PERF_TRACKING_ENABLED the tracker collected timings that
+            // nothing ever showed. Write the session report to the log before closing it.
+            if (PerformanceTracker.Enabled)
+            {
+                try { StingLog.Info(PerformanceTracker.GetReport()); }
+                catch (Exception ex) { StingLog.Warn($"PerformanceTracker report: {ex.Message}"); }
+            }
             StingLog.Shutdown();
             return Result.Succeeded;
         }

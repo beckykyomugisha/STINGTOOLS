@@ -57,11 +57,13 @@ namespace StingTools.Core
         /// <summary>
         /// Phase 165 — per-category multiplier lookup. Returns 1.0 for missing
         /// keys so callers can multiply unconditionally. Known keys: "DUCTS",
-        /// "PIPES", "EQUIPMENT", "FIXTURES" (matching the Tag Studio Scale tab).
+        /// "PIPES", "EQUIPMENT", "FIXTURES" (matching the Tag Studio Scale tab;
+        /// <see cref="ScaleTierCategoryKey"/> maps a Revit category to its key).
+        /// Smart Tag Placement multiplies each category's base offset by it.
         /// </summary>
-        public static double GetCategoryMultiplier(string categoryKey)
+        public static double GetCategoryMultiplier(string categoryKey, Document doc = null)
         {
-            EnsureLoaded(null);
+            EnsureLoaded(doc);
             if (string.IsNullOrEmpty(categoryKey)) return 1.0;
             return _cachedMultipliers.TryGetValue(categoryKey, out double m) && m > 0 ? m : 1.0;
         }

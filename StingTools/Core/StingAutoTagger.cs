@@ -66,52 +66,6 @@ namespace StingTools.Core
         private static List<Temp.FormulaEngine.FormulaDefinition> _formulas;
         private static List<Grid> _gridLines;
 
-        // Token hash cache to skip redundant TAG7 rebuilds
-        private static readonly System.Collections.Concurrent.ConcurrentDictionary<long, string>
-            _tag7HashCache = new System.Collections.Concurrent.ConcurrentDictionary<long, string>();
-
-        // A-6: bounded LRU eviction for _tag7HashCache to prevent unbounded
-        // memory growth in long sessions. Mirrors the _elementVersionHash
-        // 20%-eviction pattern (~lines 790-802) — once the cache exceeds
-        // _tag7CacheCap entries, the oldest 20% are dropped.
-        private const int _tag7CacheCap = 10000;
-
-        /// <summary>
-        /// A-6: store a TAG7 hash for an element id. Performs the same
-        /// 20%-eviction-at-cap dance used elsewhere so callers don't have to.
-        /// </summary>
-        public static void StoreTag7Hash(long elementId, string hash)
-        {
-            if (string.IsNullOrEmpty(hash)) return;
-            _tag7HashCache[elementId] = hash;
-
-            if (_tag7HashCache.Count > _tag7CacheCap)
-            {
-                int original = _tag7HashCache.Count;
-                int target = original / 5;
-                int evicted = 0;
-                foreach (var kvp in _tag7HashCache)
-                {
-                    if (evicted >= target) break;
-                    _tag7HashCache.TryRemove(kvp.Key, out _);
-                    evicted++;
-                }
-                StingLog.Info($"_tag7HashCache: evicted {evicted} of {original} entries (cap {_tag7CacheCap}).");
-            }
-        }
-
-        /// <summary>A-6: read a previously cached TAG7 hash; returns null when absent.</summary>
-        public static string TryGetTag7Hash(long elementId)
-        {
-            if (_tag7HashCache.TryGetValue(elementId, out var h))
-            {
-                StingLog.RecordHit(StingLog.CacheKind.Tag7Hash); // E-1
-                return h;
-            }
-            StingLog.RecordMiss(StingLog.CacheKind.Tag7Hash); // E-1
-            return null;
-        }
-
         // ExternalEvent queue for deferred tag processing
         private static readonly ConcurrentQueue<ElementId> _pendingQueue = new ConcurrentQueue<ElementId>();
         private static ExternalEvent _autoTagEvent;
@@ -271,7 +225,6 @@ namespace StingTools.Core
         public static void InvalidateContext()
         {
             _contextInvalid = true;
-            _tag7HashCache.Clear();
             // Do NOT clear _elementVersionHash here — it tracks geometry changes
             // for stale detection, not tag state. Clearing it causes ALL previously-marked
             // elements to be re-marked as stale on their next modification even if nothing changed.
@@ -856,8 +809,7 @@ namespace StingTools.Core
 
                                     if (_recentlyProcessed.Count > 10000)
                                     {
-                                        // Evict oldest 20% (2000 of 10000) — matches the
-                                        // _tag7HashCache 20%-eviction pattern for consistency.
+                                        // Evict oldest 20% (2000 of 10000).
                                         int toRemove = 2000;
                                         while (toRemove-- > 0 && _recentlyProcessedQueue.Count > 0)
                                         {

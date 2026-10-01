@@ -225,6 +225,7 @@ namespace StingTools.Core.Drawing
                 { "WASTE-FLOW", "Healthcare — chosen by id." }, { "WASTE_FLOW", "Healthcare — chosen by id." },
             };
 
+        // D1: test-oracle - StingTools.Tags.Tests/DrawingRouteRequestsTests.cs
         /// <summary>True when some command asks the routing table for <paramref name="docType"/>.</summary>
         public static bool IsRequested(string docType)
         {

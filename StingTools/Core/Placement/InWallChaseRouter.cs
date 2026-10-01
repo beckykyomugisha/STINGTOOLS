@@ -274,10 +274,14 @@ namespace StingTools.Core.Placement
                     {
                         double pipeOdMm = (rule.NominalDiameterMm > 0 ? rule.NominalDiameterMm
                                           : rule.BoxDepthMm > 0 ? rule.BoxDepthMm : 22.0);
-                        double coverMm = string.Equals(rule.MountingContext, "CHASED", StringComparison.OrdinalIgnoreCase)
+                        bool chased = string.Equals(rule.MountingContext, "CHASED", StringComparison.OrdinalIgnoreCase);
+                        double coverMm = chased
                             ? StingTools.Core.Calc.ConcreteCoverTable.GetNominalCoverMm(rule.ExposureClass)
                             : 25.0;
-                        double minClearFt = (coverMm + pipeOdMm * 0.5) / 304.8;
+                        // DSCH-27: cover + OD/2 has one owner, ConcreteCoverTable, for a chased run.
+                        double minClearFt = (chased
+                            ? StingTools.Core.Calc.ConcreteCoverTable.GetPipeOffsetFromFaceMm(pipeOdMm, rule.ExposureClass)
+                            : coverMm + pipeOdMm * 0.5) / 304.8;
                         bool rebarClash = false;
                         foreach (var rebarCurve in _rebarCache)
                         {

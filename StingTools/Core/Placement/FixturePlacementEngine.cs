@@ -441,6 +441,11 @@ namespace StingTools.Core.Placement
                 {
                     CurrentPhase = "Pre-flight: first-fix box placement";
                     var swFf = System.Diagnostics.Stopwatch.StartNew();
+                    // DSCH-27: the pre-flight existed but had no caller, so a project without
+                    // the box-location shared parameter got first-fix boxes that second fix
+                    // could not pair, and no word about why. It now warns in the result.
+                    try { TwoPhaseBoxPlacer.ValidateSharedParams(doc, ordered, result.Warnings); }
+                    catch (Exception ex) { result.Warnings.Add($"Two-phase pre-flight: {ex.Message}"); }
                     try { firstFixIndex = TwoPhaseBoxPlacer.PlaceFirstFixBoxes(doc, roomIds, ordered, result); }
                     catch (Exception ex) { result.Warnings.Add($"Two-phase first-fix: {ex.Message}"); }
                     StingLog.Info($"FixturePlacementEngine: PlaceFirstFixBoxes done in {swFf.ElapsedMilliseconds} ms ({firstFixIndex?.Count ?? 0} boxes).");
