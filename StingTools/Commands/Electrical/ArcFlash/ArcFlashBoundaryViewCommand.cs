@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using Newtonsoft.Json.Linq;
 using StingTools.Core;
 
 namespace StingTools.Commands.Electrical.ArcFlash
@@ -15,8 +13,9 @@ namespace StingTools.Commands.Electrical.ArcFlash
     /// active plan view, sized to its arc-flash boundary distance
     /// (ELC_ARC_FLASH_BOUNDARY_MM parameter, populated by ArcFlashCommand
     /// — accessed via the ParamRegistry alias for canonical resolution).
-    /// Colour-codes red/orange/yellow/green by PPE category for instant
-    /// safety-zone awareness on installation drawings. Boundaries are
+    /// Colours each circle by its incident-energy band (STING_ARC_FLASH_PPE.json
+    /// energyBands — presentation, not a PPE category; DSCH-25). When that file does not
+    /// load, the circles are drawn uncoloured and the dialog says why. Boundaries are
     /// IEEE 1584-2018 values (<see cref="ArcFlashEngine.Basis"/>).
     /// </summary>
     [Transaction(TransactionMode.Manual)]
@@ -46,6 +45,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 return Result.Cancelled;
             }
 
+            var presentation = ArcFlashPresentation.Current;
             int drawn = 0, skipped = 0;
             using (var tx = new Transaction(doc, "STING Arc Flash Boundary Circles"))
             {
@@ -54,13 +54,13 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 {
                     try
                     {
-                        // Canonical via ParamRegistry: ELC_ARC_FLASH_BOUNDARY_MM
-                        // and ELC_ARC_FLASH_PPE_CAT. ParamRegistry.ELC_ARC_FLASH_BD /
-                        // _PPE alias these so the lookup matches whichever schema
-                        // version the project ships.
+                        // Canonical via ParamRegistry: ELC_ARC_FLASH_BOUNDARY_MM and
+                        // ELC_ARC_FLASH_IE_CAL_CM2. The band is taken from the incident
+                        // energy, not from ELC_ARC_FLASH_PPE_CAT (which holds the band's
+                        // label text since DSCH-25).
                         double bdMm = ParseDouble(panel.LookupParameter(ParamRegistry.ELC_ARC_FLASH_BD)?.AsString());
                         if (bdMm <= 0) { skipped++; continue; }   // "N/A" = not calculated -> no circle
-                        int ppe = (int)ParseDouble(panel.LookupParameter(ParamRegistry.ELC_ARC_FLASH_PPE)?.AsString());
+                        double ieCal = ParseDouble(panel.LookupParameter(ParamRegistry.ELC_ARC_FLASH_IE)?.AsString());
                         XYZ origin = (panel.Location as LocationPoint)?.Point;
                         if (origin == null) { skipped++; continue; }
                         double bdFt = bdMm / 304.8;
@@ -75,9 +75,11 @@ namespace StingTools.Commands.Electrical.ArcFlash
                         Plane plane = Plane.CreateByNormalAndOrigin(n, centre);
                         Arc arc = Arc.Create(plane, bdFt, 0, 2 * Math.PI);
                         var circle = doc.Create.NewDetailCurve(view, arc);
-                        // Colour the curve by PPE category via override
+                        // Colour the curve by incident-energy band via override.
+                        var band = ieCal > 0 ? presentation.BandFor(ieCal) : null;
                         var ogs = new OverrideGraphicSettings();
-                        ogs.SetProjectionLineColor(PpeColor(ppe));
+                        if (band != null)
+                            ogs.SetProjectionLineColor(new Color(band.ViewColour.R, band.ViewColour.G, band.ViewColour.B));
                         ogs.SetProjectionLineWeight(5);
                         view.SetElementOverrides(circle.Id, ogs);
                         drawn++;
@@ -90,72 +92,13 @@ namespace StingTools.Commands.Electrical.ArcFlash
             TaskDialog.Show("STING Arc Flash Boundary",
                 $"Drew {drawn} boundary circle(s) on {view.Name}.\n" +
                 $"Skipped {skipped} (not calculated, no boundary value or no location).\n" +
-                $"Boundaries are {ArcFlashEngine.BasisShort} - verify with a licensed study.\n\n" +
+                $"Boundaries are {ArcFlashEngine.BasisShort} - verify with a licensed study.\n" +
+                (presentation.Loaded
+                    ? "Colour = incident-energy band (presentation only, not a PPE category).\n\n"
+                    : $"CIRCLES NOT COLOURED: {presentation.LoadError}\n\n") +
                 "Run Elec_ClearOverrides on this view to remove the colour overrides; " +
                 "delete the detail curves manually if you want to clear the geometry.");
             return Result.Succeeded;
-        }
-
-        private static Color PpeColor(int ppe)
-        {
-            var (r, g, b) = PpeRgb(ppe);
-            return new Color(r, g, b);
-        }
-
-        // Built-in colours by PPE category; STING_ARC_FLASH_PPE.json ppeCategories[].colour
-        // is used only when every category's colour matches these (see PpeRgb).
-        private static (byte r, byte g, byte b) BuiltInPpeRgb(int ppe) => ppe switch
-        {
-            < 0  => ((byte)183, (byte)28,  (byte)28),    // dark red - exceeds 40 cal/cm2 (was drawn green)
-            >= 4 => ((byte)244, (byte)67,  (byte)54),    // red
-            3    => ((byte)255, (byte)87,  (byte)34),    // deep orange
-            2    => ((byte)255, (byte)152, (byte)0),     // orange
-            1    => ((byte)255, (byte)235, (byte)59),    // yellow
-            _    => ((byte)76,  (byte)175, (byte)80)     // green
-        };
-
-        private static readonly Lazy<Dictionary<int, (byte r, byte g, byte b)>> _dataRgb =
-            new Lazy<Dictionary<int, (byte r, byte g, byte b)>>(LoadDataRgb);
-
-        private static (byte r, byte g, byte b) PpeRgb(int ppe)
-        {
-            var data = _dataRgb.Value;
-            int key = ppe < 0 ? -1 : Math.Min(ppe, 4);
-            return data != null && data.TryGetValue(key, out var c) ? c : BuiltInPpeRgb(ppe);
-        }
-
-        /// <summary>The data colours when they all agree with the built-in ones, else null
-        /// (the built-in colours stand and the difference is logged once).</summary>
-        private static Dictionary<int, (byte r, byte g, byte b)> LoadDataRgb()
-        {
-            try
-            {
-                string path = StingToolsApp.FindDataFile("STING_ARC_FLASH_PPE.json");
-                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
-                var arr = JObject.Parse(File.ReadAllText(path))["ppeCategories"] as JArray;
-                if (arr == null) return null;
-                var map = new Dictionary<int, (byte r, byte g, byte b)>();
-                var diffs = new List<string>();
-                foreach (var row in arr.OfType<JObject>())
-                {
-                    if (row["cat"]?.Type != JTokenType.Integer) continue;
-                    int cat = row["cat"].Value<int>();
-                    string hex = (row["colour"]?.ToString() ?? "").Trim().TrimStart('#');
-                    if (hex.Length != 6 || !int.TryParse(hex, System.Globalization.NumberStyles.HexNumber,
-                            System.Globalization.CultureInfo.InvariantCulture, out int rgb))
-                    { diffs.Add($"cat {cat}: unreadable colour '{row["colour"]}'"); continue; }
-                    var c = ((byte)(rgb >> 16), (byte)((rgb >> 8) & 0xFF), (byte)(rgb & 0xFF));
-                    var bi = BuiltInPpeRgb(cat);
-                    if (c != bi) diffs.Add($"cat {cat}: data #{hex.ToUpperInvariant()} vs built-in #{bi.r:X2}{bi.g:X2}{bi.b:X2}");
-                    map[cat] = c;
-                }
-                if (diffs.Count == 0) return map;
-                StingLog.WarnRateLimited("ArcFlashBoundaryView.PpeColours",
-                    "STING_ARC_FLASH_PPE.json ppeCategories colours differ from the built-in boundary colours (" +
-                    string.Join("; ", diffs) + "); the built-in colours are used.");
-            }
-            catch (Exception ex) { StingLog.Warn($"ArcFlashBoundaryView PPE colours: {ex.Message}"); }
-            return null;
         }
 
         private static double ParseDouble(string s) =>

@@ -1,15 +1,30 @@
 {
-  "_comment": "NFPA 70E Table 130.5(G) PPE categories + default IEEE 1584-2018 calculation parameters.",
-  "_standard": "NFPA 70E-2021 / IEEE 1584-2018",
-  "_note": "ppeCategories is read by ArcFlashEngine (category thresholds) and ArcFlashBoundaryViewCommand (boundary colours); each is used only where it matches the built-in values, otherwise the built-in values stand and the difference is logged. Working distance and bus gap are not taken from this file: the engine uses the IEEE 1584 per-equipment-class Table values, which the former workingDistances / busGapByVoltage lists contradicted.",
-  "defaultClearingMs": 100,
-  "defaultBusGapMm": 32,
-  "ppeCategories": [
-    { "cat": 0, "maxCalCm2": 1.2,  "description": "PPE Category 0 — Arc-rated face shield, safety glasses",  "colour": "#00C850" },
-    { "cat": 1, "maxCalCm2": 4.0,  "description": "PPE Category 1 — Arc-rated jacket, balaclava",           "colour": "#C8C800" },
-    { "cat": 2, "maxCalCm2": 8.0,  "description": "PPE Category 2 — Arc-rated suit 8 cal/cm² minimum",      "colour": "#C88000" },
-    { "cat": 3, "maxCalCm2": 25.0, "description": "PPE Category 3 — Arc-rated suit 25 cal/cm² minimum",     "colour": "#C84000" },
-    { "cat": 4, "maxCalCm2": 40.0, "description": "PPE Category 4 — Arc-rated suit 40 cal/cm² minimum",     "colour": "#C80000" },
-    { "cat": -1,"maxCalCm2": 9999, "description": "DANGER — Exceeds Category 4. Engineering controls required.", "colour": "#800000" }
-  ]
+  "_comment": "Arc-flash PRESENTATION only (DSCH-25): the on-model colour of each incident-energy band and the printed label's ANSI Z535.4 signal-word header. Nothing in this file selects PPE: StingTools is not for specifying PPE without a licensed arc-flash study.",
+  "_owner": "The ONLY copy of these values. Read by ArcFlashPresentation (ArcFlashEngine.FormatLabel, ArcFlashCommand, ArcFlashBoundaryViewCommand, ArcFlashLabelSheetCommand). A missing or invalid file is reported to the user and nothing is coloured; there is no built-in fallback.",
+  "_bands": "Incident-energy bands, ascending; the last has maxCalCm2 null (unbounded). The edges are 1.2 cal/cm2 (5 J/cm2, the arc-flash boundary energy, IEEE 1584 / NFPA 70E) and 4 / 8 / 25 / 40 cal/cm2 (the arc ratings of the NFPA 70E PPE categories). Using them as incident-energy bands is industry practice for colouring, NOT the NFPA 70E PPE category method (130.7(C)(15)), which is table-based and may not be combined with incident energy on a label (130.5(H)). No standard assigns colours to these bands: viewColour is a STING presentation choice. The lowest band is grey, never green - energised equipment is not 'safe'.",
+  "_labelHeader": "Printed label header per ANSI Z535.4 signal words: WARNING (black on safety orange) by default; DANGER (white on safety red) when incident energy is ABOVE dangerAboveCalCm2. Set dangerAboveCalCm2 to null for WARNING on every label - practice is split on whether arc-flash labels should ever use DANGER.",
+  "energyBands": [
+    { "maxCalCm2": 1.2,  "label": "≤ 1.2 cal/cm²",  "viewColour": "#9E9E9E" },
+    { "maxCalCm2": 4.0,  "label": "1.2–4 cal/cm²",  "viewColour": "#FFEB3B" },
+    { "maxCalCm2": 8.0,  "label": "4–8 cal/cm²",    "viewColour": "#FF9800" },
+    { "maxCalCm2": 25.0, "label": "8–25 cal/cm²",   "viewColour": "#FF5722" },
+    { "maxCalCm2": 40.0, "label": "25–40 cal/cm²",  "viewColour": "#F44336" },
+    { "maxCalCm2": null, "label": "> 40 cal/cm²",   "viewColour": "#B71C1C" }
+  ],
+  "labelHeader": {
+    "dangerAboveCalCm2": 40,
+    "verify": "40 cal/cm2 follows the NFPA 70E informational note on the upper limit where de-energising should be emphasised; confirm its clause number in the 2024 edition. Whether to use DANGER at all is a licensed professional's call.",
+    "warning": {
+      "signalWord": "WARNING",
+      "background": "#FF8200",
+      "text": "#000000",
+      "verify": "Safety orange sRGB approximation (Pantone 151C); confirm against ANSI Z535.1."
+    },
+    "danger": {
+      "signalWord": "DANGER",
+      "background": "#C8102E",
+      "text": "#FFFFFF",
+      "verify": "Safety red sRGB approximation (Pantone 186C); confirm against ANSI Z535.1."
+    }
+  }
 }

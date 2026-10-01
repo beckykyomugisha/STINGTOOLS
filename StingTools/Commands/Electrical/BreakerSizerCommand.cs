@@ -63,6 +63,8 @@ namespace StingTools.Commands.Electrical
                 ? "NEC 240.6(A) ratings" + (opts.ContinuousFactor ? ", ×1.25 continuous (210.20(A))" : "")
                 : "BS 7671 Reg 433.1.1: Ib ≤ In ≤ Iz (no ×1.25 continuous factor — that is an NEC rule)";
             StingLog.Info($"BreakerSizer: {proposals.Count} proposal(s), {blocked.Count} blocked ({opts.Standard}).");
+            string loadError = VoltageDropEngine.BreakerSizesLoadError;
+            if (loadError != null) head = "RATING DATA PROBLEM: " + loadError + "\n\n" + head;
             PresetDialog.Show("STING Breaker Sizing",
                 $"{head}\n\nComputed proposals for {proposals.Count} circuit(s). " +
                 $"{blocked.Count} will NOT be applied (device larger than the cable can carry, or no rating large enough):\n" +
@@ -149,6 +151,8 @@ namespace StingTools.Commands.Electrical
                         var sel = StingTools.Core.Electrical.ProtectiveDeviceSelection.Select(
                             iA, useNec, continuous, ratings, iz, izBasis);
                         string note = sel.Note;
+                        if (ratings.Length == 0)
+                            note = "rating list not loaded: " + (VoltageDropEngine.BreakerSizesLoadError ?? "empty list");
                         if (!useNec && !iz.HasValue && !string.IsNullOrEmpty(izBasis))
                             note = (string.IsNullOrEmpty(note) ? "" : note + "; ") + "In ≤ Iz not checked: " + izBasis;
 

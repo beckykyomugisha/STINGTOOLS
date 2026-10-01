@@ -260,6 +260,16 @@ namespace StingTools.Commands.Electrical.CableSizer
             return CalculateBs7671(input, result, iB, tables);
         }
 
+        private static CableSizeResult RefuseRatings(CableSizeResult result, string device)
+        {
+            result.Sized = false;
+            result.RecommendedCsaMm2 = 0;
+            result.Warning = $"{device} ratings not loaded — not sized. " +
+                             (VoltageDropEngine.BreakerSizesLoadError ?? "The rating list is empty.");
+            StingLog.Warn("CableSizerEngine (BS 7671): " + result.Warning);
+            return result;
+        }
+
         /// <summary>
         /// BS 7671 (and IEC 60364 via the harmonised Appendix 4) sizing on the tabulated
         /// capacities — see <see cref="Bs7671CableSizer"/>. ELEC-3: replaced an uncited
@@ -269,13 +279,20 @@ namespace StingTools.Commands.Electrical.CableSizer
         internal static CableSizeResult CalculateBs7671(CableSizeInput input, CableSizeResult result,
             double iB, Bs7671Data data)
         {
-            bool mccb = iB > VoltageDropEngine.BreakerSizesBSMCB[VoltageDropEngine.BreakerSizesBSMCB.Length - 1];
             // A semi-enclosed fuse circuit picks In from the BS 3036 ratings and is labelled
             // as one. It used to take In from the MCB list and call it an MCB while still
             // applying the BS 3036 Cf = 0.725 — a device that is neither.
             bool semi = input.SemiEnclosedFuse;
+            // The MCB / MCCB lists come only from STING_WIRE_TABLES.json (DSCH-25). A list
+            // that did not load is empty: refuse and say why, rather than pick a device.
+            int[] mcbList = VoltageDropEngine.BreakerSizesBSMCB;
+            if (!semi && mcbList.Length == 0)
+                return RefuseRatings(result, "BS EN 60898 MCB");
+            bool mccb = !semi && iB > mcbList[mcbList.Length - 1];
             int[] ratings = semi ? ProtectiveDeviceSelection.Bs3036SemiEnclosedFuseRatingsA
-                          : mccb ? VoltageDropEngine.BreakerSizesBSMCCB : VoltageDropEngine.BreakerSizesBSMCB;
+                          : mccb ? VoltageDropEngine.BreakerSizesBSMCCB : mcbList;
+            if (ratings.Length == 0)
+                return RefuseRatings(result, "BS EN 60947-2 MCCB");
             string deviceLabel = semi ? ProtectiveDeviceSelection.Bs3036Label
                                : mccb ? "BS EN 60947-2 MCCB" : "BS EN 60898 MCB";
             var bs = Bs7671CableSizer.Size(new Bs7671SizingInput
@@ -396,8 +413,19 @@ namespace StingTools.Commands.Electrical.CableSizer
                 result.CsaLabel = $"{NecSizeLabel(awg)} {input.Material}/{input.Insulation}";
                 result.Sized = true;
 
-                // 240.6(A) standard rating, then the 240.4(D) small-conductor ceiling.
-                int breaker = StingTools.Standards.NEC2023.NECStandards.GetStandardBreakerSize(sizingCurrent);
+                // 240.6(A) standard rating (STING_WIRE_TABLES.json NEC_OCPD, the one copy —
+                // DSCH-25), then the 240.4(D) small-conductor ceiling. No rating large
+                // enough (or the list did not load) is a refusal, never the largest rating.
+                int breaker = VoltageDropEngine.NextStandardBreakerSizeNEC(sizingCurrent);
+                if (breaker <= 0)
+                {
+                    result.Sized = false;
+                    result.Warning = $"No NEC Table 240.6(A) rating ≥ {sizingCurrent:0.0} A" +
+                        (VoltageDropEngine.BreakerSizesLoadError != null
+                            ? " — " + VoltageDropEngine.BreakerSizesLoadError
+                            : "; specify the overcurrent device manually.");
+                    return result;
+                }
                 int maxForSize = StingTools.Standards.NEC2023.NECStandards.GetMaximumBreakerSize(awg);
                 if (maxForSize > 0 && breaker > maxForSize) breaker = maxForSize;
                 result.ProposedBreakerA = breaker;

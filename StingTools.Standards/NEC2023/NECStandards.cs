@@ -327,47 +327,10 @@ namespace StingTools.Standards.NEC2023
 
         #region Article 240 - Overcurrent Protection
 
-        /// <summary>
-        /// Standard breaker sizes per NEC 240.6(A)
-        /// </summary>
-        private static readonly int[] _standardBreakerSizes = new[]
-        {
-            15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 125, 150,
-            175, 200, 225, 250, 300, 350, 400, 450, 500, 600, 700, 800,
-            1000, 1200, 1600, 2000, 2500, 3000, 4000, 5000, 6000
-        };
-
-        /// <summary>
-        /// Get standard breaker size for required amperage
-        /// Reference: NEC 2023 Section 240.6(A)
-        /// </summary>
-        /// <param name="requiredAmps">Required amperage</param>
-        /// <param name="roundUp">If true, round up to next size; if false, select exact or smaller size</param>
-        /// <returns>Standard breaker size in amperes</returns>
-        public static int GetStandardBreakerSize(double requiredAmps, bool roundUp = true)
-        {
-            if (roundUp)
-            {
-                foreach (int size in _standardBreakerSizes)
-                {
-                    if (size >= requiredAmps)
-                        return size;
-                }
-                return _standardBreakerSizes[_standardBreakerSizes.Length - 1];
-            }
-            else
-            {
-                int selectedSize = _standardBreakerSizes[0];
-                foreach (int size in _standardBreakerSizes)
-                {
-                    if (size <= requiredAmps)
-                        selectedSize = size;
-                    else
-                        break;
-                }
-                return selectedSize;
-            }
-        }
+        // NEC 240.6(A) standard ratings are NOT held here. Their one copy is
+        // StingTools/Data/STING_WIRE_TABLES.json → breakerSizes.NEC_OCPD, read by
+        // VoltageDropEngine.NextStandardBreakerSizeNEC (DSCH-25). The list that used to
+        // sit here also returned the largest rating when nothing fitted.
 
         /// <summary>
         /// Maximum breaker sizes for conductor protection

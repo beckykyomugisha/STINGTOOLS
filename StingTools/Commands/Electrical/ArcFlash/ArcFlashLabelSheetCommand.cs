@@ -12,20 +12,27 @@ namespace StingTools.Commands.Electrical.ArcFlash
     /// Creates a drafting view containing one indicative arc-flash label per
     /// panel that <see cref="ArcFlashCommand"/> calculated (IEEE 1584-2018 —
     /// every label text carries <see cref="ArcFlashEngine.Basis"/>). Each label is a
-    /// FilledRegion border + TextNote pair laid out 5 per row at 110 mm
-    /// column pitch (paper-side units, drafting-view scale 1:1).
+    /// white body, an ANSI Z535.4 signal-word header strip (WARNING black on orange;
+    /// DANGER white on red above the configured incident energy) and the label text,
+    /// laid out 5 per row at 110 mm column pitch (paper-side units, drafting-view
+    /// scale 1:1). Header colours and the DANGER threshold come only from
+    /// STING_ARC_FLASH_PPE.json (DSCH-25); if it does not load, no sheet is drawn.
+    /// Every label carries a DRAFT line: these are not labels for posting.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class ArcFlashLabelSheetCommand : IExternalCommand
     {
         private const double LabelWidthMm  = 100;
-        private const double LabelHeightMm = 95;   // label now carries basis + notes (~12 lines)
+        private const double LabelHeightMm = 115;  // header strip + label text (~13 lines) + DRAFT line
+        private const double HeaderHeightMm = 12;
         private const double MarginMm      = 5;
-        private const double RowSpacingMm  = 105;
+        private const double RowSpacingMm  = 125;
         private const double ColWidthMm    = 110;
         private const int    LabelsPerRow  = 5;
         private const string ViewName      = "STING - Arc Flash Labels (" + ArcFlashEngine.BasisShort + ")";
+        public const string DraftLine =
+            "DRAFT — NOT FOR POSTING WITHOUT A LICENSED ARC-FLASH STUDY. Does not specify PPE.";
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -39,6 +46,14 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 PresetDialog.Show("STING Arc Flash Labels",
                     "No arc-flash results found. Run Arc Flash Calc first.", ref message);
                 return Result.Cancelled;
+            }
+
+            var presentation = ArcFlashPresentation.Current;
+            if (!presentation.Loaded)
+            {
+                message = "Arc-flash label headers not drawn: " + presentation.LoadError;
+                PresetDialog.Show("STING Arc Flash Labels", message, ref message);
+                return Result.Failed;
             }
 
             // The drawing type routing gives E / ARC_FLASH_LABELS. The id this stamped,
@@ -68,28 +83,29 @@ namespace StingTools.Commands.Electrical.ArcFlash
 
                 double Ft(double mm) => mm / 304.8;
                 int col = 0, row = 0;
-                foreach (var r in rows.OrderByDescending(x => x.PpeCategory))
+                var headerText = new Dictionary<string, TextNoteType>();
+                foreach (var r in rows.OrderByDescending(x => x.IncidentEnergy_CalCm2))
                 {
                     double x = col * Ft(ColWidthMm);
                     double y = -row * Ft(RowSpacingMm);
                     var origin = new XYZ(x, y, 0);
-                    Color borderColor = r.PpeCategory switch
-                    {
-                        < 0 => new Color(180, 0, 0),
-                        4   => new Color(220, 50, 50),
-                        3   => new Color(220, 120, 0),
-                        2   => new Color(220, 180, 0),
-                        _   => new Color(180, 160, 0)
-                    };
+                    var header = presentation.HeaderFor(r.IncidentEnergy_CalCm2);
                     if (frt != null)
-                        DrawLabelBorder(doc, view, origin, Ft(LabelWidthMm), Ft(LabelHeightMm), frt, solidFill, borderColor);
+                    {
+                        DrawLabelBorder(doc, view, origin, Ft(LabelWidthMm), Ft(LabelHeightMm), frt, solidFill, new Color(255, 255, 255));
+                        DrawLabelBorder(doc, view, origin, Ft(LabelWidthMm), Ft(HeaderHeightMm), frt, solidFill,
+                            new Color(header.Background.R, header.Background.G, header.Background.B));
+                    }
 
                     if (textType != null)
                     {
                         try
                         {
-                            var pos = new XYZ(x + Ft(MarginMm), y - Ft(MarginMm), 0);
-                            TextNote.Create(doc, view.Id, pos, r.LabelText, textType.Id);
+                            var hdrType = HeaderTextType(doc, textType, header, headerText);
+                            TextNote.Create(doc, view.Id, new XYZ(x + Ft(MarginMm), y - Ft(3), 0),
+                                header.SignalWord, hdrType.Id);
+                            var pos = new XYZ(x + Ft(MarginMm), y - Ft(HeaderHeightMm + MarginMm), 0);
+                            TextNote.Create(doc, view.Id, pos, r.LabelText + "\n" + DraftLine, textType.Id);
                         }
                         catch (Exception ex2) { StingLog.Warn($"TextNote: {ex2.Message}"); }
                     }
@@ -113,6 +129,28 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 $"Drafting view '{view?.Name}' drawn with {rows.Count} label(s).\n\n" +
                 $"Basis: {ArcFlashEngine.Basis}. Panels that could not be calculated have no label.\n\n" + sheetLine, ref message);
             return Result.Succeeded;
+        }
+
+        /// <summary>A text type in the header's ANSI Z535.4 text colour (black on WARNING,
+        /// white on DANGER), duplicated once per signal word from the base type.</summary>
+        private static TextNoteType HeaderTextType(Document doc, TextNoteType baseType, ArcLabelHeader header,
+            Dictionary<string, TextNoteType> cache)
+        {
+            if (cache.TryGetValue(header.SignalWord, out var t)) return t;
+            string name = "STING Arc Flash Header - " + header.SignalWord;
+            t = new FilteredElementCollector(doc).OfClass(typeof(TextNoteType)).Cast<TextNoteType>()
+                    .FirstOrDefault(x => x.Name == name);
+            try
+            {
+                if (t == null) t = baseType.Duplicate(name) as TextNoteType;
+                var colour = t?.get_Parameter(BuiltInParameter.LINE_COLOR);
+                if (colour != null && !colour.IsReadOnly)
+                    colour.Set(header.Text.R + header.Text.G * 256 + header.Text.B * 65536);
+            }
+            catch (Exception ex) { StingLog.Warn($"Arc flash header text type '{name}': {ex.Message}"); }
+            t = t ?? baseType;
+            cache[header.SignalWord] = t;
+            return t;
         }
 
         private static void DrawLabelBorder(Document doc, View view, XYZ origin,

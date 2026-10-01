@@ -158,16 +158,6 @@ namespace StingTools.Tags.Tests
         public void Nec240_4DCapsTheSmallConductors(string size, int expectedMax)
             => Assert.Equal(expectedMax, NECStandards.GetMaximumBreakerSize(size));
 
-        /// <summary>240.6(A) standard ratings — the sizer must land on one of these, not
-        /// on an arbitrary amperage.</summary>
-        [Theory]
-        [InlineData(14.0, 15)]
-        [InlineData(16.0, 20)]
-        [InlineData(21.0, 25)]
-        [InlineData(95.0, 100)]
-        public void Nec240_6AStandardRatings(double required, int expected)
-            => Assert.Equal(expected, NECStandards.GetStandardBreakerSize(required));
-
         /// <summary>310.15(B)(1) ambient correction and 310.15(C)(1) bundling adjustment
         /// both DERATE. A correction that increased ampacity at 40 °C would size a
         /// conductor too small.</summary>

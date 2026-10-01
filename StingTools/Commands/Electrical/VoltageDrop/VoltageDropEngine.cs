@@ -52,64 +52,100 @@ namespace StingTools.Commands.Electrical.VoltageDrop
             70.0, 95.0, 120.0, 150.0, 185.0, 240.0, 300.0, 400.0
         };
 
-        // Fallback ratings, used when STING_WIRE_TABLES.json → breakerSizes is absent or
-        // unreadable. The data file is the source (DSCH-E2); see ResolveBreakerSizes.
-        internal static readonly int[] DefaultBreakerSizesBSMCB =
-        { 6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125 };
+        /// <summary>
+        /// Protective-device rating lists. The ONLY copy is STING_WIRE_TABLES.json →
+        /// breakerSizes (DSCH-25): there is no built-in fallback. A list that is missing or
+        /// invalid is empty and <see cref="LoadError"/> says why, so a sizer refuses
+        /// ("no standard rating") instead of sizing against a hidden second copy.
+        /// </summary>
+        internal sealed class BreakerRatingSet
+        {
+            public int[] Mcb { get; set; } = new int[0];
+            public int[] Mccb { get; set; } = new int[0];
+            public int[] Nec { get; set; } = new int[0];
+            public int[] NecFuseAdditional { get; set; } = new int[0];
+            /// <summary>Null when every list loaded; otherwise every problem, joined.</summary>
+            public string LoadError { get; set; }
+        }
 
-        internal static readonly int[] DefaultBreakerSizesBSMCCB =
-        { 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600 };
+        public const string WireTablesFile = "STING_WIRE_TABLES.json";
 
-        internal static readonly int[] DefaultBreakerSizesNEC =
-        { 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200, 225, 250, 300, 350, 400 };
+        private static readonly Lazy<BreakerRatingSet> _breakerSizes =
+            new Lazy<BreakerRatingSet>(LoadBreakerSizes);
 
-        private static readonly Lazy<(int[] Mcb, int[] Mccb, int[] Nec)> _breakerSizes =
-            new Lazy<(int[] Mcb, int[] Mccb, int[] Nec)>(LoadBreakerSizes);
-
-        /// <summary>BS EN 60898 MCB ratings (STING_WIRE_TABLES.json breakerSizes.BS_EN_60898_MCB).</summary>
+        /// <summary>BS EN 60898 MCB ratings (STING_WIRE_TABLES.json breakerSizes.BS_EN_60898_MCB); empty when not loaded.</summary>
         public static int[] BreakerSizesBSMCB => _breakerSizes.Value.Mcb;
 
-        /// <summary>BS EN 60947-2 MCCB ratings (breakerSizes.BS_EN_60947_MCCB).</summary>
+        /// <summary>BS EN 60947-2 MCCB ratings (breakerSizes.BS_EN_60947_MCCB); empty when not loaded.</summary>
         public static int[] BreakerSizesBSMCCB => _breakerSizes.Value.Mccb;
 
-        /// <summary>NEC 240.6(A) OCPD ratings. Stays on the built-in list — see ResolveBreakerSizes.</summary>
+        /// <summary>NEC Table 240.6(A) fuse / inverse-time breaker ratings (breakerSizes.NEC_OCPD); empty when not loaded.</summary>
         public static int[] BreakerSizesNEC => _breakerSizes.Value.Nec;
 
-        private static (int[] Mcb, int[] Mccb, int[] Nec) LoadBreakerSizes()
+        /// <summary>Why a rating list is empty, or null when all loaded. Show it to the user.</summary>
+        public static string BreakerSizesLoadError => _breakerSizes.Value.LoadError;
+
+        private static BreakerRatingSet LoadBreakerSizes()
         {
             JObject root = null;
+            string fileError = null;
             try
             {
-                string path = StingTools.Core.StingToolsApp.FindDataFile("STING_WIRE_TABLES.json");
-                if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                string path = StingTools.Core.StingToolsApp.FindDataFile(WireTablesFile);
+                if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                    fileError = WireTablesFile + " not found";
+                else
                     root = JObject.Parse(File.ReadAllText(path));
             }
             catch (Exception ex)
             {
-                StingTools.Core.StingLog.Warn($"VoltageDropEngine.LoadBreakerSizes: {ex.Message}");
+                fileError = $"{WireTablesFile} could not be read: {ex.Message}";
             }
-            return ResolveBreakerSizes(root);
+            var set = fileError != null
+                ? new BreakerRatingSet { LoadError = fileError + " — breaker ratings not loaded; sizing refused." }
+                : ResolveBreakerSizes(root);
+            if (set.LoadError != null)
+                StingTools.Core.StingLog.Error("VoltageDropEngine breaker ratings: " + set.LoadError);
+            return set;
         }
 
         /// <summary>
-        /// Breaker rating lists from STING_WIRE_TABLES.json → breakerSizes, the built-in
-        /// lists as the fallback for any key that is missing or not a list of positive
-        /// numbers. MCB and MCCB come from the data. NEC keeps the built-in list (up to
-        /// 400 A) even when the data differs — the data's 450–1200 A tail would change
-        /// sizer results above 400 A, so the difference is logged instead of applied.
+        /// Rating lists from <paramref name="root"/> → breakerSizes. Each key that is
+        /// missing or not a list of positive whole numbers gives an empty list and a line
+        /// in <see cref="BreakerRatingSet.LoadError"/>; nothing falls back to a constant.
         /// </summary>
-        internal static (int[] Mcb, int[] Mccb, int[] Nec) ResolveBreakerSizes(JObject root)
+        internal static BreakerRatingSet ResolveBreakerSizes(JObject root)
         {
+            var errors = new List<string>();
             var bs = root?["breakerSizes"] as JObject;
-            int[] mcb = ReadRatings(bs?["BS_EN_60898_MCB"]) ?? DefaultBreakerSizesBSMCB;
-            int[] mccb = ReadRatings(bs?["BS_EN_60947_MCCB"]) ?? DefaultBreakerSizesBSMCCB;
-            int[] necData = ReadRatings(bs?["NEC_OCPD"]);
-            if (necData != null && !necData.SequenceEqual(DefaultBreakerSizesNEC))
-                StingTools.Core.StingLog.WarnRateLimited("VoltageDropEngine.NecBreakerSizes",
-                    "STING_WIRE_TABLES.json breakerSizes.NEC_OCPD [" + string.Join(", ", necData) +
-                    "] differs from the built-in NEC list [" + string.Join(", ", DefaultBreakerSizesNEC) +
-                    "]; the built-in list is used so NEC sizing results do not change.");
-            return (mcb, mccb, DefaultBreakerSizesNEC);
+            if (bs == null) errors.Add($"{WireTablesFile} has no 'breakerSizes' object");
+            int[] Read(string key, bool required)
+            {
+                if (bs == null) return new int[0];
+                var tok = bs[key];
+                if (tok == null)
+                {
+                    if (required) errors.Add($"breakerSizes.{key} is missing");
+                    return new int[0];
+                }
+                var list = ReadRatings(tok);
+                if (list == null)
+                {
+                    errors.Add($"breakerSizes.{key} is not a non-empty list of positive whole amperes");
+                    return new int[0];
+                }
+                return list;
+            }
+            var set = new BreakerRatingSet
+            {
+                Mcb = Read("BS_EN_60898_MCB", true),
+                Mccb = Read("BS_EN_60947_MCCB", true),
+                Nec = Read("NEC_OCPD", true),
+                NecFuseAdditional = Read("NEC_FUSE_ADDITIONAL", false)
+            };
+            if (errors.Count > 0)
+                set.LoadError = string.Join("; ", errors) + " — sizing against the affected list is refused.";
+            return set;
         }
 
         private static int[] ReadRatings(JToken tok)
@@ -221,6 +257,7 @@ namespace StingTools.Commands.Electrical.VoltageDrop
 
         /// <summary>
         /// Round up to the next BS EN 60898 MCB rating (In ≥ Ib, BS 7671 Reg 433.1.1(i)).
+        /// Returns 0 when no rating fits (see <see cref="NextRating"/>).
         /// <paramref name="continuous"/> pre-multiplies by 1.25; that is an NEC rule
         /// (210.20(A)) with no BS 7671 counterpart, so BS callers should leave it false —
         /// BreakerSizerCommand no longer passes it on the BS path.
@@ -228,20 +265,30 @@ namespace StingTools.Commands.Electrical.VoltageDrop
         public static int NextStandardBreakerSizeBS(double minimumA, bool continuous = false, bool useMCCB = false)
         {
             double effective = continuous ? minimumA * 1.25 : minimumA;
-            int[] sizes = useMCCB ? BreakerSizesBSMCCB : BreakerSizesBSMCB;
-            foreach (int s in sizes) if (s >= effective) return s;
-            return sizes[sizes.Length - 1];
+            return NextRating(useMCCB ? BreakerSizesBSMCCB : BreakerSizesBSMCB, effective);
         }
 
         /// <summary>
-        /// Round up to the next NEC OCPD standard size. Pass continuous=true to
-        /// pre-multiply by 1.25 per NEC 210.20(A).
+        /// Round up to the next NEC Table 240.6(A) standard rating. Pass continuous=true to
+        /// pre-multiply by 1.25 per NEC 210.20(A). Returns 0 when no rating fits.
         /// </summary>
         public static int NextStandardBreakerSizeNEC(double minimumA, bool continuous = false)
         {
             double effective = continuous ? minimumA * 1.25 : minimumA;
-            foreach (int s in BreakerSizesNEC) if (s >= effective) return s;
-            return BreakerSizesNEC[BreakerSizesNEC.Length - 1];
+            return NextRating(BreakerSizesNEC, effective);
+        }
+
+        /// <summary>
+        /// Smallest rating ≥ <paramref name="minimumA"/>, or 0 when none fits (the load
+        /// exceeds the largest rating, or the list did not load). It used to return the
+        /// largest rating instead — a 500 A NEC load got a 400 A device, silently.
+        /// 0 means "no standard device": the caller must say so, never use it as a rating.
+        /// </summary>
+        internal static int NextRating(int[] ratings, double minimumA)
+        {
+            if (ratings == null) return 0;
+            foreach (int s in ratings) if (s >= minimumA) return s;
+            return 0;
         }
 
         /// <summary>

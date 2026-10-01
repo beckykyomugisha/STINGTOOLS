@@ -42,7 +42,14 @@ namespace StingTools.Commands.Electrical.CircuitWizard
         public double UtilisationPct  { get; set; }
         public double VoltageV        { get; set; } = 230.0;
         public int    Poles           { get; set; } = 1;
+        /// <summary>Standard device rating, A; 0 when <see cref="RatingRefusal"/> is set.</summary>
         public double ProposedRatingA { get; set; }
+        /// <summary>
+        /// Why no standard device was proposed (the load exceeds the largest rating, or the
+        /// rating list did not load); null when <see cref="ProposedRatingA"/> is a real rating.
+        /// A circuit carrying this must not be created.
+        /// </summary>
+        public string RatingRefusal   { get; set; }
         public double ProposedCsaMm2  { get; set; }
         public List<UnconnectedElement> Elements { get; set; } = new List<UnconnectedElement>();
         public bool   UserModified    { get; set; }
@@ -233,6 +240,9 @@ namespace StingTools.Commands.Electrical.CircuitWizard
             int trial = string.Equals(opts.Standard, "NEC", StringComparison.OrdinalIgnoreCase)
                 ? VoltageDropEngine.NextStandardBreakerSizeNEC(iA)
                 : VoltageDropEngine.NextStandardBreakerSizeBS(iA);
+            // 0 = no standard device for the combined load: start a new circuit. A single
+            // element that no device carries ends up alone, with RatingRefusal set.
+            if (trial <= 0) return true;
             double allowed = trial * maxLoadPct * cur.VoltageV;
             return prospectiveVA > allowed;
         }
@@ -258,9 +268,15 @@ namespace StingTools.Commands.Electrical.CircuitWizard
             var opts = options ?? CircuitWizardOptions.Default;
             circuit.TotalLoadVA = circuit.Elements.Sum(e => e.LoadVA);
             double iA = circuit.TotalLoadVA / Math.Max(1.0, circuit.VoltageV);
-            circuit.ProposedRatingA = string.Equals(opts.Standard, "NEC", StringComparison.OrdinalIgnoreCase)
+            bool nec = string.Equals(opts.Standard, "NEC", StringComparison.OrdinalIgnoreCase);
+            circuit.ProposedRatingA = nec
                 ? VoltageDropEngine.NextStandardBreakerSizeNEC(iA)
                 : VoltageDropEngine.NextStandardBreakerSizeBS(iA);
+            circuit.RatingRefusal = circuit.ProposedRatingA > 0 ? null
+                : $"No standard {(nec ? "NEC 240.6(A)" : "BS EN 60898 MCB")} rating ≥ {iA:0.0} A" +
+                  (VoltageDropEngine.BreakerSizesLoadError != null
+                      ? " — " + VoltageDropEngine.BreakerSizesLoadError
+                      : " — split the load or specify the device manually.");
             circuit.UtilisationPct = circuit.ProposedRatingA > 0
                 ? (iA / circuit.ProposedRatingA) * 100.0
                 : 0;

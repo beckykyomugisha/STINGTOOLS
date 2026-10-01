@@ -20,7 +20,9 @@ namespace StingTools.Commands.Electrical.ArcFlash
         public double FaultKa                { get; set; }
         public double IncidentEnergy_CalCm2  { get; set; }
         public double BoundaryMm             { get; set; }
-        public int    PpeCategory            { get; set; }
+        /// <summary>Incident-energy band label from STING_ARC_FLASH_PPE.json — presentation,
+        /// never a PPE category. "" when the presentation data did not load.</summary>
+        public string EnergyBand             { get; set; } = "";
         public double WorkDistMm             { get; set; }
         public string LabelText              { get; set; } = "";
         public double VoltageV               { get; set; }
@@ -83,6 +85,8 @@ namespace StingTools.Commands.Electrical.ArcFlash
             const double fixedClearingS = 0.100;
 
             var tcc = useFixed ? null : TccDatabaseLoader.Load(null);
+            // Band colours and the label's signal word: one owner, STING_ARC_FLASH_PPE.json.
+            var presentation = ArcFlashPresentation.Current;
 
             var panels = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
@@ -185,27 +189,32 @@ namespace StingTools.Commands.Electrical.ArcFlash
                         continue;
                     }
 
-                    string lbl = ArcFlashEngine.FormatLabel(panel.Name, voltageV, cls, r, tSource)
+                    string lbl = ArcFlashEngine.FormatLabel(panel.Name, voltageV, cls, r, tSource, presentation)
                                  + $"\nIbf: {fr.FaultKa:0.##} kA (STING fault engine — unverified); V from {vSource}";
                     if (r.Notes.Count > 0) lbl += "\nNotes: " + string.Join("; ", r.Notes);
 
                     var inv = CultureInfo.InvariantCulture;
+                    var energyBand = presentation.BandFor(r.IncidentEnergyCalCm2);
                     try
                     {
                         ParameterHelpers.SetString(panel, ParamRegistry.ELC_ARC_FLASH_IE,    r.IncidentEnergyCalCm2.ToString("0.00", inv), overwrite: true);
                         ParameterHelpers.SetString(panel, ParamRegistry.ELC_ARC_FLASH_BD,    r.BoundaryMm.ToString("0", inv),              overwrite: true);
-                        ParameterHelpers.SetString(panel, ParamRegistry.ELC_ARC_FLASH_PPE,   r.PpeCategory.ToString(inv),                  overwrite: true);
+                        // ELC_ARC_FLASH_PPE_CAT (TEXT) now holds the incident-energy BAND, not a
+                        // PPE category (DSCH-25): NFPA 70E 130.5(H) allows incident energy or a
+                        // category on a label, not both, and the category method is table-based.
+                        ParameterHelpers.SetString(panel, ParamRegistry.ELC_ARC_FLASH_PPE,
+                            energyBand?.Label ?? "NOT SET — " + ArcFlashPresentation.FileName + " did not load", overwrite: true);
                         ParameterHelpers.SetString(panel, ParamRegistry.ELC_ARC_FLASH_WD,    r.WorkingDistanceMm.ToString("0", inv),       overwrite: true);
                         ParameterHelpers.SetString(panel, ParamRegistry.ELC_ARC_FLASH_LABEL, lbl,                                          overwrite: true);
                     }
                     catch (Exception ex) { StingLog.Warn($"Stamp arc flash on {panel.Name}: {ex.Message}"); }
 
-                    ApplyPpeColorOverride(doc, panel, r.PpeCategory);
+                    if (energyBand != null) ApplyBandColourOverride(doc, panel, energyBand);
                     results.Add(new ArcFlashRow
                     {
                         PanelName = panel.Name, FaultKa = fr.FaultKa,
                         IncidentEnergy_CalCm2 = r.IncidentEnergyCalCm2, BoundaryMm = r.BoundaryMm,
-                        PpeCategory = r.PpeCategory, WorkDistMm = r.WorkingDistanceMm, LabelText = lbl,
+                        EnergyBand = energyBand?.Label ?? "", WorkDistMm = r.WorkingDistanceMm, LabelText = lbl,
                         VoltageV = voltageV, ClearingTimeMs = r.GoverningClearingTimeS * 1000.0,
                         EquipmentClass = cls.ToString()
                     });
@@ -216,12 +225,16 @@ namespace StingTools.Commands.Electrical.ArcFlash
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             StingLog.Info($"ArcFlash ({ArcFlashEngine.BasisShort}): {results.Count} calculated, {notCalculated.Count} not calculated.");
-            int dangerous = results.Count(r => r.PpeCategory < 0);
-            int cat4 = results.Count(r => r.PpeCategory == 4);
+            int over40 = results.Count(r => r.IncidentEnergy_CalCm2 > 40.0);
+            int danger = presentation.Loaded
+                ? results.Count(r => presentation.HeaderFor(r.IncidentEnergy_CalCm2) == presentation.Danger)
+                : 0;
             TaskDialog.Show("STING Arc Flash",
                 $"Method: {ArcFlashEngine.Basis}.\n\n" +
                 $"{results.Count} panel(s) calculated, {notCalculated.Count} NOT CALCULATED.\n" +
-                $"  {dangerous} exceed 40 cal/cm²; {cat4} are Category 4.\n\n" +
+                $"  {over40} exceed 40 cal/cm²" +
+                (presentation.Loaded ? $"; {danger} labelled DANGER (ANSI Z535.4).\n\n"
+                    : $".\n  BAND COLOURS AND SIGNAL WORDS NOT APPLIED: {presentation.LoadError}\n\n") +
                 (notCalculated.Count > 0
                     ? "Not calculated (first 10):\n  " + string.Join("\n  ", notCalculated.Take(10)) + "\n\n"
                     : "") +
@@ -240,7 +253,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
             try
             {
                 var r = new ArcFlashResult { Calculated = false, NotCalculatedReason = reason };
-                string lbl = ArcFlashEngine.FormatLabel(panel.Name, 0, ArcEquipmentClass.PanelMcc, r, "");
+                string lbl = ArcFlashEngine.FormatLabel(panel.Name, 0, ArcEquipmentClass.PanelMcc, r, "", null);
                 ParameterHelpers.SetString(panel, ParamRegistry.ELC_ARC_FLASH_IE,    NotApplicable, overwrite: true);
                 ParameterHelpers.SetString(panel, ParamRegistry.ELC_ARC_FLASH_BD,    NotApplicable, overwrite: true);
                 ParameterHelpers.SetString(panel, ParamRegistry.ELC_ARC_FLASH_PPE,   NotApplicable, overwrite: true);
@@ -367,7 +380,9 @@ namespace StingTools.Commands.Electrical.ArcFlash
             return null;
         }
 
-        private static void ApplyPpeColorOverride(Document doc, Element el, int ppe)
+        /// <summary>Colours the panel by its incident-energy band (STING_ARC_FLASH_PPE.json
+        /// energyBands[].viewColour — the one owner; no colours are held in code).</summary>
+        private static void ApplyBandColourOverride(Document doc, Element el, ArcEnergyBand band)
         {
             try
             {
@@ -375,14 +390,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 if (view == null) return;
                 var solidFill = ParameterHelpers.GetSolidFillPattern(doc);
                 if (solidFill == null) return;
-                Color c = ppe switch
-                {
-                    < 0 => new Color(180, 0, 0),
-                    4   => new Color(255, 64, 64),
-                    3   => new Color(255, 140, 0),
-                    2   => new Color(255, 210, 0),
-                    _   => new Color(0, 200, 80)
-                };
+                var c = new Color(band.ViewColour.R, band.ViewColour.G, band.ViewColour.B);
                 var ogs = new OverrideGraphicSettings();
                 ogs.SetSurfaceForegroundPatternId(solidFill.Id);
                 ogs.SetSurfaceForegroundPatternColor(c);
