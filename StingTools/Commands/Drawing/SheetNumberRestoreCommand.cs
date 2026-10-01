@@ -25,6 +25,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using StingTools.Core;
+using StingTools.Core.Drawing;
 
 namespace StingTools.Commands.Drawing
 {
@@ -113,7 +114,10 @@ namespace StingTools.Commands.Drawing
                 return Result.Failed;
             }
 
-            var last = log?.LastOrDefault(e => e?.changes != null && e.changes.Count > 0);
+            // DTW-200: the restore itself is recorded (SheetNumbering.Apply writes history),
+            // so the entry to reverse is the last one that is not a restore.
+            var last = log?.LastOrDefault(e => e?.changes != null && e.changes.Count > 0
+                && !string.Equals(e.source, TransactionName, StringComparison.Ordinal));
             if (last == null)
             {
                 TaskDialog.Show("STING — Restore Sheet Numbers",
@@ -124,91 +128,90 @@ namespace StingTools.Commands.Drawing
             // Match on the CURRENT number, not on a stored element id: sheets may have
             // been renumbered again by hand since, and restoring onto the wrong sheet
             // would be worse than not restoring at all.
-            var bySheetNumber = new FilteredElementCollector(doc)
+            var sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet)).Cast<ViewSheet>()
-                .Where(s => !s.IsPlaceholder)
-                .ToDictionary(s => s.SheetNumber ?? "", s => s, StringComparer.OrdinalIgnoreCase);
+                .Where(s => !s.IsPlaceholder && !string.IsNullOrEmpty(s.SheetNumber))
+                .ToList();
+            var byKey = sheets.ToDictionary(s => s.Id.Value.ToString(), s => s, StringComparer.Ordinal);
+            var keyByNumber = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var s in sheets) keyByNumber[s.SheetNumber] = s.Id.Value.ToString();
 
-            var plan = new List<(ViewSheet sheet, string from, string to)>();
-            var missing = new List<string>();
-            foreach (var c in last.changes)
-            {
-                if (string.IsNullOrWhiteSpace(c?.to) || string.IsNullOrWhiteSpace(c.from)) continue;
-                if (bySheetNumber.TryGetValue(c.to, out var s)) plan.Add((s, c.to, c.from));
-                else missing.Add($"{c.to}  (was {c.from})");
-            }
+            // DTW-200: validated against the live numbers. After Ctrl+Z of the renumber the
+            // record still lists renames that are gone, and a sheet now carrying a recorded
+            // "to" may be a different sheet that always had it — restoring it collided with
+            // the sheet that holds its "from" again.
+            var restorePlan = SheetRestorePlanner.Build(
+                last.changes.Where(c => c != null).Select(c => new KeyValuePair<string, string>(c.from, c.to)),
+                keyByNumber);
 
-            if (plan.Count == 0)
+            if (restorePlan.Moves.Count == 0)
             {
-                TaskDialog.Show("STING — Restore Sheet Numbers",
-                    $"None of the {last.changes.Count} recorded sheet(s) still carry the number they "
-                    + "were given, so there is nothing safe to restore.\n\n"
-                    + "They were renumbered again afterwards. Restoring by name would land on the "
-                    + "wrong sheets.");
+                var why = new StringBuilder();
+                why.AppendLine($"None of the {last.changes.Count} recorded sheet(s) can be restored safely.");
+                if (restorePlan.LooksUndone > 0)
+                    why.AppendLine("\nThe renumber looks already undone (Ctrl+Z): the old numbers are back on their sheets.");
+                why.AppendLine();
+                foreach (var m in restorePlan.Skipped.Take(10)) why.AppendLine("  " + m);
+                TaskDialog.Show("STING — Restore Sheet Numbers", why.ToString());
                 return Result.Cancelled;
             }
 
             var preview = new StringBuilder();
             preview.AppendLine($"Recorded {last.when} from {last.source}");
             preview.AppendLine();
-            foreach (var p in plan.Take(25)) preview.AppendLine($"  {p.from}\n      ->  {p.to}");
-            if (missing.Count > 0)
+            foreach (var p in restorePlan.Moves.Take(25)) preview.AppendLine($"  {p.Current}\n      ->  {p.Restore}");
+            if (restorePlan.Skipped.Count > 0)
             {
                 preview.AppendLine();
-                preview.AppendLine($"{missing.Count} recorded sheet(s) no longer carry their renumbered value "
-                    + "and will be left alone:");
-                foreach (var m in missing.Take(10)) preview.AppendLine("  " + m);
+                preview.AppendLine($"{restorePlan.Skipped.Count} recorded sheet(s) will be left alone:");
+                foreach (var m in restorePlan.Skipped.Take(10)) preview.AppendLine("  " + m);
+                if (restorePlan.LooksUndone > 0)
+                    preview.AppendLine("Part of the renumber looks already undone (Ctrl+Z).");
             }
 
             var td = new TaskDialog("STING — Restore Sheet Numbers")
             {
-                MainInstruction = $"Restore {plan.Count} sheet number(s) to what they were?",
+                MainInstruction = $"Restore {restorePlan.Moves.Count} sheet number(s) to what they were?",
                 MainContent = preview.ToString(),
                 CommonButtons = TaskDialogCommonButtons.Cancel,
                 DefaultButton = TaskDialogResult.Cancel,
             };
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, $"Restore {plan.Count} sheet number(s)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, $"Restore {restorePlan.Moves.Count} sheet number(s)");
             if (td.Show() != TaskDialogResult.CommandLink1) return Result.Cancelled;
 
-            int done = 0;
-            var failed = new List<string>();
-            using (var t = new Transaction(doc, "STING Restore Sheet Numbers"))
-            {
-                t.Start();
-                // Same two-pass sentinel as the forward direction: a restore target can
-                // equal another sheet's current number just as easily.
-                string sentinel = "~STINGUNDO~";
-                int i = 0;
-                foreach (var p in plan)
-                {
-                    try { p.sheet.SheetNumber = sentinel + (i++).ToString("D4"); }
-                    catch (Exception ex) { failed.Add($"{p.from}: stage failed ({ex.Message})"); }
-                }
-                foreach (var p in plan)
-                {
-                    try { p.sheet.SheetNumber = p.to; done++; StingLog.Info($"SheetNumberRestore: '{p.from}' -> '{p.to}'"); }
-                    catch (Exception ex) { failed.Add($"{p.from} -> {p.to}: {ex.Message}"); }
-                }
-                t.Commit();
-            }
+            // DTW-200: through SheetNumbering.Apply — park on a temporary number, put a
+            // refused sheet back on its own number (the old two-pass left it on
+            // "~STINGUNDO~000N"), count nothing unless Revit committed, rebuild the ISO
+            // identifier and record the restore.
+            var changes = restorePlan.Moves
+                .Where(m => byKey.ContainsKey(m.SheetKey))
+                .Select(m => new SheetNumbering.Change { Sheet = byKey[m.SheetKey], Old = m.Current, New = m.Restore })
+                .ToList();
+            var outcome = SheetNumbering.Apply(doc, changes, TransactionName);
+            foreach (var c in changes.Where(c => string.Equals(c.Sheet.SheetNumber, c.New, StringComparison.Ordinal)))
+                StingLog.Info($"SheetNumberRestore: '{c.Old}' -> '{c.New}'");
 
             var sb = new StringBuilder();
-            sb.AppendLine($"Restored : {done}");
-            if (failed.Count > 0)
+            sb.AppendLine($"Restored : {outcome.Done}");
+            if (outcome.Failed > 0)
             {
-                sb.AppendLine($"Failed   : {failed.Count}");
-                foreach (var f in failed.Take(10)) sb.AppendLine("  " + f);
+                sb.AppendLine($"Failed   : {outcome.Failed} (each kept the number it had)");
+                foreach (var f in outcome.Failures.Take(10)) sb.AppendLine(f);
             }
-            if (done > 0)
+            if (restorePlan.Skipped.Count > 0) sb.AppendLine($"Left alone: {restorePlan.Skipped.Count} (see the preview reasons)");
+            if (outcome.Done > 0)
             {
                 sb.AppendLine();
-                sb.AppendLine("Re-run Tag Sheets to rebuild SHT_TAG_1_TXT from the short number, then");
-                sb.AppendLine("re-stamp the QR codes — both are keyed on the sheet number.");
+                sb.AppendLine($"ISO identifiers rebuilt on {outcome.Retagged} sheet(s).");
+                foreach (var f in outcome.RetagFailures.Take(5)) sb.AppendLine(f);
+                sb.AppendLine("Re-stamp the QR codes — they are keyed on the sheet number.");
             }
 
-            StingLog.Info($"SheetNumberRestore: {done} restored, {failed.Count} failed");
+            StingLog.Info($"SheetNumberRestore: {outcome.Done} restored, {outcome.Failed} failed, {restorePlan.Skipped.Count} skipped");
             TaskDialog.Show("STING — Restore Sheet Numbers", sb.ToString());
-            return failed.Count > 0 && done == 0 ? Result.Failed : Result.Succeeded;
+            return outcome.Failed > 0 && outcome.Done == 0 ? Result.Failed : Result.Succeeded;
         }
+
+        private const string TransactionName = "STING Restore Sheet Numbers";
     }
 }
