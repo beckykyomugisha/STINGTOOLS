@@ -2810,6 +2810,15 @@ namespace StingTools.UI
                         RunCommand<Core.WorkflowPresetCommand>(app);
                         break;
                     }
+                    // H-9: the KUT fortnightly issue had no launcher - only the paged
+                    // "Run preset" picker, three presets a page. Its "name" has spaces, so
+                    // neither rule above can rebuild it from a tag: it is passed verbatim.
+                    case "RunWorkflow_KUTFortnightlyIssue":
+                    {
+                        SetExtraParam("WorkflowPresetName", "KUT Fortnightly Issue");
+                        RunCommand<Core.WorkflowPresetCommand>(app);
+                        break;
+                    }
                     case "SaveExtendedBaseline":
                     {
                         var d = app.ActiveUIDocument?.Document;

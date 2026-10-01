@@ -2372,6 +2372,7 @@
                                         <ComboBoxItem Content="MEP drawing production (18 steps)"      Tag="RunWorkflow_MEPDrawingProduction"/>
                                         <ComboBoxItem Content="MEP pre-issue checks (5 steps)"         Tag="RunWorkflow_MEPPreIssue"/>
                                         <ComboBoxItem Content="Revision issue (4 steps)"               Tag="RunWorkflow_RevisionIssue"/>
+                                        <ComboBoxItem Content="KUT fortnightly issue (8 steps)"        Tag="RunWorkflow_KUTFortnightlyIssue"/>
                                     </ComboBox>
                                 </DockPanel>
                                 <WrapPanel Margin="0,4,0,0">
