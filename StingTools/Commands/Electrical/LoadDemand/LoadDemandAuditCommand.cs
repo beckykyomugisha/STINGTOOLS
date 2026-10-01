@@ -180,7 +180,7 @@ namespace StingTools.Commands.Electrical.LoadDemand
             {
                 if (p.StorageType == StorageType.Double)  return StingTools.Core.Electrical.ElecUnits.ToSi(p);
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
-                if (p.StorageType == StorageType.String && StingTools.Core.Electrical.InvariantNumber.TryParse(p.AsString(), out double v)) return v;
+                if (p.StorageType == StorageType.String && StingTools.Core.NumberText.TryParse(p.AsString(), out double v)) return v;
             }
             catch { }
             return 0;

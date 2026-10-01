@@ -1311,7 +1311,7 @@ namespace StingTools.Core
                     };
             }
             // Try numeric comparison
-            if (double.TryParse(currentValue, out double val) && double.TryParse(def.Threshold, out double thresh))
+            if (NumberText.TryParse(currentValue, out double val) && NumberText.TryParse(def.Threshold, out double thresh))
             {
                 // For most thresholds: value exceeding limit is a warning
                 // For minimums (coverage, width, depth): value below threshold is a warning

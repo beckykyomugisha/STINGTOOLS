@@ -445,7 +445,7 @@ namespace StingTools.Core
                 if (token == null) return defaultValue;
                 if (token.Type == Newtonsoft.Json.Linq.JTokenType.Float) return (double)token;
                 if (token.Type == Newtonsoft.Json.Linq.JTokenType.Integer) return (long)token;
-                if (double.TryParse(token.ToString(), out double val)) return val;
+                if (NumberText.TryParse(token.ToString(), out double val)) return val;
             }
             catch (Exception ex) { StingLog.Warn($"GetConfigDouble({key}): {ex.Message}"); }
             return defaultValue;
@@ -1020,21 +1020,21 @@ namespace StingTools.Core
                 {
                     if (proxFt is double pd) rawRadius = pd;
                     else if (proxFt is long pl) rawRadius = pl;
-                    else double.TryParse(proxFt?.ToString(), out rawRadius);
+                    else NumberText.TryParse(proxFt?.ToString(), out rawRadius);
                     unitToFt = 1.0;
                 }
                 else if (data.TryGetValue("PROXIMITY_RADIUS_M", out object proxM))
                 {
                     if (proxM is double pd) rawRadius = pd;
                     else if (proxM is long pl) rawRadius = pl;
-                    else double.TryParse(proxM?.ToString(), out rawRadius);
+                    else NumberText.TryParse(proxM?.ToString(), out rawRadius);
                     unitToFt = 3.28084; // 1 m = 3.28084 ft
                 }
                 else if (data.TryGetValue("PROXIMITY_RADIUS_MM", out object proxMm))
                 {
                     if (proxMm is double pd) rawRadius = pd;
                     else if (proxMm is long pl) rawRadius = pl;
-                    else double.TryParse(proxMm?.ToString(), out rawRadius);
+                    else NumberText.TryParse(proxMm?.ToString(), out rawRadius);
                     unitToFt = 0.00328084; // 1 mm = 0.00328084 ft
                 }
                 if (!double.IsNaN(rawRadius))

@@ -125,7 +125,7 @@ namespace StingTools.Commands.Electrical.Busbar
             string blob = (tray.Name ?? "") + " " + (tray.GetTypeId() != null
                 ? (tray.Document.GetElement(tray.GetTypeId())?.Name ?? "") : "");
             var m = Regex.Match(blob, @"(\d+)\s*A", RegexOptions.IgnoreCase);
-            if (m.Success && StingTools.Core.Electrical.InvariantNumber.TryParse(m.Groups[1].Value, out double a)) return a;
+            if (m.Success && StingTools.Core.NumberText.TryParse(m.Groups[1].Value, out double a)) return a;
             return 0;
         }
 

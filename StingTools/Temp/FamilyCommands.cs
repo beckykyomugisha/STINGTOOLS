@@ -376,7 +376,7 @@ namespace StingTools.Temp
             if (cols.Length > ColThicknessMm)
             {
                 string raw = cols[ColThicknessMm].Trim();
-                double.TryParse(raw, out totalMm);
+                NumberText.TryParse(raw, out totalMm);
             }
 
             // If total is zero, sum actual layer thicknesses
@@ -393,7 +393,7 @@ namespace StingTools.Temp
                     // Skip R-value codes (e.g. "R-3.6") which are thermal resistance, not thickness
                     if (thickStr.StartsWith("R-", StringComparison.OrdinalIgnoreCase)) continue;
 
-                    if (double.TryParse(thickStr, out double lmm) && lmm > 0 && lmm < 1000)
+                    if (NumberText.TryParse(thickStr, out double lmm) && lmm > 0 && lmm < 1000)
                         layerSum += lmm;
                 }
                 if (layerSum > 0)
@@ -824,7 +824,7 @@ namespace StingTools.Temp
                     {
                         // R-value codes count as populated (they indicate a real layer)
                         if (thickStr.StartsWith("R-", StringComparison.OrdinalIgnoreCase) ||
-                            (double.TryParse(thickStr, out double v) && v > 0))
+                            (NumberText.TryParse(thickStr, out double v) && v > 0))
                         {
                             count++;
                         }

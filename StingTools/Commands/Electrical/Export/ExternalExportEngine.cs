@@ -388,7 +388,7 @@ namespace StingTools.Commands.Electrical.Export
         private static string SafeStr(Element e, BuiltInParameter bip)
         { try { return e.get_Parameter(bip)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; } }
         private static T TrySafe<T>(Func<T> f, T fallback = default) { try { return f(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return fallback; } }
-        private static double ParseDouble(string s) => StingTools.Core.Electrical.InvariantNumber.ParseOr(s);
+        private static double ParseDouble(string s) => StingTools.Core.NumberText.ParseOr(s);
         // One wire-size parser for the whole plugin. The local one took the FIRST
         // digit run, so "2 x 2.5mm²" exported a 2 mm² cable to ETAP/EasyPower.
         private static double ParseCsa(string wireSize)

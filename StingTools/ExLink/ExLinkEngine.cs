@@ -565,7 +565,7 @@ namespace StingTools.ExLink
                         if (int.TryParse(value, out var iv)) { param.Set(iv); return true; }
                         return false;
                     case StorageType.Double:
-                        if (double.TryParse(value, out var dv)) { param.Set(dv); return true; }
+                        if (NumberText.TryParse(value, out var dv)) { param.Set(dv); return true; }
                         return false;
                     case StorageType.ElementId:
                         if (long.TryParse(value, out var eid))
@@ -615,15 +615,15 @@ namespace StingTools.ExLink
                 case "HasValue": return !string.IsNullOrWhiteSpace(a);
                 case "HasNoValue": return string.IsNullOrWhiteSpace(a);
                 case "GreaterThan":
-                    return double.TryParse(a, out var ga) && double.TryParse(e, out var ge) && ga > ge;
+                    return NumberText.TryParse(a, out var ga) && NumberText.TryParse(e, out var ge) && ga > ge;
                 case "LessThan":
-                    return double.TryParse(a, out var la) && double.TryParse(e, out var le) && la < le;
+                    return NumberText.TryParse(a, out var la) && NumberText.TryParse(e, out var le) && la < le;
                 case "StartsWith": return a.StartsWith(e, StringComparison.OrdinalIgnoreCase);
                 case "EndsWith": return a.EndsWith(e, StringComparison.OrdinalIgnoreCase);
                 case "GreaterThanOrEqual":
-                    return double.TryParse(a, out var gea) && double.TryParse(e, out var gee) && gea >= gee;
+                    return NumberText.TryParse(a, out var gea) && NumberText.TryParse(e, out var gee) && gea >= gee;
                 case "LessThanOrEqual":
-                    return double.TryParse(a, out var lea) && double.TryParse(e, out var lee) && lea <= lee;
+                    return NumberText.TryParse(a, out var lea) && NumberText.TryParse(e, out var lee) && lea <= lee;
                 default:
                     StingLog.Warn($"Unknown comparison '{comparison}', defaulting to Contains");
                     return a.IndexOf(e, StringComparison.OrdinalIgnoreCase) >= 0;

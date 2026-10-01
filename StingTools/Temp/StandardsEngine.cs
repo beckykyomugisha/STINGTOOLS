@@ -323,7 +323,7 @@ namespace StingTools.Temp
                     var reqs = Bs7671CircuitReqs[matchedCircuitType];
                     if (rating > 0 && rating > reqs.MaxLoad)
                         issues.Add((id, name, $"Rating ({rating:F0}A) exceeds max for {matchedCircuitType} ({reqs.MaxLoad:F0}A) per BS 7671"));
-                    if (!string.IsNullOrEmpty(wireSize) && double.TryParse(
+                    if (!string.IsNullOrEmpty(wireSize) && NumberText.TryParse(
                         System.Text.RegularExpressions.Regex.Match(wireSize, @"[\d.]+").Value, out double wireMm2))
                     {
                         if (wireMm2 < reqs.MinCableSize)

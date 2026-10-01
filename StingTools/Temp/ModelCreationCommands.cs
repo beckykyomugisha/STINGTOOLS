@@ -756,10 +756,10 @@ namespace StingTools.Temp
                         if (parts.Length < 5) continue;
 
                         string name = parts[0].Trim();
-                        if (!double.TryParse(parts[1], out double x1)) continue;
-                        if (!double.TryParse(parts[2], out double y1)) continue;
-                        if (!double.TryParse(parts[3], out double x2)) continue;
-                        if (!double.TryParse(parts[4], out double y2)) continue;
+                        if (!NumberText.TryParse(parts[1], out double x1)) continue;
+                        if (!NumberText.TryParse(parts[2], out double y1)) continue;
+                        if (!NumberText.TryParse(parts[3], out double x2)) continue;
+                        if (!NumberText.TryParse(parts[4], out double y2)) continue;
 
                         // Convert mm to feet
                         var start = new XYZ(x1 / 304.8, y1 / 304.8, 0);
@@ -830,7 +830,7 @@ namespace StingTools.Temp
                         if (parts.Length < 2) continue;
 
                         string name = parts[0].Trim();
-                        if (!double.TryParse(parts[1], out double elevationMm)) continue;
+                        if (!NumberText.TryParse(parts[1], out double elevationMm)) continue;
 
                         double elevationFt = elevationMm / 304.8;
 

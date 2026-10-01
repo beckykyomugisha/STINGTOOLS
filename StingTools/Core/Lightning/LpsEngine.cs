@@ -841,7 +841,7 @@ namespace StingTools.Core.Lightning
                     case StorageType.Double:  return FromInternalIfLength(p, paramName, p.AsDouble());
                     case StorageType.Integer: return p.AsInteger();
                     case StorageType.String:
-                        if (StingTools.Core.Electrical.InvariantNumber.TryParse(p.AsString(), out double v)) return v;
+                        if (StingTools.Core.NumberText.TryParse(p.AsString(), out double v)) return v;
                         return 0.0;
                     default: return 0.0;
                 }

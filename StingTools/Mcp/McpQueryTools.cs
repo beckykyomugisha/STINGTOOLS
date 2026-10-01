@@ -943,8 +943,8 @@ namespace StingTools.Mcp
                     case "eq":       if (!EqCompare(str, num, val)) return false; break;
                     case "ne":       if (EqCompare(str, num, val)) return false; break;
                     case "contains": if (str == null || str.IndexOf(val, StringComparison.OrdinalIgnoreCase) < 0) return false; break;
-                    case "gt":       if (!(num.HasValue && double.TryParse(val, out double gv) && num.Value > gv)) return false; break;
-                    case "lt":       if (!(num.HasValue && double.TryParse(val, out double lv) && num.Value < lv)) return false; break;
+                    case "gt":       if (!(num.HasValue && NumberText.TryParse(val, out double gv) && num.Value > gv)) return false; break;
+                    case "lt":       if (!(num.HasValue && NumberText.TryParse(val, out double lv) && num.Value < lv)) return false; break;
                 }
             }
             return true;
@@ -952,7 +952,7 @@ namespace StingTools.Mcp
 
         private static bool EqCompare(string str, double? num, string val)
         {
-            if (num.HasValue && double.TryParse(val, out double v)) return Math.Abs(num.Value - v) < 1e-9;
+            if (num.HasValue && NumberText.TryParse(val, out double v)) return Math.Abs(num.Value - v) < 1e-9;
             return string.Equals(str ?? "", val ?? "", StringComparison.OrdinalIgnoreCase);
         }
 
@@ -1092,7 +1092,7 @@ namespace StingTools.Mcp
         {
             if (string.IsNullOrWhiteSpace(s)) return null;
             var m = Regex.Match(s, @"-?\d+(\.\d+)?");
-            return m.Success && double.TryParse(m.Value, out double d) ? d : (double?)null;
+            return m.Success && NumberText.TryParse(m.Value, out double d) ? d : (double?)null;
         }
 
         private static string SafeLevel(Document doc, Element el)

@@ -842,7 +842,7 @@ namespace StingTools.Tags
                     case StorageType.Double:
                         if (value is double dblVal)
                             fm.Set(param, dblVal);
-                        else if (double.TryParse(value.ToString(), out double dParsed))
+                        else if (NumberText.TryParse(value.ToString(), out double dParsed))
                             fm.Set(param, dParsed);
                         else
                             return false;
@@ -972,7 +972,7 @@ namespace StingTools.Tags
                             fm.Set(param, intVal);
                             written++;
                         }
-                        else if (param.StorageType == StorageType.Double && double.TryParse(value, out double dblVal))
+                        else if (param.StorageType == StorageType.Double && NumberText.TryParse(value, out double dblVal))
                         {
                             fm.Set(param, dblVal);
                             written++;

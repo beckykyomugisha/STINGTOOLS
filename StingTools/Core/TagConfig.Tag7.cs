@@ -2209,7 +2209,7 @@ namespace StingTools.Core
             {
                 string h = ParameterHelpers.GetValueText(el, ParamRegistry.WALL_HEIGHT);
                 string t = ParameterHelpers.GetValueText(el, ParamRegistry.WALL_THICKNESS);
-                if (double.TryParse(h, out double hv) && double.TryParse(t, out double tv) && tv > 0)
+                if (NumberText.TryParse(h, out double hv) && NumberText.TryParse(t, out double tv) && tv > 0)
                     return (hv / tv).ToString("F1");
                 return null;
             }

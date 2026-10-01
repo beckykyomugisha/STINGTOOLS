@@ -729,7 +729,7 @@ namespace StingTools.Core
                 @"(\d[\d,\.]+)\s*(million|m|M|mln)?\s*(ugx|shilling|ugs)?",
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             if (!m.Success) return 0;
-            double v = double.TryParse(m.Groups[1].Value.Replace(",", ""), out double d) ? d : 0;
+            double v = NumberText.TryParse(m.Groups[1].Value.Replace(",", ""), out double d) ? d : 0;
             if (m.Groups[2].Value.ToLower().StartsWith("m")) v *= 1_000_000;
             return (long)v;
         }

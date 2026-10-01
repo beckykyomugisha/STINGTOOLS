@@ -431,13 +431,13 @@ namespace StingTools.Core
                     }
                     case "tag_compliance":
                     {
-                        double threshold = double.TryParse(value, out var t) ? t : 80;
+                        double threshold = NumberText.TryParse(value, out var t) ? t : 80;
                         var scan = ComplianceScan.Scan(doc);
                         return scan != null && scan.CompliancePercent < threshold; // Execute if BELOW threshold
                     }
                     case "tag_compliance_above":
                     {
-                        double threshold = double.TryParse(value, out var t) ? t : 80;
+                        double threshold = NumberText.TryParse(value, out var t) ? t : 80;
                         var scan = ComplianceScan.Scan(doc);
                         return scan != null && scan.CompliancePercent >= threshold;
                     }
@@ -574,7 +574,7 @@ namespace StingTools.Core
                     case "affected_lt":
                         return parts.Length >= 3 && int.TryParse(parts[2], out var lt) && output.AffectedElementCount < lt;
                     case "compliance_delta_gt":
-                        return parts.Length >= 3 && double.TryParse(parts[2], out var cgt) && output.ComplianceDelta > cgt;
+                        return parts.Length >= 3 && NumberText.TryParse(parts[2], out var cgt) && output.ComplianceDelta > cgt;
                     default: return true;
                 }
             }

@@ -249,7 +249,10 @@ namespace StingTools.BIMManager
         //  ExportWorkbook — build workbook in memory and return stream
         // ──────────────────────────────────────────────────────────────────
 
-        public static MemoryStream ExportWorkbook(DrawingTypeLibrary dtLib, StylePackDoc packLib)
+        /// <param name="fontName">Workbook body font — the command passes the corporate brand's
+        /// body font (CorporateBrand.Fonts.Body); kept as a parameter so this engine stays Revit-free.</param>
+        public static MemoryStream ExportWorkbook(DrawingTypeLibrary dtLib, StylePackDoc packLib,
+            string fontName = "Calibri", double fontSize = 10)
         {
             if (dtLib == null) throw new ArgumentNullException(nameof(dtLib));
             packLib ??= new StylePackDoc();
@@ -257,8 +260,8 @@ namespace StingTools.BIMManager
             var wb = new XLWorkbook();
             try
             {
-                wb.Style.Font.FontName = "Calibri";
-                wb.Style.Font.FontSize = 10;
+                wb.Style.Font.FontName = string.IsNullOrWhiteSpace(fontName) ? "Calibri" : fontName;
+                wb.Style.Font.FontSize = fontSize > 0 ? fontSize : 10;
 
                 BuildDrawingTypesSheet(wb, dtLib, packLib);
                 BuildStylePacksSheet(wb, packLib);

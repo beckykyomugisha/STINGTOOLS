@@ -922,8 +922,8 @@ namespace StingTools.Temp
                     switch (code)
                     {
                         case "2": block.Name = value; break;
-                        case "10": block.BasePointX = double.TryParse(value, out double x) ? x : 0; break;
-                        case "20": block.BasePointY = double.TryParse(value, out double y) ? y : 0; break;
+                        case "10": block.BasePointX = NumberText.TryParse(value, out double x) ? x : 0; break;
+                        case "20": block.BasePointY = NumberText.TryParse(value, out double y) ? y : 0; break;
                     }
                     i += 2;
                 }
@@ -954,13 +954,13 @@ namespace StingTools.Temp
                     switch (code)
                     {
                         case "8": entity.LayerName = value; break;
-                        case "10": entity.StartX = double.TryParse(value, out double x1) ? x1 : 0; break;
-                        case "20": entity.StartY = double.TryParse(value, out double y1) ? y1 : 0; break;
-                        case "30": entity.StartZ = double.TryParse(value, out double z1) ? z1 : 0; break;
-                        case "11": entity.EndX = double.TryParse(value, out double x2) ? x2 : 0; break;
-                        case "21": entity.EndY = double.TryParse(value, out double y2) ? y2 : 0; break;
-                        case "31": entity.EndZ = double.TryParse(value, out double z2) ? z2 : 0; break;
-                        case "40": entity.Radius = double.TryParse(value, out double r) ? r : 0; break;
+                        case "10": entity.StartX = NumberText.TryParse(value, out double x1) ? x1 : 0; break;
+                        case "20": entity.StartY = NumberText.TryParse(value, out double y1) ? y1 : 0; break;
+                        case "30": entity.StartZ = NumberText.TryParse(value, out double z1) ? z1 : 0; break;
+                        case "11": entity.EndX = NumberText.TryParse(value, out double x2) ? x2 : 0; break;
+                        case "21": entity.EndY = NumberText.TryParse(value, out double y2) ? y2 : 0; break;
+                        case "31": entity.EndZ = NumberText.TryParse(value, out double z2) ? z2 : 0; break;
+                        case "40": entity.Radius = NumberText.TryParse(value, out double r) ? r : 0; break;
                         case "1": entity.TextContent = value; break;
                         case "62": entity.ColorIndex = int.TryParse(value, out int ci) ? ci : 0; break;
                     }
