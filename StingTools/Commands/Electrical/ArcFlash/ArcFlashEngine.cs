@@ -91,7 +91,6 @@ namespace StingTools.Commands.Electrical.ArcFlash
         public double WorkingDistanceMm     { get; set; }
         public double GapMm                 { get; set; }
         public double DistanceExponent      { get; set; }
-        public int    PpeCategory           { get; set; }
         public List<string> Notes           { get; set; } = new List<string>();
     }
 
@@ -129,63 +128,6 @@ namespace StingTools.Commands.Electrical.ArcFlash
         public const double MaxArcDurationS = 2.0;
 
         public const double JoulesPerCalorie = 4.184;
-
-        // NFPA 70E legacy hazard/risk category thresholds by incident energy (cal/cm²).
-        // Built-in fallback; STING_ARC_FLASH_PPE.json ppeCategories is read and used
-        // only where it matches these (see ResolvePpeThresholds).
-        internal static readonly (double maxCal, int cat)[] DefaultPpeThresholds =
-        {
-            (1.2, 0), (4.0, 1), (8.0, 2), (25.0, 3), (40.0, 4)
-        };
-
-        private static readonly Lazy<(double maxCal, int cat)[]> _ppeThresholds =
-            new Lazy<(double maxCal, int cat)[]>(LoadPpeThresholds);
-
-        private static (double maxCal, int cat)[] PpeThresholds => _ppeThresholds.Value;
-
-        private static (double maxCal, int cat)[] LoadPpeThresholds()
-        {
-            JObject root = null;
-            try
-            {
-                string path = StingTools.Core.StingToolsApp.FindDataFile("STING_ARC_FLASH_PPE.json");
-                if (!string.IsNullOrEmpty(path) && File.Exists(path))
-                    root = JObject.Parse(File.ReadAllText(path));
-            }
-            catch (Exception ex)
-            {
-                StingTools.Core.StingLog.Warn($"ArcFlashEngine.LoadPpeThresholds: {ex.Message}");
-            }
-            return ResolvePpeThresholds(root);
-        }
-
-        /// <summary>
-        /// PPE category thresholds from STING_ARC_FLASH_PPE.json → ppeCategories (rows with
-        /// cat ≥ 0; the cat −1 row is "above the last threshold"). The data is used only when
-        /// it matches the built-in NFPA 70E thresholds; a list that differs would move
-        /// incidents between PPE categories, so it is logged and the built-in list stands.
-        /// </summary>
-        internal static (double maxCal, int cat)[] ResolvePpeThresholds(JObject root)
-        {
-            if (!(root?["ppeCategories"] is JArray arr)) return DefaultPpeThresholds;
-            var data = new List<(double maxCal, int cat)>();
-            foreach (var row in arr.OfType<JObject>())
-            {
-                var c = row["cat"]; var m = row["maxCalCm2"];
-                if (c == null || m == null || c.Type != JTokenType.Integer ||
-                    (m.Type != JTokenType.Float && m.Type != JTokenType.Integer)) return DefaultPpeThresholds;
-                int cat = c.Value<int>();
-                if (cat < 0) continue;
-                data.Add((m.Value<double>(), cat));
-            }
-            data.Sort((a, b) => a.maxCal.CompareTo(b.maxCal));
-            if (data.SequenceEqual(DefaultPpeThresholds)) return data.ToArray();
-            StingTools.Core.StingLog.WarnRateLimited("ArcFlashEngine.PpeThresholds",
-                "STING_ARC_FLASH_PPE.json ppeCategories thresholds [" +
-                string.Join(", ", data.Select(d => $"cat {d.cat} <= {d.maxCal}")) +
-                "] differ from the built-in NFPA 70E thresholds; the built-in thresholds are used.");
-            return DefaultPpeThresholds;
-        }
 
         // ── Equipment-class tables (IEEE 1584-2002 Tables 3 and 4, ≤ 1 kV) ────
 
@@ -268,20 +210,16 @@ namespace StingTools.Commands.Electrical.ArcFlash
             return Math.Pow(inner, 1.0 / distanceExponent);
         }
 
-        /// <summary>Returns NFPA 70E PPE category (0–4) by incident energy, or −1 above 40 cal/cm².</summary>
-        public static int PpeCategory(double incidentEnergyCalCm2)
-        {
-            if (incidentEnergyCalCm2 <= 0) return 0;
-            foreach (var (maxCal, cat) in PpeThresholds)
-                if (incidentEnergyCalCm2 <= maxCal) return cat;
-            return -1;
-        }
+        // No PPE category is derived here (DSCH-25). NFPA 70E's category method
+        // (130.7(C)(15)) is table-based and may not appear on a label beside the
+        // incident energy (130.5(H)); colouring by incident-energy band is
+        // presentation and lives in ArcFlashPresentation / STING_ARC_FLASH_PPE.json.
 
         // ── Full calculation ─────────────────────────────────────────────
 
         /// <summary>
         /// Runs the full IEEE 1584-2002 LV procedure: arcing current, the 85 % arcing-current
-        /// second case, incident energy (worse case reported), boundary and PPE category.
+        /// second case, incident energy (worse case reported) and boundary.
         /// </summary>
         /// <param name="input">Equipment and system data.</param>
         /// <param name="clearingTimeAtArcingKa">
@@ -357,7 +295,6 @@ namespace StingTools.Commands.Electrical.ArcFlash
             r.IncidentEnergyJcm2 = e;
             r.IncidentEnergyCalCm2 = e / JoulesPerCalorie;
             r.BoundaryMm = BoundaryMm(en, t, x);
-            r.PpeCategory = PpeCategory(r.IncidentEnergyCalCm2);
             return r;
         }
 
@@ -448,7 +385,6 @@ namespace StingTools.Commands.Electrical.ArcFlash
             r.IncidentEnergyJcm2 = x.IncidentEnergyJcm2;
             r.IncidentEnergyCalCm2 = x.IncidentEnergyJcm2 / JoulesPerCalorie;
             r.BoundaryMm = x.BoundaryMm;
-            r.PpeCategory = PpeCategory(r.IncidentEnergyCalCm2);
             return r;
         }
 
@@ -464,9 +400,13 @@ namespace StingTools.Commands.Electrical.ArcFlash
         /// <summary>
         /// Multi-line label text for a Revit text note / parameter. Always carries
         /// <see cref="Basis"/>; a not-calculated result says so and carries no numbers.
+        /// Content follows NFPA 70E 130.5(H): nominal voltage, arc-flash boundary and the
+        /// incident energy at its working distance — and no PPE category beside it. The
+        /// first line is the ANSI Z535.4 signal word from <paramref name="presentation"/>;
+        /// when that did not load the line says so instead of guessing a word.
         /// </summary>
         public static string FormatLabel(string panelName, double voltageV, ArcEquipmentClass cls,
-            ArcFlashResult r, string clearingTimeSource)
+            ArcFlashResult r, string clearingTimeSource, ArcFlashPresentationSet presentation)
         {
             if (r == null || !r.Calculated)
                 return "ARC FLASH HAZARD — NOT CALCULATED\n" +
@@ -475,15 +415,18 @@ namespace StingTools.Commands.Electrical.ArcFlash
                        "A licensed arc-flash study is required.\n" +
                        $"Basis: {r?.Basis ?? Basis}";
 
-            string danger = r.PpeCategory < 0 ? "DANGER — EXCEEDS 40 cal/cm²" : $"PPE Category {r.PpeCategory} (by incident energy)";
-            return "ARC FLASH HAZARD — INDICATIVE\n" +
+            var header = presentation?.HeaderFor(r.IncidentEnergyCalCm2);
+            string first = header != null
+                ? $"{header.SignalWord} — ARC FLASH HAZARD — INDICATIVE\n"
+                : "ARC FLASH HAZARD — INDICATIVE (signal word not set: " +
+                  (presentation?.LoadError ?? "no presentation data") + ")\n";
+            return first +
                    $"Panel: {panelName}\n" +
                    $"Voltage: {voltageV:0} V   Class: {cls}\n" +
                    $"Incident Energy: {r.IncidentEnergyCalCm2:0.00} cal/cm² at {r.WorkingDistanceMm:0} mm\n" +
                    $"Arc Flash Boundary: {r.BoundaryMm:0} mm\n" +
                    $"Clearing time: {r.GoverningClearingTimeS * 1000:0} ms ({clearingTimeSource})\n" +
                    $"Gap: {r.GapMm:0} mm" + (string.IsNullOrEmpty(r.ElectrodeConfiguration) ? "" : $"   Electrodes: {r.ElectrodeConfiguration}") + "\n" +
-                   $"{danger}\n" +
                    $"Basis: {r.Basis}";
         }
     }

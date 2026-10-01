@@ -206,7 +206,7 @@ namespace StingTools.Tags.Tests
             var x = Ieee1584_2018.Calculate(ElectrodeConfiguration.VCB, 0.4, 25, 25, 457.2, 355.6, 304.8, double.PositiveInfinity, _ => 100);
             Assert.Equal(x.IncidentEnergyJcm2 / 4.184, r.IncidentEnergyCalCm2, 9);
             Assert.Equal(x.BoundaryMm, r.BoundaryMm, 9);
-            string label = ArcFlashEngine.FormatLabel("DB-1", 400, ArcEquipmentClass.PanelMcc, r, "fixed");
+            string label = ArcFlashEngine.FormatLabel("DB-1", 400, ArcEquipmentClass.PanelMcc, r, "fixed", ArcFlashPresentationTests.Shipped());
             Assert.Contains("IEEE 1584-2018", label);
             Assert.Contains("Electrodes: VCB", label);
         }
@@ -241,7 +241,7 @@ namespace StingTools.Tags.Tests
             var r = ArcFlashEngine.Calculate(new ArcFlashInput { BoltedFaultKa = 25, VoltageV = 400 }, _ => double.NaN);
             Assert.False(r.Calculated);
             Assert.Equal(0, r.IncidentEnergyCalCm2);
-            Assert.Contains("NOT CALCULATED", ArcFlashEngine.FormatLabel("DB", 400, ArcEquipmentClass.PanelMcc, r, ""));
+            Assert.Contains("NOT CALCULATED", ArcFlashEngine.FormatLabel("DB", 400, ArcEquipmentClass.PanelMcc, r, "", ArcFlashPresentationTests.Shipped()));
         }
 
         [Fact]

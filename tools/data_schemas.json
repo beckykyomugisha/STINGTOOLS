@@ -3557,6 +3557,106 @@
         }
       }
     },
+    "StingTools/Data/STING_ARC_FLASH_PPE.json": {
+      "format": "json",
+      "schemaVersion": 2,
+      "description": "Arc-flash PRESENTATION only (DSCH-25): incident-energy band colours and the ANSI Z535.4 label header. The one owner - no colours or thresholds in code. v2 replaced ppeCategories (cat / maxCalCm2 / description / colour) and the unread defaultClearingMs / defaultBusGapMm with energyBands + labelHeader. No POCO: ArcFlashPresentation.Parse reads it with JObject and rejects the whole file on any problem, so the key list is hand-declared.",
+      "readers": [
+        "StingTools/Commands/Electrical/ArcFlash/ArcFlashPresentation.cs"
+      ],
+      "kind": "object",
+      "keys": [
+        "energyBands",
+        "labelHeader"
+      ],
+      "req": [
+        "energyBands",
+        "labelHeader"
+      ],
+      "children": {
+        "energyBands": {
+          "kind": "array-of-object",
+          "keys": [
+            "maxCalCm2",
+            "label",
+            "viewColour"
+          ],
+          "req": [
+            "maxCalCm2",
+            "label",
+            "viewColour"
+          ],
+          "types": {
+            "maxCalCm2": "num",
+            "label": "str",
+            "viewColour": "str"
+          }
+        },
+        "labelHeader": {
+          "kind": "object",
+          "keys": [
+            "dangerAboveCalCm2",
+            "warning",
+            "danger"
+          ],
+          "req": [
+            "dangerAboveCalCm2",
+            "warning",
+            "danger"
+          ],
+          "types": {
+            "dangerAboveCalCm2": "num"
+          },
+          "docKeys": {
+            "verify": "Unconfirmed-figure marker (DSCH implementation rule): what to confirm and against which source. No reader binds it."
+          },
+          "children": {
+            "warning": {
+              "kind": "object",
+              "keys": [
+                "signalWord",
+                "background",
+                "text"
+              ],
+              "req": [
+                "signalWord",
+                "background",
+                "text"
+              ],
+              "types": {
+                "signalWord": "str",
+                "background": "str",
+                "text": "str"
+              },
+              "docKeys": {
+                "verify": "Unconfirmed-figure marker: what to confirm and against which source. No reader binds it."
+              }
+            },
+            "danger": {
+              "kind": "object",
+              "keys": [
+                "signalWord",
+                "background",
+                "text"
+              ],
+              "req": [
+                "signalWord",
+                "background",
+                "text"
+              ],
+              "types": {
+                "signalWord": "str",
+                "background": "str",
+                "text": "str"
+              },
+              "docKeys": {
+                "verify": "Unconfirmed-figure marker: what to confirm and against which source. No reader binds it."
+              }
+            }
+          }
+        }
+      }
+    },
     "StingTools/Data/STING_BINDING_PROFILES.json": {
       "format": "json",
       "schemaVersion": 1,
@@ -10400,10 +10500,6 @@
     "StingTools/Data/STING_AIC_TIERS.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/STING_ARC_FLASH_PPE.json": {
-      "format": "json",
-      "reason": "Read by ArcFlashEngine (PPE category thresholds) and ArcFlashBoundaryViewCommand (boundary colours; code colours kept where the data disagrees, logged once). DSCH-15 closed."
     },
     "StingTools/Data/STING_BS7671_DISCONNECTION.json": {
       "format": "json",

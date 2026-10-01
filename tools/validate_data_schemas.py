@@ -931,6 +931,10 @@ def self_test(reg):
               add_unknown_json(["drawingTypes", 0, "crop"]))
     json_case(D + "BOQ_DESCRIPTIONS.json", "unknown key on a description",
               add_unknown_json([0]))
+    json_case(D + "STING_ARC_FLASH_PPE.json", "unknown key on an arc-flash energy band",
+              add_unknown_json(["energyBands", 0]))
+    json_case(D + "STING_ARC_FLASH_PPE.json", "unknown key on the DANGER label header",
+              add_unknown_json(["labelHeader", "danger"]))
     json_case(D + "Placement/STING_PLACEMENT_RULES.json", "unknown key on a placement rule",
               add_unknown_json(["Rules", 0]))
     def bad_sting_param(doc):

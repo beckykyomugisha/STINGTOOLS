@@ -100,7 +100,9 @@ namespace StingTools.Commands.Electrical.Export
                     sb.AppendLine($"    <Bus id=\"{Esc(af.PanelName)}\" " +
                                   $"ie_cal_cm2=\"{af.IncidentEnergy_CalCm2:0.00}\" " +
                                   $"boundary_mm=\"{af.BoundaryMm:0}\" " +
-                                  $"ppe=\"{af.PpeCategory}\"/>");
+                                  // An incident-energy BAND (STING presentation), not an NFPA 70E
+                                  // PPE category — the attribute used to be "ppe" (DSCH-25).
+                                  $"sting_energy_band=\"{Esc(af.EnergyBand)}\"/>");
                 }
                 sb.AppendLine("  </ArcFlash>");
             }
