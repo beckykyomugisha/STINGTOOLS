@@ -7,17 +7,15 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 
 ## Resume here
 
-Round 8 is merged on `fix/drawing-review-2` (PR #1040): DTW-149..214, 66 items. Open:
-DTW-82 (in-Revit checks), DTW-102 (linked MEP runs reported, not dimensioned), DTW-215 and
-DTW-216 (both low).
+Round 9 is merged on `fix/drawing-review-3` (DTW-215..227). Open: DTW-82 (in-Revit checks),
+DTW-102 (linked MEP runs reported, not dimensioned), DTW-228 (low).
 
-1. Mark PR #1040 ready, merge it once CI is green, and ask the ACC session to merge main into
-   `claude/acc-work-review-gaps-7e2ac7` and redeploy STING_KUT_LIVE after Revit closes.
-2. Next pass (round 9): DTW-215 and 216, then a convergence review of the round-8 code. The
-   areas it changed most are worksharing pre-flight, ProducedViewState, lazy sheets, replaces,
-   filter hash refresh, the Excel round-trip and managed V/G.
-3. The in-Revit checks (NEEDS REVIT CHECK below) decide several design points. Run them before
-   another deep pass.
+1. Merge the round-9 PR once CI is green; ask the ACC session to merge main and redeploy (it needs
+   the user's approval for deploy.bat).
+2. The in-Revit checks are the real gate now. Rounds 8 and 9 found few new defects outside seams;
+   the next value comes from running NEEDS REVIT CHECK, especially worksharing, managed V/G and
+   bindings.
+3. After the Revit checks: fix DTW-228 and anything they turn up; then round 10.
 
 ## State (2026-10-01)
 
@@ -279,9 +277,10 @@ DTW-216 (both low).
 | DTW-222 | ShortLevel vs Renumber | Med-Low | Long digit-ending level names change number shape; Renumber converts existing sheets | Merged | Done |
 | DTW-223 | DrawingProducer CreateSheet catch | Low | Counter burned when ViewSheet.Create throws | Merged | Done |
 | DTW-224 | WorksharingPreflight.ProductionElements | Low | Managed templates and filters edited by the run are not pre-checked | Merged | Done |
-| DTW-225 | DrawingProducer.CreateSheet numbering | Low-Med | New sheets on long digit-ending levels take the new ShortLevel shape while existing sheets use the legacy one | fix/dt-r9-d | In progress |
-| DTW-226 | ManagedTemplateSyncer vs MEP system filters | Low | Does a pack re-sync keep the system filters MEP coordination added to the template? | fix/dt-r9-d (verify first) | In progress |
-| DTW-227 | WorksharingPreflight material-class filters | Low | Not pre-checked | fix/dt-r9-d | In progress |
+| DTW-225 | DrawingProducer.CreateSheet numbering | Low-Med | New sheets on long digit-ending levels take the new ShortLevel shape while existing sheets use the legacy one | Merged | Done |
+| DTW-226 | ManagedTemplateSyncer vs MEP system filters | Low | Does a pack re-sync keep the system filters MEP coordination added to the template? | Merged | Done |
+| DTW-227 | WorksharingPreflight material-class filters | Low | Not pre-checked | Merged | Done |
+| DTW-228 | ViewStylePackApplier.ApplyFilterEnabled | Low | A pack with filterEnabled=false disables every filter on a view with no managed template, including MEP system filters | Disable only the pack's own filters | Open |
 
 ## Decisions
 

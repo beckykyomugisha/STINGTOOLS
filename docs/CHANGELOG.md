@@ -26453,3 +26453,30 @@ Round 8 of the drawing review loop, findings DTW-149..214; details and the Revit
 
 Build 0/0; Tags.Tests 5,367; `run_ci_gates.py --quick` 36/36; checksums OK. Not yet run in Revit.
 
+#### Completed (Drawing production round 9, convergence, branch `fix/drawing-review-3`)
+
+Round 9 of the drawing review loop: a convergence review of round 8, with the merge seams between
+its five parallel branches fixed. Findings DTW-215..227; details are in
+`docs/WORKLOG_DRAWING_TYPES.md`.
+
+- **Managed V/G seams.**
+  - MEP system colours now go to the template when it controls filters (one helper serves all
+    three MEP paths).
+  - Preset VG under such a template is reported as masked, not counted.
+  - Packs that name no phase filter no longer control it, so new views keep "Show Complete".
+- **Worksharing.**
+  - A colleague holding Project Information no longer stops a run or gets borrowed up front.
+    Items that reuse sheets proceed; items needing a new number are refused individually.
+  - Pack templates and filters, including material-class filters, are pre-checked so an owned one
+    skips the item instead of failing its commit.
+  - Callers outside the production runner now roll back a refused item.
+- **Scale and names.**
+  - Sync Styles keeps production-fitted scales, and drift no longer flags them.
+  - Pre-round-8 sheet names are recognised, so they refresh after a level rename.
+  - Renumber and new sheets keep the legacy number shape for long, digit-ending level names.
+  - A failed sheet creation releases its counter.
+- **Verified.** A pack re-sync keeps the system filters MEP coordination added (source-guard
+  tests).
+
+Build 0/0; Tags.Tests 5,530; `run_ci_gates.py --quick` 36/36; checksums OK. Not yet run in Revit.
+
