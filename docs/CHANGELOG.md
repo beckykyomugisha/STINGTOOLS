@@ -26681,3 +26681,34 @@ the per-item table: `docs/WORKLOG_DATA_SCHEMAS.md` → *Implementing the open DS
 
 Not run in Revit: seven checks under *NEEDS REVIT CHECK (open-items batch)*. Open:
 ROADMAP DSCH-24..29.
+
+#### Completed (DSCH-24..29 decided by specialist review and implemented — branch `claude/data-schema-drift-validators-a30f10`, 2026-10-01)
+
+Four specialist reviews (electrical, public health / healthcare MEP, quantity surveying, software
+architecture) decided the open data-schema items with cited evidence. All decisions were
+implemented on seven parallel branches and merged. Detail: `docs/WORKLOG_DATA_SCHEMAS.md`, section
+*Specialist decisions on DSCH-24..29*.
+
+- **Safety bug fixed**: breaker selection returned the largest standard rating when the load
+  exceeded it, so a 500 A NEC load was given 400 A and a 200 A Circuit Wizard circuit a 125 A MCB,
+  with no warning. It now refuses. NEC ratings are the full Table 240.6(A) list (15-6000 A), held
+  only in `STING_WIRE_TABLES.json`.
+- **Arc-flash labels** no longer print a PPE category beside the incident energy (NFPA 70E
+  130.5(H)). They carry a Z535 WARNING / DANGER header and a DRAFT line. One colour set, by energy
+  band, with no green.
+- **Water safety**: TMV limits by outlet and scheme (healthcare baths at 42-44 C no longer fail);
+  USP <797>/<800> pressure per room; dead legs from HTM 04-01 (3 m spur, 2 m blended) instead of six
+  unsourced figures; `Plumb_TMVRegister` no longer marks every TMV as passing.
+- **Design wind** per design day; 4.0 m/s assumed and flagged until site data is entered.
+- **Pricing**: Nil and Incl. can be declared in a rate cell; a bare 0 no longer discards the
+  category rate. The COBie cost-code provider, which never decided a price, is deleted. The BCC
+  5D grids show the real rate file instead of demo rates.
+- **IFC**: one pset map shared by plugin and server. The server's tag lookup named a parameter
+  that does not exist and always fell back.
+- **Dead code**: 35 uncalled members deleted; 10 wired (compliance-fall and warning-threshold
+  triggers, workset activity, scale multipliers, SEQ range flagging, ceiling finish offset, box
+  pre-flight, discipline profiles, performance log, chase offset); 9 verified test oracles.
+  Baseline 53 to 0.
+
+Unconfirmed figures ship with a `verify` note (ROADMAP DSCH-41). Not run in Revit: ten checks under
+*NEEDS REVIT CHECK (specialist batch)*. Open: ROADMAP DSCH-30..41.

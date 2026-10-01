@@ -760,7 +760,7 @@ A dropdown on the **SELECT** tab that shows/hides elements by **category** and b
 - **5 new shared-parameter groups** (28 `CLN_CLINICAL`, 29 `MGS_SYSTEMS`, 30 `RAD_PROTECTION`, 31 `CEQ_CLINICAL`, 32 `LIG_BEHAVIOURAL`); ~100 net-new shared parameters
 - **3 new disciplines** (`H` Healthcare, `MG` Medical Gas, `RP` Radiation Protection); ~30 healthcare PROD codes; 60 tag families in `STING_TAG_CONFIG_v5_0_HEALTH.csv`
 - **16 healthcare validators** under `Core/Validation/Healthcare/` gated through `HealthcareValidatorGate` against `PRJ_ORG_HEALTH_PACK_PROFILE_TXT` (FULL / ACUTE / COMMUNITY / DENTAL / IMAGING-ONLY / MENTAL-HEALTH)
-- **7 standards modules** under `StingTools.Standards/{HTM, HBN, FGI, NFPA99, NCRP147, ASHRAE170, USP797800}` — stateless lookup tables + checklist generators + NCRP 147 W·U·T → mm-Pb calculator
+- **6 standards modules** under `StingTools.Standards/{HTM, HBN, FGI, NFPA99, NCRP147, ASHRAE170}` (the USP <797>/<800> cascade moved to data — `Data/Healthcare/Specialist/STING_HC_PHARMACY_USP.json` read by `Core/Validation/Healthcare/UspCascade.cs`, DSCH-25) — stateless lookup tables + checklist generators + NCRP 147 W·U·T → mm-Pb calculator
 - **Healthcare drawing types, style packs and filters** — as landed: 22 corporate Drawing Types (the `health-*` ids) with routing rules, 8 ViewStylePacks (`corp-healthcare-*`) and 81 healthcare filters in `STING_AEC_FILTERS.json`. The first two were re-measured on 2026-09-24 and still stand; they are subsets of the 114-type / 42-pack corporate catalogue (counted 2026-10-01), so re-count before relying on them
 - **MGPS package** (`Core/MedGas/`) — `MgasNetwork` graph builder, `MgasFlowSolver` (NFPA 99 §5.1.13), `MgasVerificationLog` (12-step NFPA 99 §5.1.12)
 - **RDS engine** (`Docs/Templates/Rds*`) — token-context builder + MiniWord renderer
@@ -1875,7 +1875,7 @@ STINGTOOLS/
 - **Tag operations** (7 intelligence layers)
   - `TagIsComplete(tagValue, expectedTokens=8)`
   - `BuildAndWriteTag(doc, el, seqCounters, skipComplete, existingTags, collisionMode, stats)`
-  - `GetExistingSequenceCounters(doc)`
+  - `BuildTagIndexAndCounters(doc)` (one pass: existing tags + SEQ counters)
   - `BuildExistingTagIndex(doc)`
   - `GetSysCode(categoryName)`, `GetFuncCode(sysCode)`
   - `GetMepSystemAwareSysCode(el, categoryName)`

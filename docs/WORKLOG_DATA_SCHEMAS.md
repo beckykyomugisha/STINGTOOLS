@@ -401,3 +401,53 @@ Decisions:
   packs and BOQ_TEMPLATE, `CsiMasterFormat` / `MaterialProdOverrideRules` (deliberately naive), writers.
 - Found and recorded, not changed: DSCH-28 (COBie cost-code key), DSCH-29 (BCC demo rates).
 
+## Specialist decisions on DSCH-24..29, implemented (2026-10-01)
+
+At the owner's request, four specialist reviews decided the remaining items with evidence: code
+and data quoted side by side, standards cited, unconfirmed figures marked VERIFY. The reviewers were
+an electrical engineer, a public-health / healthcare MEP engineer, a quantity surveyor and a
+software architect. The owner approved implementing all of it. Seven branches, each cut from
+21ffff7d0 in its own worktree, were merged here: dsch-impl-elec, -water, -wind, -rates, -bcc,
+-ifcmap and -uncalled.
+
+### Decisions
+
+| Item | Decision | Basis |
+|---|---|---|
+| NEC breaker ratings | Full Table 240.6(A), 15-6000 A, held only in data; the three code copies (one in StingTools.Standards) deleted | NEC 2023 240.6(A) |
+| Breaker selection beyond the list | **Bug fixed**: `NextStandardBreakerSize*` returned the largest rating for a larger load (500 A NEC got 400 A; a 200 A wizard circuit got a 125 A MCB). It now returns 0 (no standard device) and the Circuit Wizard refuses | none needed |
+| Arc-flash presentation | Colour by incident-energy band (no green); Z535 signal-word header (WARNING, or DANGER above a configurable 40 cal/cm2); "PPE Category" removed from labels; Category 0 and clothing text removed from data; label sheet marked DRAFT | NFPA 70E 130.5(H); ANSI Z535.4; Category 0 removed in 2015 |
+| TMV outlet limits | By outlet, scheme and assisted bathing: TMV3 bath 44, assisted bath 46, shower 41, bidet 38, basin 41; healthcare requires TMV3; unknown outlet = NOT CHECKED. `PLM_TMV_ASSISTED_BOOL` added through the generators | HTM 04-01 Pt A Table 2 |
+| USP pharmacy pressure | Per room: USP <797> buffer at least 4.98 Pa; USP <800> C-SEC negative 2.49-7.47 Pa (maximum now checked); overrides may only tighten; missing dP = NOT CHECKED | USP <797>/<800> (VERIFY) |
+| Dead legs | Healthcare spur 3 m, blended pipe after a TMV 2 m, otherwise BS 8558 by OD (VERIFY); the unsourced figures 0.45 / 0.30 / 1.0 / 5 m deleted; the detector now starts at outlet branches | HTM 04-01 12.5 and 10.48; HSG274 gives no length |
+| Design wind | Heating and cooling wind per site; default 4.0 m/s, flagged; never the structural wind | ASHRAE Fundamentals Ch. 14; BS EN ISO 6946 Rse at 4 m/s |
+| Nil rates | `RateOutcome` Nil / Included, declared in the rate cell (`NIL`, `INCL:<ref>`); the bill shows "Nil" / "Incl." with a dash. A bare 0 warns and falls through; it used to discard the whole CSV answer, category rate included | NRM2; QS practice |
+| COBie cost codes | Provider deleted, not re-keyed: it never decided a price with shipped data, and re-keying would price CCTV at the distribution-board rate (x33) | measured on shipped data |
+| BCC 5D grids | Read-only views of the resolved rate file (Walls 315,000, not the demo 850,000); dead Contingency / Overhead sliders removed | CLAUDE.md: never invent fallback data |
+| IFC pset map | One file in `shared/ifc/mappings/`, linked into both builds. **Server bug fixed**: its only live lookup asked for `ASS_TAG_1`, which does not exist. Wrong-meaning rows (Layer to LOC, element ID to SEQ) removed | Pset_StingTags contract |
+| Uncalled members | 35 deleted (including four unused classes and client-side approval code), 10 wired, 9 verified test oracles. `IsProvisioned` was deleted rather than wired, because its callers need three states. Baseline 53 to 0 | none needed |
+
+Values the reviewers could not confirm from a primary source ship with a `verify` note in the
+data (ROADMAP DSCH-41). Older claims that `TemplateManager.LoadCategoryBindings` is "done / used"
+(ROADMAP ~1744 and ~1794, CHANGELOG ~19321) are superseded: the method had no caller and was deleted.
+
+### Sign-off list (outside the code)
+
+- NEC-qualified engineer: the 240.6(A) list, the 240.4(C) conductor check (DSCH-30), the DANGER threshold.
+- Authorising Engineer (Water) / Water Safety Group: assisted-bath policy and dead-leg limits.
+- Holder of BS 8558: its dead-leg table. Pharmacy cleanroom certifier: the USP rows.
+- Holder of the licensed ASHRAE data: per-site wind (DSCH-37). IFC contract owner: map rows (DSCH-38).
+- QS: "Incl." wording for KUT bills, and the 31 zero benchmark rows (DSCH-34).
+
+### NEEDS REVIT CHECK (specialist batch)
+
+1. Breaker sizer: a 500 A NEC load gets 500 A. Circuit Wizard: an over-range circuit shows NO DEVICE and Create refuses.
+2. Arc Flash Calc, boundary view and label sheet: band colours; `ELC_ARC_FLASH_PPE_CAT` holds the band; the header strip is drawn over the white body; labels do not overlap.
+3. TMV register and Water Safety Plan with outlet types set; Dead-Leg Scan on a real network (outlet branches, the walk stops at a TMV); USP audit; slider defaults.
+4. Block load shows "heating/cooling design wind 4.0 m/s assumed".
+5. BOQ Export: NIL / INCL rows show "Nil" / "Incl." and are not at risk; a bare 0 on a PROD row prices at the category rate.
+6. BCC 5D tab and Element Cost Trace show the real file; Choose then Refresh follows the Cost File Browser; a missing file shows the red empty state.
+7. Ceiling-referenced placement rules drop by the finish thickness. Confirm the ceiling datum is the core, not already the finish face, or this double-counts.
+8. SEQ range: an out-of-range SEQ is flagged by Validate Tags.
+9. Smart Tag Placement with category multipliers other than 1.0: offsets scale.
+10. IFC ingest on the server: the tag is read from `Pset_StingTags.FullTag`.
