@@ -2052,6 +2052,21 @@
         "quantity_set_warning": "Documentation only: shown to people reading the file; no reader binds it."
       }
     },
+    "StingTools/Data/IFC/STING_IFC_PSET_MAPPING.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "IFC pset -> STING parameter map (JArray root). Read by V6/IfcPsetMapping.cs, which has no callers (ROADMAP DSCH-18); sting_param must still name a real parameter.",
+      "readers": [
+        "StingTools/V6/IfcPsetMapping.cs"
+      ],
+      "kind": "array-of-object",
+      "valueRefersTo": {
+        "sting_param": {
+          "kind": "shared-param-names",
+          "file": "StingTools/Data/MR_PARAMETERS.txt"
+        }
+      }
+    },
     "StingTools/Data/LUX_TARGETS_EN12464.csv": {
       "format": "csv-table",
       "schemaVersion": 1,
@@ -10246,10 +10261,6 @@
     "StingTools/Data/Healthcare/Specialist/STING_HC_PHARMACY_USP.json": {
       "format": "json",
       "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
-    },
-    "StingTools/Data/IFC/STING_IFC_PSET_MAPPING.json": {
-      "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },
     "StingTools/Data/LABEL_DEFINITIONS.json": {
       "format": "json",

@@ -620,7 +620,7 @@ def check_stale_allowances(reg):
     def walk(node, where):
         if isinstance(node, dict):
             for k, v in node.items():
-                if k in ("refersTo",) or k == "valueRefersTo":
+                if k in ("refersTo", "valueRefersTo"):
                     refs = [v] if k == "refersTo" else list(v.values())
                     for ref in refs:
                         names = _ref_set(ref, where)
