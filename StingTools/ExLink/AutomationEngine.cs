@@ -51,24 +51,27 @@ namespace StingTools.ExLink
 
                 if (sheets.Count == 0) { warnings.Add("No printable sheets found."); return; }
 
-                // Revit 2025+ supports PDF export via doc.Export with PDFExportOptions
-                var pdfOptions = new PDFExportOptions
-                {
-                    FileName = "",
-                    Combine = false,
-                    ColorDepth = ColorDepthType.Color
-                };
-
                 foreach (var sheet in sheets)
                 {
                     try
                     {
                         string safeName = SanitizeFileName($"{sheet.SheetNumber}_{sheet.Name}");
-                        pdfOptions.FileName = safeName;
+                        string folder = StingTools.Docs.ExportCenterEngine.DisciplineSubFolder(doc, outputDir, sheet);
 
-                        var viewIds = new List<ElementId> { sheet.Id };
-                        doc.Export(StingTools.Docs.ExportCenterEngine.DisciplineSubFolder(doc, outputDir, sheet), viewIds, pdfOptions);
-                        count++;
+                        // Shared single-sheet routine: with Combine = false Revit ignored
+                        // FileName, and every sheet was counted whatever Export returned
+                        // (DTW-135). Count only a PDF that is on disk.
+                        string path = StingTools.Docs.ExportCenterEngine.ExportSingleSheetPdf(
+                            doc, sheet, folder, safeName, o => o.ColorDepth = ColorDepthType.Color,
+                            out bool ok, out string renameWarning);
+                        if (!string.IsNullOrEmpty(renameWarning))
+                            warnings.Add($"Sheet {sheet.SheetNumber}: {renameWarning}");
+                        if (path != null && File.Exists(path))
+                            count++;
+                        else
+                            warnings.Add(ok
+                                ? $"Sheet {sheet.SheetNumber}: Revit reported success but no PDF appeared in {folder}"
+                                : $"Sheet {sheet.SheetNumber}: Revit reported the export as failed");
                     }
                     catch (Exception ex)
                     {

@@ -63,7 +63,9 @@ namespace StingTools.Tags.Tests
         [Fact]
         public void ATieAtTheDatumPrefersTheLowerStorey()
         {
-            var map = IsoLevelCode.BuildMap(Storeys(("Slab", -150), ("FFL", 150), ("Upper", 3000)));
+            // DTW-133: 400 mm apart, outside the 300 mm same-storey band, so these are two
+            // storeys equally far from datum (at -150 / +150 they are now one storey).
+            var map = IsoLevelCode.BuildMap(Storeys(("Slab", -200), ("FFL", 200), ("Upper", 3000)));
             Assert.Equal("00", map["Slab"]);
             Assert.Equal("01", map["FFL"]);
             Assert.Equal("02", map["Upper"]);
@@ -137,6 +139,150 @@ namespace StingTools.Tags.Tests
         {
             Assert.Empty(IsoLevelCode.BuildMap(null));
             Assert.Empty(IsoLevelCode.BuildMap(new List<StoreyDatum>()));
+        }
+    
+        // DTW-105: a level code the project declares (spatial_codes.json) wins in the ISO
+        // map too, sanitised to the ISO level field; undeclared levels keep the stack code.
+
+        private static Dictionary<string, string> Declared(params (string Name, string Code)[] rows)
+            => rows.ToDictionary(r => r.Name, r => r.Code);
+
+        [Fact]
+        public void A_declared_level_code_wins_over_the_stack()
+        {
+            var map = IsoLevelCode.BuildMap(Storeys(("Level 1", 0), ("Level 2", 3000)), Declared(("Level 2", "05")));
+            Assert.Equal("05", map["Level 2"]);
+            Assert.Equal("00", map["Level 1"]);
+        }
+
+        [Fact]
+        public void A_declared_sting_code_is_written_in_its_iso_form()
+        {
+            var map = IsoLevelCode.BuildMap(Storeys(("Podium", 0), ("Deck", 3000)), Declared(("Podium", "GF"), ("Deck", "l-03")));
+            Assert.Equal("00", map["Podium"]);
+            Assert.Equal("03", map["Deck"]);
+        }
+
+        [Fact]
+        public void A_blank_or_unsanitisable_declaration_leaves_the_stack_code()
+        {
+            var map = IsoLevelCode.BuildMap(Storeys(("Level 1", 0), ("Level 2", 3000)), Declared(("Level 1", "  "), ("Level 2", "--")));
+            Assert.Equal("00", map["Level 1"]);
+            Assert.Equal("01", map["Level 2"]);
+        }
+
+        [Fact]
+        public void Sheet_and_spool_tokens_take_the_declared_code_through_the_same_map()
+        {
+            var map = IsoLevelCode.BuildMap(Storeys(("Level 1", 0), ("Level 2", 3000)), Declared(("Level 2", "M1")));
+            Assert.Equal("M1", SheetNumberPolicy.LevelToken(SheetNumberPolicy.IsoPattern, "Level 2", map));
+            Assert.Equal("M1", SheetNumberPolicy.SpoolLevelToken(SheetNumberPolicy.IsoPattern, "L02", "Level 2", map));
+            Assert.Equal("M1", SheetNumberPolicy.ExistingSheetLevelToken(SheetNumberPolicy.IsoPattern, "Level 2", true, map));
+        }
+
+        // ── DTW-116: coincident and non-storey levels ──────────────────────────
+
+        [Fact]
+        public void CoincidentLevelsShareACodeAndDoNotShiftTheStack()
+        {
+            // Per-building level sets: building A and B both have a level at 0 and 3600.
+            // Numbering by list position made B's ground "01" and pushed every storey up.
+            var map = IsoLevelCode.BuildMap(Storeys(
+                ("A Level 1", 0), ("B Level 1", 0),
+                ("A Level 2", 3600), ("B Level 2", 3600),
+                ("A Level 3", 7200)));
+            Assert.Equal("00", map["A Level 1"]);
+            Assert.Equal("00", map["B Level 1"]);
+            Assert.Equal("01", map["A Level 2"]);
+            Assert.Equal("01", map["B Level 2"]);
+            Assert.Equal("02", map["A Level 3"]);
+        }
+
+        [Fact]
+        public void ADatumLevelWithinFiftyMillimetresIsTheSameStorey()
+        {
+            // "Level 1 SSL" sits 40 mm under FFL; it is the same storey.
+            var map = IsoLevelCode.BuildMap(Storeys(
+                ("Level 1 SSL", -40), ("Level 1", 0), ("Level 2", 3600), ("Level 2 SSL", 3560)));
+            Assert.Equal("00", map["Level 1 SSL"]);
+            Assert.Equal("00", map["Level 1"]);
+            Assert.Equal("01", map["Level 2"]);
+            Assert.Equal("01", map["Level 2 SSL"]);
+        }
+
+        [Fact]
+        public void AnSslLevel150MillimetresBelowFflIsTheSameStorey()
+        {
+            // DTW-133 — SSL levels 50-150 mm under FFL were 50 mm outside the old band, so
+            // each became a storey of its own and shifted the codes (basements most of all).
+            var map = IsoLevelCode.BuildMap(Storeys(
+                ("B1 SSL", -3650), ("B1", -3500),
+                ("Level 1 SSL", -150), ("Level 1", 0),
+                ("Level 2 SSL", 3450), ("Level 2", 3600)));
+            Assert.Equal("B1", map["B1 SSL"]);
+            Assert.Equal("B1", map["B1"]);
+            Assert.Equal("00", map["Level 1 SSL"]);
+            Assert.Equal("00", map["Level 1"]);
+            Assert.Equal("01", map["Level 2 SSL"]);
+            Assert.Equal("01", map["Level 2"]);
+        }
+
+        [Fact]
+        public void TheBandIsCappedAtHalfTheLocalStorey()
+        {
+            // A 400 mm plant deck is a storey of its own, not part of the floor under it.
+            var map = IsoLevelCode.BuildMap(Storeys(("Level 1", 0), ("Plant Deck", 400), ("Level 2", 800)));
+            Assert.Equal("00", map["Level 1"]);
+            Assert.Equal("01", map["Plant Deck"]);
+            Assert.Equal("02", map["Level 2"]);
+        }
+
+        [Fact]
+        public void AnExplicitToleranceKeepsItsOldMeaning()
+        {
+            // A caller that passes a tolerance gets exactly that tolerance: at 50 mm the SSL
+            // is a storey of its own (the pre-DTW-133 answer).
+            var map = IsoLevelCode.BuildMap(Storeys(("Level 1 SSL", -150), ("Level 1", 0), ("Level 2", 3600)), 50.0);
+            Assert.Equal("B1", map["Level 1 SSL"]);
+            Assert.Equal("00", map["Level 1"]);
+            Assert.Equal("01", map["Level 2"]);
+        }
+
+        [Fact]
+        public void ACoincidentLevelTakesItsGroupsStatedCode()
+        {
+            var map = IsoLevelCode.BuildMap(Storeys(("GF", 0), ("Level 1 SSL", -20), ("First", 3600)));
+            Assert.Equal("00", map["GF"]);
+            Assert.Equal("00", map["Level 1 SSL"]);
+            Assert.Equal("01", map["First"]);
+        }
+
+        [Fact]
+        public void NonStoreyLevelsDoNotCountButTakeTheStoreyTheyAreIn()
+        {
+            // "T.O. Steel" has Building Story off: it is not a storey, so Level 2 stays 01,
+            // and the steel level reads as the storey it sits in.
+            var storeys = new List<StoreyDatum>
+            {
+                new StoreyDatum { Name = "Level 1", ElevationMm = 0, IsBuildingStorey = true },
+                new StoreyDatum { Name = "T.O. Steel", ElevationMm = 3200, IsBuildingStorey = false },
+                new StoreyDatum { Name = "Level 2", ElevationMm = 3600, IsBuildingStorey = true },
+                new StoreyDatum { Name = "Level 3", ElevationMm = 7200, IsBuildingStorey = true },
+            };
+            var map = IsoLevelCode.BuildMap(storeys);
+            Assert.Equal("00", map["Level 1"]);
+            Assert.Equal("01", map["Level 2"]);
+            Assert.Equal("02", map["Level 3"]);
+            Assert.Equal("00", map["T.O. Steel"]);
+        }
+
+        [Fact]
+        public void WithoutStoreyInformationEveryLevelCounts()
+        {
+            // Unknown (null) is not "not a storey": the old behaviour stands.
+            var map = IsoLevelCode.BuildMap(Storeys(("Level 1", 0), ("T.O. Steel", 3200), ("Level 2", 3600)));
+            Assert.Equal("01", map["T.O. Steel"]);
+            Assert.Equal("02", map["Level 2"]);
         }
     }
 }

@@ -173,6 +173,7 @@ namespace StingTools.Commands.Drawing
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             AecFilterRegistry.Reload(ctx.Doc);
             ViewStylePackApplier.InvalidateCache();
+            ViewStylePackApplier.InvalidateMaterialClassFilterCache();   // DTW-125
             TaskDialog.Show("STING - AEC Filters",
                 "Filter library cache cleared.\n\nNext call to AecFilterRegistry will re-read STING_AEC_FILTERS.json from disk.");
             return Result.Succeeded;

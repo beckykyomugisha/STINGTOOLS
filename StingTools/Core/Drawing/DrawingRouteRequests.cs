@@ -67,13 +67,25 @@ namespace StingTools.Core.Drawing
             new DrawingRouteRequest("P", "DCW_SCHEMATIC", "plumb-dcw-schematic-A1-NTS", "Plumb_SupplySchematic");
         public static readonly DrawingRouteRequest DrainageSchematic =
             new DrawingRouteRequest("P", "DRAINAGE_SCHEMATIC", "plumb-drainage-schematic-A1", "Plumb_DrainageSchematic");
+        // Stamped "elec-arc-flash-labels" before any drawing type had that id.
+        public static readonly DrawingRouteRequest ArcFlashLabels =
+            new DrawingRouteRequest("E", "ARC_FLASH_LABELS", "elec-arc-flash-labels", "Elec_ArcFlashLabels");
 
         /// <summary>The diagram generators, in the order a production run draws them.</summary>
         public static readonly IReadOnlyList<DrawingRouteRequest> DiagramGenerators = new[]
         {
             Sld, Riser, FireAlarmSchematic, MgpsSchematic, LpsSchematic, EarthingSchematic, PanelDoorDiagram,
-            DcwSchematic, DrainageSchematic,
+            DcwSchematic, DrainageSchematic, ArcFlashLabels,
         };
+
+        // ── Drawn and stamped, but not placed: the view is in model coordinates, so a
+        //    person chooses its scale and puts it on a sheet of the type ──
+        // Stamped "elec-lps-coverage-A3" before any drawing type had that id.
+        public static readonly DrawingRouteRequest LpsCoverage =
+            new DrawingRouteRequest("E", "LPS_COVERAGE", "elec-lps-coverage-A3", "LPS_PlanVisualise");
+
+        /// <summary>Generators that draw and stamp a view but leave placing it to a person.</summary>
+        public static readonly IReadOnlyList<DrawingRouteRequest> UnplacedGenerators = new[] { LpsCoverage };
 
         // ── Schedules: an engine makes the schedule view; it is stamped with, and placed on, its type's sheet ──
         // The panel-schedule sheets are found again by their stamp, so every command that
@@ -82,11 +94,15 @@ namespace StingTools.Core.Drawing
             new DrawingRouteRequest("E", "ELEC_PANEL_SCHEDULE", "elec-panel-schedule-A3",
                 "Panel_PlaceOnSheets / Panel_BatchSchedules / FaultCurrentSchedule / VoltageDropSchedule");
 
+        // Stamped "elec-arc-flash-schedule" before any drawing type had that id.
+        public static readonly DrawingRouteRequest ArcFlashSchedule =
+            new DrawingRouteRequest("E", "ARC_FLASH_SCHEDULE", "elec-arc-flash-schedule", "Elec_ArcFlashSched");
+
         /// <summary>The schedule requests (not diagram generators: production never skips their types).</summary>
-        public static readonly IReadOnlyList<DrawingRouteRequest> Schedules = new[] { PanelSchedule };
+        public static readonly IReadOnlyList<DrawingRouteRequest> Schedules = new[] { PanelSchedule, ArcFlashSchedule };
 
         /// <summary>Every request this file declares.</summary>
-        public static IEnumerable<DrawingRouteRequest> All => DiagramGenerators.Concat(Schedules);
+        public static IEnumerable<DrawingRouteRequest> All => DiagramGenerators.Concat(UnplacedGenerators).Concat(Schedules);
 
         /// <summary>
         /// The drawing-type ids a sheet or view made for <paramref name="req"/> may carry:
@@ -219,7 +235,7 @@ namespace StingTools.Core.Drawing
 
         /// <summary>The generator whose shipped type is <paramref name="drawingTypeId"/>, or null.</summary>
         public static DrawingRouteRequest GeneratorFor(string drawingTypeId)
-            => DiagramGenerators.FirstOrDefault(r =>
+            => DiagramGenerators.Concat(UnplacedGenerators).FirstOrDefault(r =>
                 string.Equals(r.FallbackDrawingTypeId, drawingTypeId, StringComparison.OrdinalIgnoreCase));
 
         /// <summary>
@@ -231,6 +247,10 @@ namespace StingTools.Core.Drawing
         public static string SchematicNotProducedReason(string drawingTypeId)
         {
             var gen = GeneratorFor(drawingTypeId);
+            if (gen != null && UnplacedGenerators.Contains(gen))
+                return $"Drawing type '{drawingTypeId}' is a diagram drawn by {gen.Caller}; production does not make an " +
+                       $"empty drafting view for it. Run {gen.Caller} — it draws and stamps the view — then set its scale " +
+                       "and place it on a sheet of this type.";
             return gen != null
                 ? $"Drawing type '{drawingTypeId}' is a schematic drawn by {gen.Caller}; production does not make an " +
                   $"empty drafting view for it. Run {gen.Caller} — it draws the diagram and places it on this type's sheet."

@@ -75,9 +75,10 @@ namespace StingTools.Core.Drawing
 
         /// <summary>
         /// C-6 / D-3: invalidate the cached managed-template + seed-view
-        /// entries for a specific document. Wired to
-        /// <see cref="DrawingTypeRegistry.Reload"/> and the document-closed
-        /// handler in <c>StingToolsApp</c>.
+        /// entries for a specific document. Called from
+        /// <see cref="DrawingTypeRegistry.Reload"/> and
+        /// <see cref="ViewStylePackRegistry.Reload"/> (DTW-2); the
+        /// document-closing handler reaches it through DrawingTypeRegistry.Reload.
         /// </summary>
         public static void InvalidateCache(Document doc)
         {
@@ -329,9 +330,20 @@ namespace StingTools.Core.Drawing
             if (cachedId != ElementId.InvalidElementId)
             {
                 if (doc.GetElement(cachedId) is View v && v.IsValidObject && v.IsTemplate)
-                    return cachedId;
-                StingTools.Core.StingLog.Warn($"ManagedTemplateSyncer: stale cache id evicted for pack '{pack.Id}' / {viewType}");
-                lock (_cacheLock) { bucket.Remove(key); }
+                {
+                    // DTW-2: a cache hit used to return the id without looking
+                    // at the pack, so a pack edited and reloaded in-session never
+                    // reached its STING:* template. Compare checksums; on drift
+                    // fall through to step 2, which re-applies and re-stamps.
+                    if (DrawingQaRules.IsCachedTemplateCurrent(GetStoredChecksum(v), ComputePackChecksum(pack)))
+                        return cachedId;
+                    lock (_cacheLock) { bucket.Remove(key); }
+                }
+                else
+                {
+                    StingTools.Core.StingLog.Warn($"ManagedTemplateSyncer: stale cache id evicted for pack '{pack.Id}' / {viewType}");
+                    lock (_cacheLock) { bucket.Remove(key); }
+                }
             }
 
             var templateName = GetManagedTemplateName(pack.Id, viewType);
@@ -561,7 +573,7 @@ namespace StingTools.Core.Drawing
                             // it survives view-template re-assignment.
                             if (!string.IsNullOrEmpty(pack.DefaultTagStyle))
                                 StingTools.Core.ParameterHelpers.SetString(
-                                    template, "STING_DEFAULT_TAG_STYLE_TXT",
+                                    template, ParamRegistry.DEFAULT_TAG_STYLE,
                                     pack.DefaultTagStyle, overwrite: true);
                             break;
                     }

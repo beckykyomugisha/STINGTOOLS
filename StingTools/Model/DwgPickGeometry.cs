@@ -26,8 +26,11 @@ namespace StingTools.Model
                 StartX = startX; StartY = startY; EndX = endX; EndY = endY;
             }
 
-            /// <summary>|cos| of the angle between the lines met the threshold.</summary>
+            /// <summary>|cos| of the angle between the lines met the threshold AND the
+            /// two faces overlap along their length.</summary>
             public bool IsParallel { get; }
+            /// <summary>The faces share a stretch along A's axis (the centreline has length).</summary>
+            public bool Overlaps => Length > 0;
             /// <summary>|cos| of the angle between the two lines (1 = parallel).</summary>
             public double Dot { get; }
             /// <summary>Perpendicular distance between the lines — the element's thickness / width.</summary>
@@ -65,16 +68,25 @@ namespace StingTools.Model
             public double AngleRad { get; }
         }
 
+        /// <summary>|cos| two picked faces must reach to count as parallel: 0.999 is
+        /// about 2.5°. The old 0.95 admitted ~18°, where the "thickness" measured
+        /// depends on where along the lines it is taken and means nothing.</summary>
+        public const double DefaultMinDot = 0.999;
+
         /// <summary>
         /// Measures two lines (A: a0→a1, B: b0→b1) as opposite faces of one element.
-        /// Gap is the perpendicular distance from B's midpoint to A's infinite line.
-        /// The centreline runs between A's endpoints and B's matching endpoints
-        /// (anti-parallel B is swapped first), so its length follows the picked lines.
+        /// B is projected onto A's axis; the element exists only where the two faces
+        /// OVERLAP along that axis, so the centreline spans the overlap (in A's
+        /// direction) and lines that do not overlap are not a pair. Gap is the
+        /// perpendicular distance between the faces at the middle of the overlap,
+        /// and the centreline runs halfway between them. A pair is parallel only when
+        /// |cos| of the angle between the lines is at least <paramref name="minDot"/>
+        /// AND the overlap has length.
         /// </summary>
         public static ParallelPair MeasureParallelPair(
             double a0x, double a0y, double a1x, double a1y,
             double b0x, double b0y, double b1x, double b1y,
-            double minDot = 0.95)
+            double minDot = DefaultMinDot)
         {
             double ax = a1x - a0x, ay = a1y - a0y;
             double bx = b1x - b0x, by = b1y - b0y;
@@ -83,23 +95,41 @@ namespace StingTools.Model
             if (la < 1e-12 || lb < 1e-12)
                 return new ParallelPair(false, 0, 0, 0, 0, 0, 0);
 
-            double ux = ax / la, uy = ay / la;
+            double ux = ax / la, uy = ay / la;     // A's axis
+            double nx = -uy, ny = ux;              // A's normal
             double dot = Math.Abs(ux * (bx / lb) + uy * (by / lb));
 
-            // Perpendicular distance from B's midpoint to line A.
-            double mx = (b0x + b1x) * 0.5 - a0x, my = (b0y + b1y) * 0.5 - a0y;
-            double gap = Math.Abs(mx * uy - my * ux);
+            // B's endpoints in A's frame: t along the axis, d across it.
+            double tb0 = (b0x - a0x) * ux + (b0y - a0y) * uy;
+            double tb1 = (b1x - a0x) * ux + (b1y - a0y) * uy;
+            double db0 = (b0x - a0x) * nx + (b0y - a0y) * ny;
+            double db1 = (b1x - a0x) * nx + (b1y - a0y) * ny;
 
-            // Match endpoints: if a0 is nearer b1 than b0, B runs the other way.
-            double s2x = b0x, s2y = b0y, e2x = b1x, e2y = b1y;
-            if (Dist(a0x, a0y, b1x, b1y) < Dist(a0x, a0y, b0x, b0y))
+            // The stretch both faces cover.
+            double lo = Math.Max(0, Math.Min(tb0, tb1));
+            double hi = Math.Min(la, Math.Max(tb0, tb1));
+            bool overlaps = hi - lo > 1e-9 * Math.Max(la, lb);
+            if (!overlaps)
             {
-                s2x = b1x; s2y = b1y; e2x = b0x; e2y = b0y;
+                // Report the angle and a nominal gap, but never a pair.
+                double gapNominal = Math.Abs(((b0x + b1x) * 0.5 - a0x) * nx + ((b0y + b1y) * 0.5 - a0y) * ny);
+                return new ParallelPair(false, dot, gapNominal, 0, 0, 0, 0);
             }
 
+            // B's offset from A at an axis position (linear along B).
+            double OffsetAt(double t)
+            {
+                double span = tb1 - tb0;
+                if (Math.Abs(span) < 1e-12) return (db0 + db1) * 0.5;
+                return db0 + (t - tb0) / span * (db1 - db0);
+            }
+
+            double dLo = OffsetAt(lo), dHi = OffsetAt(hi);
+            double gap = Math.Abs(OffsetAt((lo + hi) * 0.5));
+
             return new ParallelPair(dot >= minDot, dot, gap,
-                (a0x + s2x) * 0.5, (a0y + s2y) * 0.5,
-                (a1x + e2x) * 0.5, (a1y + e2y) * 0.5);
+                a0x + ux * lo + nx * dLo * 0.5, a0y + uy * lo + ny * dLo * 0.5,
+                a0x + ux * hi + nx * dHi * 0.5, a0y + uy * hi + ny * dHi * 0.5);
         }
 
         /// <summary>Index of the value nearest <paramref name="target"/>; -1 when there is none.

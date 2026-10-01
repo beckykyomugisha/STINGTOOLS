@@ -51,7 +51,9 @@ namespace StingTools.Tags.Tests
         public void The_editor_offers_exactly_the_dock_sections_actions()
         {
             var dock = DockSection().Where(b => b.Tag != DrawingTypeActions.EditorTag).ToList();
-            Assert.True(dock.Count >= 40, $"expected the full DRAWING TYPES section; read {dock.Count} buttons");
+            // A floor that proves the parser read the whole section, not a button count to
+            // defend: DTW-33 removed a duplicate scope-box button, taking it from 40 to 39.
+            Assert.True(dock.Count >= 39, $"expected the full DRAWING TYPES section; read {dock.Count} buttons");
             var editor = DrawingTypeActions.All.Select(a => (a.Group, a.Label, a.Tag)).ToList();
 
             var missing = dock.Except(editor).Select(b => $"  add to DrawingTypeActions: [{b.Group}] '{b.Label}' → {b.Tag}");

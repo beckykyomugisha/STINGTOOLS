@@ -105,7 +105,127 @@ namespace StingTools.Core.Drawing
                 string v = ReadProjectInfo(doc, kv.Value);
                 if (!string.IsNullOrWhiteSpace(v)) d[kv.Key] = v;
             }
+
+            // DTW-117: a sheet produced from a box inside a STING-LOC building carries that
+            // building in {vol}. The context box is found from the tag (an area box's code,
+            // a STING:: box's tag); no box, no building, and {vol} keeps the profile value.
+            if (doc != null && !string.IsNullOrWhiteSpace(mark))
+                ApplyContextVolume(doc, d, dt, null, mark);
             return d;
+        }
+
+        /// <summary>
+        /// DTW-117 — when the sheet-number pattern names {vol} and the production context
+        /// sits in a STING-LOC building, set {vol} to that building's volume code
+        /// (<see cref="SheetNumberPolicy.VolumeForLoc"/>: the project's
+        /// _BIM_COORD/sheet_volumes.json map, else the LOC code). <paramref name="scopeBox"/>
+        /// is the context box when the caller has it; otherwise the box is found by
+        /// <paramref name="tag"/>. Returns the volume written, or null when nothing changed.
+        /// </summary>
+        public static string ApplyContextVolume(Document doc, IDictionary<string, string> tokens,
+            DrawingType dt, Element scopeBox, string tag)
+        {
+            if (doc == null || tokens == null) return null;
+            try
+            {
+                // DTW-141: the pattern first (a Project Information read). The box collector,
+                // the saved-plan read and the LOC index ran on every Build() before this
+                // check, though most patterns have no {vol}.
+                var policy = SheetNumberPolicy.Parse(DrawingProducer.ReadSheetNumberPolicy(doc));
+                string pattern = SheetNumberPolicy.ResolvePattern(dt, policy) ?? dt?.SheetNumberPattern;
+                if (!SheetNumberPolicy.PatternUsesVolume(pattern)) return null;
+                string loc = ResolveContextLoc(doc, scopeBox, tag);
+                if (loc == null) return null;
+                string vol = SheetNumberPolicy.VolumeForLoc(loc, LoadVolumeMap(doc));
+                if (string.IsNullOrEmpty(vol)) return null;
+                tokens["vol"] = vol;
+                return vol;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DrawingTokenContext.ApplyContextVolume '{tag}': {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// DTW-117 — the STING-LOC building a production context sits in: the box's own
+        /// STING-LOC code; for an area box, the building the saved scope-box plan records
+        /// for it; else the STING-LOC box containing the box's centre (the smallest, when
+        /// they nest). Without <paramref name="scopeBox"/> the context box is the scope box
+        /// whose area code, STING:: tag or LOC code equals <paramref name="tag"/>. Null when
+        /// no box or no building answers, or when two boxes with that tag disagree.
+        /// </summary>
+        public static string ResolveContextLoc(Document doc, Element scopeBox, string tag)
+        {
+            if (doc == null) return null;
+            var boxes = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                .WhereElementIsNotElementType().ToList();
+            var candidates = new List<Element>();
+            if (scopeBox != null) candidates.Add(scopeBox);
+            else if (!string.IsNullOrWhiteSpace(tag))
+            {
+                string t = tag.Trim();
+                foreach (var b in boxes)
+                {
+                    string n = b.Name ?? "";
+                    if ((ScopeBoxNames.TryParseArea(n, out var area, out _, out _) && string.Equals(area, t, StringComparison.OrdinalIgnoreCase))
+                        || (ScopeBoxNames.TryParseDrawingType(n, out _, out _, out var bt, out _) && string.Equals(bt, t, StringComparison.OrdinalIgnoreCase))
+                        || (ScopeBoxNames.TryParseLoc(n, out var bl, out _) && string.Equals(bl, t, StringComparison.OrdinalIgnoreCase)))
+                        candidates.Add(b);
+                }
+            }
+            if (candidates.Count == 0) return null;
+
+            List<ScopeBoxLoc> locIndex = null;
+            ScopeBoxPlanFile plan = null; bool planRead = false;
+            var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var box in candidates)
+            {
+                string n = box.Name ?? "";
+                if (ScopeBoxNames.TryParseLoc(n, out var own, out _)) { found.Add(own); continue; }
+                if (ScopeBoxNames.Classify(n) == ScopeBoxKind.Area)
+                {
+                    if (!planRead)
+                    {
+                        plan = ScopeBoxPlannerService.LoadPlan(doc, out var err);
+                        if (err != null) StingLog.Warn($"DrawingTokenContext.ResolveContextLoc: {err}");
+                        planRead = true;
+                    }
+                    var entry = plan?.Boxes?.FirstOrDefault(e => string.Equals(e?.Name, n, StringComparison.OrdinalIgnoreCase));
+                    if (!string.IsNullOrWhiteSpace(entry?.Loc)) { found.Add(entry.Loc.Trim()); continue; }
+                }
+                var bb = box.get_BoundingBox(null);
+                if (bb == null) continue;
+                locIndex = locIndex ?? SpatialAutoDetect.BuildScopeBoxLocIndex(doc);
+                var hit = ScopeBoxLoc.SmallestContaining(locIndex,
+                    (bb.Min.X + bb.Max.X) / 2, (bb.Min.Y + bb.Max.Y) / 2);
+                if (hit?.Loc != null) found.Add(hit.Loc);
+            }
+            if (found.Count == 1) return found.First();
+            if (found.Count > 1)
+                StingLog.Warn($"DrawingTokenContext.ResolveContextLoc: boxes tagged '{tag}' sit in different buildings ({string.Join(", ", found)}) — {{vol}} keeps the drawing type's volume.");
+            return null;
+        }
+
+        /// <summary>The project's LOC -> volume map (_BIM_COORD/sheet_volumes.json); empty when
+        /// the file is absent. An unreadable file is logged and treated as absent.</summary>
+        private static IDictionary<string, string> LoadVolumeMap(Document doc)
+        {
+            try
+            {
+                var path = StingPaths.MetaFile(doc, "_BIM_COORD", SheetNumberPolicy.VolumeMapFileName);
+                if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path)) return null;
+                var map = SheetNumberPolicy.ParseVolumeMap(System.IO.File.ReadAllText(path), out var err);
+                if (err != null)
+                    StingLog.Warn($"{SheetNumberPolicy.VolumeMapFileName}: {err} — buildings it does not map take their LOC code as the volume.");
+                return map;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"{SheetNumberPolicy.VolumeMapFileName} could not be read: {ex.Message} — buildings take their LOC code as the volume.");
+                return null;
+            }
         }
 
         /// <summary>
@@ -141,21 +261,59 @@ namespace StingTools.Core.Drawing
             }
             catch (Exception ex) { StingLog.Warn($"BuildForExistingSheet stamps ({sheet?.Id}): {ex.Message}"); }
 
+            // DTW-134: the stamp's name part is the level's name when produced; the id it
+            // carries names the level, and its current name is what the ISO map knows
+            // (as DrawingRenumberCommand.ReadProductionContext reads it, DTW-118).
             var known = ExistingSheetTokens.Resolve(
-                ctxStamp, lvlStamp, seqStamp, ExtractSeqFromSheetNumber(sheet?.SheetNumber));
+                ctxStamp, lvlStamp, seqStamp, ExtractSeqFromSheetNumber(sheet?.SheetNumber),
+                id => CurrentLevelName(doc, id, sheet));
+
+            // DTW-79: {lvl} the way production resolved it. Under an ISO-shaped
+            // number pattern (the ISO policy, or a profile already ISO) production
+            // writes the ISO level code (DTW-43); the level name here gave a title
+            // block that disagreed with its own sheet number.
+            string level = known.Level;
+            if (level != null && known.LevelIsName)
+            {
+                try
+                {
+                    var policy = SheetNumberPolicy.Parse(DrawingProducer.ReadSheetNumberPolicy(doc));
+                    var numberPattern = SheetNumberPolicy.ResolvePattern(dt, policy) ?? dt?.SheetNumberPattern;
+                    level = SheetNumberPolicy.ExistingSheetLevelToken(
+                        numberPattern, level, known.LevelIsName,
+                        SheetNumberPolicy.IsAlreadyIso(numberPattern) ? DrawingProducer.BuildIsoLevelMap(doc) : null);
+                }
+                catch (Exception ex) { StingLog.Warn($"BuildForExistingSheet level code ({sheet?.Id}): {ex.Message}"); }
+            }
 
             var d = Build(
                 doc:        doc,
                 dt:         dt,
                 discCode:   dt?.Discipline,
                 discipline: dt?.Discipline,
-                levelCode:  known.Level,
+                levelCode:  level,
                 seq:        known.Seq,
                 spool:      known.Mark,
                 mark:       known.Mark);
-            if (known.Level == null) d.Remove("lvl");
+            if (level == null) d.Remove("lvl");
             if (known.Mark == null) { d.Remove("mark"); d.Remove("spool"); }
             return d;
+        }
+
+        /// <summary>DTW-134 — the current name of the level a context stamp's id names;
+        /// null when it is gone (the stamped name then stands).</summary>
+        private static string CurrentLevelName(Document doc, long levelId, ViewSheet sheet)
+        {
+            if (doc == null) return null;
+            try
+            {
+                return doc.GetElement(new ElementId(levelId)) is Level lvl && !string.IsNullOrEmpty(lvl.Name) ? lvl.Name : null;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BuildForExistingSheet level #{levelId} ({sheet?.Id}): {ex.Message}");
+                return null;
+            }
         }
 
         // THE RULE FOR EVERY TOKEN, not just the one that prompted it.

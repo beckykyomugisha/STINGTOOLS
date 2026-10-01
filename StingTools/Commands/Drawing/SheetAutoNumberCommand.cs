@@ -52,7 +52,7 @@ namespace StingTools.Commands.Drawing
             var doc = uiApp?.ActiveUIDocument?.Document;
             if (doc == null)
             {
-                TaskDialog.Show("STING — Auto-Number Sheets", "No active document.");
+                PresetDialog.Show(Title, "No active document.", ref message);
                 return Result.Failed;
             }
 
@@ -64,7 +64,7 @@ namespace StingTools.Commands.Drawing
 
             if (sheets.Count == 0)
             {
-                TaskDialog.Show("STING — Auto-Number Sheets", "No sheets in this project.");
+                PresetDialog.Show(Title, "No sheets in this project.", ref message);
                 return Result.Cancelled;
             }
 
@@ -76,11 +76,11 @@ namespace StingTools.Commands.Drawing
 
             if (candidates.Count == 0)
             {
-                TaskDialog.Show("STING — Auto-Number Sheets",
+                PresetDialog.Show(Title,
                     $"All {sheets.Count} sheet(s) already carry a full ISO 19650 identifier as their "
                     + "sheet number, so there is nothing to renumber.\n\n"
                     + "Restore short numbers first (Title Block tab → Restore Sheet Nos) if you want "
-                    + "to re-sequence them.");
+                    + "to re-sequence them.", ref message);
                 return Result.Cancelled;
             }
 
@@ -145,12 +145,12 @@ namespace StingTools.Commands.Drawing
 
             if (changing.Count == 0)
             {
-                TaskDialog.Show("STING — Auto-Number Sheets",
+                PresetDialog.Show(Title,
                     $"Every sheet already has the number this would give it "
                     + $"({alreadyRight} sheet(s) checked"
                     + (locked.Count > 0 ? $", {locked.Count} locked and left alone" : "")
                     + (assembled.Count > 0 ? $", {assembled.Count} carrying a full ISO identifier" : "")
-                    + ").");
+                    + ").", ref message);
                 return Result.Succeeded;
             }
 
@@ -188,19 +188,36 @@ namespace StingTools.Commands.Drawing
             }
             string issuedWarning = SheetIssueHistory.WarningFor(issuedRows);
 
-            var td = new TaskDialog("STING — Auto-Number Sheets")
+            if (PresetDialog.Quiet)
             {
-                MainInstruction = issuedRows.Count > 0
-                    ? $"Renumber {changing.Count} sheet(s) — {issuedRows.Count} ALREADY ISSUED?"
-                    : $"Renumber {changing.Count} of {sheets.Count} sheet(s)?",
-                MainContent = (issuedWarning.Length > 0 ? issuedWarning + "\n" : "")
-                    + preview.ToString()
-                    + "\nThe sheet number is what elevation, section and callout tags print, and "
-                    + "what exported filenames are built from. One Undo reverses the whole run.",
-                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
-                DefaultButton = TaskDialogResult.No
-            };
-            if (td.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+                // Inside a preset there is nobody to confirm. Renumbering every sheet is
+                // not something a preset should do by default (the DTW-11 rule Number
+                // From ISO follows): it plans unless the step sets params.apply = "true".
+                if (!IsTrue(WorkflowEngine.StepParam("apply")))
+                {
+                    PresetDialog.Show(Title + " (dry run)",
+                        "Plan only — nothing renumbered (set the step's params.apply to \"true\" to apply it).\n\n"
+                        + (issuedWarning.Length > 0 ? issuedWarning + "\n" : "") + preview, ref message);
+                    return Result.Succeeded;
+                }
+                StingLog.Info($"{Title}: preset step applies the plan (params.apply).\n{preview}");
+            }
+            else
+            {
+                var td = new TaskDialog(Title)
+                {
+                    MainInstruction = issuedRows.Count > 0
+                        ? $"Renumber {changing.Count} sheet(s) — {issuedRows.Count} ALREADY ISSUED?"
+                        : $"Renumber {changing.Count} of {sheets.Count} sheet(s)?",
+                    MainContent = (issuedWarning.Length > 0 ? issuedWarning + "\n" : "")
+                        + preview.ToString()
+                        + "\nThe sheet number is what elevation, section and callout tags print, and "
+                        + "what exported filenames are built from. One Undo reverses the whole run.",
+                    CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                    DefaultButton = TaskDialogResult.No
+                };
+                if (td.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+            }
 
             // ── Two passes. Revit refuses a duplicate sheet number even for an
             // instant, so every sheet parks on a unique temporary number first.
@@ -216,7 +233,7 @@ namespace StingTools.Commands.Drawing
             StingLog.Info($"AutoNumber: {done} renumbered, {failed} failed, "
                 + $"{locked.Count} locked, {assembled.Count} already ISO-assembled");
 
-            StingResultPanel.Create("")
+            var panel = StingResultPanel.Create("")
                 .SetTitle("Auto-Number Sheets")
                 .SetSubtitle($"{done} of {sheets.Count} sheet(s) renumbered")
                 .SetOverallPct(sheets.Count == 0 ? 0 : 100.0 * done / sheets.Count)
@@ -269,10 +286,19 @@ namespace StingTools.Commands.Drawing
                     + "drawn on the sheet: a general arrangement mixes trades on purpose, so "
                     + "counting them classified every GA plan as coordination.\n\n"
                     + "Next: run Populate — the identifiers were rebuilt as part of this run, and "
-                    + "the title block's DRG NO. and CDE REF both derive from them.")
-                .Show();
+                    + "the title block's DRG NO. and CDE REF both derive from them.");
+            PresetDialog.Show(panel, ref message);
 
             return Result.Succeeded;
+        }
+
+        private const string Title = "STING — Auto-Number Sheets";
+
+        private static bool IsTrue(string v)
+        {
+            v = (v ?? "").Trim();
+            return v.Equals("true", StringComparison.OrdinalIgnoreCase)
+                || v.Equals("yes", StringComparison.OrdinalIgnoreCase) || v == "1";
         }
 
         private static string Trim(string s, int max)

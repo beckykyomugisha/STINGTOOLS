@@ -236,9 +236,19 @@ namespace StingTools.Commands.Drawing
                         .Select(fs => fs.FamilyName ?? ""),
                     StringComparer.OrdinalIgnoreCase);
 
+                // DTW-12: a profile names a LOGICAL title block (STING_TB_SHEET_A1 …)
+                // that is never loaded under that name, so comparing it with the
+                // loaded families marked every one ✗. Resolve it the way the
+                // producer and the Validator do: variant rules (+ "Family:Symbol"),
+                // then the resolver's concrete built family.
                 var referenced = lib.DrawingTypes
-                    .Where(t => !string.IsNullOrWhiteSpace(t.TitleBlockFamily))
-                    .GroupBy(t => t.TitleBlockFamily, StringComparer.OrdinalIgnoreCase)
+                    .Where(t => t != null && !string.IsNullOrWhiteSpace(t.Id))
+                    .Select(t => DrawingTypeRegistry.Get(doc, t.Id) ?? t)
+                    .Where(t => !string.IsNullOrWhiteSpace(t.TitleBlockFamily)
+                                || (t.TitleBlockVariantRules?.Count ?? 0) > 0)
+                    .Select(t => new { Dt = t, Fam = ConcreteTitleBlockFamily(doc, t) })
+                    .Where(x => !string.IsNullOrWhiteSpace(x.Fam.concrete))
+                    .GroupBy(x => x.Fam.concrete, StringComparer.OrdinalIgnoreCase)
                     .OrderBy(g => g.Key)
                     .ToList();
 
@@ -253,11 +263,23 @@ namespace StingTools.Commands.Drawing
                     foreach (var grp in referenced)
                     {
                         bool loaded = loadedFamilies.Contains(grp.Key);
-                        if (!loaded) missing++;
-                        sb.AppendLine($"  {(loaded ? "✓" : "✗")} {grp.Key}  ({grp.Count()} profile{(grp.Count() == 1 ? "" : "s")})");
+                        bool onDisk = false;
+                        if (!loaded)
+                        {
+                            try { onDisk = TitleBlockResolver.BuiltRfaExists(doc, grp.Key); }
+                            catch (Exception ex) { StingLog.Warn($"DrawingTypesInspect built-rfa probe '{grp.Key}': {ex.Message}"); }
+                            if (!onDisk) missing++;
+                        }
+                        var logical = grp.Select(x => x.Fam.declared)
+                            .Where(d => !string.IsNullOrWhiteSpace(d) && !string.Equals(d, grp.Key, StringComparison.OrdinalIgnoreCase))
+                            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                        string from = logical.Count > 0 ? $"  ← {string.Join(", ", logical.Take(3))}{(logical.Count > 3 ? " …" : "")}" : "";
+                        string mark = loaded ? "✓" : onDisk ? "○" : "✗";
+                        string note = !loaded && onDisk ? "  (built, loads on demand)" : "";
+                        sb.AppendLine($"  {mark} {grp.Key}  ({grp.Count()} profile{(grp.Count() == 1 ? "" : "s")}){note}{from}");
                     }
                     if (missing > 0)
-                        sb.AppendLine($"  ⚠ {missing} family(ies) not loaded — sheets created from those profiles will fall back to the first available title block, and populated cells may silently drop.");
+                        sb.AppendLine($"  ⚠ {missing} family(ies) neither loaded nor built — sheets created from those profiles will fall back to the first available title block, and populated cells may silently drop. Run TitleBlock_CreateAll.");
                 }
 
                 // TitleBlockRouter status
@@ -279,6 +301,25 @@ namespace StingTools.Commands.Drawing
             }
         }
 
+        /// <summary>DTW-12: the concrete title-block family a profile produces on,
+        /// resolved as the Validator does (variant → resolver). <c>declared</c>
+        /// is the name before resolution, for the "resolved from" note.</summary>
+        private static (string declared, string concrete) ConcreteTitleBlockFamily(Document doc, DrawingType dt)
+        {
+            string declared = dt?.TitleBlockFamily;
+            try { declared = DrawingDispatcher.ResolveTitleBlockVariant(dt).family; }
+            catch (Exception ex) { StingLog.Warn($"DrawingTypesInspect variant '{dt?.Id}': {ex.Message}"); }
+            if (string.IsNullOrWhiteSpace(declared)) declared = dt?.TitleBlockFamily;
+            string concrete = declared;
+            try
+            {
+                var res = TitleBlockResolver.Resolve(doc, dt, declared);
+                if (res.IsResolved) concrete = res.Family;
+            }
+            catch (Exception ex) { StingLog.Warn($"DrawingTypesInspect resolve '{dt?.Id}': {ex.Message}"); }
+            return (declared, concrete);
+        }
+
         private static void AppendParamCardinalitySummary(Document doc, DrawingTypeLibrary lib, StringBuilder sb)
         {
             if (doc == null || lib == null) return;
@@ -297,16 +338,22 @@ namespace StingTools.Commands.Drawing
 
                 var allMissing = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
                 int totalDeclared = 0;
+                int typesInUse = 0;
 
-                // Collect unique DrawingType ids so we only call FindMissingProjectInfoParams once per type.
-                var seenDtIds = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+                // DTW-13: count per drawing type in use, not per sheet (the total
+                // grew with the number of sheets), and say what is actually
+                // checked — ${Param} references with no bound parameter on
+                // Project Information. The old label claimed "not found on
+                // family", which this never inspected.
+                var seenDtIds = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var sheet in sheets)
                 {
                     var dtId = StingTools.Core.Drawing.DrawingTypeStamper.Read(sheet);
+                    if (!seenDtIds.Add(dtId ?? "")) continue;
                     var dt = DrawingTypeRegistry.Get(doc, dtId);
                     if (dt?.TitleBlockParams == null) continue;
-                    totalDeclared += dt.TitleBlockParams.Count;
-                    if (!seenDtIds.Add(dtId)) continue;
+                    typesInUse++;
+                    totalDeclared += dt.TitleBlockParams.Keys.Count(k => !string.IsNullOrWhiteSpace(k));
                     try
                     {
                         var missing = StingTools.Core.Drawing.TitleBlockParamApplier
@@ -314,17 +361,25 @@ namespace StingTools.Commands.Drawing
                         foreach (var m in missing)
                             allMissing.Add(m);
                     }
-                    catch { /* per-type failure — continue */ }
+                    catch (Exception ex) { StingLog.Warn($"DrawingTypesInspect Project Information audit '{dtId}': {ex.Message}"); }
                 }
 
-                if (allMissing.Count > 0)
+                if (typesInUse > 0)
                 {
-                    var sample = string.Join(", ", allMissing.OrderBy(k => k).Take(5));
-                    sb.AppendLine($"  TB params: {totalDeclared} declared, {allMissing.Count} not found on family: {sample}"
-                        + (allMissing.Count > 5 ? " …" : ""));
+                    sb.AppendLine($"  TB params: {totalDeclared} cell(s) declared across {typesInUse} drawing type(s) in use on sheets.");
+                    if (allMissing.Count > 0)
+                    {
+                        var sample = string.Join(", ", allMissing.OrderBy(k => k).Take(5));
+                        sb.AppendLine($"  ⚠ {allMissing.Count} ${{Param}} reference(s) not bound on Project Information " +
+                                      $"(those cells are left unwritten): {sample}" + (allMissing.Count > 5 ? " …" : ""));
+                    }
                 }
             }
-            catch { /* cardinality audit must never surface an error in a read-only diagnostic */ }
+            catch (Exception ex)
+            {
+                // A read-only diagnostic must not fail the dialog, but must be heard.
+                StingLog.Warn($"DrawingTypesInspect title-block parameter audit: {ex.Message}");
+            }
         }
     }
 

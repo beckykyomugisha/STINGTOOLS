@@ -11,6 +11,14 @@
 // Nothing is written to the model; a CSV of every node is exported.
 //
 // Design data: STING_SPRINKLER_DESIGN.json (+ _BIM_COORD/sprinkler_design.json).
+//
+// Workflow preset (WorkflowEngine.IsRunningPreset): no form and no dialog. The heads
+// and the source still come from the selection made before launching. Step params:
+//   hazard             hazard class id from the design data (e.g. OH2)   REQUIRED — the
+//                      step fails listing the ids; the design basis is never assumed
+//   areaPerHeadM2      area per head, m²     default 0 = design area ÷ heads (as the form)
+//   supplyPressureBar  supply at the source at the demand flow, bar   default 0 = no check
+// The report goes to the step message (PresetDialog).
 
 using System;
 using System.Collections.Generic;
@@ -42,6 +50,7 @@ namespace StingTools.Commands.Fire
                 var ctx = ParameterHelpers.GetContext(commandData);
                 if (ctx == null) { message = "No active document."; return Result.Failed; }
                 var doc = ctx.Doc;
+                bool headless = WorkflowEngine.IsRunningPreset;
 
                 var picked = ctx.UIDoc?.Selection?.GetElementIds()?.Select(id => doc.GetElement(id))
                                  .Where(e => e != null).ToList() ?? new List<Element>();
@@ -49,9 +58,16 @@ namespace StingTools.Commands.Fire
                 var others = picked.Where(e => !IsSprinkler(e)).ToList();
                 if (heads.Count == 0 || others.Count != 1)
                 {
-                    TaskDialog.Show(Title,
+                    const string need =
                         "Select the sprinkler heads in the design area AND exactly one other element on the same " +
-                        "network as the source (installation valve set, riser pipe or pump), then run again.\n\n" +
+                        "network as the source (installation valve set, riser pipe or pump), then run again.";
+                    if (headless)
+                    {
+                        message = $"Sprinkler hydraulics: {need} Selected: {heads.Count} head(s), {others.Count} other element(s).";
+                        return Result.Failed;
+                    }
+                    TaskDialog.Show(Title,
+                        need + "\n\n" +
                         $"Selected: {heads.Count} head(s), {others.Count} other element(s).");
                     return Result.Cancelled;
                 }
@@ -60,25 +76,53 @@ namespace StingTools.Commands.Fire
                 var warnings = new List<string>();
                 SprinklerDesignData data;
                 try { data = MepDesignDataLoader.Sprinkler(doc, warnings); }
-                catch (Exception ex) { TaskDialog.Show(Title, $"Sprinkler design data could not be read: {ex.Message}"); return Result.Failed; }
+                catch (Exception ex) { PresetDialog.Show(Title, $"Sprinkler design data could not be read: {ex.Message}", ref message); return Result.Failed; }
                 var problems = data.Validate();
                 if (problems.Count > 0)
                 {
-                    TaskDialog.Show(Title, "Sprinkler design data is invalid:\n\n" + string.Join("\n", problems.Take(12)));
+                    PresetDialog.Show(Title, "Sprinkler design data is invalid:\n\n" + string.Join("\n", problems.Take(12)), ref message);
                     return Result.Failed;
                 }
 
-                int defIdx = Math.Max(0, data.Hazards.FindIndex(h => string.Equals(h.Id, data.DefaultHazardId, StringComparison.OrdinalIgnoreCase)));
-                var form = new StingFormDialog(Title, "Design basis",
-                        $"{heads.Count} head(s) selected. Area per head 0 = design area ÷ heads. " +
-                        "Hazard figures come from the design data file and are marked (verify) until checked.")
-                    .Choice("hazard", "Hazard class",
-                        data.Hazards.Select(h => $"{h.Id} — {h.Label}: {h.DensityMmMin:0.##} mm/min over {h.DesignAreaM2:0} m²{(h.Verify ? " (verify)" : "")}"), defIdx)
-                    .Number("area", "Area per head (m²)", 0, 0, 100)
-                    .Number("supplyP", "Supply pressure at the source at the demand flow (bar, 0 = don't check)", 0, 0, 50,
-                        "Read it off the flow-test or pump curve at the demand flow the calculation reports.");
-                if (form.ShowDialog() != true) return Result.Cancelled;
-                var hazard = data.Hazards[Math.Max(0, form.ChoiceIndex("hazard"))];
+                SprinklerHazard hazard;
+                double areaPerHead, supplyP;
+                if (headless)
+                {
+                    string hazardId = WorkflowEngine.StepParam("hazard").Trim();
+                    string ids = string.Join(" | ", data.Hazards.Select(h => h.Id));
+                    if (hazardId.Length == 0)
+                    {
+                        message = $"Sprinkler hydraulics: needs params.hazard — the hazard class of the design area ({ids}).";
+                        return Result.Failed;
+                    }
+                    hazard = data.Hazards.FirstOrDefault(h => string.Equals(h.Id, hazardId, StringComparison.OrdinalIgnoreCase));
+                    if (hazard == null)
+                    {
+                        message = $"Sprinkler hydraulics: params.hazard = '{hazardId}' is not in the design data ({ids}).";
+                        return Result.Failed;
+                    }
+                    if (!PresetStepInputs.TryNumber("areaPerHeadM2", WorkflowEngine.StepParam("areaPerHeadM2"), 0, 100, out var a, out var err)
+                        || !PresetStepInputs.TryNumber("supplyPressureBar", WorkflowEngine.StepParam("supplyPressureBar"), 0, 50, out var sp, out err))
+                    { message = "Sprinkler hydraulics: " + err; return Result.Failed; }
+                    areaPerHead = a ?? 0;
+                    supplyP = sp ?? 0;
+                }
+                else
+                {
+                    int defIdx = Math.Max(0, data.Hazards.FindIndex(h => string.Equals(h.Id, data.DefaultHazardId, StringComparison.OrdinalIgnoreCase)));
+                    var form = new StingFormDialog(Title, "Design basis",
+                            $"{heads.Count} head(s) selected. Area per head 0 = design area ÷ heads. " +
+                            "Hazard figures come from the design data file and are marked (verify) until checked.")
+                        .Choice("hazard", "Hazard class",
+                            data.Hazards.Select(h => $"{h.Id} — {h.Label}: {h.DensityMmMin:0.##} mm/min over {h.DesignAreaM2:0} m²{(h.Verify ? " (verify)" : "")}"), defIdx)
+                        .Number("area", "Area per head (m²)", 0, 0, 100)
+                        .Number("supplyP", "Supply pressure at the source at the demand flow (bar, 0 = don't check)", 0, 0, 50,
+                            "Read it off the flow-test or pump curve at the demand flow the calculation reports.");
+                    if (form.ShowDialog() != true) return Result.Cancelled;
+                    hazard = data.Hazards[Math.Max(0, form.ChoiceIndex("hazard"))];
+                    areaPerHead = form.Get("area");
+                    supplyP = form.Get("supplyP");
+                }
 
                 var opts = new FlowTreeBuildOptions
                 {
@@ -92,13 +136,13 @@ namespace StingTools.Commands.Fire
                 warnings.AddRange(tree.Warnings);
                 if (tree.Root == null || tree.Root.Descendants().All(n => !n.IsTerminal))
                 {
-                    TaskDialog.Show(Title, "None of the selected heads is connected to the source through pipework.\n\n" +
-                                           string.Join("\n", warnings.Take(8)));
+                    PresetDialog.Show(Title, "None of the selected heads is connected to the source through pipework.\n\n" +
+                                           string.Join("\n", warnings.Take(8)), ref message);
                     return Result.Failed;
                 }
 
                 var criteria = data.Criteria(hazard);
-                criteria.AreaPerHeadM2 = form.Get("area");
+                criteria.AreaPerHeadM2 = areaPerHead;
                 if (criteria.AreaPerHeadM2 > hazard.MaxAreaPerHeadM2 && hazard.MaxAreaPerHeadM2 > 0)
                     warnings.Add($"Area per head {criteria.AreaPerHeadM2:F1} m² exceeds the {hazard.MaxAreaPerHeadM2:F0} m² maximum for {hazard.Id}.");
 
@@ -107,14 +151,14 @@ namespace StingTools.Commands.Fire
                 if (tree.LoopConnections > 0)
                 {
                     warnings.RemoveAll(w => w.Contains("loop connection"));
-                    return RunNetwork(doc, source, opts, data, hazard, criteria, form.Get("supplyP"), warnings, ref message);
+                    return RunNetwork(doc, source, opts, data, hazard, criteria, supplyP, warnings, ref message);
                 }
 
                 var res = SprinklerHydraulics.Solve(tree.Root, criteria);
                 warnings.AddRange(res.Warnings);
                 if (!res.Ok)
                 {
-                    TaskDialog.Show(Title, "The calculation could not run:\n\n" + string.Join("\n", warnings.Take(12)));
+                    PresetDialog.Show(Title, "The calculation could not run:\n\n" + string.Join("\n", warnings.Take(12)), ref message);
                     return Result.Failed;
                 }
                 if (res.AreaPerHeadM2 > hazard.MaxAreaPerHeadM2 && hazard.MaxAreaPerHeadM2 > 0 && criteria.AreaPerHeadM2 <= 0)
@@ -122,7 +166,7 @@ namespace StingTools.Commands.Fire
                                  "the selection has too few heads for the area of operation.");
 
                 string csv = ExportCsv(doc, res, tree, hazard, warnings);
-                Report(res, hazard, form.Get("supplyP"), tree, data, warnings, csv);
+                Report(res, hazard, supplyP, tree, data, warnings, csv, ref message);
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -143,7 +187,7 @@ namespace StingTools.Commands.Fire
             warnings.AddRange(res.Warnings);
             if (res.Heads.Count == 0)
             {
-                TaskDialog.Show(Title, "The network calculation could not run:\n\n" + string.Join("\n", warnings.Take(12)));
+                PresetDialog.Show(Title, "The network calculation could not run:\n\n" + string.Join("\n", warnings.Take(12)), ref message);
                 return Result.Failed;
             }
             if (res.AreaPerHeadM2 > hazard.MaxAreaPerHeadM2 && hazard.MaxAreaPerHeadM2 > 0 && criteria.AreaPerHeadM2 <= 0)
@@ -203,8 +247,9 @@ namespace StingTools.Commands.Fire
                 var w = panel.AddSection("WARNINGS");
                 foreach (var line in warnings.Distinct().Take(20)) w.Text(line);
             }
-            panel.Show();
-            if (!res.Ok) message = "Network solver did not converge — see WARNINGS.";
+            PresetDialog.Show(panel, ref message);
+            if (!res.Ok)
+                message = (string.IsNullOrEmpty(message) ? "" : message + " ") + "Network solver did not converge — see WARNINGS.";
             return res.Ok ? Result.Succeeded : Result.Failed;
         }
 
@@ -278,7 +323,7 @@ namespace StingTools.Commands.Fire
         private static string Csv(string s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
 
         private static void Report(SprinklerHydraulicResult res, SprinklerHazard hazard, double supplyP,
-            FlowTreeBuildResult tree, SprinklerDesignData data, List<string> warnings, string csv)
+            FlowTreeBuildResult tree, SprinklerDesignData data, List<string> warnings, string csv, ref string message)
         {
             var panel = StingResultPanel.Create("Sprinkler Hydraulics");
             panel.SetSubtitle($"{hazard.Id} {hazard.Label} · {hazard.DensityMmMin:0.##} mm/min · {res.HeadCount} heads · tree method");
@@ -320,7 +365,7 @@ namespace StingTools.Commands.Fire
                 var w = panel.AddSection("WARNINGS");
                 foreach (var line in warnings.Distinct().Take(20)) w.Text(line);
             }
-            panel.Show();
+            PresetDialog.Show(panel, ref message);
         }
     }
 }

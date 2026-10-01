@@ -160,6 +160,16 @@ namespace StingTools.Core.Mep
 
         /// <summary>Apply the resolved colour filters to <paramref name="view"/>. Requires an open transaction.</summary>
         public static MepCoordResult ApplyToView(Document doc, View view, MepDomain domain = MepDomain.All)
+            => ApplyToView(doc, view, null, domain);
+
+        /// <summary>
+        /// As above, with the systems present in the model already collected
+        /// (<see cref="PresentSystems"/>) — a batch over many views scans the model
+        /// once. <paramref name="view"/> may be a view template: a produced view whose
+        /// template controls V/G filters can only be coloured through that template.
+        /// </summary>
+        public static MepCoordResult ApplyToView(Document doc, View view,
+            IList<PresentSystem> presentSystems, MepDomain domain = MepDomain.All)
         {
             var result = new MepCoordResult();
             if (doc == null || view == null) { result.Warnings.Add("No document / view."); return result; }
@@ -169,7 +179,7 @@ namespace StingTools.Core.Mep
                 return result;
             }
 
-            var systems = PresentSystems(doc);
+            var systems = (presentSystems ?? PresentSystems(doc)).ToList();
             if (domain == MepDomain.Duct) systems = systems.Where(s => s.IsDuct).ToList();
             else if (domain == MepDomain.Pipe) systems = systems.Where(s => !s.IsDuct).ToList();
             if (systems.Count == 0)
@@ -268,7 +278,9 @@ namespace StingTools.Core.Mep
 
         private static bool CanOverride(View view)
         {
-            try { return view != null && !view.IsTemplate && view.AreGraphicsOverridesAllowed(); }
+            // A view template carries filters for the views it governs; the batch
+            // path colours through it when the template controls V/G filters.
+            try { return view != null && (view.IsTemplate || view.AreGraphicsOverridesAllowed()); }
             catch { return false; }
         }
 

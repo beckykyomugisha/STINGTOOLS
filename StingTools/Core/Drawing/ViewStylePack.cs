@@ -69,7 +69,9 @@ namespace StingTools.Core.Drawing
         /// height is a property of each text/tag TYPE), so there is nothing to
         /// apply to a view and this field deliberately does not try. It is a
         /// pre-flight target: the value names a text type the project is
-        /// expected to hold, and TemplateManager's style creators author it.
+        /// expected to hold, and TemplateManager's style creators author it
+        /// (every shipped value is in TemplateManager.TextStyleDefs, made by
+        /// Create Text Styles in the DrawingProductionSetup chain — DTW-64).
         ///
         /// Documented rather than removed because removing it would lose a
         /// stated intent; documented rather than left bare because an

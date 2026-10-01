@@ -228,6 +228,66 @@ namespace StingTools.Tags.Tests
             Assert.Single(plan.Conflicts);
         }
 
+        // DTW-7: a sheet already carrying a full ISO 19650 identifier (from Tag Sheets /
+        // Sheet_NumberFromIso) was planned as a mover under the profile policy, and the
+        // compaction replaced the identifier with the profile's short number.
+        private static SheetNumberEngine.RenumberItem IsoSheet(string id, int seq)
+            => new SheetNumberEngine.RenumberItem
+            {
+                Id = id,
+                Bucket = "b",
+                CurrentSeq = seq,
+                CurrentNumber = Iso19650DocumentCode.Assemble("PRJ", "SAH", "ZZ", "01", "DR", "A", seq.ToString("D4")),
+                NumberFor = s => $"A-RCP-L01-{s:D3}",
+            };
+
+        [Fact]
+        public void Iso_identifier_is_pinned_under_the_profile_policy_and_reported()
+        {
+            var items = new[] { Sheet("1", "L01", 3), IsoSheet("2", 5) };
+            var plan = SheetNumberEngine.PlanRenumber(items, items.Select(i => i.CurrentNumber),
+                SheetNumberPolicyKind.Profile);
+            Assert.DoesNotContain(plan.Moves, m => m.Id == "2");
+            Assert.Contains(plan.IsoPreserved, p => p.Contains(items[1].CurrentNumber));
+            // Its sequence is reserved like a locked sheet's: the run steps round it.
+            Assert.Equal(1, Assert.Single(plan.Moves).Seq);
+            Assert.Equal(5, plan.HighWater["b"]);
+        }
+
+        [Fact]
+        public void Iso_identifier_is_pinned_by_default()
+        {
+            var items = new[] { IsoSheet("2", 5) };
+            var plan = SheetNumberEngine.PlanRenumber(items, items.Select(i => i.CurrentNumber));
+            Assert.Empty(plan.Moves);
+            Assert.Single(plan.IsoPreserved);
+        }
+
+        [Fact]
+        public void Iso_identifier_may_move_under_the_iso_policy()
+        {
+            var items = new[] { IsoSheet("2", 5) };
+            var plan = SheetNumberEngine.PlanRenumber(items, items.Select(i => i.CurrentNumber),
+                SheetNumberPolicyKind.Iso);
+            Assert.Single(plan.Moves);
+            Assert.Empty(plan.IsoPreserved);
+        }
+
+        // DTW-19: the clash check looked each item's move up with FirstOrDefault inside the
+        // item loop, O(n^2) per pinning pass and O(n^3) overall. A large plan must stay fast.
+        // Measured: ~2,100 ms before the fix, ~50 ms after.
+        [Fact]
+        public void Large_plan_is_planned_quickly()
+        {
+            var items = Enumerable.Range(1, 20000)
+                .Select(i => Sheet(i.ToString(), "L" + (i % 7), i * 2)).ToArray();
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var plan = SheetNumberEngine.PlanRenumber(items, items.Select(i => i.CurrentNumber));
+            sw.Stop();
+            Assert.Equal(20000, plan.Moves.Count);
+            Assert.True(sw.ElapsedMilliseconds < 1000, $"planning 20000 sheets took {sw.ElapsedMilliseconds} ms");
+        }
+
         [Fact]
         public void Gap_free_bucket_plans_nothing()
         {

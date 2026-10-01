@@ -47,21 +47,39 @@ namespace StingTools.Commands.Electrical.FeederSizing
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
-            var settings = StingElectricalCommandHandler.CurrentFeederSettings
-                ?? new FeederSettingsSnapshot
+            // Workflow preset (Calc_FeederSize): no dialog; the report goes to the step message.
+            // Step params (ElectricalStepInputs.FeederSettings): derateFactor, diversityPct,
+            // installMethod, insulation, cableType, vdLimitPct, standard. Defaults: the Electrical
+            // panel's FEEDER SIZING expander (re-read at the step), else derate 0.8, diversity
+            // 100 %, method C, PVC70 multicore, VD 5 %; the panel's standard, else BS 7671.
+            bool headless = WorkflowEngine.IsRunningPreset;
+            var fallback = new FeederSettingsSnapshot
                 { DerateFactor = 0.8, DiversityPct = 100,
                   InstallMethod = "C", VDLimitPct = FeederSettingsSnapshot.DefaultVdLimitPct };
+            FeederSettingsSnapshot settings;
+            string presetStandard = null;
+            if (headless)
+            {
+                if (!ElectricalStepInputs.FeederSettings(fallback, out settings, out presetStandard, out var err))
+                { message = "Feeder sizing: " + err; return Result.Failed; }
+            }
+            else settings = StingElectricalCommandHandler.CurrentFeederSettings ?? fallback;
 
             var root = StingTools.Core.SLD.SLDCircuitTraverser.BuildHierarchy(doc);
             if (root == null)
             {
+                if (headless)
+                {
+                    message = "Feeder sizing: no SLD hierarchy found — place an incomer panel first.";
+                    return Result.Failed;
+                }
                 TaskDialog.Show("STING Feeders", "No SLD hierarchy found. Place an incomer panel first.");
                 return Result.Cancelled;
             }
 
             // ELEC-24: the panel's standard, read once — feeders were always sized to BS 7671,
             // so an NEC project got BS 7671 feeders with no warning.
-            _standard = StingTools.Standards.ElectricalStandardId.Normalise(
+            _standard = presetStandard ?? StingTools.Standards.ElectricalStandardId.Normalise(
                 StingElectricalCommandHandler.ActivePanel?.SelectedStandard);
             bool nec = _standard == StingTools.Standards.ElectricalStandardId.Nec2023;
 
@@ -113,8 +131,8 @@ namespace StingTools.Commands.Electrical.FeederSizing
             var defaults = results.SelectMany(r => r.DefaultsUsed.Select(d => $"{r.PanelName}: {d}")).Take(8).ToList();
             StingLog.Info($"FeederSizer: {results.Count} feeder(s), stamped {written}, not sized {notSized}, " +
                           $"on defaults {onDefaults}, VD fails {vdFails}.");
-            TaskDialog.Show("STING Feeders",
-                $"Standard: {(nec ? "NEC 2023 (Table 310.16; derate not applied; voltage drop is advisory)" : "BS 7671 Appendix 4")}.\n" +
+            PresetDialog.Show("STING Feeders",
+                $"Standard:{(nec ? "NEC 2023 (Table 310.16; derate not applied; voltage drop is advisory)" : "BS 7671 Appendix 4")}.\n" +
                 $"Feeders: {results.Count}. Stamped {written}. Not sized: {notSized}. VD exceedances: {vdFails}.\n" +
                 $"VD limit: {settings.VDLimitPct:0.##} % " +
                 (settings.VDLimitUserSet ? "(user-set for feeders)" : nec ? "(NEC 215.2(A)(1) Informational Note, advisory)" : "(BS 7671 Appendix 12 'other' limit)") +
@@ -123,7 +141,7 @@ namespace StingTools.Commands.Electrical.FeederSizing
                 (onDefaults > 0
                     ? $"\n{onDefaults} feeder(s) used DEFAULT inputs (not model data) — check before issue:\n" +
                       string.Join("\n", defaults.Select(d => "  " + d))
-                    : ""));
+                    : ""), ref message);
             return Result.Succeeded;
         }
 

@@ -2,6 +2,17 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Drawing production — review-and-fix loop (2026-10-01)
+
+The running log, including every closed finding, is
+[`docs/WORKLOG_DRAWING_TYPES.md`](WORKLOG_DRAWING_TYPES.md). This table holds only what is
+still open. Rows leave this table when their fix is merged; the worklog keeps the history.
+
+| Id | Gap | Evidence | Fix |
+|---|---|---|---|
+| DTW-82 | Nothing merged in this loop has been run in Revit | Worklog "NEEDS REVIT CHECK" | Run the listed checks. Whether Revit accepts shared parameters on Lines (DTW-56) decides whether match-line keys move to Extensible Storage |
+| DTW-102 | Linked MEP runs are reported, not dimensioned | `AnnotationRunner MEP dimension passes` | Accepted limit: dimensioning through a link needs link references on pipe geometry, unverified off-Revit |
+
 ## Tag family library — missing families (2026-09-30)
 
 The C# tables and the library agree (206 = 206). The gaps were families declared outside the

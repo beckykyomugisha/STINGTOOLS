@@ -27,19 +27,14 @@ namespace StingTools.Tags.Tests
     /// distinguishable at build time.</para>
     ///
     /// <para>The vocabulary is read from
-    /// <c>SheetPlacementBridge.KnownSlotViewTypes</c> rather than listed here,
+    /// <c>SlotViewTypeCompatibility.KnownSlotViewTypes</c> rather than listed here,
     /// so the test cannot drift from the switch it is guarding.</para>
     /// </summary>
     public class DrawingSlotVocabularyTests
     {
-        // SheetPlacementBridge is Revit-bound, so the vocabulary is mirrored
-        // here from its public array via a local copy kept honest by
-        // Vocabulary_matches_the_shipped_switch below.
-        private static readonly string[] Known =
-        {
-            "Plan", "RCP", "Section", "Elevation", "Detail", "3D",
-            "Schedule", "Legend", "ISO", "Schematic", "Drafting", "Coordination",
-        };
+        // The vocabulary lives in the Revit-free SlotViewTypeCompatibility
+        // (DTW-63), which SheetPlacementBridge re-exports, so it is read directly.
+        private static readonly string[] Known = StingTools.Core.Drawing.SlotViewTypeCompatibility.KnownSlotViewTypes;
 
         private static string DataDir()
         {
@@ -54,29 +49,16 @@ namespace StingTools.Tags.Tests
             JObject.Parse(File.ReadAllText(Path.Combine(DataDir(), "STING_DRAWING_TYPES.json")));
 
         [Fact]
-        public void Vocabulary_matches_the_shipped_switch()
+        public void Bridge_re_exports_the_shared_vocabulary()
         {
-            // SheetPlacementBridge cannot be compiled into this project (it is
-            // Revit-bound), so the local copy above is verified against the
-            // source text. Without this the mirror could drift and every other
-            // assertion in this file would be checking the wrong list.
+            // SheetPlacementBridge is Revit-bound; check its source re-exports
+            // the shared list rather than declaring a second copy.
             var dir = new DirectoryInfo(AppContext.BaseDirectory);
             while (dir != null && !File.Exists(Path.Combine(dir.FullName, "StingTools", "Core", "Drawing", "SheetPlacementBridge.cs")))
                 dir = dir.Parent;
             Assert.True(dir != null, "Could not locate SheetPlacementBridge.cs");
             var src = File.ReadAllText(Path.Combine(dir.FullName, "StingTools", "Core", "Drawing", "SheetPlacementBridge.cs"));
-
-            var start = src.IndexOf("KnownSlotViewTypes", StringComparison.Ordinal);
-            Assert.True(start > 0, "KnownSlotViewTypes not found in SheetPlacementBridge.cs");
-            var open = src.IndexOf('{', start);
-            var close = src.IndexOf("};", open, StringComparison.Ordinal);
-            var body = src.Substring(open, close - open);
-            var declared = System.Text.RegularExpressions.Regex.Matches(body, "\"([^\"]+)\"")
-                .Select(m => m.Groups[1].Value)
-                .ToList();
-
-            Assert.Equal(Known.OrderBy(x => x, StringComparer.Ordinal),
-                         declared.OrderBy(x => x, StringComparer.Ordinal));
+            Assert.Contains("KnownSlotViewTypes = SlotViewTypeCompatibility.KnownSlotViewTypes;", src);
         }
 
         [Fact]

@@ -6,7 +6,7 @@
 // ISO 19650-2 field set — volume, level, type, role, suitability,
 // revision — yet only 9 of the 93 profiles NUMBER by it. The other 84
 // use bespoke short codes: "A-RCP-{lvl}-{seq:D3}", "HO-{seq:D3}",
-// "LG-{seq:D2}", "RFI-{seq:D4}", "PH-SCHEM-{seq:D2}". So a project that
+// "LG-{seq:D2}", "RFI-{seq:D4}", "P-DRN-SCH-{seq:D3}". So a project that
 // has adopted ISO 19650 numbering gets it on nine drawings and legacy
 // short numbers on eighty-four, while every profile carries the ISO
 // metadata needed to do it properly. DT-096 only warns on the inverse
@@ -40,6 +40,7 @@
 // -control event, not a side effect of a plugin update.
 
 using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 
@@ -69,12 +70,22 @@ namespace StingTools.Core.Drawing
         public const string PolicyParameterName = "PRJ_ORG_SHEET_NUMBER_POLICY_TXT";
 
         /// <summary>
-        /// The canonical ISO 19650-2 sheet-number pattern. Field order is
-        /// Project–Originator–Volume–Level–Type–Role–Number, then the
-        /// suitability and revision suffixes STING appends.
+        /// The canonical ISO 19650-2 container identifier: Project–Originator–
+        /// Volume–Level–Type–Role–Number.
+        /// <para>
+        /// DTW-44: it used to end "-{suit}-{rev}". Those two are METADATA of the
+        /// container in ISO 19650-2 (§5.1.7 / Annex A status and revision codes),
+        /// not part of its identifier — and here they were frozen at the profile's
+        /// values when the sheet was numbered (S2-P01), so a sheet issued at A1-C02
+        /// still carried "S2-P01" in its number. Suitability and revision are
+        /// stamped on the sheet and printed by the title block instead.
+        /// Existing sheets keep their numbers: production finds a sheet by its
+        /// context stamp, never by re-deriving its number, so only sheets created
+        /// from now on take the shorter form.
+        /// </para>
         /// </summary>
         public const string IsoPattern =
-            "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}";
+            "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}";
 
         /// <summary>Parse the policy string. Anything unrecognised — including null — is Profile.</summary>
         public static SheetNumberPolicyKind Parse(string value)
@@ -190,10 +201,149 @@ namespace StingTools.Core.Drawing
             return IsoPattern;
         }
 
+        private static readonly Regex _statusSuffix =
+            new Regex(@"-(S\d|A\d{1,2}|B\d{1,2}|CR|AB|AR)-[PC]\d{2,3}$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        /// <summary>
+        /// DTW-44: a sheet number with the suitability-revision tail the old
+        /// <see cref="IsoPattern"/> appended ("…-0003-S2-P01") cut back to its container
+        /// identifier ("…-0003"); any other number unchanged. Used to seed the ISO counter
+        /// from sheets numbered before the tail was dropped, so a new sheet does not take
+        /// a sequence an existing one already carries.
+        /// </summary>
+        public static string StripStatusSuffix(string sheetNumber)
+            => string.IsNullOrEmpty(sheetNumber) ? sheetNumber : _statusSuffix.Replace(sheetNumber, "");
+
+        /// <summary>
+        /// DTW-43: the value {lvl} takes in <paramref name="pattern"/> for the level
+        /// called <paramref name="levelName"/>. An ISO-shaped number carries the ISO
+        /// 19650 level code — the one the sheet's own level stamp uses
+        /// (IsoLevelCode, built over every level in <paramref name="isoCodesByName"/>) —
+        /// not the level's name cut to eight characters, which gave "Level1" and
+        /// "Mezzanin" and let "Level 10" and "Level 1 A" collide. Any other pattern
+        /// keeps the name, as before. Null in, null out (the profile's fallback applies).
+        /// </summary>
+        public static string LevelToken(string pattern, string levelName, IDictionary<string, string> isoCodesByName)
+        {
+            if (levelName == null) return null;
+            if (!IsAlreadyIso(pattern)) return levelName;
+            if (isoCodesByName != null && isoCodesByName.TryGetValue(levelName, out var code) && !string.IsNullOrWhiteSpace(code))
+                return code;
+            return IsoLevelCode.FromNameOnly(levelName);
+        }
+
+        /// <summary>
+        /// DTW-100: {lvl} for a fabrication spool sheet numbered by <paramref name="pattern"/>.
+        /// An ISO-shaped pattern takes the ISO 19650 code of the assembly's level
+        /// (<paramref name="levelName"/>) through <see cref="LevelToken"/> — the code
+        /// DrawingProducer gives the same level (DTW-43), so a spool sheet and a produced
+        /// sheet share numbers and ISO counter buckets instead of using two codes for one
+        /// level. Any other pattern, or an assembly whose level could not be found, keeps
+        /// the assembly's ASS_LVL_COD_TXT (<paramref name="assemblyLevelCode"/>), as before.
+        /// </summary>
+        public static string SpoolLevelToken(string pattern, string assemblyLevelCode, string levelName,
+            IDictionary<string, string> isoCodesByName)
+        {
+            if (string.IsNullOrWhiteSpace(levelName) || !IsAlreadyIso(pattern)) return assemblyLevelCode;
+            var code = LevelToken(pattern, levelName, isoCodesByName);
+            return string.IsNullOrWhiteSpace(code) ? assemblyLevelCode : code;
+        }
+
+        /// <summary>
+        /// DTW-79: {lvl} for re-stamping the title block of a sheet that already
+        /// exists (Heal, Migrate, drift). Production puts the ISO level code in
+        /// {lvl} when its number pattern is ISO-shaped (DTW-43), so a heal that put
+        /// the level NAME there wrote a title block that disagreed with the number.
+        /// <para><paramref name="levelIsName"/> says where <paramref name="level"/>
+        /// came from: the production-context stamp holds the level's NAME, which
+        /// goes through <see cref="LevelToken"/> exactly as production does; the
+        /// PRJ_SHEET_LEVEL_TXT segment stamp already holds the value the producer
+        /// (or the sheet-level derivation) wrote, and is kept as it is — re-reading
+        /// a code such as "M1" as a name would turn it into "01".</para>
+        /// Null in, null out (the caller omits the token).
+        /// </summary>
+        public static string ExistingSheetLevelToken(string numberPattern, string level, bool levelIsName,
+            IDictionary<string, string> isoCodesByName)
+            => level == null ? null
+             : levelIsName ? LevelToken(numberPattern, level, isoCodesByName)
+             : level;
+
         /// <summary>
         /// Convenience overload without the note.
         /// </summary>
         public static string ResolvePattern(DrawingType dt, SheetNumberPolicyKind policy)
             => ResolvePattern(dt, policy, out _);
+
+        // ── DTW-117: the building in {vol} ─────────────────────────────────────
+        //
+        // On a multi-building job every sheet took the drawing type's IsoNaming.Volume
+        // ("01"), so two buildings' ground-floor plans differed only in their sequence
+        // number. A sheet produced from a box inside a STING-LOC building now carries
+        // that building in {vol}: the project's own LOC -> volume map when it has one
+        // (_BIM_COORD/sheet_volumes.json), else the LOC code itself, cut to the
+        // characters an ISO field may hold.
+
+        /// <summary>The project override that maps a STING-LOC code to an ISO volume code.</summary>
+        public const string VolumeMapFileName = "sheet_volumes.json";
+
+        private static readonly Regex _volToken = new Regex(@"\{vol\}", RegexOptions.IgnoreCase);
+
+        /// <summary>True when <paramref name="pattern"/> names {vol}.</summary>
+        public static bool PatternUsesVolume(string pattern)
+            => !string.IsNullOrEmpty(pattern) && _volToken.IsMatch(pattern);
+
+        /// <summary>The ISO volume code for building <paramref name="loc"/>: the mapped value
+        /// when <paramref name="locToVolume"/> names it, else the LOC code upper-cased with
+        /// everything but A-Z and 0-9 removed (a '-' would split the ISO field). Null when
+        /// there is no LOC or nothing of it survives.</summary>
+        public static string VolumeForLoc(string loc, IDictionary<string, string> locToVolume)
+        {
+            if (string.IsNullOrWhiteSpace(loc)) return null;
+            string key = loc.Trim();
+            if (locToVolume != null)
+                foreach (var kv in locToVolume)
+                    if (string.Equals(kv.Key?.Trim(), key, StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrWhiteSpace(kv.Value))
+                        return SanitiseVolume(kv.Value);
+            return SanitiseVolume(key);
+        }
+
+        private static string SanitiseVolume(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            var sb = new System.Text.StringBuilder();
+            foreach (char c in raw.Trim().ToUpperInvariant())
+                if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) sb.Append(c);
+            return sb.Length == 0 ? null : sb.ToString();
+        }
+
+        /// <summary>
+        /// Parse <see cref="VolumeMapFileName"/>: a JSON object of LOC code to volume code,
+        /// either at the root or under "volumes" — <c>{"volumes": {"BLDA": "01", "BLDB": "02"}}</c>.
+        /// An unreadable file is an error, not an empty map: the caller says so instead of
+        /// numbering every building from its LOC code without a word.
+        /// </summary>
+        public static Dictionary<string, string> ParseVolumeMap(string json, out string error)
+        {
+            error = null;
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(json)) return map;
+            try
+            {
+                var root = Newtonsoft.Json.Linq.JToken.Parse(json) as Newtonsoft.Json.Linq.JObject;
+                if (root == null) { error = "not a JSON object"; return map; }
+                var obj = root["volumes"] as Newtonsoft.Json.Linq.JObject ?? root;
+                foreach (var p in obj.Properties())
+                {
+                    if (p.Value.Type == Newtonsoft.Json.Linq.JTokenType.String
+                        || p.Value.Type == Newtonsoft.Json.Linq.JTokenType.Integer)
+                        map[p.Name] = p.Value.ToString();
+                    else if (!string.Equals(p.Name, "volumes", StringComparison.OrdinalIgnoreCase))
+                        error = (error == null ? "" : error + "; ") + $"'{p.Name}' is not a text value";
+                }
+            }
+            catch (JsonException ex) { error = ex.Message; }
+            return map;
+        }
     }
 }

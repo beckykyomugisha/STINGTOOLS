@@ -40,6 +40,24 @@ namespace StingTools.Core.Drawing
 
     internal static class SheetPlacementBridge
     {
+        /// <summary>
+        /// DTW-75: record that STING placed this viewport / schedule instance, in
+        /// Extensible Storage (StingProvenanceSchema; read back with
+        /// StingProvenanceSchema.IsAutoCreated). Viewports and schedule sheet
+        /// instances take no bound shared parameters, so the old
+        /// STING_AUTO_PLACED_BOOL write never landed. A failure is reported once
+        /// in the placement result.
+        /// </summary>
+        internal static bool MarkAutoPlaced(Element placed, PlacementResult pr = null)
+        {
+            if (placed == null) return false;
+            if (StingTools.Core.Storage.StingProvenanceSchema.Stamp(placed, "SheetPlacement", placed.Category?.Name ?? ""))
+                return true;
+            const string msg = "Could not mark placed viewports as STING-placed (Extensible Storage write failed; see the log).";
+            if (pr?.Warnings != null && !pr.Warnings.Contains(msg)) pr.Warnings.Add(msg);
+            return false;
+        }
+
         private const double MarginMm = 25.0;
         private const double MmPerFt = 304.8;
         private static double MmToFt(double mm) => mm / MmPerFt;
@@ -350,7 +368,10 @@ namespace StingTools.Core.Drawing
                         }
                         catch (Exception ex)
                         {
-                            StingTools.Core.StingLog.Warn($"SheetPlacementBridge.ResolveDrawableForFamily: {ex.Message}");
+                            // DTW-104: a failed load is not a read. Answer this call from what was
+                            // read so far, but do not cache it, so the next call tries again.
+                            StingTools.Core.StingLog.Warn($"SheetPlacementBridge.ResolveDrawableForFamily: {ex.Message} — not cached; will retry.");
+                            return cache.TryGetValue(familyName, out var partial) ? partial : null;
                         }
                         _drawableCache = cache;
                     }
@@ -434,13 +455,11 @@ namespace StingTools.Core.Drawing
                             if (ssi != null)
                             {
                                 pr.ViewportIds.Add(ssi.Id);
-                                // H-4 — was a silent catch. STING_AUTO_PLACED_BOOL is how a later run
-                                // tells its own viewports from hand-placed ones; if the write
-                                // never lands, re-running re-places on top of itself. SetInt
-                                // RETURNS false when unbound and throws nothing.
-                                StingTools.Core.SafeWrite.Set(ssi, ParamRegistry.STING_AUTO_PLACED_BOOL,
-                                    () => StingTools.Core.ParameterHelpers.SetInt(ssi, ParamRegistry.STING_AUTO_PLACED_BOOL, 1, overwrite: true),
-                                    "SheetPlacementBridge.ScheduleInstance", pr?.Warnings);
+                                // DTW-75: the "placed by STING" mark is Extensible Storage, not
+                                // STING_AUTO_PLACED_BOOL. A schedule instance (and a viewport)
+                                // is not a category a shared parameter can be bound to, so the
+                                // parameter write returned false on every placement.
+                                MarkAutoPlaced(ssi, pr);
                             }
                         }
                         catch (Exception ex)
@@ -455,10 +474,8 @@ namespace StingTools.Core.Drawing
                     if (vp != null)
                     {
                         pr.ViewportIds.Add(vp.Id);
-                        // H-4 — the viewport branch of the same stamp; same defect.
-                        StingTools.Core.SafeWrite.Set(vp, ParamRegistry.STING_AUTO_PLACED_BOOL,
-                            () => StingTools.Core.ParameterHelpers.SetInt(vp, ParamRegistry.STING_AUTO_PLACED_BOOL, 1, overwrite: true),
-                            "SheetPlacementBridge.Viewport", pr?.Warnings);
+                        // DTW-75: the viewport branch of the same mark.
+                        MarkAutoPlaced(vp, pr);
 
                         // SLOT-1: apply per-slot viewport type if declared
                         if (!string.IsNullOrWhiteSpace(slot?.ViewportType))
@@ -593,52 +610,20 @@ namespace StingTools.Core.Drawing
         private static ElementId FindViewportTypeId(Document doc, string typeName)
             => ViewportTypeResolver.Resolve(doc, typeName, createIfMissing: true);
 
-        // SLOT-3 helper — returns true when the view's ViewType is compatible
-        // with the slot's declared ViewType string. Unknown slot types pass
-        // through as compatible (returns true) to avoid false positives.
+        // SLOT-3 helper. The mapping from STING slot terms to Revit view types
+        // lives in the Revit-free SlotViewTypeCompatibility so the producer
+        // (DTW-63) and this bridge share one copy and it can be unit-tested.
         /// <summary>
-        /// The slot viewType terms <see cref="IsViewTypeCompatible"/> actually
-        /// discriminates on. Anything else reaches the permissive default arm
-        /// and matches every view, which is how "Drafting" and "Coordination"
-        /// went unnoticed. DrawingTypeValidator (DT-137-SLOTVT) and
-        /// DrawingSlotVocabularyTests read this list so there is one copy.
+        /// The slot viewType terms the compatibility predicate discriminates on;
+        /// see <see cref="SlotViewTypeCompatibility.KnownSlotViewTypes"/>.
         /// </summary>
-        public static readonly string[] KnownSlotViewTypes =
-        {
-            "Plan", "RCP", "Section", "Elevation", "Detail", "3D",
-            "Schedule", "Legend", "ISO", "Schematic", "Drafting", "Coordination",
-        };
+        public static readonly string[] KnownSlotViewTypes = SlotViewTypeCompatibility.KnownSlotViewTypes;
 
         /// <summary>True when the term is one the compatibility switch discriminates on.</summary>
         public static bool IsKnownSlotViewType(string slotViewType)
-            => !string.IsNullOrWhiteSpace(slotViewType)
-            && KnownSlotViewTypes.Any(k => string.Equals(k, slotViewType.Trim(), StringComparison.OrdinalIgnoreCase));
+            => SlotViewTypeCompatibility.IsKnown(slotViewType);
 
         private static bool IsViewTypeCompatible(View view, string slotViewType)
-        {
-            if (view == null || string.IsNullOrWhiteSpace(slotViewType)) return true;
-            return slotViewType.ToUpperInvariant() switch
-            {
-                "PLAN"      => view.ViewType == ViewType.FloorPlan || view.ViewType == ViewType.AreaPlan || view.ViewType == ViewType.EngineeringPlan,
-                "RCP"       => view.ViewType == ViewType.CeilingPlan,
-                "SECTION"   => view.ViewType == ViewType.Section,
-                "ELEVATION" => view.ViewType == ViewType.Elevation,
-                "DETAIL"    => view.ViewType == ViewType.Detail,
-                "3D"        => view.ViewType == ViewType.ThreeD,
-                "SCHEDULE"  => view.ViewType == ViewType.Schedule,
-                "LEGEND"    => view.ViewType == ViewType.Legend,
-                "ISO"       => view.ViewType == ViewType.ThreeD,
-                "SCHEMATIC" => view.ViewType == ViewType.DraftingView || view.ViewType == ViewType.Elevation,
-                // DRAFTING and COORDINATION were both used by shipped profiles
-                // and neither was listed, so both fell through to the
-                // permissive default and matched ANY view. Declared now, so the
-                // slot means what it says.
-                "DRAFTING"  => view.ViewType == ViewType.DraftingView,
-                "COORDINATION" => view.ViewType == ViewType.FloorPlan
-                              || view.ViewType == ViewType.EngineeringPlan
-                              || view.ViewType == ViewType.ThreeD,
-                _           => true  // unknown slot type — allow (DT-137-SLOTVT reports it)
-            };
-        }
+            => view == null || SlotViewTypeCompatibility.IsCompatible(view.ViewType.ToString(), slotViewType);
     }
 }

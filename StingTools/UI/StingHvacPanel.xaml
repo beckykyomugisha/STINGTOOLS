@@ -502,7 +502,7 @@
                                     ToolTip="Phase F — FIRST PASS: group uncircuited devices by nearest panel into power circuits (no load balancing — review in the panel schedules)"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Produce views"
                                     Tag="MEP_ProduceMepViews" Click="Cmd_Click"
-                                    ToolTip="Phase E — duplicate the ACTIVE plan once per present discipline (M / E / P), coloured + typed"/>
+                                    ToolTip="Quick duplicate: copy the ACTIVE plan once per present discipline (M / E / P), coloured + typed. These views are NOT stamped with a drawing type, so Doctor / Renumber / Produce do not see them, and Per-level + sheets makes its own stamped views beside them. For production views use Per-level + sheets."/>
                             <Button Style="{StaticResource HvacPrimaryBtn}" Content="Per-level + sheets"
                                     Tag="MEP_ProduceMepViewsByLevel" Click="Cmd_Click"
                                     ToolTip="Each modelled MEP discipline's plan drawing type (M / E / P / FP / MG), on every level it occupies — stamped views and sheets via the drawing-type producer; re-runs reuse them"/>

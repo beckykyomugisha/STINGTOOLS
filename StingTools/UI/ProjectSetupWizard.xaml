@@ -1085,13 +1085,13 @@
                                 <CheckBox x:Name="chkCreateViews" Style="{StaticResource WizCheck}"
                                           Content="Produce plan views per level (each ticked discipline's PLAN / RCP drawing types, stamped)" IsChecked="True"/>
                                 <CheckBox x:Name="chkCreateDependents" Style="{StaticResource WizCheck}"
-                                          Content="Create dependent views from scope boxes (if any exist)"/>
+                                          Content="Produce a dependent plan per scope box (if any exist), stamped"/>
                                 <CheckBox x:Name="chkCreateSheets" Style="{StaticResource WizCheck}"
-                                          Content="…and put each on a drawing-type sheet (title block, number and name from the type)" IsChecked="True"/>
+                                          Content="…and put each plan, dependent and section on a drawing-type sheet (title block, number and name from the type)" IsChecked="True"/>
                                 <CheckBox x:Name="chkCreateSections" Style="{StaticResource WizCheck}"
-                                          Content="Create building sections from grids"/>
+                                          Content="Produce building sections along grid lines, stamped"/>
                                 <CheckBox x:Name="chkCreateElevations" Style="{StaticResource WizCheck}"
-                                          Content="Create 4 exterior elevations (N/S/E/W)" IsChecked="True"/>
+                                          Content="Produce 4 exterior elevations (N/S/E/W), stamped — views only" IsChecked="True"/>
                             </StackPanel>
                         </Border>
 
