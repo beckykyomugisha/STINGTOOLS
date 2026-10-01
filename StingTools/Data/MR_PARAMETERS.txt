@@ -3294,7 +3294,7 @@ PARAM	ac000000-0000-0000-0000-000000000004	QTO_NET_VOLUME_M3	NUMBER		26	1	ArchiC
 PARAM	ac000000-0000-0000-0000-000000000005	QTO_LENGTH_M	NUMBER		26	1	ArchiCAD IFC: element length or span m (Qto BaseQuantities)	1
 PARAM	ac000000-0000-0000-0000-000000000006	QTO_WIDTH_M	NUMBER		26	1	ArchiCAD IFC: element width or thickness m (Qto BaseQuantities)	1
 PARAM	ac000000-0000-0000-0000-000000000007	QTO_HEIGHT_M	NUMBER		26	1	ArchiCAD IFC: element height or depth m (Qto BaseQuantities)	1
-PARAM	ac000000-0000-0000-0000-000000000008	QTO_WEIGHT_KG	NUMBER		26	1	ArchiCAD IFC: element weight kg (Qto beam/column quantities)	1
+PARAM	ac000000-0000-0000-0000-000000000008	QTO_WEIGHT_KG	NUMBER		26	1	ArchiCAD IFC: element net weight kg (Qto_BeamBaseQuantities.NetWeight / Qto_ColumnBaseQuantities.NetWeight)	1
 PARAM	ac000000-0000-0000-0000-000000000009	QTO_NET_FLOOR_AREA_M2	NUMBER		26	1	ArchiCAD IFC: room net floor area m2 (Qto_SpaceBaseQuantities)	1
 PARAM	ac000000-0000-0000-0000-00000000000a	QTO_GROSS_WALL_AREA_M2	NUMBER		26	1	ArchiCAD IFC: room gross wall surface area m2 (Qto_SpaceBaseQuantities)	1
 PARAM	ac000000-0000-0000-0000-00000000000b	QTO_NET_CEILING_AREA_M2	NUMBER		26	1	ArchiCAD IFC: room net ceiling area m2 (Qto_SpaceBaseQuantities)	1
@@ -3318,7 +3318,7 @@ PARAM	ac000000-0000-0000-0000-000000000031	AC_HOTLINK_ID_TXT	TEXT		26	1	ArchiCAD
 PARAM	ac000000-0000-0000-0000-000000000032	AC_HOTLINK_FILE_TXT	TEXT		26	1	ArchiCAD IFC: relative path of the source hotlink .mod file	1
 PARAM	ac000000-0000-0000-0000-000000000033	AC_REVISION_TXT	TEXT		26	1	ArchiCAD IFC: element-level revision mark (AC_Pset_ElementID.Revision)	1
 PARAM	ac000000-0000-0000-0000-000000000040	PER_ACOUSTIC_RATING_TXT	TEXT		8	1	ArchiCAD IFC: acoustic rating Rw dB (from Pset_WallCommon / DoorCommon / WindowCommon)	1
-PARAM	ac000000-0000-0000-0000-000000000041	PER_SOLAR_GAIN_NR	NUMBER		8	1	ArchiCAD IFC: solar heat gain coefficient / g-value for glazing (Pset_WindowCommon)	1
+PARAM	ac000000-0000-0000-0000-000000000041	PER_SOLAR_GAIN_NR	NUMBER		8	1	ArchiCAD IFC: solar heat gain coefficient / g-value for glazing (Pset_DoorWindowGlazingType.SolarHeatGainTransmittance)	1
 PARAM	ac000000-0000-0000-0000-000000000042	PER_FRAME_MATERIAL_TXT	TEXT		8	1	ArchiCAD IFC: window frame material: PVC / Timber / Aluminium / Steel	1
 PARAM	ac000000-0000-0000-0000-000000000043	PER_SURFACE_SPREAD_TXT	TEXT		9	1	ArchiCAD IFC: surface spread of flame class A/B/C/D/E/F (reaction to fire)	1
 PARAM	ac000000-0000-0000-0000-000000000044	PER_COMBUSTIBLE_BOOL	YESNO		9	1	ArchiCAD IFC: element is combustible (Pset_WallCommon.Combustible)	1
@@ -3332,10 +3332,10 @@ PARAM	ac000000-0000-0000-0000-00000000004b	PER_SECURITY_RATING_TXT	TEXT		8	1	Arc
 PARAM	ac000000-0000-0000-0000-00000000004c	PER_PITCH_ANGLE_DEG	NUMBER		8	1	ArchiCAD IFC: roof / slab pitch angle degrees (Pset_SlabCommon / RoofCommon.PitchAngle)	1
 PARAM	ac000000-0000-0000-0000-00000000004d	PER_AIR_EXCHANGE_RATE_NR	NUMBER		5	1	ArchiCAD IFC: room air change rate ACH (Pset_SpaceCommon.AirExchangeRate)	1
 PARAM	ac000000-0000-0000-0000-000000000050	SPC_GROSS_AREA_M2	NUMBER		3	1	ArchiCAD IFC: room gross planned floor area m2 including half-wall thickness	1
-PARAM	ac000000-0000-0000-0000-000000000051	SPC_CEILING_HEIGHT_M	NUMBER		3	1	ArchiCAD IFC: room clear ceiling height m (Pset_SpaceCommon.CeilingHeight)	1
-PARAM	ac000000-0000-0000-0000-000000000052	SPC_FINISH_FLOOR_TXT	TEXT		3	1	ArchiCAD IFC: room floor finish material (Pset_SpaceCommon.FinishFloor)	1
-PARAM	ac000000-0000-0000-0000-000000000053	SPC_FINISH_CEILING_TXT	TEXT		3	1	ArchiCAD IFC: room ceiling finish material (Pset_SpaceCommon.FinishCeiling)	1
-PARAM	ac000000-0000-0000-0000-000000000054	SPC_FINISH_WALLS_TXT	TEXT		3	1	ArchiCAD IFC: room wall finish material (Pset_SpaceCommon.FinishWalls)	1
+PARAM	ac000000-0000-0000-0000-000000000051	SPC_CEILING_HEIGHT_M	NUMBER		3	1	ArchiCAD IFC: room clear ceiling height m, top of flooring to underside of ceiling (Qto_SpaceBaseQuantities.FinishCeilingHeight)	1
+PARAM	ac000000-0000-0000-0000-000000000052	SPC_FINISH_FLOOR_TXT	TEXT		3	1	ArchiCAD IFC: room floor finish material (Pset_SpaceCoveringRequirements.FloorCovering)	1
+PARAM	ac000000-0000-0000-0000-000000000053	SPC_FINISH_CEILING_TXT	TEXT		3	1	ArchiCAD IFC: room ceiling finish material (Pset_SpaceCoveringRequirements.CeilingCovering)	1
+PARAM	ac000000-0000-0000-0000-000000000054	SPC_FINISH_WALLS_TXT	TEXT		3	1	ArchiCAD IFC: room wall finish material (Pset_SpaceCoveringRequirements.WallCovering)	1
 PARAM	ac000000-0000-0000-0000-000000000055	SPC_MIN_HEADROOM_M	NUMBER		3	1	ArchiCAD IFC: minimum headroom clearance m (Pset_StairCommon.HeadRoom)	1
 PARAM	ac000000-0000-0000-0000-000000000056	SPC_PUBLIC_ACCESSIBLE_BOOL	YESNO		3	1	ArchiCAD IFC: space is publicly accessible (Pset_SpaceCommon.PubliclyAccessible)	1
 PARAM	ac000000-0000-0000-0000-000000000060	ZON_CATEGORY_NAME_TXT	TEXT		3	1	ArchiCAD IFC: zone functional category name (AC_Pset_ZoneCategory.ZoneCategoryName)	1
@@ -3387,7 +3387,7 @@ PARAM	ac000000-0000-0000-0000-0000000000b2	NRG_ANNUAL_HEAT_KWH	NUMBER		11	1	Arch
 PARAM	ac000000-0000-0000-0000-0000000000b3	NRG_ANNUAL_COOL_KWH	NUMBER		11	1	ArchiCAD IFC: annual cooling energy kWh/yr (ArchiCAD_PropertyGroup_Energy.AnnualCoolingEnergy)	1
 PARAM	ac000000-0000-0000-0000-0000000000b4	NRG_OPERATING_COST_YR	NUMBER		11	1	ArchiCAD IFC: annual operating energy cost in project currency (EcoDesigner Star)	1
 PARAM	ac000000-0000-0000-0000-0000000000b5	NRG_LIFECYCLE_COST_NR	NUMBER		11	1	ArchiCAD IFC: lifecycle cost estimate NPV 25/60 year (EcoDesigner Star)	1
-PARAM	ac000000-0000-0000-0000-0000000000b6	CBN_GWP_KG_CO2E	NUMBER		11	1	ArchiCAD IFC: global warming potential kg CO2e (Pset_EnvironmentalImpactValues.GlobalWarmingPotential)	1
+PARAM	ac000000-0000-0000-0000-0000000000b6	CBN_GWP_KG_CO2E	NUMBER		11	1	ArchiCAD IFC: global warming potential kg CO2e (Pset_EnvironmentalImpactValues.ClimateChange)	1
 PARAM	d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a	ASS_ITEM_CODE_TXT	TEXT		1	1	Procurement item code for asset ordering	1
 PARAM	e3f4a5b6-c7d8-4e9f-a0b1-2c3d4e5f6a7b	ASS_SYSTEMS_TXT	TEXT		1	1	Pipe/duct systems this element connects to (pipe-delimited)	1
 PARAM	f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c	ASS_TERM_CAPPED_BOOL	YESNO		1	1	Terminal point is capped (stub-end or blanked off)	1

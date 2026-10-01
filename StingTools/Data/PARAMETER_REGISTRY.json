@@ -24165,7 +24165,7 @@
     {
       "param_name": "QTO_WEIGHT_KG",
       "guid": "ac000000-0000-0000-0000-000000000008",
-      "description": "ArchiCAD IFC: element weight kg (Qto beam/column quantities)",
+      "description": "ArchiCAD IFC: element net weight kg (Qto_BeamBaseQuantities.NetWeight / Qto_ColumnBaseQuantities.NetWeight)",
       "datatype": "NUMBER",
       "group_id": 26,
       "group_name": "TBL_TITLEBLOCK",
@@ -24453,7 +24453,7 @@
     {
       "param_name": "PER_SOLAR_GAIN_NR",
       "guid": "ac000000-0000-0000-0000-000000000041",
-      "description": "ArchiCAD IFC: solar heat gain coefficient / g-value for glazing (Pset_WindowCommon)",
+      "description": "ArchiCAD IFC: solar heat gain coefficient / g-value for glazing (Pset_DoorWindowGlazingType.SolarHeatGainTransmittance)",
       "datatype": "NUMBER",
       "group_id": 8,
       "group_name": "FLS_LIFE_SFTY",
@@ -24621,7 +24621,7 @@
     {
       "param_name": "SPC_CEILING_HEIGHT_M",
       "guid": "ac000000-0000-0000-0000-000000000051",
-      "description": "ArchiCAD IFC: room clear ceiling height m (Pset_SpaceCommon.CeilingHeight)",
+      "description": "ArchiCAD IFC: room clear ceiling height m, top of flooring to underside of ceiling (Qto_SpaceBaseQuantities.FinishCeilingHeight)",
       "datatype": "NUMBER",
       "group_id": 3,
       "group_name": "COM_DAT",
@@ -24633,7 +24633,7 @@
     {
       "param_name": "SPC_FINISH_FLOOR_TXT",
       "guid": "ac000000-0000-0000-0000-000000000052",
-      "description": "ArchiCAD IFC: room floor finish material (Pset_SpaceCommon.FinishFloor)",
+      "description": "ArchiCAD IFC: room floor finish material (Pset_SpaceCoveringRequirements.FloorCovering)",
       "datatype": "TEXT",
       "group_id": 3,
       "group_name": "COM_DAT",
@@ -24645,7 +24645,7 @@
     {
       "param_name": "SPC_FINISH_CEILING_TXT",
       "guid": "ac000000-0000-0000-0000-000000000053",
-      "description": "ArchiCAD IFC: room ceiling finish material (Pset_SpaceCommon.FinishCeiling)",
+      "description": "ArchiCAD IFC: room ceiling finish material (Pset_SpaceCoveringRequirements.CeilingCovering)",
       "datatype": "TEXT",
       "group_id": 3,
       "group_name": "COM_DAT",
@@ -24657,7 +24657,7 @@
     {
       "param_name": "SPC_FINISH_WALLS_TXT",
       "guid": "ac000000-0000-0000-0000-000000000054",
-      "description": "ArchiCAD IFC: room wall finish material (Pset_SpaceCommon.FinishWalls)",
+      "description": "ArchiCAD IFC: room wall finish material (Pset_SpaceCoveringRequirements.WallCovering)",
       "datatype": "TEXT",
       "group_id": 3,
       "group_name": "COM_DAT",
@@ -25281,7 +25281,7 @@
     {
       "param_name": "CBN_GWP_KG_CO2E",
       "guid": "ac000000-0000-0000-0000-0000000000b6",
-      "description": "ArchiCAD IFC: global warming potential kg CO2e (Pset_EnvironmentalImpactValues.GlobalWarmingPotential)",
+      "description": "ArchiCAD IFC: global warming potential kg CO2e (Pset_EnvironmentalImpactValues.ClimateChange)",
       "datatype": "NUMBER",
       "group_id": 11,
       "group_name": "TPL_TRACKING",

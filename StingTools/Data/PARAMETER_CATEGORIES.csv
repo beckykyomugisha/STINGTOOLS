@@ -697,7 +697,7 @@ CBN_B6_KG_TXT,B6 Kg,TEXT,Instance,<ALL>,PER_SUST,7d7ee67d-a00a-5146-a26d-426360c
 CBN_C1_KG_CO2E,C1 Kg Co2e,NUMBER,Instance,<ALL>,PER_SUST,5753b5aa-0006-4000-8000-000000000011,End-of-life C1 deconstruction kgCO2e
 CBN_C2_KG_CO2E,C2 Kg Co2e,NUMBER,Instance,<ALL>,PER_SUST,5753b5aa-0006-4000-8000-000000000012,End-of-life C2 transport to disposal kgCO2e
 CBN_C3_C4_KG_CO2E,C3 C4 Kg Co2e,NUMBER,Instance,<ALL>,PER_SUST,5753b5aa-0006-4000-8000-000000000013,End-of-life C3-C4 waste processing and disposal kgCO2e
-CBN_GWP_KG_CO2E,Gwp Kg Co2e,NUMBER,Instance,<ALL>,TPL_TRACKING,ac000000-0000-0000-0000-0000000000b6,ArchiCAD IFC: global warming potential kg CO2e (Pset_EnvironmentalImpactValues.GlobalWarmingPotential)
+CBN_GWP_KG_CO2E,Gwp Kg Co2e,NUMBER,Instance,<ALL>,TPL_TRACKING,ac000000-0000-0000-0000-0000000000b6,ArchiCAD IFC: global warming potential kg CO2e (Pset_EnvironmentalImpactValues.ClimateChange)
 CBN_REFRIGERANT_GWP_KG_CO2E,Refrigerant Gwp Kg Co2e,NUMBER,Instance,<ALL>,PER_SUST,84428fa6-2f50-5b11-a1ea-db12a58c45e9,Refrigerant global warming potential contribution in kgCO2e [BS EN 378-2:2016]
 CBN_REFRIGERANT_GWP_KG_CO2E_DISP_TXT,Refrigerant Gwp Kg Co2e Disp,TEXT,Instance,<ALL>,PER_SUST,fa08ef1f-51b7-5c82-84fb-9e5f1e8ada50,Refrigerant global warming potential contribution in kgCO2e — TEXT display mirror for tag labels
 CBN_RUNTIME_HRS_YR_NR,Runtime Hrs Yr,NUMBER,Instance,<ALL>,PER_SUST,65a3cf4e-6dc8-5095-9664-575a96101272,Equivalent annual operating hours for operational carbon calc [BS EN 16798-1:2019]
@@ -1859,7 +1859,7 @@ PER_REPLACEMENT_COST_UGX,Replacement Cost Ugx,CURRENCY,Instance,<ALL>,PER_SUST,b
 PER_SECURITY_RATING_TXT,Security Rating,TEXT,Instance,<ALL>,FLS_LIFE_SFTY,ac000000-0000-0000-0000-00000000004b,ArchiCAD IFC: security rating RC class / PAS 24 / BS EN 1627 (Pset_DoorCommon / WindowCommon)
 PER_SELF_CLOSING_BOOL,Self Closing,YESNO,Instance,<ALL>,FLS_LIFE_SFTY,ac000000-0000-0000-0000-000000000048,ArchiCAD IFC: door has self-closing device (Pset_DoorCommon.SelfClosing)
 PER_SMOKE_STOP_BOOL,Smoke Stop,YESNO,Instance,<ALL>,PER_SUST,ac000000-0000-0000-0000-000000000049,ArchiCAD IFC: door/window is smoke-sealed (Pset_DoorCommon.SmokeStop)
-PER_SOLAR_GAIN_NR,Solar Gain,NUMBER,Instance,<ALL>,FLS_LIFE_SFTY,ac000000-0000-0000-0000-000000000041,ArchiCAD IFC: solar heat gain coefficient / g-value for glazing (Pset_WindowCommon)
+PER_SOLAR_GAIN_NR,Solar Gain,NUMBER,Instance,<ALL>,FLS_LIFE_SFTY,ac000000-0000-0000-0000-000000000041,ArchiCAD IFC: solar heat gain coefficient / g-value for glazing (Pset_DoorWindowGlazingType.SolarHeatGainTransmittance)
 PER_SURFACE_SPREAD_TXT,Surface Spread,TEXT,Instance,<ALL>,PER_SUST,ac000000-0000-0000-0000-000000000043,ArchiCAD IFC: surface spread of flame class A/B/C/D/E/F (reaction to fire)
 PER_SUST_ANNUAL_ENERGY_KWH,Per Sust Annual Energy Kwh,TEXT,Instance,<ALL>,PER_SUST,3a2a2f59-8606-5368-803d-ba2d0c6ae1a8,Per Sust Annual Energy Kwh [ISO 19650-1:2018]
 PER_SUST_ANNUAL_RAINFALL_MM,Per Sust Annual Rainfall Mm,TEXT,Instance,<ALL>,PER_SUST,b2520e61-75ab-51c2-bba2-83bac2dd8d6b,Per Sust Annual Rainfall Mm [ISO 19650-1:2018]
@@ -2458,10 +2458,10 @@ SPARE_PARAM_02_TXT,SPARE - Spare PARAM,TEXT,Instance,Generic Models,TPL_TRACKING
 SPARE_PARAM_03_TXT,SPARE - Spare PARAM,TEXT,Instance,Generic Models,TPL_TRACKING,24dd4826-4f02-4cb8-83d1-815fffd0aa0b,Spare parameter 03 for future use [ISO 19650-1:2018]
 SPARE_PARAM_04_NR,SPARE - Spare PARAM,NUMBER,Instance,Generic Models,TPL_TRACKING,652513a2-455a-4047-83c4-edba7d205009,Spare parameter 04 for future use [ISO 19650-1:2018]
 SPARE_PARAM_05_INT,SPARE - Spare PARAM,INTEGER,Instance,Generic Models,TPL_TRACKING,4dfa5da8-b92f-42a2-89b2-240dc1676ec2,Spare parameter 05 for future use [ISO 19650-1:2018]
-SPC_CEILING_HEIGHT_M,Ceiling Height M,NUMBER,Instance,<ALL>,COM_DAT,ac000000-0000-0000-0000-000000000051,ArchiCAD IFC: room clear ceiling height m (Pset_SpaceCommon.CeilingHeight)
-SPC_FINISH_CEILING_TXT,Finish Ceiling,TEXT,Instance,<ALL>,COM_DAT,ac000000-0000-0000-0000-000000000053,ArchiCAD IFC: room ceiling finish material (Pset_SpaceCommon.FinishCeiling)
-SPC_FINISH_FLOOR_TXT,Finish Floor,TEXT,Instance,<ALL>,COM_DAT,ac000000-0000-0000-0000-000000000052,ArchiCAD IFC: room floor finish material (Pset_SpaceCommon.FinishFloor)
-SPC_FINISH_WALLS_TXT,Finish Walls,TEXT,Instance,<ALL>,COM_DAT,ac000000-0000-0000-0000-000000000054,ArchiCAD IFC: room wall finish material (Pset_SpaceCommon.FinishWalls)
+SPC_CEILING_HEIGHT_M,Ceiling Height M,NUMBER,Instance,<ALL>,COM_DAT,ac000000-0000-0000-0000-000000000051,"ArchiCAD IFC: room clear ceiling height m, top of flooring to underside of ceiling (Qto_SpaceBaseQuantities.FinishCeilingHeight)"
+SPC_FINISH_CEILING_TXT,Finish Ceiling,TEXT,Instance,<ALL>,COM_DAT,ac000000-0000-0000-0000-000000000053,ArchiCAD IFC: room ceiling finish material (Pset_SpaceCoveringRequirements.CeilingCovering)
+SPC_FINISH_FLOOR_TXT,Finish Floor,TEXT,Instance,<ALL>,COM_DAT,ac000000-0000-0000-0000-000000000052,ArchiCAD IFC: room floor finish material (Pset_SpaceCoveringRequirements.FloorCovering)
+SPC_FINISH_WALLS_TXT,Finish Walls,TEXT,Instance,<ALL>,COM_DAT,ac000000-0000-0000-0000-000000000054,ArchiCAD IFC: room wall finish material (Pset_SpaceCoveringRequirements.WallCovering)
 SPC_GROSS_AREA_M2,Gross Area M2,NUMBER,Instance,<ALL>,COM_DAT,ac000000-0000-0000-0000-000000000050,ArchiCAD IFC: room gross planned floor area m2 including half-wall thickness
 SPC_MIN_HEADROOM_M,Min Headroom M,NUMBER,Instance,<ALL>,COM_DAT,ac000000-0000-0000-0000-000000000055,ArchiCAD IFC: minimum headroom clearance m (Pset_StairCommon.HeadRoom)
 SPC_PUBLIC_ACCESSIBLE_BOOL,Public Accessible,YESNO,Instance,<ALL>,COM_DAT,ac000000-0000-0000-0000-000000000056,ArchiCAD IFC: space is publicly accessible (Pset_SpaceCommon.PubliclyAccessible)

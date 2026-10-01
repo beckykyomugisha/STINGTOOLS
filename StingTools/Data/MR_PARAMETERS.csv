@@ -2954,7 +2954,7 @@ Project,QTO_NET_VOLUME_M3,ac000000-0000-0000-0000-000000000004,NUMBER,TBL_TITLEB
 Project,QTO_LENGTH_M,ac000000-0000-0000-0000-000000000005,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: element length or span m (Qto BaseQuantities),False,,,,1,0
 Project,QTO_WIDTH_M,ac000000-0000-0000-0000-000000000006,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: element width or thickness m (Qto BaseQuantities),False,,,,1,0
 Project,QTO_HEIGHT_M,ac000000-0000-0000-0000-000000000007,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: element height or depth m (Qto BaseQuantities),False,,,,1,0
-Project,QTO_WEIGHT_KG,ac000000-0000-0000-0000-000000000008,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: element weight kg (Qto beam/column quantities),False,,,,1,0
+Project,QTO_WEIGHT_KG,ac000000-0000-0000-0000-000000000008,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: element net weight kg (Qto_BeamBaseQuantities.NetWeight / Qto_ColumnBaseQuantities.NetWeight),False,,,,1,0
 Project,QTO_NET_FLOOR_AREA_M2,ac000000-0000-0000-0000-000000000009,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: room net floor area m2 (Qto_SpaceBaseQuantities),False,,,,1,0
 Project,QTO_GROSS_WALL_AREA_M2,ac000000-0000-0000-0000-00000000000a,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: room gross wall surface area m2 (Qto_SpaceBaseQuantities),False,,,,1,0
 Project,QTO_NET_CEILING_AREA_M2,ac000000-0000-0000-0000-00000000000b,NUMBER,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: room net ceiling area m2 (Qto_SpaceBaseQuantities),False,,,,1,0
@@ -2978,7 +2978,7 @@ Project,AC_HOTLINK_ID_TXT,ac000000-0000-0000-0000-000000000031,TEXT,TBL_TITLEBLO
 Project,AC_HOTLINK_FILE_TXT,ac000000-0000-0000-0000-000000000032,TEXT,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: relative path of the source hotlink .mod file,False,,,,1,0
 Project,AC_REVISION_TXT,ac000000-0000-0000-0000-000000000033,TEXT,TBL_TITLEBLOCK,Instance,ArchiCAD IFC: element-level revision mark (AC_Pset_ElementID.Revision),False,,,,1,0
 Project,PER_ACOUSTIC_RATING_TXT,ac000000-0000-0000-0000-000000000040,TEXT,FLS_LIFE_SFTY,Instance,ArchiCAD IFC: acoustic rating Rw dB (from Pset_WallCommon / DoorCommon / WindowCommon),False,,,,1,0
-Project,PER_SOLAR_GAIN_NR,ac000000-0000-0000-0000-000000000041,NUMBER,FLS_LIFE_SFTY,Instance,ArchiCAD IFC: solar heat gain coefficient / g-value for glazing (Pset_WindowCommon),False,,,,1,0
+Project,PER_SOLAR_GAIN_NR,ac000000-0000-0000-0000-000000000041,NUMBER,FLS_LIFE_SFTY,Instance,ArchiCAD IFC: solar heat gain coefficient / g-value for glazing (Pset_DoorWindowGlazingType.SolarHeatGainTransmittance),False,,,,1,0
 Project,PER_FRAME_MATERIAL_TXT,ac000000-0000-0000-0000-000000000042,TEXT,FLS_LIFE_SFTY,Instance,ArchiCAD IFC: window frame material: PVC / Timber / Aluminium / Steel,False,,,,1,0
 Project,PER_SURFACE_SPREAD_TXT,ac000000-0000-0000-0000-000000000043,TEXT,PER_SUST,Instance,ArchiCAD IFC: surface spread of flame class A/B/C/D/E/F (reaction to fire),False,,,,1,0
 Project,PER_COMBUSTIBLE_BOOL,ac000000-0000-0000-0000-000000000044,YESNO,PER_SUST,Instance,ArchiCAD IFC: element is combustible (Pset_WallCommon.Combustible),False,,,,1,0
@@ -2992,10 +2992,10 @@ Project,PER_SECURITY_RATING_TXT,ac000000-0000-0000-0000-00000000004b,TEXT,FLS_LI
 Project,PER_PITCH_ANGLE_DEG,ac000000-0000-0000-0000-00000000004c,NUMBER,FLS_LIFE_SFTY,Instance,ArchiCAD IFC: roof / slab pitch angle degrees (Pset_SlabCommon / RoofCommon.PitchAngle),False,,,,1,0
 Project,PER_AIR_EXCHANGE_RATE_NR,ac000000-0000-0000-0000-00000000004d,NUMBER,HVC_SYSTEMS,Instance,ArchiCAD IFC: room air change rate ACH (Pset_SpaceCommon.AirExchangeRate),False,,,,1,0
 Project,SPC_GROSS_AREA_M2,ac000000-0000-0000-0000-000000000050,NUMBER,COM_DAT,Instance,ArchiCAD IFC: room gross planned floor area m2 including half-wall thickness,False,,,,1,0
-Project,SPC_CEILING_HEIGHT_M,ac000000-0000-0000-0000-000000000051,NUMBER,COM_DAT,Instance,ArchiCAD IFC: room clear ceiling height m (Pset_SpaceCommon.CeilingHeight),False,,,,1,0
-Project,SPC_FINISH_FLOOR_TXT,ac000000-0000-0000-0000-000000000052,TEXT,COM_DAT,Instance,ArchiCAD IFC: room floor finish material (Pset_SpaceCommon.FinishFloor),False,,,,1,0
-Project,SPC_FINISH_CEILING_TXT,ac000000-0000-0000-0000-000000000053,TEXT,COM_DAT,Instance,ArchiCAD IFC: room ceiling finish material (Pset_SpaceCommon.FinishCeiling),False,,,,1,0
-Project,SPC_FINISH_WALLS_TXT,ac000000-0000-0000-0000-000000000054,TEXT,COM_DAT,Instance,ArchiCAD IFC: room wall finish material (Pset_SpaceCommon.FinishWalls),False,,,,1,0
+Project,SPC_CEILING_HEIGHT_M,ac000000-0000-0000-0000-000000000051,NUMBER,COM_DAT,Instance,"ArchiCAD IFC: room clear ceiling height m, top of flooring to underside of ceiling (Qto_SpaceBaseQuantities.FinishCeilingHeight)",False,,,,1,0
+Project,SPC_FINISH_FLOOR_TXT,ac000000-0000-0000-0000-000000000052,TEXT,COM_DAT,Instance,ArchiCAD IFC: room floor finish material (Pset_SpaceCoveringRequirements.FloorCovering),False,,,,1,0
+Project,SPC_FINISH_CEILING_TXT,ac000000-0000-0000-0000-000000000053,TEXT,COM_DAT,Instance,ArchiCAD IFC: room ceiling finish material (Pset_SpaceCoveringRequirements.CeilingCovering),False,,,,1,0
+Project,SPC_FINISH_WALLS_TXT,ac000000-0000-0000-0000-000000000054,TEXT,COM_DAT,Instance,ArchiCAD IFC: room wall finish material (Pset_SpaceCoveringRequirements.WallCovering),False,,,,1,0
 Project,SPC_MIN_HEADROOM_M,ac000000-0000-0000-0000-000000000055,NUMBER,COM_DAT,Instance,ArchiCAD IFC: minimum headroom clearance m (Pset_StairCommon.HeadRoom),False,,,,1,0
 Project,SPC_PUBLIC_ACCESSIBLE_BOOL,ac000000-0000-0000-0000-000000000056,YESNO,COM_DAT,Instance,ArchiCAD IFC: space is publicly accessible (Pset_SpaceCommon.PubliclyAccessible),False,,,,1,0
 Project,ZON_CATEGORY_NAME_TXT,ac000000-0000-0000-0000-000000000060,TEXT,COM_DAT,Instance,ArchiCAD IFC: zone functional category name (AC_Pset_ZoneCategory.ZoneCategoryName),False,,,,1,0
@@ -3047,7 +3047,7 @@ Project,NRG_ANNUAL_HEAT_KWH,ac000000-0000-0000-0000-0000000000b2,NUMBER,TPL_TRAC
 Project,NRG_ANNUAL_COOL_KWH,ac000000-0000-0000-0000-0000000000b3,NUMBER,TPL_TRACKING,Instance,ArchiCAD IFC: annual cooling energy kWh/yr (ArchiCAD_PropertyGroup_Energy.AnnualCoolingEnergy),False,,,,1,0
 Project,NRG_OPERATING_COST_YR,ac000000-0000-0000-0000-0000000000b4,NUMBER,TPL_TRACKING,Instance,ArchiCAD IFC: annual operating energy cost in project currency (EcoDesigner Star),False,,,,1,0
 Project,NRG_LIFECYCLE_COST_NR,ac000000-0000-0000-0000-0000000000b5,NUMBER,TPL_TRACKING,Instance,ArchiCAD IFC: lifecycle cost estimate NPV 25/60 year (EcoDesigner Star),False,,,,1,0
-Project,CBN_GWP_KG_CO2E,ac000000-0000-0000-0000-0000000000b6,NUMBER,TPL_TRACKING,Instance,ArchiCAD IFC: global warming potential kg CO2e (Pset_EnvironmentalImpactValues.GlobalWarmingPotential),False,,,,1,0
+Project,CBN_GWP_KG_CO2E,ac000000-0000-0000-0000-0000000000b6,NUMBER,TPL_TRACKING,Instance,ArchiCAD IFC: global warming potential kg CO2e (Pset_EnvironmentalImpactValues.ClimateChange),False,,,,1,0
 Project,RGL_WINDOW_WALL_RATIO_PCT,92be012d-099c-5204-8bd1-0429ea26b3dc,TEXT,RGL_CMPL,Instance,Window-to-wall ratio percentage [Part L],False,,,,1,0
 Project,RGL_ACCESS_RAMP_SLOPE_PCT,0e3014e4-a781-551c-9a8f-3ff54fbe89f5,TEXT,RGL_CMPL,Instance,Ramp slope percentage [BS 8300 Accessibility],False,,,,1,0
 Generic Models,HVC_SEGMENT_ROLE_TXT,5bf0485f-08dd-53d1-9cc5-d956305d42e0,TEXT,HVC_SYSTEMS,Type,Duct segment role classification (main / branch / runout / outdoor_air / exhaust / kitchen / smoke)  -  cached by HvacSegmentRoleDetector [Phase 182],False,,,MULTI,1,0

@@ -699,7 +699,7 @@ CBN_B6_KG_TXT,9,universal-meta,<ALL>,CBN_B6_KG_CO2E_YR display mirror [auto-gene
 CBN_C1_KG_CO2E,9,universal-meta,<ALL>,End-of-life C1 deconstruction kgCO2e
 CBN_C2_KG_CO2E,9,universal-meta,<ALL>,End-of-life C2 transport to disposal kgCO2e
 CBN_C3_C4_KG_CO2E,9,universal-meta,<ALL>,End-of-life C3-C4 waste processing and disposal kgCO2e
-CBN_GWP_KG_CO2E,11,universal-meta,<ALL>,ArchiCAD IFC: global warming potential kg CO2e (Pset_EnvironmentalImpactValues.GlobalWarmingPotential)
+CBN_GWP_KG_CO2E,11,universal-meta,<ALL>,ArchiCAD IFC: global warming potential kg CO2e (Pset_EnvironmentalImpactValues.ClimateChange)
 CBN_REFRIGERANT_GWP_KG_CO2E,9,universal-meta,<ALL>,Refrigerant global warming potential contribution in kgCO2e [BS EN 378-2:2016]
 CBN_REFRIGERANT_GWP_KG_CO2E_DISP_TXT,9,universal-meta,<ALL>,Refrigerant global warming potential contribution in kgCO2e — TEXT display mirror for tag labels
 CBN_RUNTIME_HRS_YR_NR,9,universal-meta,<ALL>,Equivalent annual operating hours for operational carbon calc [BS EN 16798-1:2019]
@@ -1861,7 +1861,7 @@ PER_REPLACEMENT_COST_UGX,9,universal-meta,<ALL>,Replacement cost (UGX) for lifec
 PER_SECURITY_RATING_TXT,8,universal-meta,<ALL>,ArchiCAD IFC: security rating RC class / PAS 24 / BS EN 1627 (Pset_DoorCommon / WindowCommon)
 PER_SELF_CLOSING_BOOL,8,universal-meta,<ALL>,ArchiCAD IFC: door has self-closing device (Pset_DoorCommon.SelfClosing)
 PER_SMOKE_STOP_BOOL,9,universal-meta,<ALL>,ArchiCAD IFC: door/window is smoke-sealed (Pset_DoorCommon.SmokeStop)
-PER_SOLAR_GAIN_NR,8,universal-meta,<ALL>,ArchiCAD IFC: solar heat gain coefficient / g-value for glazing (Pset_WindowCommon)
+PER_SOLAR_GAIN_NR,8,universal-meta,<ALL>,ArchiCAD IFC: solar heat gain coefficient / g-value for glazing (Pset_DoorWindowGlazingType.SolarHeatGainTransmittance)
 PER_SURFACE_SPREAD_TXT,9,universal-meta,<ALL>,ArchiCAD IFC: surface spread of flame class A/B/C/D/E/F (reaction to fire)
 PER_SUST_ANNUAL_ENERGY_KWH,9,universal-meta,<ALL>,Per Sust Annual Energy Kwh [ISO 19650-1:2018]
 PER_SUST_ANNUAL_RAINFALL_MM,9,universal-meta,<ALL>,Per Sust Annual Rainfall Mm [ISO 19650-1:2018]
@@ -2342,7 +2342,7 @@ QTO_NET_CEILING_AREA_M2,26,excluded,,ArchiCAD IFC: room net ceiling area m2 (Qto
 QTO_NET_FLOOR_AREA_M2,26,excluded,,ArchiCAD IFC: room net floor area m2 (Qto_SpaceBaseQuantities)
 QTO_NET_VOLUME_M3,26,excluded,,ArchiCAD IFC: element net volume m3 deducting openings and recesses (Qto BaseQuantities)
 QTO_PERIMETER_M,26,excluded,,ArchiCAD IFC: element perimeter m (door/window frame perimeter)
-QTO_WEIGHT_KG,26,excluded,,ArchiCAD IFC: element weight kg (Qto beam/column quantities)
+QTO_WEIGHT_KG,26,excluded,,ArchiCAD IFC: element net weight kg (Qto_BeamBaseQuantities.NetWeight / Qto_ColumnBaseQuantities.NetWeight)
 QTO_WIDTH_M,26,excluded,,ArchiCAD IFC: element width or thickness m (Qto BaseQuantities)
 Qto_BeamBaseQuantities.CrossSectionArea,2,excluded,,IFC4 Qto_BeamBaseQuantities -> CrossSectionArea [Phase 184k / P8 IFC Qto]
 Qto_BeamBaseQuantities.GrossVolume,2,excluded,,IFC4 Qto_BeamBaseQuantities -> GrossVolume [Phase 184k / P8 IFC Qto]
@@ -2532,10 +2532,10 @@ SPARE_PARAM_02_TXT,11,UNRESOLVED(polluted-curated),|Generic Models,Spare paramet
 SPARE_PARAM_03_TXT,11,UNRESOLVED(polluted-curated),|Generic Models,Spare parameter 03 for future use [ISO 19650-1:2018]
 SPARE_PARAM_04_NR,11,UNRESOLVED(polluted-curated),|Generic Models,Spare parameter 04 for future use [ISO 19650-1:2018]
 SPARE_PARAM_05_INT,11,UNRESOLVED(polluted-curated),|Generic Models,Spare parameter 05 for future use [ISO 19650-1:2018]
-SPC_CEILING_HEIGHT_M,3,meta-universal,<ALL>,ArchiCAD IFC: room clear ceiling height m (Pset_SpaceCommon.CeilingHeight)
-SPC_FINISH_CEILING_TXT,3,meta-universal,<ALL>,ArchiCAD IFC: room ceiling finish material (Pset_SpaceCommon.FinishCeiling)
-SPC_FINISH_FLOOR_TXT,3,meta-universal,<ALL>,ArchiCAD IFC: room floor finish material (Pset_SpaceCommon.FinishFloor)
-SPC_FINISH_WALLS_TXT,3,meta-universal,<ALL>,ArchiCAD IFC: room wall finish material (Pset_SpaceCommon.FinishWalls)
+SPC_CEILING_HEIGHT_M,3,meta-universal,<ALL>,"ArchiCAD IFC: room clear ceiling height m, top of flooring to underside of ceiling (Qto_SpaceBaseQuantities.FinishCeilingHeight)"
+SPC_FINISH_CEILING_TXT,3,meta-universal,<ALL>,ArchiCAD IFC: room ceiling finish material (Pset_SpaceCoveringRequirements.CeilingCovering)
+SPC_FINISH_FLOOR_TXT,3,meta-universal,<ALL>,ArchiCAD IFC: room floor finish material (Pset_SpaceCoveringRequirements.FloorCovering)
+SPC_FINISH_WALLS_TXT,3,meta-universal,<ALL>,ArchiCAD IFC: room wall finish material (Pset_SpaceCoveringRequirements.WallCovering)
 SPC_GROSS_AREA_M2,3,meta-universal,<ALL>,ArchiCAD IFC: room gross planned floor area m2 including half-wall thickness
 SPC_MIN_HEADROOM_M,3,meta-universal,<ALL>,ArchiCAD IFC: minimum headroom clearance m (Pset_StairCommon.HeadRoom)
 SPC_PUBLIC_ACCESSIBLE_BOOL,3,meta-universal,<ALL>,ArchiCAD IFC: space is publicly accessible (Pset_SpaceCommon.PubliclyAccessible)
