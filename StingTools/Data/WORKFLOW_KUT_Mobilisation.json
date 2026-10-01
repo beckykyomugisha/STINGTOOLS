@@ -8,6 +8,6 @@
     { "commandTag": "CreateWorksets", "label": "2. Per-building worksets (BLD1..BLD6 / EXT prefix)", "optional": true },
     { "commandTag": "CreateFilters", "label": "3. Discipline / phase view filters", "optional": true },
     { "commandTag": "GenerateBEP", "label": "4. Generate ISO 19650 BEP" },
-    { "commandTag": "CDEStatus", "label": "5. Initialise CDE state register", "optional": true }
+    { "commandTag": "CDEStatus", "params": { "status": "WIP" }, "label":"5. Initialise CDE state register", "optional": true }
   ]
 }

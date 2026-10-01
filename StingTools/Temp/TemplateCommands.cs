@@ -384,11 +384,11 @@ namespace StingTools.Temp
                     ? $"\nCSV-driven: {csvCreated} created, {csvSkipped} skipped (from {csvFilters.Count} VIEW_FILTER rows)."
                     : "";
 
-                TaskDialog.Show("Create Filters",
+                PresetDialog.Show("Create Filters",
                     $"Created {created} view filters.\nSkipped {skipped} (exist or failed).\n" +
                     $"Discipline: {DisciplineFilters.Length} defined.\n" +
                     $"Parameter-based: {ParameterFilterDefs.Length} defined." +
-                    paramNote + csvNote);
+                    paramNote + csvNote, ref message);
             }
 
             return Result.Succeeded;
@@ -444,9 +444,9 @@ namespace StingTools.Temp
 
             if (!doc.IsWorkshared)
             {
-                TaskDialog.Show("Create Worksets",
+                PresetDialog.Show("Create Worksets",
                     "This project is not worksharing-enabled.\n" +
-                    "Enable worksharing first via Collaborate tab.");
+                    "Enable worksharing first via Collaborate tab.", ref message);
                 return Result.Failed;
             }
 
@@ -484,9 +484,9 @@ namespace StingTools.Temp
 
                 tx.Commit();
             }
-            TaskDialog.Show("Create Worksets",
+            PresetDialog.Show("Create Worksets",
                 $"Created {created} worksets.\nSkipped {skipped} (exist or failed).\n" +
-                $"Total defined: {WorksetNames.Length}");
+                $"Total defined: {WorksetNames.Length}", ref message);
 
             return Result.Succeeded;
         }

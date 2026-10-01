@@ -61,10 +61,9 @@ StingTools/Tags/TokenWriterCommands.cs::CompletenessDashboardCommand|TaskDialogR
 # while any UNGATED line remains.
 
 # CDEStatusCommand — step CDEStatus in Mobilisation
-StingTools/BIMManager/BIMManagerCommands.cs::CDEStatusCommand|AddCommandLink|4	UNGATED - a choice offered in a TaskDialog, always shown. A real blocker to unattended operation.
-StingTools/BIMManager/BIMManagerCommands.cs::CDEStatusCommand|TaskDialog.Show|2	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
-StingTools/BIMManager/BIMManagerCommands.cs::CDEStatusCommand|TaskDialogResult|8	UNGATED - reading a dialog answer, i.e. a branch on a click. A real blocker to unattended operation.
-StingTools/BIMManager/BIMManagerCommands.cs::CDEStatusCommand|new TaskDialog|4	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
+StingTools/BIMManager/BIMManagerCommands.cs::CDEStatusCommand|AddCommandLink|4	GATED - the WIP/SHARED/PUBLISHED/ARCHIVE picker is built only when !PresetDialog.Quiet; inside a preset the step's "params": {"status": ...} decides and a step without it fails (never defaulted). The KUT Mobilisation step sets "WIP".
+StingTools/BIMManager/BIMManagerCommands.cs::CDEStatusCommand|TaskDialogResult|8	GATED - reading the status picker (4, person branch) and the compliance-gate and role-gate override confirms (4); each override dialog is reached only after a PresetDialog.Quiet early return, so a workflow never overrides a gate - it fails naming it.
+StingTools/BIMManager/BIMManagerCommands.cs::CDEStatusCommand|new TaskDialog|4	GATED - the status picker, the two override confirms and the approval-gate notice; each is built only when !PresetDialog.Quiet (the notice goes through PresetDialog.Show inside a preset).
 
 # ExportModelHealthCommand — step ExportModelHealth in CoordinationCycle, DeliverableA, DeliverableB, DeliverableC, DeliverableD, GateAudit, MonthlyReport
 
@@ -216,8 +215,8 @@ StingTools/Organise/TagOperationCommands.cs::AuditTagsCSVCommand|TaskDialog.Show
 StingTools/Organise/TagOperationCommands.cs::RetagStaleCommand|new TaskDialog|1	GATED - the picker window; same branch.
 
 # LoadSharedParamsCommand — step LoadSharedParams in Mobilisation
-StingTools/Tags/LoadSharedParamsCommand.cs::LoadSharedParamsCommand|TaskDialogResult|1	UNGATED - reading a dialog answer, i.e. a branch on a click. A real blocker to unattended operation.
-StingTools/Tags/LoadSharedParamsCommand.cs::LoadSharedParamsCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
+StingTools/Tags/LoadSharedParamsCommand.cs::LoadSharedParamsCommand|TaskDialogResult|1	GATED - the result window's DefaultButton, inside the `else` of `if (PresetDialog.Quiet)` (the report goes to the log, the headline to the step message).
+StingTools/Tags/LoadSharedParamsCommand.cs::LoadSharedParamsCommand|new TaskDialog|1	GATED - the result window; same PresetDialog.Quiet branch.
 
 # PreTagAuditCommand — step PreTagAudit in DeliverableA, GateAudit
 StingTools/Tags/PreTagAuditCommand.cs::PreTagAuditCommand|AddCommandLink|2	UNGATED - a choice offered in a TaskDialog, always shown. A real blocker to unattended operation.
@@ -238,8 +237,6 @@ StingTools/Tags/ValidateTagsCommand.cs::ValidateTagsCommand|TaskDialog.Show|1	UN
 StingTools/Temp/ScheduleCommands.cs::FullAutoPopulateCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
 
 # CreateFiltersCommand — step CreateFilters in Mobilisation
-StingTools/Temp/TemplateCommands.cs::CreateFiltersCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
 
 # CreateWorksetsCommand — step CreateWorksets in Mobilisation
-StingTools/Temp/TemplateCommands.cs::CreateWorksetsCommand|TaskDialog.Show|2	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
 

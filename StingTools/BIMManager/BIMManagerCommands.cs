@@ -5977,28 +5977,46 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            // NOTE: Revit TaskDialog supports max 4 CommandLinks (CommandLink1-4).
-            // CDEStates also includes SUPERSEDED, WITHDRAWN, OBSOLETE but these cannot
-            // be shown here. Use the Document Management Center for full 7-state CDE lifecycle.
-            var dlg = new TaskDialog("STING CDE Status Manager");
-            dlg.MainInstruction = "Set CDE container status for this model:";
-            dlg.MainContent = "ISO 19650 defines 4 primary CDE containers.\nStored in Project Information parameters.\n\n" +
-                "Note: SUPERSEDED, WITHDRAWN, and OBSOLETE states are available\nvia the Document Management Center.";
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "WIP — Work In Progress");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "SHARED — For Coordination");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "PUBLISHED — Approved");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "ARCHIVE — Superseded");
-            var result = dlg.Show();
-
-            string status = result switch
+            // The status is asked of a person; inside a workflow preset it is the step's
+            // "params": {"status": "WIP"|"SHARED"|"PUBLISHED"|"ARCHIVE"} — a CDE transition is
+            // the workflow author's decision, never a default.
+            string status;
+            if (PresetDialog.Quiet)
             {
-                TaskDialogResult.CommandLink1 => "WIP",
-                TaskDialogResult.CommandLink2 => "SHARED",
-                TaskDialogResult.CommandLink3 => "PUBLISHED",
-                TaskDialogResult.CommandLink4 => "ARCHIVE",
-                _ => null
-            };
-            if (status == null) return Result.Cancelled;
+                status = (WorkflowEngine.StepParam("status") ?? "").Trim().ToUpperInvariant();
+                if (status != "WIP" && status != "SHARED" && status != "PUBLISHED" && status != "ARCHIVE")
+                {
+                    message = "CDEStatus in a workflow needs \"params\": {\"status\": \"WIP\"} (or SHARED / PUBLISHED / ARCHIVE) " +
+                              "on its step; the CDE status was not changed.";
+                    StingLog.Warn("CDEStatus: " + message);
+                    return Result.Failed;
+                }
+            }
+            else
+            {
+                // NOTE: Revit TaskDialog supports max 4 CommandLinks (CommandLink1-4).
+                // CDEStates also includes SUPERSEDED, WITHDRAWN, OBSOLETE but these cannot
+                // be shown here. Use the Document Management Center for full 7-state CDE lifecycle.
+                var dlg = new TaskDialog("STING CDE Status Manager");
+                dlg.MainInstruction = "Set CDE container status for this model:";
+                dlg.MainContent = "ISO 19650 defines 4 primary CDE containers.\nStored in Project Information parameters.\n\n" +
+                    "Note: SUPERSEDED, WITHDRAWN, and OBSOLETE states are available\nvia the Document Management Center.";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "WIP — Work In Progress");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "SHARED — For Coordination");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "PUBLISHED — Approved");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "ARCHIVE — Superseded");
+                var result = dlg.Show();
+
+                status = result switch
+                {
+                    TaskDialogResult.CommandLink1 => "WIP",
+                    TaskDialogResult.CommandLink2 => "SHARED",
+                    TaskDialogResult.CommandLink3 => "PUBLISHED",
+                    TaskDialogResult.CommandLink4 => "ARCHIVE",
+                    _ => null
+                };
+                if (status == null) return Result.Cancelled;
+            }
 
             // LOGIC-04: Enforce CDE state machine — validate transition before writing
             string currentCDE = ParameterHelpers.GetString(doc.ProjectInformation, "ASS_CDE_STATUS_TXT");
@@ -6007,14 +6025,21 @@ namespace StingTools.BIMManager
                 string transError = BIMManagerEngine.ValidateCDETransition(currentCDE, status);
                 if (transError != null)
                 {
-                    TaskDialog.Show("STING CDE Transition Invalid",
+                    PresetDialog.Show("STING CDE Transition Invalid",
                         $"Cannot change CDE status from {currentCDE} to {status}.\n\n{transError}\n\n" +
-                        "ISO 19650 requires one-way progression: WIP → SHARED → PUBLISHED → ARCHIVE");
+                        "ISO 19650 requires one-way progression: WIP → SHARED → PUBLISHED → ARCHIVE", ref message);
                     return Result.Failed;
                 }
 
                 // CS-GAP-01: Compliance gate — blocks transitions when tag compliance is below threshold
                 string compGateError = BIMManagerEngine.ValidateCDEComplianceGate(status, doc);
+                if (compGateError != null && PresetDialog.Quiet)
+                {
+                    // An override needs a person to acknowledge it; a workflow never overrides.
+                    message = $"CDE compliance gate blocks {currentCDE} → {status} (not overridden in a workflow): {compGateError}";
+                    StingLog.Warn("CDEStatus: " + message);
+                    return Result.Failed;
+                }
                 if (compGateError != null)
                 {
                     var gateDlg = new TaskDialog("STING CDE Compliance Gate");
@@ -6035,6 +6060,12 @@ namespace StingTools.BIMManager
                     if (pendingCount > 0)
                     {
                         GapFixEngine.LogPublishBlocked(doc, pendingCount);
+                        if (PresetDialog.Quiet)
+                        {
+                            PresetDialog.Show("STING CDE Approval Gate",
+                                "ISO 19650-2 §5.6 — Publish blocked by pending approvals\n" + pendingDetails, ref message);
+                            return Result.Failed;
+                        }
                         var approvalDlg = new TaskDialog("STING CDE Approval Gate");
                         approvalDlg.MainInstruction = "ISO 19650-2 §5.6 — Publish blocked by pending approvals";
                         approvalDlg.MainContent = pendingDetails;
@@ -6051,6 +6082,14 @@ namespace StingTools.BIMManager
                 // SHARED requires Reviewer, etc. Hard-block if role rank insufficient
                 // unless user explicitly overrides via the existing gate dialog.
                 var roleGate = CdeApprovalGate.Validate(doc, currentCDE ?? "WIP", status);
+                if (!roleGate.Pass && PresetDialog.Quiet)
+                {
+                    // Same rule as the compliance gate: a workflow never overrides a role gate.
+                    message = $"CDE role gate: {roleGate.RequiredRole} required for {currentCDE} → {status} " +
+                              $"(not overridden in a workflow): {roleGate.Reason}";
+                    StingLog.Warn("CDEStatus: " + message);
+                    return Result.Failed;
+                }
                 if (!roleGate.Pass)
                 {
                     var roleDlg = new TaskDialog("STING CDE Role Gate");
@@ -6124,10 +6163,10 @@ namespace StingTools.BIMManager
             catch (Exception ex) { StingLog.Warn($"CDE coord log: {ex.Message}"); }
 
             string txNote = txCreated > 0 ? "\n✓ Auto-transmittal record created" : "";
-            TaskDialog.Show("STING CDE Status",
+            PresetDialog.Show("STING CDE Status",
                 $"CDE Status: {status} ({BIMManagerEngine.CDEStates[status]})\n" +
                 $"Suitability: {suitCode}{txNote}\n\n" +
-                $"Stored in: ASS_CDE_STATUS_TXT, ASS_CDE_SUITABILITY_TXT");
+                $"Stored in: ASS_CDE_STATUS_TXT, ASS_CDE_SUITABILITY_TXT", ref message);
 
             StingLog.Info($"CDE status: {status}");
             return Result.Succeeded;
