@@ -540,9 +540,18 @@ namespace StingTools.V6
             if (itemResp.Status == 409)
             {
                 // The name exists in the folder: add a VERSION to that item instead of failing.
-                string itemId = await FindItemIdAsync(creds, projectId, folderUrn, fileName, ct).ConfigureAwait(false);
+                var found = await FindItemAsync(creds, projectId, folderUrn, fileName, ct).ConfigureAwait(false);
+                // AUT-1: say WHY the existing item was not found - an HTTP failure, a search that
+                // stopped at its page cap, or a genuine miss - instead of one undifferentiated line.
+                if (found.Failure != null)
+                    return Fail($"'{fileName}' already exists in the folder, but listing the folder to find it failed " +
+                                $"(HTTP {found.Failure.Status}). {Trim(found.Failure.Body)}", found.Failure);
+                string itemId = found.ItemId;
                 if (string.IsNullOrEmpty(itemId))
-                    return Fail($"'{fileName}' exists but its item couldn't be located in the folder for versioning.");
+                    return Fail(found.Incomplete
+                        ? $"'{fileName}' already exists in the folder, but the folder listing was INCOMPLETE ({found.Pages} pages read, " +
+                          "the limit) and the item was not among them - nothing was uploaded as a new version."
+                        : $"'{fileName}' exists but its item couldn't be located in the folder for versioning.");
                 var body = new JObject
                 {
                     ["jsonapi"] = new JObject { ["version"] = "1.0" },
@@ -576,28 +585,50 @@ namespace StingTools.V6
             return new UploadResult { Ok = true, ItemUrn = itemUrn, VersionUrn = versionUrn, Message = $"Uploaded '{fileName}' to ACC." };
         }
 
+        /// <summary>AUT-1: what a by-name item search found. Exactly one of: an id, a failure
+        /// (the HTTP answer), or neither - in which case <see cref="Incomplete"/> says whether
+        /// the search stopped at its page cap rather than at the end of the folder.</summary>
+        internal sealed class ItemLookup
+        {
+            public string ItemId { get; set; } = "";
+            public AccHttpResponse Failure { get; set; }
+            public bool Incomplete { get; set; }
+            public int Pages { get; set; }
+        }
+
+        internal const int ItemSearchMaxPages = 100;
+
         /// <summary>Locate an item by display name, following folder-contents pagination
         /// (links.next): a folder of more than 200 files used to report "exists but couldn't be
-        /// located".</summary>
-        private static async Task<string> FindItemIdAsync(
+        /// located". AUT-1: a failed page is returned, not logged and dropped, and a search that
+        /// stops at <see cref="ItemSearchMaxPages"/> says so.</summary>
+        internal static async Task<ItemLookup> FindItemAsync(
             AccCredentials creds, string projectId, string folderUrn, string fileName, CancellationToken ct)
         {
+            var r = new ItemLookup();
             string url = $"{DataBase}/projects/{projectId}/folders/{Uri.EscapeDataString(folderUrn)}/contents" +
                          $"?filter[type]=items&filter[displayName]={Uri.EscapeDataString(fileName)}&page[limit]=200";
-            for (int page = 0; page < 100 && !string.IsNullOrEmpty(url); page++)
+            while (!string.IsNullOrEmpty(url))
             {
+                if (r.Pages >= ItemSearchMaxPages) { r.Incomplete = true; break; }
                 var resp = await SendJsonAsync(HttpMethod.Get, url, creds, null, null, idempotent: true, ct).ConfigureAwait(false);
-                if (!resp.IsSuccess) { StingLog.Warn($"folder contents HTTP {resp.Status}: {Trim(resp.Body)}"); return ""; }
+                r.Pages++;
+                if (!resp.IsSuccess)
+                {
+                    StingLog.Warn($"folder contents HTTP {resp.Status}: {Trim(resp.Body)}");
+                    r.Failure = resp;
+                    return r;
+                }
                 var doc = JObject.Parse(resp.Body);
                 foreach (var it in doc["data"] as JArray ?? new JArray())
                 {
                     if ((it["type"]?.Value<string>() ?? "") != "items") continue;
                     string dn = it["attributes"]?["displayName"]?.Value<string>() ?? "";
-                    if (dn.Equals(fileName, StringComparison.OrdinalIgnoreCase)) return it["id"]?.Value<string>() ?? "";
+                    if (dn.Equals(fileName, StringComparison.OrdinalIgnoreCase)) { r.ItemId = it["id"]?.Value<string>() ?? ""; return r; }
                 }
                 url = doc["links"]?["next"]?["href"]?.Value<string>();
             }
-            return "";
+            return r;
         }
 
         // ── 5. ISO 19650 attributes ───────────────────────────────────────────

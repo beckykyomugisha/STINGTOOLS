@@ -140,6 +140,57 @@ namespace StingTools.Acc.Tests
             FolderUrn = "urn:adsk.wipprod:fs.folder:co.TESTFOLDER",
         };
 
+        // AUT-1: the by-name item search behind a 409 used to log a failed page and return "",
+        // so the user read "exists but couldn't be located" with no HTTP status, and a search
+        // that stopped at its page cap looked the same as a genuine miss.
+        [Fact]
+        public async Task ItemSearch_AFailedPage_IsReturnedWithItsStatus()
+        {
+            using var server = LoopbackServer.Always(500, "{\"detail\":\"boom\"}");
+            AccModelUpload.OverrideHostForTests(server.BaseUrl);
+            var r = await AccModelUpload.FindItemAsync(FreshCreds(), "b.p", "urn:f", "a.pdf", default);
+            Assert.Equal("", r.ItemId);
+            Assert.NotNull(r.Failure);
+            Assert.Equal(500, r.Failure.Status);
+            Assert.False(r.Incomplete);
+        }
+
+        [Fact]
+        public async Task ItemSearch_FindsTheItemOnALaterPage()
+        {
+            LoopbackServer server = null;
+            server = new LoopbackServer((i, req) => i == 0
+                ? new CannedResponse(200, "{\"data\":[{\"type\":\"items\",\"id\":\"other\",\"attributes\":{\"displayName\":\"b.pdf\"}}]," +
+                                          "\"links\":{\"next\":{\"href\":\"" + server.BaseUrl + "/next\"}}}")
+                : new CannedResponse(200, "{\"data\":[{\"type\":\"items\",\"id\":\"urn:item:7\",\"attributes\":{\"displayName\":\"A.pdf\"}}]}"));
+            using (server)
+            {
+                AccModelUpload.OverrideHostForTests(server.BaseUrl);
+                var r = await AccModelUpload.FindItemAsync(FreshCreds(), "b.p", "urn:f", "a.pdf", default);
+                Assert.Equal("urn:item:7", r.ItemId);
+                Assert.Null(r.Failure);
+                Assert.Equal(2, r.Pages);
+            }
+        }
+
+        [Fact]
+        public async Task ItemSearch_StoppingAtThePageCap_IsIncompleteNotAMiss()
+        {
+            LoopbackServer server = null;
+            server = new LoopbackServer((i, req) => new CannedResponse(200,
+                "{\"data\":[],\"links\":{\"next\":{\"href\":\"" + server.BaseUrl + "/next" + i + "\"}}}"));
+            using (server)
+            {
+                AccModelUpload.OverrideHostForTests(server.BaseUrl);
+                var r = await AccModelUpload.FindItemAsync(FreshCreds(), "b.p", "urn:f", "a.pdf", default);
+                Assert.Equal("", r.ItemId);
+                Assert.Null(r.Failure);
+                Assert.True(r.Incomplete);
+                Assert.Equal(AccModelUpload.ItemSearchMaxPages, r.Pages);
+                Assert.Equal(AccModelUpload.ItemSearchMaxPages, server.RequestCount);
+            }
+        }
+
         [Fact]
         public async Task Http403OnStorageCreation_IsAnAuthKindFailure_NotABareNotOk()
         {
