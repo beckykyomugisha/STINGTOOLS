@@ -79,4 +79,4 @@ two different user names, and the same build on both. Leave SEQ_LOCK_MODE at `bl
 | TAGACC-9, -10, -15 | Unit: `SpatialNameCodesTests` |
 | TAGACC-18 | Unit: `TokenConfidenceBandsTests`; manual: Part C step 4 |
 | TAGACC-19 | Unit: `ConfigFileMergeTests`; manual: Part C step 3 |
-| TAGACC-11 | **Not covered.** Proximity copy (same level, plan distance, derived values only) is Revit-bound and has no test; check by hand: two untagged ducts on one level next to a tagged one with a room-derived LOC, a third on another level — only the first two inherit. |
+| TAGACC-11 | Unit: `ProximityRuleTests` (TAGACC-21) — same floor, which neighbour sources may be copied, SYS layer. The neighbour search itself is Revit-bound; check by hand: two untagged ducts on one level next to a tagged one with a room-derived LOC, a third on another level — only the first two inherit. |

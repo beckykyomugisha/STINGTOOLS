@@ -2,6 +2,20 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGACC-21 proximity copy rules are testable and share the audit's vocabulary, 2026-10-01)
+
+- `CopyTokensFromNearest` (TAGACC-11) decided same-floor and "was the neighbour's value derived?" inline,
+  around Revit reads, with no test, and its derived/not-derived list was a second copy of the source
+  vocabulary the Token Confidence Audit uses (TAGACC-18). The rules move to `Core/ProximityRule`:
+  `SameFloor` (same level when both have one, else |Δz| ≤ 5 ft), `LocIsCopyable` / `ZoneIsCopyable` (a High
+  band in `TokenConfidenceBands`, or a blank source from before provenance was recorded), `SysIsCopyable`
+  (detection layer below 6). `ParameterHelpers` reads the levels, points and sources and calls them.
+- **One behaviour change:** a LOC / ZONE source the tagger never writes (a hand edit) used to be copied,
+  because the old check was a blacklist; it is now treated as not derived, as the audit already did.
+- **Tests** `ProximityRuleTests` (35), including one that holds proximity and the audit to the same answer
+  for every source the tagger writes. Making `SameFloor` ignore levels fails 2; letting Medium sources
+  through fails 4. Build 0 / 0; `StingTools.Tags.Tests` 5,119 passing. **Not run in Revit.**
+
 #### Completed (TAGACC-20 SYS connector rules are testable, 2026-10-01)
 
 - An audit of which TAGACC fixes have a test or protocol step found TAGACC-7 / 8 with none: the rules
