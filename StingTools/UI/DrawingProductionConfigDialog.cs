@@ -551,7 +551,16 @@ namespace StingTools.UI
                 var preset = CollectPreset();
                 if (string.IsNullOrWhiteSpace(preset.Name))
                     preset.Name = $"{_commandType} {DateTime.Now:yyyy-MM-dd HH.mm}";
-                var existing = ProductionPresetRegistry.Load(_doc) ?? new List<DrawingProductionPreset>();
+                // DTW-188: a presets file that could not be read must not be
+                // overwritten with only this one preset.
+                var existing = ProductionPresetRegistry.Load(_doc, out var loadError) ?? new List<DrawingProductionPreset>();
+                if (loadError != null)
+                {
+                    MessageBox.Show(this, "Preset NOT saved.\n\n" + loadError
+                        + "\n\nSaving would replace every preset in it. Repair or move the file, then save again.",
+                        "Not saved", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
                 // DTW-22: one preset per name (for this command). Saving under a name that
                 // exists overwrites it, keeping its id and creation date; a new name is a
                 // new preset.
@@ -566,7 +575,12 @@ namespace StingTools.UI
                     preset.Id = NewPresetId();   // renamed: a new preset, the loaded one kept
                 existing.RemoveAll(p => string.Equals(p.Id, preset.Id, StringComparison.OrdinalIgnoreCase));
                 existing.Add(preset);
-                ProductionPresetRegistry.Save(_doc, existing);
+                if (!ProductionPresetRegistry.Save(_doc, existing, out var saveError))
+                {
+                    MessageBox.Show(this, "Preset NOT saved: " + saveError, "Not saved",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
                 _loadedPresetId = preset.Id;
                 RefreshPresetCombo(preset.Id);
                 MessageBox.Show(this, same != null ? $"Preset '{preset.Name}' updated." : $"Saved preset '{preset.Name}'.",

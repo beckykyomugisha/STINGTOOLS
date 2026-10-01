@@ -231,6 +231,20 @@ namespace StingTools.Tags.Tests
             Assert.DoesNotContain("Title block parameters card", src);
         }
 
+        // ── DTW-188 ───────────────────────────────────────────────────────
+
+        [Fact]
+        public void Preset_save_reports_failure_and_refuses_after_a_failed_load()
+        {
+            var reg = DrawingCatalogueFixture.Source("Core", "Drawing", "ProductionPresetRegistry.cs");
+            Assert.Contains("public static bool Save(Document doc, List<DrawingProductionPreset> presets, out string error)", reg);
+            Assert.DoesNotContain("public static void Save(", reg);
+            Assert.Contains("Load(doc, out var loadError);", reg);
+            var dlg = DrawingCatalogueFixture.Source("UI", "DrawingProductionConfigDialog.cs");
+            Assert.Contains("if (!ProductionPresetRegistry.Save(_doc, existing, out var saveError))", dlg);
+            Assert.Contains("ProductionPresetRegistry.Load(_doc, out var loadError)", dlg);
+        }
+
         // ── DTW-186 ───────────────────────────────────────────────────────
 
         [Fact]
