@@ -823,8 +823,9 @@ namespace StingTools.UI
             /// <summary>
             /// Document sync — the local state of this deliverable on THIS
             /// machine, resolved from the Planscape Companion's sync folder.
-            /// Set by BuildCoordData; empty when nothing is synced, which is the
-            /// normal case on a machine with no Companion.
+            /// Set by BuildCoordData (CompanionSyncBridge.ResolveState) when the
+            /// model's server project is linked in this machine's Companion;
+            /// empty otherwise, and for a row with no local copy.
             /// </summary>
             public string SyncBadge { get; set; } = "";
             public string SyncTooltip { get; set; } = "";
