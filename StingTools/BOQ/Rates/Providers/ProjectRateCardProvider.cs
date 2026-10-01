@@ -8,11 +8,13 @@
 //      ...
 //    ]
 //
-//  Priority 40 — sits below external HTTP rate-book providers (50) and
-//  above the COBie type map (75)? No — actually below COBie (75) per
-//  the priority scale. Project rate card *should* override the COBie
-//  / CSV defaults, so we place it at 87 (between the standard CSV at
-//  90 and PROD-code CSV at 85). Adjust per project policy.
+//  Priority 93 (DSCH-23). The chain resolves HIGHEST first and takes the
+//  first non-null rate. At its old 87 the card sat below the corporate CSV
+//  category rate (90), so a project's negotiated rates only priced
+//  categories the corporate card did not - in practice nothing. 93 puts the
+//  project above every corporate default and below the curated per-material
+//  library (95), which is more specific than a per-category card. A project's
+//  boq_rate_policy.json can still re-rank it (KUT moves the library to 85).
 //
 //  P8 of the Cost Management Implementation Plan.
 // ══════════════════════════════════════════════════════════════════════════
@@ -29,7 +31,8 @@ namespace StingTools.BOQ.Rates.Providers
     public sealed class ProjectRateCardProvider : IRateProvider
     {
         public string Id => "project-rate-card";
-        public int Priority => 87;
+        public const int DefaultPriority = 93;
+        public int Priority => DefaultPriority;
         public bool RequiresNetwork => false;
 
         private readonly Dictionary<string, RateLookup> _byCategory;
@@ -65,7 +68,7 @@ namespace StingTools.BOQ.Rates.Providers
                         CurrencyCode = string.IsNullOrEmpty(e.Currency) ? RateCurrency.Base : e.Currency,
                         Unit = string.IsNullOrEmpty(e.Unit) ? "each" : e.Unit,
                         SourceId = "project-rate-card",
-                        Confidence = 87,
+                        Confidence = DefaultPriority,
                         Provenance = string.IsNullOrEmpty(e.Note)
                             ? "Project rate card"
                             : $"Project rate card: {e.Note}",

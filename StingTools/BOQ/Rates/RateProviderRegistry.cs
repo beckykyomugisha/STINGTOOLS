@@ -116,10 +116,10 @@ namespace StingTools.BOQ.Rates
                 new FohlioRateProvider(),
                 new ExtensibleStorageRateProvider(),
                 // P3.4 — project rate card (incl. QS-Bill-imported rates at
-                // <project>/_BIM_COORD/rate_card.json). Priority 87 sits BELOW the
-                // CSV category rate (90) and the material library (95) - the chain is
-                // highest-first - so a QS-priced category only wins when the project's
-                // boq_rate_policy.json re-ranks it (KUT ships one at 93).
+                // <project>/_BIM_COORD/rate_card.json). Priority 93 (DSCH-23): above
+                // the corporate CSV category rate (90), below the per-material
+                // library (95); the chain is highest-first. boq_rate_policy.json
+                // can re-rank it per project.
                 // Returns null when the file is absent, so legacy projects are
                 // unaffected.
                 Providers.ProjectRateCardProvider.Load(doc),

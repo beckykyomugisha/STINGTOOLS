@@ -573,7 +573,7 @@ The Symbol Library is a data-driven engine that creates, maintains, and swaps pa
 | `IRateProvider.cs` | 121 | Interface: `GetRate(boqItem)` → `RateResult` (unit rate, source label, confidence) |
 | `MaterialLibraryRateProvider.cs` | 106 | Looks up rates from `MATERIAL_LOOKUP.csv` by material + category |
 | `Providers/BcisHttpRateProvider.cs` | 161 | REST client for live BCIS (Building Cost Information Service) API rates |
-| `Providers/ProjectRateCardProvider.cs` | 97 | Project-scoped rate card loaded from `_BIM_COORD/boq_rate_card.json` |
+| `Providers/ProjectRateCardProvider.cs` | 97 | Project-scoped rate card loaded from `_BIM_COORD/rate_card.json` (priority 93: above the corporate CSV, below the material library; re-rank in `boq_rate_policy.json`) |
 
 ### Subdirectory: `Sync/` (2 files · 363 lines)
 
