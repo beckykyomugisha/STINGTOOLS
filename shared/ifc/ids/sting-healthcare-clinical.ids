@@ -20,9 +20,8 @@
     <specification name="CLN_PRESSURE_REGIME_enumeration"
                    ifcVersion="IFC4"
                    identifier="HC-001"
-                   description="CLN_PRESSURE_REGIME_TXT must be one of the HTM 03-01 / ASHRAE 170 recognised regime codes when present."
-                   requirementSeverity="optional">
-      <applicability>
+                   description="CLN_PRESSURE_REGIME_TXT must be one of the HTM 03-01 / ASHRAE 170 recognised regime codes when present. Severity: advisory - report a failure, do not block the exchange (this was the non-standard requirementSeverity=&quot;optional&quot;, which IDS 1.0 does not define).">
+      <applicability minOccurs="0" maxOccurs="unbounded">
         <entity>
           <name>
             <simpleValue>IFCSPACE</simpleValue>
@@ -52,14 +51,8 @@
     <specification name="MGS_GAS_TYPE_enumeration"
                    ifcVersion="IFC4"
                    identifier="HC-002"
-                   description="MGS_GAS_TYPE_TXT must be a recognised medical gas code per HTM 02-01 / BS EN ISO 7396-1."
-                   requirementSeverity="optional">
-      <applicability>
-        <entity>
-          <name>
-            <simpleValue>IFCELEMENT</simpleValue>
-          </name>
-        </entity>
+                   description="MGS_GAS_TYPE_TXT must be a recognised medical gas code per HTM 02-01 / BS EN ISO 7396-1. Severity: advisory - report a failure, do not block the exchange (this was the non-standard requirementSeverity=&quot;optional&quot;, which IDS 1.0 does not define). Applies to any element carrying the property (IfcElement is abstract, and an IDS entity facet matches only that exact class, so an IFCELEMENT facet matched nothing).">
+      <applicability minOccurs="0" maxOccurs="unbounded">
         <property>
           <propertySet><simpleValue>Pset_StingHealthcareClinical</simpleValue></propertySet>
           <baseName><simpleValue>MGS_GAS_TYPE_TXT</simpleValue></baseName>
@@ -87,9 +80,8 @@
     <specification name="RAD_AREA_CLASSIFICATION_enumeration"
                    ifcVersion="IFC4"
                    identifier="HC-003"
-                   description="RAD_AREA_CLASSIFICATION_TXT must be a recognised NCRP 147 / IPEM area class when present."
-                   requirementSeverity="optional">
-      <applicability>
+                   description="RAD_AREA_CLASSIFICATION_TXT must be a recognised NCRP 147 / IPEM area class when present. Severity: advisory - report a failure, do not block the exchange (this was the non-standard requirementSeverity=&quot;optional&quot;, which IDS 1.0 does not define).">
+      <applicability minOccurs="0" maxOccurs="unbounded">
         <entity>
           <name>
             <simpleValue>IFCSPACE</simpleValue>
