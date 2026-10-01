@@ -1,0 +1,481 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS"
+     xmlns:xs="http://www.w3.org/2001/XMLSchema"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+
+  <info>
+    <title>STING — Lightning protection (BS EN 62305) (Pset_StingLightningProtection)</title>
+    <copyright>Planscape Limited, 2026</copyright>
+    <version>1.0.0</version>
+    <description>IDS encoding of shared/ifc/psets/Pset_StingLightningProtection.xml: every property, when present, carries the data type the template declares; the few properties whose values are fixed by a standard or by the code that writes them are also checked for value. One specification per property, in template order.</description>
+    <author>info@stingtools.io</author>
+    <date>2026-10-02</date>
+    <purpose>STING property-set contract validation (DSCH-38 follow-up)</purpose>
+    <milestone>Stage_4_TechnicalDesign</milestone>
+  </info>
+
+  <specifications>
+
+    <specification name="LightningProtectionClass_type"
+                   identifier="LPS-001"
+                   description="When Pset_StingLightningProtection.LightningProtectionClass is present it is an IfcLabel; BS EN 62305-1 defines LPS classes I to IV."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>LightningProtectionClass</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>LightningProtectionClass</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="I"/>
+              <xs:enumeration value="II"/>
+              <xs:enumeration value="III"/>
+              <xs:enumeration value="IV"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="RollingSphereRadius_type"
+                   identifier="LPS-002"
+                   description="When Pset_StingLightningProtection.RollingSphereRadius is present it is an IfcReal (in m)."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>RollingSphereRadius</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCREAL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>RollingSphereRadius</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="MeshSize_type"
+                   identifier="LPS-003"
+                   description="When Pset_StingLightningProtection.MeshSize is present it is an IfcReal (in m)."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>MeshSize</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCREAL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>MeshSize</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="AirTerminalCount_type"
+                   identifier="LPS-004"
+                   description="When Pset_StingLightningProtection.AirTerminalCount is present it is an IfcInteger; A count."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>AirTerminalCount</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCINTEGER" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>AirTerminalCount</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:integer">
+              <xs:minInclusive value="0"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="DownConductorCount_type"
+                   identifier="LPS-005"
+                   description="When Pset_StingLightningProtection.DownConductorCount is present it is an IfcInteger; A count."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>DownConductorCount</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCINTEGER" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>DownConductorCount</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:integer">
+              <xs:minInclusive value="0"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="EarthElectrodeCount_type"
+                   identifier="LPS-006"
+                   description="When Pset_StingLightningProtection.EarthElectrodeCount is present it is an IfcInteger; A count."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>EarthElectrodeCount</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCINTEGER" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>EarthElectrodeCount</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:integer">
+              <xs:minInclusive value="0"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="KcFactor_type"
+                   identifier="LPS-007"
+                   description="When Pset_StingLightningProtection.KcFactor is present it is an IfcReal."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>KcFactor</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCREAL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>KcFactor</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="InspectionIntervalMonths_type"
+                   identifier="LPS-008"
+                   description="When Pset_StingLightningProtection.InspectionIntervalMonths is present it is an IfcInteger (in month); A duration in months."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>InspectionIntervalMonths</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCINTEGER" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>InspectionIntervalMonths</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:integer">
+              <xs:minInclusive value="0"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="LastInspectionDate_type"
+                   identifier="LPS-009"
+                   description="When Pset_StingLightningProtection.LastInspectionDate is present it is an IfcDate."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>LastInspectionDate</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCDATE" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>LastInspectionDate</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="ComplianceCertificate_type"
+                   identifier="LPS-010"
+                   description="When Pset_StingLightningProtection.ComplianceCertificate is present it is an IfcLabel."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>ComplianceCertificate</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>ComplianceCertificate</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="ComplianceVerdict_type"
+                   identifier="LPS-011"
+                   description="When Pset_StingLightningProtection.ComplianceVerdict is present it is an IfcLabel."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>ComplianceVerdict</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>ComplianceVerdict</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="ComponentType_type"
+                   identifier="LPS-012"
+                   description="When Pset_StingLightningProtection.ComponentType is present it is an IfcLabel."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>ComponentType</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>ComponentType</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="EarthingResistance_type"
+                   identifier="LPS-013"
+                   description="When Pset_StingLightningProtection.EarthingResistance is present it is an IfcReal (in ohm)."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>EarthingResistance</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCREAL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>EarthingResistance</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="EarthingArrangement_type"
+                   identifier="LPS-014"
+                   description="When Pset_StingLightningProtection.EarthingArrangement is present it is an IfcLabel."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>EarthingArrangement</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>EarthingArrangement</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="BondingType_type"
+                   identifier="LPS-015"
+                   description="When Pset_StingLightningProtection.BondingType is present it is an IfcLabel."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>BondingType</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>BondingType</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="SpdType_type"
+                   identifier="LPS-016"
+                   description="When Pset_StingLightningProtection.SpdType is present it is an IfcLabel."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>SpdType</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>SpdType</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="SeparationDistance_type"
+                   identifier="LPS-017"
+                   description="When Pset_StingLightningProtection.SeparationDistance is present it is an IfcReal (in mm)."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>SeparationDistance</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCREAL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>SeparationDistance</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="ConductorCrossSection_type"
+                   identifier="LPS-018"
+                   description="When Pset_StingLightningProtection.ConductorCrossSection is present it is an IfcReal (in mm2)."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>ConductorCrossSection</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCREAL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>ConductorCrossSection</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="ConductorMaterial_type"
+                   identifier="LPS-019"
+                   description="When Pset_StingLightningProtection.ConductorMaterial is present it is an IfcLabel."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>ConductorMaterial</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>ConductorMaterial</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="ProtectionAngle_type"
+                   identifier="LPS-020"
+                   description="When Pset_StingLightningProtection.ProtectionAngle is present it is an IfcReal (in deg)."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>ProtectionAngle</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCREAL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>ProtectionAngle</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="LightningProtectionZone_type"
+                   identifier="LPS-021"
+                   description="When Pset_StingLightningProtection.LightningProtectionZone is present it is an IfcLabel."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>LightningProtectionZone</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>LightningProtectionZone</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="LpzCrossingFrom_type"
+                   identifier="LPS-022"
+                   description="When Pset_StingLightningProtection.LpzCrossingFrom is present it is an IfcLabel."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>LpzCrossingFrom</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>LpzCrossingFrom</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="LpzCrossingTo_type"
+                   identifier="LPS-023"
+                   description="When Pset_StingLightningProtection.LpzCrossingTo is present it is an IfcLabel."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>LpzCrossingTo</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>LpzCrossingTo</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="RiskAssessment_type"
+                   identifier="LPS-024"
+                   description="When Pset_StingLightningProtection.RiskAssessment is present it is an IfcLabel."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>RiskAssessment</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingLightningProtection</simpleValue></propertySet>
+          <baseName><simpleValue>RiskAssessment</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+  </specifications>
+</ids>

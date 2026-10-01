@@ -31,6 +31,11 @@ def _get_mep_pset(element) -> dict:
 def _write_mep_pset(element, props: dict) -> bool:
     """Write props into Pset_StingMEP on element. Returns True on success.
 
+    Pset_StingMEP is declared in shared/ifc/psets/Pset_StingMEP.xml (DSCH-38
+    follow-up). Numbers are passed as int / float so ifcopenshell writes
+    IfcInteger / IfcReal, as declared; before 5.8.0 they were text (IfcLabel),
+    which the readers here still accept (float() / int(float())).
+
     BonsaiBridge.add_pset takes (element, pset_name, properties) and resolves the
     active model itself — passing the model as a fourth argument raises TypeError.
     """
@@ -101,9 +106,9 @@ class StingCalcPipeFlowOperator(bpy.types.Operator):
             flow_ls = float(mep.get("PLM_SUP_FLOW_LS", 0.5) or 0.5)
             dn, vel, actual_flow = self._select_dn(flow_ls)
             _write_mep_pset(el, {
-                "PLM_SUP_DN": str(dn),
-                "PLM_SUP_VEL_MS": f"{vel:.3f}",
-                "PLM_SUP_FLOW_LS": f"{actual_flow:.3f}",
+                "PLM_SUP_DN": int(dn),
+                "PLM_SUP_VEL_MS": round(vel, 3),
+                "PLM_SUP_FLOW_LS": round(actual_flow, 3),
             })
             processed += 1
 
@@ -173,7 +178,7 @@ class StingCalcDrainageUnitsOperator(bpy.types.Operator):
         total_du = 0.0
         for el in ifc.by_type("IfcSanitaryTerminal"):
             du = self._resolve_du(el)
-            _write_mep_pset(el, {"PLM_DRN_DU": f"{du:.1f}"})
+            _write_mep_pset(el, {"PLM_DRN_DU": round(du, 1)})
             processed += 1
             total_du += du
 
@@ -232,7 +237,7 @@ class StingCalcConduitFillOperator(bpy.types.Operator):
             status = "OK" if fill_pct <= self._MAX_FILL_PCT else "OVERLOADED"
 
             _write_mep_pset(el, {
-                "ELC_FILL_PCT": f"{fill_pct:.1f}",
+                "ELC_FILL_PCT": round(fill_pct, 1),
                 "ELC_FILL_STATUS": status,
             })
             processed += 1

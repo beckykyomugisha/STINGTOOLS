@@ -3,7 +3,7 @@
   "format": "STING IFC PropertySetTemplate manifest",
   "generated_by": "tools/enums/compute_checksums.py",
   "generated_for_repo_relative_path": "shared/ifc/psets/",
-  "total_psets": 12,
+  "total_psets": 13,
   "psets": [
     {
       "name": "Pset_StingCoordination",
@@ -134,6 +134,28 @@
       "validation_rule_count": 0,
       "sha256": "fd0773e1ab7cc37a4301e74982f2221e2c4ade85ff40b2d32d221121e5c31808",
       "canonical_json_length": 3200
+    },
+    {
+      "name": "Pset_StingMEP",
+      "file": "Pset_StingMEP.xml",
+      "kind": "pset",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.8.0",
+      "ifd_guid": "uuid:a1d15c11-000d-4001-9000-00000000000d",
+      "standards_basis": "Hazen-Williams pipe flow; BS EN 12056-2 (discharge units); BS 7671 Appendix 5 (conduit capacity)",
+      "template_type": "PSET_OCCURRENCEDRIVEN",
+      "applicability": [
+        "IfcPipeSegment",
+        "IfcSanitaryTerminal",
+        "IfcCableCarrierSegment"
+      ],
+      "property_count": 9,
+      "validation_rule_count": 0,
+      "sha256": "edb66b8e893e822d2b379fbc76e928736b4bf46ab5e818a850f78890e5d0d14d",
+      "canonical_json_length": 1301
     },
     {
       "name": "Pset_StingMEPServices",
