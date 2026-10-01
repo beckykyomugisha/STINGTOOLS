@@ -3,7 +3,7 @@
 //
 //  Abstracts unit-rate lookup so BOQCostManager.ResolveRate is no longer a
 //  hard-coded 5-pass chain. Concrete providers (parameter override, CSV,
-//  COBie type-map, Scheduling4DEngine default, future BCIS/Spon's HTTP,
+//  Scheduling4DEngine default, future BCIS/Spon's HTTP,
 //  project-specific rate card) implement this interface and register with
 //  RateProviderRegistry. Priority decides order; first non-null wins.
 //
@@ -148,7 +148,6 @@ namespace StingTools.BOQ.Rates
         /// 100 = explicit user override (parameter or ES),
         /// 90  = CSV category match,
         /// 85  = CSV PROD match,
-        /// 75  = COBie type-map,
         /// 60  = Scheduling4DEngine baseline,
         /// 50  = external (BCIS / Spon's),
         /// 40  = project-specific rate card.
