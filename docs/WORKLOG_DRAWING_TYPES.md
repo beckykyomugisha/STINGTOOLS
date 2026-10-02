@@ -7,17 +7,17 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 
 ## Resume here
 
-Every code item is closed (DTW-1..228). One item is left: DTW-82, the in-Revit verification.
-It is now runnable: DOCS → DRAWING TYPES → **Self-Test** runs the automatable checks on the open
-model and rolls everything back (PASS / FAIL / SKIP / INFO plus a CSV under the Validation route).
-`docs/DRAWING_REVIT_TEST_SCRIPT.md` covers the manual rest (P1 first).
+Round 11 (2026-10-02) fixed what the first real Self-Test run found (DTW-229..238): the run on
+`011026_detached` showed 6 pass / 40 fail, and most fails were the model never having had Load
+Shared Parameters (it was opened from Downloads after the 13:43 run). The real defects were
+illegal Revit names (filters, managed templates, schedules), an ES units bug that silently
+disabled six schemas, a null id in the managed-template path, match-line keys on Lines, and
+unfilled sheet tokens.
 
-1. Get the build live. The ACC session redeploys STING_KUT_LIVE after its user approves.
-2. Run Self-Test on a real project and work through the P1 script. The INFO rows answer the open
-   design questions: Lines bindability (DTW-56), filterable phase params (DTW-166), the
-   STRUCTURAL_MATERIAL_TYPE category (DTW-164), the template scale parameter (DTW-170), and crop
-   collection (DTW-172).
-3. Log each FAIL as a new DTW row and fix it; then round 10.
+1. Deploy round 11 (branch `fix/dt-r11` → main → the KUT build).
+2. On the same model: run **Load Shared Parameters**, then **Self-Test** again, on a model that has
+   a scope box (for DTW-239). Expect the binding rows to pass and section k to answer DTW-239.
+3. Log each remaining FAIL as a new DTW row and fix it.
 
 ## State (2026-10-01)
 
@@ -283,6 +283,17 @@ model and rolls everything back (PASS / FAIL / SKIP / INFO plus a CSV under the 
 | DTW-226 | ManagedTemplateSyncer vs MEP system filters | Low | Does a pack re-sync keep the system filters MEP coordination added to the template? | Merged | Done |
 | DTW-227 | WorksharingPreflight material-class filters | Low | Not pre-checked | Merged | Done |
 | DTW-228 | ViewStylePackApplier.ApplyFilterEnabled | Low | A pack with filterEnabled=false disables every filter on a view with no managed template, including MEP system filters | Merged (fix/dt-r10-a) | Done |
+| DTW-229 | ManagedTemplateSyncer.EnsureTemplate / DrawingTypePresentation | High (Revit) | A cache miss passed a null ElementId to GetElement: Self-Test c threw, the managed-pack fallback failed | Merged (fix/dt-r11-a) | Done |
+| DTW-230 | DrawingTypePresentation Detail Level / Scale | Med (Revit) | Wrote Detail Level and Scale on views whose template controls them ("Detail Level cannot be modified") | Merged (fix/dt-r11-a) | Done |
+| DTW-231 | Six ES schemas (crop, compliance baseline, cost rate v1/v2, Fohlio v2, PBR) | High (Revit) | Double fields without SetSpec: Finish() threw ("Units are required for field MarginMm"), so nothing was stored | Merged (fix/dt-r11-b) | Done |
+| DTW-232 | AEC filter library names | High (Revit) | 263 of 287 names carry ':' which Revit refuses; corporate filters could not be created | Merged (fix/dt-r11-c) | Done |
+| DTW-233 | Drawing-production schedule names | Med | 'STING - <type>' carried '1:100' and was refused; schedules stayed 'Schedule 1' | Merged (fix/dt-r11-c) | Done |
+| DTW-234 | MatchLineEngine keys (DTW-56) | High (Revit) | Lines.AllowsBoundParameters = False: keys moved to Extensible Storage (StingMatchLineSchema), parameters kept as read fallback | Merged (fix/dt-r11-d) | Done |
+| DTW-235 | SheetNumberEngine known tokens | Med (Revit) | {project}/{originator} left in braces when Project Information had no value; now XX; project code falls back to PRJ_ORG_PROJECT_CODE_TXT | Merged (fix/dt-r11-e) | Done |
+| DTW-236 | SheetPlacementBridge.PlaceScheduleInSlot | Low (Revit) | Schedule landed 2 mm left of its slot; read back and corrected | Merged (fix/dt-r11-e) | Done |
+| DTW-237 | ManagedTemplateSyncer names | High (Revit) | 'STING:{pack}:{ViewType}' is illegal for a view name; now 'STING MANAGED - {pack} - {ViewType}', legacy form still recognised | Merged (fix/dt-r11-f) | Done |
+| DTW-238 | Temp/ template filters, colour/circuit filters, Excel view names | Med (Revit) | Legacy 'STING - Disc: …' / 'Status: …' / 'QA: …' filters refused; created sanitised, looked up through LookupComparer | Merged (fix/dt-r11-g) | Done |
+| DTW-239 | Scope Box Planner names (STING-AREA:: / STING-SEED:: / STING::) | Med (Revit) | Unknown whether Revit accepts '::' in scope-box names; Self-Test k probes it | Open | Revit check |
 
 ## Decisions
 
@@ -370,6 +381,17 @@ model and rolls everything back (PASS / FAIL / SKIP / INFO plus a CSV under the 
   as metadata). Only new sheets use the new pattern; existing numbers are not rewritten.
 
 ## NEEDS REVIT CHECK
+
+Round 11 (DTW-229..239), all via Self-Test unless noted:
+- c. Managed V/G mints `STING MANAGED - <pack> - FloorPlan` and passes (no null-id throw).
+- Producing arch-plan-A1-1to100 gives no "Detail Level cannot be modified" note.
+- No "Units are required for field" warning in the log; crop drift reads back.
+- d. AEC filters: the four probe filters are created as `STING - Struct - Concrete` etc.
+- b. Re-run is idempotent once parameters are bound.
+- g. Sheet numbering: `XX-XX-01-00-DR-A-0001` with no project code set.
+- f. Schedule top-left at (250, 400) mm.
+- Match-line keys round-trip (Extensible Storage) passes; Generate twice adds nothing the second time.
+- k. Revit name probes: scope-box `::` names (DTW-239), and which prohibited characters Revit refuses.
 
 Round 8 view graphics:
 - Can PHASE_CREATED and PHASE_DEMOLISHED be filter rules?

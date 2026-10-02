@@ -226,45 +226,51 @@ namespace StingTools.Commands.Drawing
             bool allows = linesCat != null && linesCat.AllowsBoundParameters;
             Add(rows, CkBindings, "Lines category", SelfTestStatus.Info,
                 $"Category 'Lines' AllowsBoundParameters = {(linesCat == null ? "(category not found)" : allows.ToString())}");
+            // DTW-56: match lines keep their keys in Extensible Storage (StingMatchLineSchema), so a
+            // Lines binding is no longer required — these rows only record what the model holds.
             foreach (var p in DrawingSelfTestModel.LineParams)
             {
                 if (!bound.TryGetValue(p, out var cats))
-                    Add(rows, CkBindings, p + " → Lines", SelfTestStatus.Fail, "not bound to any category (run Load Shared Parameters)");
+                    Add(rows, CkBindings, p + " → Lines", SelfTestStatus.Info,
+                        "not bound to any category; legacy fallback only — match lines keep this key in Extensible Storage (DTW-56)");
                 else if (!cats.Contains((long)BuiltInCategory.OST_Lines))
-                    Add(rows, CkBindings, p + " → Lines", SelfTestStatus.Fail,
-                        "REVIT REFUSED LINES: bound, but not to Lines (bound to " + CategoryNames(doc, cats)
-                        + "). DTW-56: the match-line keys must move to Extensible Storage.");
+                    Add(rows, CkBindings, p + " → Lines", SelfTestStatus.Info,
+                        "not bound to Lines (bound to " + CategoryNames(doc, cats)
+                        + "); Revit does not allow bound parameters on Lines, so match lines keep this key in Extensible Storage (DTW-56)");
                 else
                     Add(rows, CkBindings, p + " → Lines", SelfTestStatus.Pass, "bound to Lines");
             }
 
-            // The runtime half: does the parameter resolve on a detail line Revit creates?
+            // The runtime half: do the match-line keys round-trip on a detail line Revit creates?
             var drafting = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>()
                 .FirstOrDefault(t => t.ViewFamily == ViewFamily.Drafting);
             if (drafting == null)
             {
-                Add(rows, CkBindings, "STING_MATCH_* on a detail line", SelfTestStatus.Skip, "the model has no drafting view type");
+                Add(rows, CkBindings, "Match-line keys round-trip (Extensible Storage)", SelfTestStatus.Skip, "the model has no drafting view type");
                 return;
             }
-            int resolved = 0;
-            var missing = new List<string>();
+            bool wrote = false, roundTrip = false;
+            string writeError = null, readBack = null;
+            int legacyResolved = 0;
             InTx(doc, "detail line probe", () =>
             {
                 var v = ViewDrafting.Create(doc, drafting.Id);
                 var dc = doc.Create.NewDetailCurve(v, Line.CreateBound(XYZ.Zero, new XYZ(10, 0, 0)));
                 foreach (var p in DrawingSelfTestModel.LineParams)
-                {
-                    if (dc.LookupParameter(p) != null) resolved++;
-                    else missing.Add(p);
-                }
+                    if (dc.LookupParameter(p) != null) legacyResolved++;
+                wrote = StingTools.Core.Storage.StingMatchLineSchema.Write(dc, "selftest:a:b", "A-101", "vertical", out writeError);
+                var k = MatchLineEngine.ReadKeys(dc);
+                readBack = k?.ToString();
+                roundTrip = wrote && k != null && k.Source == MatchLineKeySource.ExtensibleStorage
+                    && k.PairGuid == "selftest:a:b" && k.Ref == "A-101" && k.Direction == "vertical";
             });
+            Add(rows, CkBindings, "Match-line keys round-trip (Extensible Storage)",
+                roundTrip ? SelfTestStatus.Pass : SelfTestStatus.Fail,
+                roundTrip ? "pair, ref and direction written to a new detail line and read back"
+                          : !wrote ? "write failed: " + (writeError ?? "unknown") : "read back " + (readBack ?? "nothing"));
             int n = DrawingSelfTestModel.LineParams.Count;
-            Add(rows, CkBindings, "STING_MATCH_* on a detail line",
-                resolved == n ? SelfTestStatus.Pass : SelfTestStatus.Fail,
-                resolved == n
-                    ? $"{resolved}/{n} resolve on a new detail line"
-                    : $"REVIT REFUSED LINES: {resolved}/{n} resolve on a new detail line (missing {string.Join(", ", missing)}). "
-                      + "DTW-56: move the match-line keys to Extensible Storage.");
+            Add(rows, CkBindings, "Legacy STING_MATCH_* on a detail line", SelfTestStatus.Info,
+                $"{legacyResolved}/{n} resolve — not used since DTW-56");
         }
 
         private static void BindingRow(Document doc, List<SelfTestRow> rows, Dictionary<string, HashSet<long>> bound,
