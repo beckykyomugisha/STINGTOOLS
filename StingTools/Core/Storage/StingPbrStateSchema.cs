@@ -88,7 +88,7 @@ namespace StingTools.Core.Storage
                     FieldBumpAmount, FieldNormalIntensity,
                     FieldDispMinMm, FieldDispMaxMm, FieldDispScale, FieldEmissionLuminance,
                 })
-                    sb.AddSimpleField(name, typeof(double));
+                    sb.AddSimpleField(name, typeof(double)).SetSpec(StingEsUnits.Spec);
 
                 sb.AddSimpleField(FieldDispEnabled, typeof(bool));
                 sb.AddSimpleField(FieldStampedUtcTicks, typeof(long));
@@ -135,18 +135,18 @@ namespace StingTools.Core.Storage
                     },
                     Defaults = new TexturePackDefaults
                     {
-                        RealWorldScaleXMm     = e.Get<double>(FieldRealWorldScaleXMm),
-                        RealWorldScaleYMm     = e.Get<double>(FieldRealWorldScaleYMm),
-                        UvOffsetX             = e.Get<double>(FieldUvOffsetX),
-                        UvOffsetY             = e.Get<double>(FieldUvOffsetY),
-                        UvRotationDeg         = e.Get<double>(FieldUvRotationDeg),
-                        BumpAmount            = e.Get<double>(FieldBumpAmount),
-                        NormalIntensity       = e.Get<double>(FieldNormalIntensity),
+                        RealWorldScaleXMm     = e.Get<double>(FieldRealWorldScaleXMm, StingEsUnits.Unit),
+                        RealWorldScaleYMm     = e.Get<double>(FieldRealWorldScaleYMm, StingEsUnits.Unit),
+                        UvOffsetX             = e.Get<double>(FieldUvOffsetX, StingEsUnits.Unit),
+                        UvOffsetY             = e.Get<double>(FieldUvOffsetY, StingEsUnits.Unit),
+                        UvRotationDeg         = e.Get<double>(FieldUvRotationDeg, StingEsUnits.Unit),
+                        BumpAmount            = e.Get<double>(FieldBumpAmount, StingEsUnits.Unit),
+                        NormalIntensity       = e.Get<double>(FieldNormalIntensity, StingEsUnits.Unit),
                         DisplacementEnabled   = e.Get<bool>(FieldDispEnabled),
-                        DisplacementMinMm     = e.Get<double>(FieldDispMinMm),
-                        DisplacementMaxMm     = e.Get<double>(FieldDispMaxMm),
-                        DisplacementScale     = e.Get<double>(FieldDispScale),
-                        EmissionLuminanceCdM2 = e.Get<double>(FieldEmissionLuminance),
+                        DisplacementMinMm     = e.Get<double>(FieldDispMinMm, StingEsUnits.Unit),
+                        DisplacementMaxMm     = e.Get<double>(FieldDispMaxMm, StingEsUnits.Unit),
+                        DisplacementScale     = e.Get<double>(FieldDispScale, StingEsUnits.Unit),
+                        EmissionLuminanceCdM2 = e.Get<double>(FieldEmissionLuminance, StingEsUnits.Unit),
                     },
                 };
                 return string.IsNullOrEmpty(m.PackId) ? null : m;
@@ -187,18 +187,18 @@ namespace StingTools.Core.Storage
                 e.Set(FieldMapAnisotropy,   maps.Anisotropy   ?? "");
 
                 var d = m.Defaults ?? new TexturePackDefaults();
-                e.Set(FieldRealWorldScaleXMm,     d.RealWorldScaleXMm);
-                e.Set(FieldRealWorldScaleYMm,     d.RealWorldScaleYMm);
-                e.Set(FieldUvOffsetX,             d.UvOffsetX);
-                e.Set(FieldUvOffsetY,             d.UvOffsetY);
-                e.Set(FieldUvRotationDeg,         d.UvRotationDeg);
-                e.Set(FieldBumpAmount,            d.BumpAmount);
-                e.Set(FieldNormalIntensity,       d.NormalIntensity);
+                e.Set(FieldRealWorldScaleXMm,     d.RealWorldScaleXMm, StingEsUnits.Unit);
+                e.Set(FieldRealWorldScaleYMm,     d.RealWorldScaleYMm, StingEsUnits.Unit);
+                e.Set(FieldUvOffsetX,             d.UvOffsetX, StingEsUnits.Unit);
+                e.Set(FieldUvOffsetY,             d.UvOffsetY, StingEsUnits.Unit);
+                e.Set(FieldUvRotationDeg,         d.UvRotationDeg, StingEsUnits.Unit);
+                e.Set(FieldBumpAmount,            d.BumpAmount, StingEsUnits.Unit);
+                e.Set(FieldNormalIntensity,       d.NormalIntensity, StingEsUnits.Unit);
                 e.Set(FieldDispEnabled,           d.DisplacementEnabled);
-                e.Set(FieldDispMinMm,             d.DisplacementMinMm);
-                e.Set(FieldDispMaxMm,             d.DisplacementMaxMm);
-                e.Set(FieldDispScale,             d.DisplacementScale);
-                e.Set(FieldEmissionLuminance,     d.EmissionLuminanceCdM2);
+                e.Set(FieldDispMinMm,             d.DisplacementMinMm, StingEsUnits.Unit);
+                e.Set(FieldDispMaxMm,             d.DisplacementMaxMm, StingEsUnits.Unit);
+                e.Set(FieldDispScale,             d.DisplacementScale, StingEsUnits.Unit);
+                e.Set(FieldEmissionLuminance,     d.EmissionLuminanceCdM2, StingEsUnits.Unit);
 
                 e.Set(FieldStampedUtcTicks, DateTime.UtcNow.Ticks);
                 mat.SetEntity(e);

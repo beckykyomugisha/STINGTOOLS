@@ -55,6 +55,7 @@ namespace StingTools.Commands.Drawing
         private const string CkWorkshar = "h. Worksharing";
         private const string CkMatch    = "i. Match lines";
         private const string CkCrop     = "j. Crop and collectors";
+        private const string CkNames    = "k. Revit name probes";
 
         /// <summary>State the checks share: the level and plan type they work on.</summary>
         private sealed class Ctx
@@ -94,6 +95,7 @@ namespace StingTools.Commands.Drawing
                     Run(rows, CkFilters, () => CheckFilters(ctx, rows));
                     Run(rows, CkMatch, () => CheckMatchLines(ctx, rows));
                     Run(rows, CkCrop, () => CheckCropCollector(ctx, rows));
+                    Run(rows, CkNames, () => CheckRevitNames(ctx, rows));
                 }
                 finally
                 {
@@ -224,45 +226,51 @@ namespace StingTools.Commands.Drawing
             bool allows = linesCat != null && linesCat.AllowsBoundParameters;
             Add(rows, CkBindings, "Lines category", SelfTestStatus.Info,
                 $"Category 'Lines' AllowsBoundParameters = {(linesCat == null ? "(category not found)" : allows.ToString())}");
+            // DTW-56: match lines keep their keys in Extensible Storage (StingMatchLineSchema), so a
+            // Lines binding is no longer required — these rows only record what the model holds.
             foreach (var p in DrawingSelfTestModel.LineParams)
             {
                 if (!bound.TryGetValue(p, out var cats))
-                    Add(rows, CkBindings, p + " → Lines", SelfTestStatus.Fail, "not bound to any category (run Load Shared Parameters)");
+                    Add(rows, CkBindings, p + " → Lines", SelfTestStatus.Info,
+                        "not bound to any category; legacy fallback only — match lines keep this key in Extensible Storage (DTW-56)");
                 else if (!cats.Contains((long)BuiltInCategory.OST_Lines))
-                    Add(rows, CkBindings, p + " → Lines", SelfTestStatus.Fail,
-                        "REVIT REFUSED LINES: bound, but not to Lines (bound to " + CategoryNames(doc, cats)
-                        + "). DTW-56: the match-line keys must move to Extensible Storage.");
+                    Add(rows, CkBindings, p + " → Lines", SelfTestStatus.Info,
+                        "not bound to Lines (bound to " + CategoryNames(doc, cats)
+                        + "); Revit does not allow bound parameters on Lines, so match lines keep this key in Extensible Storage (DTW-56)");
                 else
                     Add(rows, CkBindings, p + " → Lines", SelfTestStatus.Pass, "bound to Lines");
             }
 
-            // The runtime half: does the parameter resolve on a detail line Revit creates?
+            // The runtime half: do the match-line keys round-trip on a detail line Revit creates?
             var drafting = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>()
                 .FirstOrDefault(t => t.ViewFamily == ViewFamily.Drafting);
             if (drafting == null)
             {
-                Add(rows, CkBindings, "STING_MATCH_* on a detail line", SelfTestStatus.Skip, "the model has no drafting view type");
+                Add(rows, CkBindings, "Match-line keys round-trip (Extensible Storage)", SelfTestStatus.Skip, "the model has no drafting view type");
                 return;
             }
-            int resolved = 0;
-            var missing = new List<string>();
+            bool wrote = false, roundTrip = false;
+            string writeError = null, readBack = null;
+            int legacyResolved = 0;
             InTx(doc, "detail line probe", () =>
             {
                 var v = ViewDrafting.Create(doc, drafting.Id);
                 var dc = doc.Create.NewDetailCurve(v, Line.CreateBound(XYZ.Zero, new XYZ(10, 0, 0)));
                 foreach (var p in DrawingSelfTestModel.LineParams)
-                {
-                    if (dc.LookupParameter(p) != null) resolved++;
-                    else missing.Add(p);
-                }
+                    if (dc.LookupParameter(p) != null) legacyResolved++;
+                wrote = StingTools.Core.Storage.StingMatchLineSchema.Write(dc, "selftest:a:b", "A-101", "vertical", out writeError);
+                var k = MatchLineEngine.ReadKeys(dc);
+                readBack = k?.ToString();
+                roundTrip = wrote && k != null && k.Source == MatchLineKeySource.ExtensibleStorage
+                    && k.PairGuid == "selftest:a:b" && k.Ref == "A-101" && k.Direction == "vertical";
             });
+            Add(rows, CkBindings, "Match-line keys round-trip (Extensible Storage)",
+                roundTrip ? SelfTestStatus.Pass : SelfTestStatus.Fail,
+                roundTrip ? "pair, ref and direction written to a new detail line and read back"
+                          : !wrote ? "write failed: " + (writeError ?? "unknown") : "read back " + (readBack ?? "nothing"));
             int n = DrawingSelfTestModel.LineParams.Count;
-            Add(rows, CkBindings, "STING_MATCH_* on a detail line",
-                resolved == n ? SelfTestStatus.Pass : SelfTestStatus.Fail,
-                resolved == n
-                    ? $"{resolved}/{n} resolve on a new detail line"
-                    : $"REVIT REFUSED LINES: {resolved}/{n} resolve on a new detail line (missing {string.Join(", ", missing)}). "
-                      + "DTW-56: move the match-line keys to Extensible Storage.");
+            Add(rows, CkBindings, "Legacy STING_MATCH_* on a detail line", SelfTestStatus.Info,
+                $"{legacyResolved}/{n} resolve — not used since DTW-56");
         }
 
         private static void BindingRow(Document doc, List<SelfTestRow> rows, Dictionary<string, HashSet<long>> bound,
@@ -525,6 +533,8 @@ namespace StingTools.Commands.Drawing
             InTx(doc, "managed template", () =>
             {
                 var tid = ManagedTemplateSyncer.EnsureTemplate(doc, pack, ViewType.FloorPlan, result);
+                // DT-R11: no id is the "made no template" FAIL below, not a GetElement throw.
+                if (!ManagedTemplateSyncer.IsUsable(tid)) return;
                 template = doc.GetElement(tid) as View;
                 if (template == null) return;
                 var v = NewPlan(ctx);
@@ -562,7 +572,7 @@ namespace StingTools.Commands.Drawing
                 Add(rows, CkManaged, $"'{pack.Id}' filters on the template", SelfTestStatus.Skip, "the pack names no filters");
             else
             {
-                var missing = wanted.Where(n => !onTemplate.Contains(n)).ToList();
+                var missing = wanted.Where(n => !RevitNameRules.Candidates(n).Any(onTemplate.Contains)).ToList();   // DT-R11-C
                 Add(rows, CkManaged, $"'{pack.Id}' filters on the template", missing.Count == 0 ? SelfTestStatus.Pass : SelfTestStatus.Fail,
                     $"{wanted.Count - missing.Count} of {wanted.Count} present"
                     + (missing.Count > 0 ? "; missing: " + string.Join(", ", missing.Take(8)) + (missing.Count > 8 ? " …" : "") : "")
@@ -662,6 +672,115 @@ namespace StingTools.Commands.Drawing
             Add(rows, CkCrop, "View-scoped collector vs crop", SelfTestStatus.Info,
                 $"{uncropped} element(s) uncropped, {cropped} with a crop 2% of the view's size: a view-scoped collector "
                 + (cropped < uncropped ? "DOES exclude elements outside the crop" : "does NOT exclude elements outside the crop"));
+        }
+
+        // ── k. Revit name probes (DT-R11-G) ──────────────────────────────────
+        //
+        // Revit refuses some characters in an element name (RevitNameRules.Prohibited,
+        // proven for filters in round 11). These probes ask the open model which names
+        // it accepts, for the names STING actually relies on. Each probe catches the
+        // refusal inside its own transaction, so a refused name is a reported outcome
+        // and the transaction still commits (and is rolled back with the group).
+
+        private static void CheckRevitNames(Ctx ctx, List<SelfTestRow> rows)
+        {
+            var doc = ctx.Doc;
+
+            // 1. Scope boxes: the Scope Box Planner names boxes "STING-AREA::…" and
+            //    "STING-SEED::…" (ScopeBoxNames.AreaPrefix / SeedPrefix). If Revit refuses
+            //    "::" on a scope box the planner cannot name a single box.
+            var box = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                .WhereElementIsNotElementType().FirstOrDefault();
+            foreach (var probe in new[] { ScopeBoxNames.AreaPrefix + "probe", ScopeBoxNames.SeedPrefix + "probe" })
+            {
+                string item = $"Scope box named '{probe}'";
+                if (box == null) { Add(rows, CkNames, item, SelfTestStatus.Skip, "the model has no scope box"); continue; }
+                var (refused, readBack) = ProbeName(doc, "scope box " + probe, () => { box.Name = probe; return box.Name; });
+                Add(rows, CkNames, item, refused == null ? SelfTestStatus.Pass : SelfTestStatus.Fail,
+                    refused == null
+                        ? $"accepted (read back '{readBack}')"
+                        : $"REVIT REFUSED: {refused} — the Scope Box Planner names every area and seed box with this prefix");
+            }
+
+            // 2. A view named like a managed template ("STING:{pack}:{ViewType}").
+            {
+                const string probe = "STING:probe:FloorPlan";
+                string item = $"View named '{probe}'";
+                var need = NeedsPlan(ctx);
+                if (need != null) Add(rows, CkNames, item, SelfTestStatus.Skip, need);
+                else
+                {
+                    var (refused, readBack) = ProbeName(doc, "view name", () =>
+                    {
+                        var v = NewPlan(ctx);
+                        try { v.Name = probe; }
+                        catch (Exception ex) { return "\u0000" + ex.GetType().Name + ": " + ex.Message; }
+                        return v.Name;
+                    });
+                    Add(rows, CkNames, item, SelfTestStatus.Info,
+                        refused == null
+                            ? $"Revit ACCEPTED ':' in a view name (read back '{readBack}'); the rule does not hold for views in this version"
+                            : $"refused, as RevitNameRules expects: {refused}. A view or view template cannot carry ':' — "
+                              + "the legacy managed-template name 'STING:{pack}:{ViewType}' could never be created, "
+                              + "which is why managed templates are now 'STING MANAGED - {pack} - {ViewType}'");
+                }
+            }
+
+            // 3. A filter with ':' (expected refused) and its sanitised form (must be accepted).
+            var cats = new List<ElementId> { new ElementId(BuiltInCategory.OST_Walls) };
+            {
+                const string raw = "STING Self-Test: probe";
+                var (refused, readBack) = ProbeName(doc, "filter raw", () => ParameterFilterElement.Create(doc, raw, cats).Name);
+                Add(rows, CkNames, $"Filter named '{raw}'", SelfTestStatus.Info,
+                    refused == null
+                        ? $"Revit ACCEPTED ':' in a filter name (read back '{readBack}'); sanitising is stricter than this version needs"
+                        : $"refused, as RevitNameRules expects: {refused}");
+
+                string clean = RevitNameRules.Sanitize(raw);
+                var (refused2, readBack2) = ProbeName(doc, "filter sanitised", () => ParameterFilterElement.Create(doc, clean, cats).Name);
+                bool ok = refused2 == null && RevitNameRules.Matches(readBack2, raw);
+                Add(rows, CkNames, $"Filter named '{clean}' (sanitised)", ok ? SelfTestStatus.Pass : SelfTestStatus.Fail,
+                    refused2 != null ? "REVIT REFUSED the sanitised name: " + refused2
+                    : ok ? $"accepted; read back '{readBack2}', which RevitNameRules.Matches finds from the data spelling"
+                         : $"accepted but read back '{readBack2}', which the lookup would not find from '{raw}'");
+            }
+
+            // 4. Each character RevitNameRules.Prohibited lists, one at a time, on a filter.
+            {
+                var refusedChars = new List<string>();
+                var acceptedChars = new List<string>();
+                foreach (var c in RevitNameRules.Prohibited)
+                {
+                    var (refused, _) = ProbeName(doc, "filter char", () => ParameterFilterElement.Create(doc, "STING Self-Test " + c + " probe", cats).Name);
+                    (refused == null ? acceptedChars : refusedChars).Add(c.ToString());
+                }
+                Add(rows, CkNames, "Filter name, each RevitNameRules.Prohibited character", SelfTestStatus.Info,
+                    $"refused: {(refusedChars.Count > 0 ? string.Join(" ", refusedChars) : "(none)")}; "
+                    + $"accepted: {(acceptedChars.Count > 0 ? string.Join(" ", acceptedChars) : "(none)")}");
+            }
+        }
+
+        /// <summary>
+        /// Run a naming probe in its own transaction. Returns (null, name read back) when
+        /// Revit accepted the name, or (reason, null) when it refused — by throwing, by
+        /// refusing the commit, or (for a body that catches its own refusal) by returning
+        /// a string that starts with NUL.
+        /// </summary>
+        private static (string Refused, string ReadBack) ProbeName(Document doc, string label, Func<string> body)
+        {
+            string readBack = null;
+            try
+            {
+                InTx(doc, "name probe " + label, () => readBack = body());
+            }
+            catch (Exception ex)
+            {
+                StingLog.Info($"Drawing Self-Test name probe '{label}': {ex.GetType().Name}: {ex.Message}");
+                return ($"{ex.GetType().Name}: {ex.Message}", null);
+            }
+            if (readBack != null && readBack.Length > 0 && readBack[0] == '\u0000')
+                return (readBack.Substring(1), null);
+            return (null, readBack);
         }
 
         // ── Output ───────────────────────────────────────────────────────────

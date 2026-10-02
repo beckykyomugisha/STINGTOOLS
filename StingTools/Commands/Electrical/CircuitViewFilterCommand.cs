@@ -140,7 +140,9 @@ namespace StingTools.Commands.Electrical
             }
 
             // ── Build the ParameterFilterElement ──────────────────────────────
-            string filterName = $"STING - Circuit {filterDesc}";
+            // DT-R11-G: filterDesc carries a panel name or phase from the model; Revit
+            // refuses some characters in an element name.
+            string filterName = StingTools.Core.Drawing.RevitNameRules.Sanitize($"STING - Circuit {filterDesc}");
 
             // Remove existing filter with the same name to allow re-run.
             var existing = new FilteredElementCollector(doc)

@@ -581,7 +581,7 @@ namespace StingTools.UI
             if (_currentPack.IsManaged)
             {
                 var info = new TextBlock {
-                    Text = "STING will mint templates named 'STING:{pack-id}:{ViewType}'. Save triggers drift; use Regenerate to re-sync.",
+                    Text = "STING will mint templates named 'STING MANAGED - {pack-id} - {ViewType}'. Save triggers drift; use Regenerate to re-sync.",
                     TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(Colors.Goldenrod), Margin = new Thickness(0,4,0,4)
                 };
                 tmBody.Children.Add(info);

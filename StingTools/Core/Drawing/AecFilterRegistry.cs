@@ -40,6 +40,8 @@ namespace StingTools.Core.Drawing
         private static readonly object _nameIndexLock = new object();
         private static readonly Dictionary<string, Dictionary<string, AecFilterDefinition>> _byNameByDoc
             = new Dictionary<string, Dictionary<string, AecFilterDefinition>>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, int> _byNameBuiltFrom
+            = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         public static AecFilterDefinition GetByName(Document doc, string filterName)
         {
@@ -50,14 +52,30 @@ namespace StingTools.Core.Drawing
             {
                 // Rebuild when the library's filter count changes — the registry
                 // is reloadable, and a stale index would hide new filters.
-                if (!_byNameByDoc.TryGetValue(key, out var index) || index.Count != lib.Filters.Count)
+                // (The index holds two keys per filter, so the count it was built from
+                // is kept beside it rather than compared with index.Count.)
+                if (!_byNameByDoc.TryGetValue(key, out var index)
+                    || !_byNameBuiltFrom.TryGetValue(key, out var builtFrom) || builtFrom != lib.Filters.Count)
                 {
+                    _byNameBuiltFrom[key] = lib.Filters.Count;
                     index = new Dictionary<string, AecFilterDefinition>(StringComparer.OrdinalIgnoreCase);
+                    // DT-R11-C: keyed by the name as written AND by its Revit name
+                    // (RevitNameRules.Sanitize), so a pack or a model filter spelled
+                    // either way finds its definition. As-written names win a clash.
                     foreach (var f in lib.Filters)
                         if (!string.IsNullOrEmpty(f?.Name) && !index.ContainsKey(f.Name)) index[f.Name] = f;
+                    foreach (var f in lib.Filters)
+                    {
+                        if (string.IsNullOrEmpty(f?.Name)) continue;
+                        var revitName = RevitNameRules.Sanitize(f.Name.Trim());
+                        if (!string.IsNullOrEmpty(revitName) && !index.ContainsKey(revitName)) index[revitName] = f;
+                    }
                     _byNameByDoc[key] = index;
                 }
-                return index.TryGetValue(filterName, out var hit) ? hit : null;
+                if (index.TryGetValue(filterName, out var hit)) return hit;
+                var trimmed = filterName.Trim();
+                if (index.TryGetValue(trimmed, out hit)) return hit;
+                return index.TryGetValue(RevitNameRules.Sanitize(trimmed), out hit) ? hit : null;
             }
         }
 
@@ -80,6 +98,8 @@ namespace StingTools.Core.Drawing
                 var key = DocKey(doc);
                 if (_cache.ContainsKey(key)) _cache.Remove(key);
             }
+            // A renamed filter keeps the count the same, so the name index must go too.
+            lock (_nameIndexLock) { _byNameByDoc.Remove(DocKey(doc)); _byNameBuiltFrom.Remove(DocKey(doc)); }
         }
 
         public static AecFilterLibrary GetLibrary(Document doc)

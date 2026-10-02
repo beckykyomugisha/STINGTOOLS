@@ -166,13 +166,14 @@ namespace StingTools.Core.Drawing
                 if (!string.IsNullOrEmpty(dt.ViewTemplateName))
                 {
                     var tplName = TemplateName(doc, v.ViewTemplateId);
-                    if (!string.Equals(tplName, dt.ViewTemplateName, StringComparison.OrdinalIgnoreCase))
+                    // DT-R11-F: a managed name matches in either its canonical or legacy form.
+                    if (!ManagedTemplateNames.Matches(tplName, dt.ViewTemplateName))
                         report.Drifts.Add($"TEMPLATE: view '{tplName ?? "(none)"}' vs profile '{dt.ViewTemplateName}'");
                 }
 
                 // Phase 137 — managed-template drift detection. When the
                 // resolved pack is in managed mode, the view should carry
-                // the "STING:{packId}:{ViewType}" template and the stored
+                // the "STING MANAGED - {packId} - {ViewType}" template and the stored
                 // checksum on that template should match the pack's
                 // current checksum. If either is wrong, flag drift.
                 AppendManagedTemplateDrift(doc, v, dt, report);
@@ -357,7 +358,11 @@ namespace StingTools.Core.Drawing
                     foreach (var rule in pack.Filters)
                     {
                         if (string.IsNullOrWhiteSpace(rule.FilterName)) continue;
-                        filterIndex.Value.TryGetValue(rule.FilterName, out var filter);
+                        // DT-R11-C: the element carries the Revit name (RevitNameRules), the
+                        // pack the name as written — try both.
+                        ParameterFilterElement filter = null;
+                        foreach (var candidate in RevitNameRules.Candidates(rule.FilterName))
+                            if (filterIndex.Value.TryGetValue(candidate, out filter) && filter != null) break;
                         if (filter == null)
                         {
                             // Filter not in document yet — pack-side issue, not view-side drift.
@@ -522,7 +527,8 @@ namespace StingTools.Core.Drawing
                 if (v.ViewTemplateId != null && v.ViewTemplateId != ElementId.InvalidElementId)
                     current = doc.GetElement(v.ViewTemplateId) as View;
 
-                if (current == null || !string.Equals(current.Name, expectedName, StringComparison.Ordinal))
+                // DT-R11-F: a template still under the legacy "STING:…" name is the same template.
+                if (current == null || !ManagedTemplateNames.Matches(current.Name, expectedName))
                 {
                     report.Drifts.Add($"ManagedTemplate: view template '{current?.Name ?? "(none)"}' vs expected '{expectedName}'");
                     return;

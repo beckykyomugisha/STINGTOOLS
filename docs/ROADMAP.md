@@ -11,6 +11,7 @@ still open. Rows leave this table when their fix is merged; the worklog keeps th
 | Id | Gap | Evidence | Fix |
 |---|---|---|---|
 | DTW-82 | Nothing merged in the drawing loop has been run in Revit | `docs/WORKLOG_DRAWING_TYPES.md` NEEDS REVIT CHECK | Runnable: DOCS → DRAWING TYPES → **Self-Test** (automated, rolled back) plus `docs/DRAWING_REVIT_TEST_SCRIPT.md` (manual). Its INFO rows decide DTW-56 (Lines), DTW-166, DTW-164, DTW-170 and DTW-172 |
+| DTW-239 | Scope Box Planner names use '::' (STING-AREA::, STING-SEED::, STING::) and Revit may refuse ':' in element names | `Core/Drawing/ScopeBoxNames.cs` | Run Self-Test section k on a model with a scope box; if refused, move to a legal separator with legacy recognition (as DTW-237 did for managed templates) |
 
 ## Tag family library — missing families (2026-09-30)
 

@@ -91,18 +91,29 @@ namespace StingTools.Core.Drawing
             // "-PLN-COT01-GF-DR-A-1001", and nothing distinguishes a dropped leading
             // segment from a number the author meant to write.
             //
-            // Omitting them instead leaves the literal "{project}" in the string.
-            // Revit rejects braces in a sheet number outright, so the assignment
-            // throws and the sheet keeps its default number — visibly wrong, and
-            // impossible to issue by accident.
+            // Omitted, the token is visibly unresolved. DT-R11 changed what that
+            // looks like in a sheet NUMBER: the self-test found the literal braces
+            // reaching the number ("{project}-{originator}-01-00-DR-A-0001"), so
+            // SheetNumberEngine now prints the documented empty-value placeholder
+            // "XX" for any known token the dictionary lacks — "XX-XX-01-…", visible
+            // on the sheet and in the register, never a dropped segment. AuditPattern
+            // below still names the parameter to set. Title-block cells (applier)
+            // keep the literal.
             //
-            // NOT substituted with "XX" or any placeholder: a fabricated project code
-            // produces a sheet that looks correct and is not, which is worse than one
-            // that will not save. Same principle as G-5 (report null, never 0) and the
-            // path resolver refusing rather than defaulting to PRJ.
+            // No invented value: not the OrganisationDefaults "PLNS" seed, not the
+            // document title. A fabricated project code produces a sheet that looks
+            // correct and is not. Same principle as G-5 (report null, never 0).
+            //
+            // The project code has two real homes on Project Information — the ISO
+            // PRJ_PROJECT_COD_TXT and the template engine's PRJ_ORG_PROJECT_CODE_TXT
+            // (ParamRegistry.ORG_PROJECT_CODE, the one WARN_PRJ_CODE_MISSING and the
+            // project setup write). Read the first, fall back to the second, so a
+            // project that set its code once is not reported missing.
             foreach (var kv in TokenSourceParam)
             {
                 string v = ReadProjectInfo(doc, kv.Value);
+                if (string.IsNullOrWhiteSpace(v) && TokenFallbackParam.TryGetValue(kv.Key, out var fb))
+                    v = ReadProjectInfo(doc, fb);
                 if (!string.IsNullOrWhiteSpace(v)) d[kv.Key] = v;
             }
 
@@ -331,9 +342,10 @@ namespace StingTools.Core.Drawing
         //       .Discipline). The profile is a JSON file an author edits, so a blank
         //       there is visible and attributable. Safe.
         //   * seq, project, originator
-        //       have no such backstop, so they are OMITTED when unknown. The literal
-        //       survives, Revit rejects the braces, and the sheet number fails to
-        //       save. Loud. ({seq} by GAP-D, {project}/{originator} by K-13.)
+        //       have no such backstop, so they are OMITTED when unknown, never
+        //       blanked. ({seq} by GAP-D, {project}/{originator} by K-13.) In a
+        //       sheet number an omitted {project}/{originator} prints "XX" (DT-R11,
+        //       SheetNumberEngine) — visible, never a dropped segment, never braces.
         //   * purpose, phase, spool, mark
         //       are not ISO name segments — they feed title-block cells, where a
         //       blank is a blank cell, not a corrupted identifier. Safe to blank.
@@ -375,6 +387,14 @@ namespace StingTools.Core.Drawing
             {
                 { "project",    "PRJ_PROJECT_COD_TXT" },
                 { "originator", "PRJ_ORG_ORIGINATOR_CODE_TXT" },
+            };
+
+        /// <summary>DT-R11: the second real home of a parameter-backed token, read
+        /// when the first is empty. Never a default value — a parameter.</summary>
+        private static readonly Dictionary<string, string> TokenFallbackParam =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "project", ParamRegistry.ORG_PROJECT_CODE },
             };
 
         private static readonly System.Text.RegularExpressions.Regex _tokenRx =
@@ -441,23 +461,38 @@ namespace StingTools.Core.Drawing
                 // explains the rejection Revit is about to produce rather than just
                 // reporting it.
                 var sourcedMissing = new List<string>();
+                var placeholder = new List<string>();
+                var literal = new List<string>();
                 foreach (var m in missing)
                 {
-                    var bare = m.Trim('{', '}').Split(':')[0];
+                    var bare = SheetNumberTokens.CanonicalName(m.Trim('{', '}').Split(':')[0]);
                     if (TokenSourceParam.TryGetValue(bare, out var src))
-                        sourcedMissing.Add($"{m} <- {src} on Project Information is empty or unbound");
+                        sourcedMissing.Add($"{m} <- {src}"
+                            + (TokenFallbackParam.TryGetValue(bare, out var fb) ? " (or " + fb + ")" : "")
+                            + " on Project Information is empty or unbound");
+                    // DT-R11: a known dictionary token prints "XX" in a sheet number
+                    // (SheetNumberEngine); anything else stays literal.
+                    bool known = false;
+                    foreach (var k in SheetNumberTokens.DictionaryTokens)
+                        if (string.Equals(k, bare, StringComparison.OrdinalIgnoreCase)) { known = true; break; }
+                    (known ? placeholder : literal).Add(m);
                 }
 
+                var what = new List<string>();
+                if (placeholder.Count > 0)
+                    what.Add($"{string.Join(", ", placeholder)} print the placeholder \"XX\" in a sheet number "
+                           + "(a literal in a title-block cell)");
+                if (literal.Count > 0)
+                    what.Add($"{string.Join(", ", literal)} remain literal — Revit rejects braces in a sheet "
+                           + "number, so the value will not be written unless a later stage fills them");
+
                 warnings.Add(
-                    $"{label} pattern '{pattern}': token(s) {string.Join(", ", missing)} were not supplied and "
-                  + "remain literal. Revit rejects braces in a sheet number, so the value will not be written "
-                  + "unless a later stage fills them."
+                    $"{label} pattern '{pattern}': token(s) {string.Join(", ", missing)} were not supplied: "
+                  + string.Join("; ", what) + "."
                   + (sourcedMissing.Count > 0
                         ? " " + string.Join("; ", sourcedMissing)
-                          + ". This is deliberate: the token is omitted rather than blanked so the sheet "
-                          + "number fails to save instead of silently losing a segment. Set the parameter "
-                          + "in Manage > Project Information; if it is not listed there it is not bound, "
-                          + "so run Load Shared Parameters and re-open."
+                          + ". Set the parameter in Manage > Project Information; if it is not listed there "
+                          + "it is not bound, so run Load Shared Parameters and re-open."
                         : string.Empty));
             }
             return warnings;

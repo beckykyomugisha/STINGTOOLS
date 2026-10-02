@@ -568,7 +568,21 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        /// <summary>DT-R11-C: a pack names a filter as the data writes it ("STING - Struct:
+        /// Concrete"); the element carries the Revit-legal name the factory gave it
+        /// (<see cref="StingTools.Core.Drawing.RevitNameRules"/>). Look for that first, then
+        /// the name as written.</summary>
         internal static ElementId ResolveFilterIdCached(Document doc, string name)
+        {
+            foreach (var candidate in StingTools.Core.Drawing.RevitNameRules.Candidates(name))
+            {
+                var id = ResolveFilterIdExact(doc, candidate);
+                if (id != ElementId.InvalidElementId) return id;
+            }
+            return ElementId.InvalidElementId;
+        }
+
+        private static ElementId ResolveFilterIdExact(Document doc, string name)
             => LookupCached(_filterIdByDoc, doc, name, d =>
             {
                 var m = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
