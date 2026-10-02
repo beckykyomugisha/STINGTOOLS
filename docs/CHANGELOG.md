@@ -26738,3 +26738,29 @@ Every open data-schema item that needs only code, on eight parallel branches. De
 
 Not run in Revit: ten checks under *NEEDS REVIT CHECK (code-only batch)*. Open: ROADMAP DSCH-34,
 37, 41, 43..47.
+
+#### Completed (Open DSCH items 34..47 implemented — branch `claude/data-schema-drift-validators-a30f10`, 2026-10-02)
+
+Every remaining data-schema item, worked by specialist agents on seventeen parallel branches.
+Detail: `docs/WORKLOG_DATA_SCHEMAS.md`, section *Open items implemented: DSCH-34..47*.
+
+- **Electrical standards data corrected against NFPA's own text**: NEC 240.6(A) (10 A, fuse extras),
+  seven Table 310.16 cells, the 310.15(B)(1)(1) ambient correction and 250.66. Copper-clad aluminium
+  is supported for NEC and refused by name for BS 7671; every conductor material goes through one
+  reader, so "ALUMINIUM" is no longer sized as copper.
+- **Silent failures fixed**: every Material Hub button (dead since May), the Sustainability gate's
+  empty input, the spare-ways and pipe-gradient warnings (dead since April), water savings credited
+  to unmodelled fixtures, a BOQ server push that failed on Postgres, Bonsai inventing MEP inputs.
+- **Cost**: NOT MEASURED categories from data; Nil / Included in the row menu; PC sums filed as PC
+  sums and synced; star rates price variations.
+- **Water and healthcare**: TMV3 and SHTM limits confirmed from NHS D 08 / SHTM 04-01; paediatric
+  baths checked in Scotland; Wales recorded as adopting HTM 04-01; TMV test results importable.
+- **Climate**: ASHRAE design wind for all 42 sites, with station and edition.
+- **IFC**: the 65 unconfirmed map rows resolved against buildingSMART (45 moved to STING property
+  sets); ArchiCAD import reads IFC4 then IFC2X3 names in order; all 13 IDS valid IDS 1.0 in CI.
+- **Parameters**: warning direction and deprecation are fields; MR_PARAMETERS.txt owns descriptions,
+  gated; 762 placeholder descriptions written; one install-hours parameter.
+- **Dead code**: wide ratchet 60 to 0; two new ratchets (instance methods 33, fields 139); ~315 unread
+  GUID constants removed; data-schema gate now also requires exact case for hand-declared keys.
+
+Not run in Revit: twelve checks under *NEEDS REVIT CHECK (open-items batch)*. Open: ROADMAP DSCH-48..53.

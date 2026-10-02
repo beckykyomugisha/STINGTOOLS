@@ -502,3 +502,64 @@ Binding simulator after the merge: 3,684 declared / 3,525 bound / 159 skipped / 
 9. Batch Tag no longer overwrites a locked token; the COBie type push and Attribute sheet carry
    the newly mapped fields.
 10. Server IFC ingest: `Status = NOTKNOWN` logs an unmapped-value warning.
+
+## Open items implemented: DSCH-34..47 (2026-10-02)
+
+At the owner's request ("fix/implement all the open items") the remaining items were worked by
+specialist agents on seventeen branches, each in its own worktree, merged here in turn. Values that
+were waiting on sign-off were taken as far as primary or official sources allow: a `verify` note was
+removed only on primary confirmation, and what is left is DSCH-48.
+
+### Defects found and fixed along the way (each was silent)
+
+- **NEC Table 240.6(A) lacked 10 A** and the fuse-only extras were wrong (1, 3, 6, 601 A per the
+  2023 text); 10 A is proposed only for lighting branch circuits (210.23(A)).
+- **Seven cells of NEC Table 310.16 were wrong**, the **310.15(B)(1)(1) ambient correction was not
+  the NEC table** (46-50 C at 75 C gave 0.71-0.67 instead of 0.75; above 50 C flattened to 0.67) and
+  **250.66 was wrong from 300 kcmil**. All checked against NFPA's own committee-report base text.
+- **Cable sync sized "ALUMINIUM" as copper**; every conductor material now goes through one reader
+  and an unrecorded material says "copper assumed" instead of being silent.
+- **Every Material Hub action button had done nothing since 2026-05-23** (handler cases lost in a
+  merge); restored, with a test that fails on any Hub button without a case.
+- **The Sustainability gate reported "All clear" against zero materials** (it read a cache only the
+  removed MAT tab filled).
+- **The water estimate credited savings on fixture kinds nobody modelled** (unrated kinds took a
+  built-in low-flow figure instead of the baseline).
+- **The spare-ways and pipe-gradient warnings had not run since April** (a lost `return`).
+- **A BOQ push of new lines failed with a 500 on Postgres** (no classification code was sent); the
+  plugin now sends the NRM2 section and the server resolves it or refuses with a 400.
+- **Bonsai's MEP operators invented inputs** (0.5 L/s, 25 mm conduit...); they now refuse.
+- **Three IDS files were not valid IDS 1.0**; all 13 now validate in CI.
+
+### Decisions
+
+- DSCH-34: categories that are never bill items are declared NOT MEASURED in the benchmark file
+  (the file drives the exclusion; the hard-coded list is gone); Site stays unpriced as a tender query.
+- DSCH-37: the onebuilding.org redistribution of the ASHRAE design conditions is the source; it is a
+  redistribution, so each site keeps a verify note naming its station and edition.
+- DSCH-38: properties buildingSMART does not define live in STING-owned property sets (the Pset_
+  prefix is reserved, IfcPropertySet, IFC 4.3).
+- DSCH-46: Material Hub entry points were restored, not deleted, once the lost dispatch was found.
+- DSCH-47: MR_PARAMETERS.txt owns every description; printed warning text is a separate field.
+- ifctester was not installed: downloading a package needs the owner's approval (DSCH-51).
+
+### NEEDS REVIT CHECK (open-items batch)
+
+1. NEC Circuit Wizard: a lighting group gets 10 A, a receptacle group 15 A; with the Electrical panel
+   closed, Create says the proposals were sized as copper.
+2. NEC Cable Sizer: CCA gives a 12 / 10 AWG size and "VD not calculated"; BS 7671 refuses CCA by name;
+   72 C ambient is refused citing 310.15(B)(1)(1).
+3. Voltage Drop on a circuit with no recorded material: ELC_CKT_VD_BASIS_TXT ends "copper assumed".
+4. Every Material Hub button runs (Apply, Detach, Repoint, Import CSV, Load Pack, What-If, Sync COBie,
+   the three new buttons); the Sustainability gate reports findings on a model with materials.
+5. BOQ refresh: NOT MEASURED categories absent and counted; Site at risk; row menu Nil / Included /
+   Clear; Fohlio pcSum lines appear as PC sums; "Apply Star Rate to VO" prices a Draft variation.
+6. Server: a BOQ push to a tenant with and without NRM2 codes (200 vs Pending with the missing codes).
+7. Sustainability water estimate on a partly rated model: the saving falls and the note lists the
+   kinds left on the baseline.
+8. TMV: PLM_TMV_PAEDIATRIC_BOOL binds; SHTM paediatric bath at 42 C fails; Import TMV Tests writes a
+   register CSV back.
+9. Retag boards and drainage pipes: WARN_ELC_PNL_SPARE_WAYS and WARN_PLM_PIPE_GRADIENT fire again.
+10. ArchiCAD import: the log names which ordered source filled each parameter.
+11. Block Load: the design-wind assumption line shows the station and "unconfirmed".
+12. 4D Auto-Schedule with a dated DD4; BCC deliverable rows show WORKING / REF badges.
