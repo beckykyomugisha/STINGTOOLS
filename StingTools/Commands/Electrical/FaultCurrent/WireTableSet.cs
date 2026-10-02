@@ -17,12 +17,17 @@ namespace StingTools.Commands.Electrical.FaultCurrent
     /// Conductor resistance table from STING_WIRE_TABLES.json → copperTables[0]
     /// (mohm_per_m = BS EN 60228 class 2 copper at 20 °C). Held by
     /// FaultCurrentEngine / FeederSizerEngine / BS7671ComplianceEngine.
-    /// Aluminium = copper × 1.61 if no Al table is shipped.
+    /// Aluminium = copper × aluminiumFactor (data; 1.61 fallback) if no Al table is shipped.
     /// </summary>
     public partial class WireTableSet
     {
         private readonly List<(double csaMm2, double mohmPerM)> _copper = new();
-        private const double AluminiumFactor = 1.61;
+        /// <summary>Fallback when STING_WIRE_TABLES.json carries no positive aluminiumFactor.</summary>
+        public const double DefaultAluminiumFactor = 1.61;
+        private double _aluminiumFactor = DefaultAluminiumFactor;
+
+        /// <summary>Al/Cu resistance ratio in use (data <c>aluminiumFactor</c>, else 1.61).</summary>
+        public double AluminiumFactor => _aluminiumFactor;
 
         /// <summary>Number of tabulated sizes (0 = nothing loaded).</summary>
         public int Count => _copper.Count;
@@ -31,6 +36,12 @@ namespace StingTools.Commands.Electrical.FaultCurrent
         public static WireTableSet FromJson(JObject root)
         {
             var ws = new WireTableSet();
+            var alTok = root?["aluminiumFactor"];
+            if (alTok != null && (alTok.Type == JTokenType.Float || alTok.Type == JTokenType.Integer))
+            {
+                double alF = alTok.Value<double>();
+                if (alF > 0) ws._aluminiumFactor = alF;
+            }
             var table = (root?["copperTables"] as JArray)?.OfType<JObject>().FirstOrDefault();
             if (table == null) return ws;
             foreach (var sz in table["sizes"] as JArray ?? new JArray())
@@ -50,6 +61,10 @@ namespace StingTools.Commands.Electrical.FaultCurrent
         public double GetMohmPerMetre(double csaMm2, string material)
         {
             if (csaMm2 <= 0 || _copper.Count == 0) return 0;
+            // No copper-clad aluminium resistance is shipped, and text that is not Cu / Al /
+            // CCA is not copper: 0 (no data) for both, never copper's figure. Blank is copper.
+            if (!StingTools.Standards.NEC2023.ConductorMaterialText.TryParse(material, out var cm)
+                || cm == StingTools.Standards.NEC2023.ConductorMaterial.CopperCladAluminum) return 0;
             double r;
             if (csaMm2 <= _copper[0].csaMm2) r = _copper[0].mohmPerM;
             else if (csaMm2 >= _copper[^1].csaMm2) r = _copper[^1].mohmPerM;
@@ -61,7 +76,7 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                 double t = (csaMm2 - lo.csaMm2) / (hi.csaMm2 - lo.csaMm2);
                 r = lo.mohmPerM + t * (hi.mohmPerM - lo.mohmPerM);
             }
-            return string.Equals(material, "Al", StringComparison.OrdinalIgnoreCase) ? r * AluminiumFactor : r;
+            return StingTools.Standards.NEC2023.ConductorMaterialText.IsAluminium(material) ? r * _aluminiumFactor : r;
         }
     }
 
@@ -85,7 +100,7 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             double tempC = !string.IsNullOrEmpty(insulation)
                 ? StingTools.Commands.Electrical.VoltageDrop.VoltageDropEngine.OperatingTempForInsulation(insulation)
                 : operatingTempC;
-            double alpha = string.Equals(material, "Al", StringComparison.OrdinalIgnoreCase) ? AlphaAl : AlphaCu;
+            double alpha = StingTools.Standards.NEC2023.ConductorMaterialText.IsAluminium(material) ? AlphaAl : AlphaCu;
             return r * (1.0 + alpha * (tempC - 20.0)) * lengthM;
         }
 

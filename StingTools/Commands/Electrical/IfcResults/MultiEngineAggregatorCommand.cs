@@ -134,6 +134,6 @@ namespace StingTools.Commands.Electrical.IfcResults
             foreach (var x in xs) if (x > 0 && x < m) m = x;
             return m == double.MaxValue ? 0 : m;
         }
-        private static double ParseDouble(string s) => double.TryParse(s, out double v) ? v : 0;
+        private static double ParseDouble(string s) => StingTools.Core.NumberText.ParseOr(s);
     }
 }

@@ -723,35 +723,56 @@ namespace StingTools.Temp
 
         // Static cache for MR_SCHEDULES.csv to avoid redundant file reads.
         // All 5 Load*FromCsv() methods share this single cached read.
-        private static string[] _cachedSchedulesCsvLines;
+        private static CsvTable _cachedSchedulesCsv;
         private static string _cachedSchedulesCsvPath;
         private static DateTime _cachedSchedulesCsvTimestamp;
 
         /// <summary>
-        /// Returns cached lines from MR_SCHEDULES.csv, re-reading only if the file has changed.
+        /// Returns the cached MR_SCHEDULES.csv table, re-reading only if the file has changed.
         /// </summary>
-        private static string[] GetSchedulesCsvLines()
+        private static CsvTable GetSchedulesCsv()
         {
             string csvPath = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
             if (string.IsNullOrEmpty(csvPath)) return null;
             try
             {
                 var lastWrite = File.GetLastWriteTimeUtc(csvPath);
-                if (_cachedSchedulesCsvLines != null &&
+                if (_cachedSchedulesCsv != null &&
                     _cachedSchedulesCsvPath == csvPath &&
                     _cachedSchedulesCsvTimestamp == lastWrite)
-                    return _cachedSchedulesCsvLines;
+                    return _cachedSchedulesCsv;
 
-                _cachedSchedulesCsvLines = File.ReadAllLines(csvPath);
+                _cachedSchedulesCsv = CsvTable.Parse(File.ReadAllLines(csvPath), StingToolsApp.ParseCsvLine);
                 _cachedSchedulesCsvPath = csvPath;
                 _cachedSchedulesCsvTimestamp = lastWrite;
-                return _cachedSchedulesCsvLines;
+                return _cachedSchedulesCsv;
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"GetSchedulesCsvLines: {ex.Message}");
+                StingLog.Warn($"GetSchedulesCsv: {ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>
+        /// DSCH-2: the MR_SCHEDULES.csv rows of one Record_Type, read by column name.
+        /// Rows too short to reach every <paramref name="needed"/> column are skipped,
+        /// as the positional readers did. Null — after a warning naming the missing
+        /// columns — when the file is absent or its header lacks one.
+        /// </summary>
+        private static List<CsvRow> SchedulesCsvRecords(string recordType, string caller, params string[] needed)
+        {
+            var t = GetSchedulesCsv();
+            if (t == null) return null;
+            var cols = new List<string>(needed) { "Record_Type" };
+            var missing = t.Missing(cols.ToArray());
+            if (missing.Count > 0)
+            {
+                StingLog.Warn($"{caller}: MR_SCHEDULES.csv header lacks column(s) {string.Join(", ", missing)}");
+                return null;
+            }
+            int minFields = cols.Max(c => t.Col(c)) + 1;
+            return t.Rows.Where(r => r.Count >= minFields && r["Record_Type"] == recordType).ToList();
         }
 
         /// <summary>
@@ -763,19 +784,14 @@ namespace StingTools.Temp
             LoadLineStylesFromCsv()
         {
             var results = new List<(string, byte, byte, byte, int, string)>();
-            string[] allLines = GetSchedulesCsvLines();
-            if (allLines == null) return results;
+            var rows = SchedulesCsvRecords("LINE_STYLE", "LoadLineStylesFromCsv", "Schedule_Name", "Fields");
+            if (rows == null) return results;
             try
             {
-                foreach (string line in allLines)
+                foreach (var row in rows)
                 {
-                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-                    string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 8) continue;
-                    if (cols[0].Trim() != "LINE_STYLE") continue;
-
-                    string name = "STING - " + cols[3].Trim();
-                    string fields = cols[7].Trim();
+                    string name = "STING - " + row["Schedule_Name"];
+                    string fields = row["Fields"];
 
                     // Parse encoded fields: "Weight=n, RGB(r,g,b), Pattern=..."
                     int weight = 2;
@@ -821,19 +837,14 @@ namespace StingTools.Temp
             LoadObjectStylesFromCsv()
         {
             var results = new List<(BuiltInCategory, int, int, byte, byte, byte)>();
-            string[] allLines = GetSchedulesCsvLines();
-            if (allLines == null) return results;
+            var rows = SchedulesCsvRecords("OBJECT_STYLE", "LoadObjectStylesFromCsv", "Category", "Fields");
+            if (rows == null) return results;
             try
             {
-                foreach (string line in allLines)
+                foreach (var row in rows)
                 {
-                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-                    string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 8) continue;
-                    if (cols[0].Trim() != "OBJECT_STYLE") continue;
-
-                    string catName = cols[4].Trim();
-                    string fields = cols[7].Trim();
+                    string catName = row["Category"];
+                    string fields = row["Fields"];
 
                     if (!CategoryNameToEnum.TryGetValue(catName, out BuiltInCategory bic))
                         continue;
@@ -874,21 +885,17 @@ namespace StingTools.Temp
             LoadViewTemplatesFromCsv()
         {
             var results = new List<(string, string, string, string, string)>();
-            string[] allLines = GetSchedulesCsvLines();
-            if (allLines == null) return results;
+            var rows = SchedulesCsvRecords("VIEW_TEMPLATE", "LoadViewTemplatesFromCsv",
+                "Source_File", "Discipline", "Fields", "Filters");
+            if (rows == null) return results;
             try
             {
-                foreach (string line in allLines)
+                foreach (var row in rows)
                 {
-                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-                    string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 9) continue;
-                    if (cols[0].Trim() != "VIEW_TEMPLATE") continue;
-
-                    string name = cols[1].Trim();       // Source_File = template name
-                    string discipline = cols[2].Trim();  // Discipline
-                    string fields = cols[7].Trim();      // Fields = encoded settings
-                    string filters = cols[8].Trim();     // Filters = VG scheme name
+                    string name = row["Source_File"];        // Source_File = template name
+                    string discipline = row["Discipline"];   // Discipline
+                    string fields = row["Fields"];           // Fields = encoded settings
+                    string filters = row["Filters"];         // Filters = VG scheme name
 
                     // Parse detail level and scale from Fields
                     string detailLevel = "Medium";
@@ -920,23 +927,19 @@ namespace StingTools.Temp
             LoadViewFiltersFromCsv()
         {
             var results = new List<(string, string, string, string)>();
-            string[] allLines = GetSchedulesCsvLines();
-            if (allLines == null) return results;
+            var rows = SchedulesCsvRecords("VIEW_FILTER", "LoadViewFiltersFromCsv",
+                "Schedule_Name", "Discipline", "Multi_Categories");
+            if (rows == null) return results;
             try
             {
-                foreach (string line in allLines)
+                foreach (var row in rows)
                 {
-                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-                    string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 7) continue;
-                    if (cols[0].Trim() != "VIEW_FILTER") continue;
-
-                    string name = cols[3].Trim();        // Schedule_Name = filter name
-                    string discipline = cols[2].Trim();   // Discipline
-                    string categories = cols[6].Trim();   // Multi_Categories
-                    // Column 8 holds the rule; a short row has none, which the
+                    string name = row["Schedule_Name"];           // Schedule_Name = filter name
+                    string discipline = row["Discipline"];        // Discipline
+                    string categories = row["Multi_Categories"];  // Multi_Categories
+                    // Filters holds the rule; a short row has none, which the
                     // caller refuses rather than reading as "no rule".
-                    string ruleText = cols.Length > 8 ? cols[8].Trim() : "";
+                    string ruleText = row["Filters"];
 
                     results.Add((name, discipline, categories, ruleText));
                 }
@@ -953,20 +956,15 @@ namespace StingTools.Temp
             LoadVGSchemesFromCsv()
         {
             var results = new List<(string, string, string)>();
-            string[] allLines = GetSchedulesCsvLines();
-            if (allLines == null) return results;
+            var rows = SchedulesCsvRecords("VG_SCHEME", "LoadVGSchemesFromCsv", "Source_File", "Category", "Fields");
+            if (rows == null) return results;
             try
             {
-                foreach (string line in allLines)
+                foreach (var row in rows)
                 {
-                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-                    string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 8) continue;
-                    if (cols[0].Trim() != "VG_SCHEME") continue;
-
-                    string schemeName = cols[1].Trim();  // Source_File = scheme name
-                    string category = cols[4].Trim();    // Category
-                    string fields = cols[7].Trim();      // Fields = VG settings
+                    string schemeName = row["Source_File"];  // Source_File = scheme name
+                    string category = row["Category"];       // Category
+                    string fields = row["Fields"];           // Fields = VG settings
 
                     results.Add((schemeName, category, fields));
                 }
@@ -1146,19 +1144,26 @@ namespace StingTools.Temp
 
             try
             {
-                bool headerSkipped = false;
-                foreach (string line in File.ReadAllLines(csvPath))
+                // DSCH-2: by column name, not position.
+                var table = CsvTable.Parse(File.ReadAllLines(csvPath), StingToolsApp.ParseCsvLine);
+                string[] required = { "ParameterGroup", "ParameterName", "GUID", "DataType",
+                    "BindingType", "Description", "RevitCategory", "Maps_To_Shared_Param_GUID" };
+                var missingCols = table.Missing(required);
+                if (missingCols.Count > 0)
                 {
-                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-                    if (!headerSkipped) { headerSkipped = true; continue; }
+                    StingLog.Warn($"FAMILY_PARAMETER_BINDINGS.csv: header lacks column(s) {string.Join(", ", missingCols)} — no bindings loaded ({csvPath})");
+                    return entries;
+                }
+                int minFields = required.Max(c => table.Col(c)) + 1;
 
-                    string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 8) continue;
+                foreach (var row in table.Rows)
+                {
+                    if (row.Count < minFields) continue;
 
                     entries.Add((
-                        cols[0].Trim(), cols[1].Trim(), cols[2].Trim(),
-                        cols[3].Trim(), cols[4].Trim(), cols[5].Trim(),
-                        cols[6].Trim(), cols[7].Trim()));
+                        row["ParameterGroup"], row["ParameterName"], row["GUID"],
+                        row["DataType"], row["BindingType"], row["Description"],
+                        row["RevitCategory"], row["Maps_To_Shared_Param_GUID"]));
                 }
             }
             catch (Exception ex)
@@ -1167,46 +1172,6 @@ namespace StingTools.Temp
             }
 
             return entries;
-        }
-
-        /// <summary>
-        /// Loads CATEGORY_BINDINGS.csv and returns parameter→category mappings.
-        /// </summary>
-        public static Dictionary<string, List<(string category, string bindingType, bool isShared)>>
-            LoadCategoryBindings()
-        {
-            var map = new Dictionary<string, List<(string, string, bool)>>(
-                StringComparer.OrdinalIgnoreCase);
-            string csvPath = StingToolsApp.FindDataFile("CATEGORY_BINDINGS.csv");
-            if (string.IsNullOrEmpty(csvPath)) return map;
-
-            try
-            {
-                bool headerSkipped = false;
-                foreach (string line in File.ReadAllLines(csvPath))
-                {
-                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-                    if (!headerSkipped) { headerSkipped = true; continue; }
-
-                    string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 4) continue;
-
-                    string paramName = cols[0].Trim();
-                    string category = cols[1].Trim();
-                    string bindingType = cols[2].Trim();
-                    bool isShared = cols[3].Trim().Equals("True", StringComparison.OrdinalIgnoreCase);
-
-                    if (!map.ContainsKey(paramName))
-                        map[paramName] = new List<(string, string, bool)>();
-                    map[paramName].Add((category, bindingType, isShared));
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("Failed to load CATEGORY_BINDINGS.csv", ex);
-            }
-
-            return map;
         }
 
         /// <summary>
@@ -3071,18 +3036,21 @@ namespace StingTools.Temp
             {
                 try
                 {
-                    bool headerSkipped = false;
-                    foreach (string line in File.ReadAllLines(formulaCsvPath))
-                    {
-                        if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-                        if (!headerSkipped) { headerSkipped = true; continue; }
-                        string[] cols = StingToolsApp.ParseCsvLine(line);
-                        if (cols.Length < 4) continue;
-                        string paramName = cols[1].Trim();
-                        string formula = cols[3].Trim();
-                        if (!string.IsNullOrEmpty(paramName) && !string.IsNullOrEmpty(formula))
-                            formulasByParam[paramName] = formula;
-                    }
+                    // DSCH-2: by column name. 4-field family-formula-only rows
+                    // (Discipline, Parameter_Name, Data_Type, Revit_Formula) are used here.
+                    var table = CsvTable.Parse(File.ReadAllLines(formulaCsvPath), StingToolsApp.ParseCsvLine);
+                    var missingCols = table.Missing("Parameter_Name", "Revit_Formula");
+                    if (missingCols.Count > 0)
+                        StingLog.Warn($"FORMULAS_WITH_DEPENDENCIES.csv: header lacks column(s) {string.Join(", ", missingCols)} — no formulas loaded ({formulaCsvPath})");
+                    else
+                        foreach (var row in table.Rows)
+                        {
+                            if (row.Count <= Math.Max(table.Col("Parameter_Name"), table.Col("Revit_Formula"))) continue;
+                            string paramName = row["Parameter_Name"];
+                            string formula = row["Revit_Formula"];
+                            if (!string.IsNullOrEmpty(paramName) && !string.IsNullOrEmpty(formula))
+                                formulasByParam[paramName] = formula;
+                        }
                 }
                 catch (Exception ex)
                 {
@@ -3809,36 +3777,35 @@ namespace StingTools.Temp
             // Load field remaps for 4-tier field resolution
             var fieldRemaps = ScheduleHelper.LoadFieldRemaps();
 
-            // Parse TPL entries from MR_SCHEDULES.csv using correct 16-column layout:
-            // 0=Record_Type, 1=Source_File, 2=Discipline, 3=Schedule_Name,
-            // 4=Category, 5=Schedule_Type, 6=Multi_Categories, 7=Fields,
-            // 8=Filters, 9=Sorting, 10=Grouping, 11=Totals, 12=Formulas,
-            // 13=Header_Color, 14=Text_Color, 15=Background_Color
+            // Parse TPL entries from MR_SCHEDULES.csv by column name (DSCH-2)
             var tplEntries = new List<(string name, string category, string scheduleType,
                 string multiCats, string fields, string filters, string sorting,
                 string grouping, string totals, string formulas)>();
             try
             {
-                foreach (string line in File.ReadAllLines(csvPath))
+                var table = CsvTable.Parse(File.ReadAllLines(csvPath), StingToolsApp.ParseCsvLine);
+                var missingCols = table.Missing("Source_File", "Schedule_Name", "Fields");
+                if (missingCols.Count > 0)
+                    StingLog.Warn($"MR_SCHEDULES.csv: header lacks column(s) {string.Join(", ", missingCols)} — no TPL entries read ({csvPath})");
+                int minFields = missingCols.Count > 0 ? int.MaxValue : table.Col("Fields") + 1;
+                foreach (var row in table.Rows)
                 {
-                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-                    string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 8) continue;
+                    if (row.Count < minFields) continue;
 
-                    // col[1] = Source_File — filter for TPL_Schedule_Metadata entries
-                    if (!string.Equals(cols[1].Trim(), "TPL_Schedule_Metadata",
+                    // Source_File — filter for TPL_Schedule_Metadata entries
+                    if (!string.Equals(row["Source_File"], "TPL_Schedule_Metadata",
                         StringComparison.OrdinalIgnoreCase)) continue;
 
-                    string name = cols.Length > 3 ? cols[3].Trim() : "";
-                    string category = cols.Length > 4 ? cols[4].Trim() : "";
-                    string scheduleType = cols.Length > 5 ? cols[5].Trim() : "";
-                    string multiCats = cols.Length > 6 ? cols[6].Trim() : "";
-                    string fields = cols.Length > 7 ? cols[7].Trim() : "";
-                    string filters = cols.Length > 8 ? cols[8].Trim() : "";
-                    string sorting = cols.Length > 9 ? cols[9].Trim() : "";
-                    string grouping = cols.Length > 10 ? cols[10].Trim() : "";
-                    string totals = cols.Length > 11 ? cols[11].Trim() : "";
-                    string formulas = cols.Length > 12 ? cols[12].Trim() : "";
+                    string name = row["Schedule_Name"];
+                    string category = row["Category"];
+                    string scheduleType = row["Schedule_Type"];
+                    string multiCats = row["Multi_Categories"];
+                    string fields = row["Fields"];
+                    string filters = row["Filters"];
+                    string sorting = row["Sorting"];
+                    string grouping = row["Grouping"];
+                    string totals = row["Totals"];
+                    string formulas = row["Formulas"];
 
                     if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(fields))
                         tplEntries.Add((name, category, scheduleType, multiCats,
@@ -4017,15 +3984,21 @@ namespace StingTools.Temp
                                             int paramsWritten = 0;
                                             foreach (var mapping in paramMap)
                                             {
-                                                int csvCol = mapping.Key;
+                                                string csvColName = mapping.Key;
+                                                int csvCol = TPLMetadataLoader.Col(csvColName);
                                                 string stingParam = mapping.Value;
 
-                                                if (csvCol >= row.Length)
+                                                if (csvCol < 0)
                                                 {
-                                                    StingLog.Warn($"TPL metadata: column {csvCol} ({stingParam}) exceeds row length {row.Length}");
+                                                    StingLog.Warn($"TPL metadata: TPL_SCHEDULE_METADATA.csv header lacks column {csvColName} ({stingParam})");
                                                     continue;
                                                 }
-                                                string val = row[csvCol]?.Trim() ?? "";
+                                                if (csvCol >= row.Count)
+                                                {
+                                                    StingLog.Warn($"TPL metadata: column {csvColName} ({stingParam}) exceeds row length {row.Count}");
+                                                    continue;
+                                                }
+                                                string val = row[csvColName];
                                                 if (string.IsNullOrEmpty(val)) continue;
 
                                                 ParameterHelpers.SetString(fi, stingParam, val, true);
@@ -4833,46 +4806,56 @@ namespace StingTools.Temp
 
     // ═══════════════════════════════════════════════════════════════════════
     //  TPLMetadataLoader — loads TPL_SCHEDULE_METADATA.csv and maps
-    //  CSV column indices to STING shared parameter names per Source_Table
+    //  CSV columns (by header name) to STING shared parameter names per Source_Table
     // ═══════════════════════════════════════════════════════════════════════
 
     internal static class TPLMetadataLoader
     {
         // Cache to avoid re-reading the CSV on every call
         private static string _cachedPath;
-        private static Dictionary<string, List<string[]>> _cachedGroups;
+        private static Dictionary<string, List<CsvRow>> _cachedGroups;
+        private static CsvTable _cachedTable;
 
-        /// <summary>Parse TPL_SCHEDULE_METADATA.csv and group rows by Source_Table (col 1).
-        /// Results are cached per file path to avoid redundant I/O.</summary>
-        public static Dictionary<string, List<string[]>> LoadGrouped(string path)
+        /// <summary>Parse TPL_SCHEDULE_METADATA.csv and group rows by Source_Table.
+        /// Columns are read by header name (DSCH-2). Results are cached per file path
+        /// to avoid redundant I/O.</summary>
+        public static Dictionary<string, List<CsvRow>> LoadGrouped(string path)
         {
             if (_cachedGroups != null && string.Equals(_cachedPath, path, StringComparison.OrdinalIgnoreCase))
                 return _cachedGroups;
 
-            var groups = new Dictionary<string, List<string[]>>(StringComparer.OrdinalIgnoreCase);
-            var lines = System.IO.File.ReadAllLines(path);
-            if (lines.Length < 2) return groups;
-
-            for (int i = 1; i < lines.Length; i++)
+            var groups = new Dictionary<string, List<CsvRow>>(StringComparer.OrdinalIgnoreCase);
+            var table = CsvTable.Parse(System.IO.File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+            var missing = table.Missing("Source_Table", "Name");
+            if (missing.Count > 0)
             {
-                string line = lines[i];
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                string[] cols = StingToolsApp.ParseCsvLine(line);
-                if (cols.Length < 6) continue;
-                string sourceTable = (cols[1] ?? "").Trim();
+                StingLog.Warn($"TPL_SCHEDULE_METADATA.csv: header lacks column(s) {string.Join(", ", missing)} — no rows loaded ({path})");
+                return groups;
+            }
+            // A row must reach Name, as before.
+            int minFields = Math.Max(table.Col("Source_Table"), table.Col("Name")) + 1;
+
+            foreach (var row in table.Rows)
+            {
+                if (row.Count < minFields) continue;
+                string sourceTable = row["Source_Table"];
                 if (string.IsNullOrEmpty(sourceTable)) continue;
                 if (!groups.ContainsKey(sourceTable))
-                    groups[sourceTable] = new List<string[]>();
-                groups[sourceTable].Add(cols);
+                    groups[sourceTable] = new List<CsvRow>();
+                groups[sourceTable].Add(row);
             }
 
             _cachedPath = path;
             _cachedGroups = groups;
+            _cachedTable = table;
             return groups;
         }
 
+        /// <summary>Column index of <paramref name="name"/> in the last loaded file, -1 when absent.</summary>
+        public static int Col(string name) => _cachedTable?.Col(name) ?? -1;
+
         /// <summary>Invalidate the LoadGrouped cache (call after CSV edits).</summary>
-        public static void InvalidateCache() { _cachedPath = null; _cachedGroups = null; }
+        public static void InvalidateCache() { _cachedPath = null; _cachedGroups = null; _cachedTable = null; }
 
         /// <summary>Maps Source_Table names to their MR_SCHEDULES schedule names.</summary>
         public static Dictionary<string, string> BuildTableScheduleMap()
@@ -4897,10 +4880,10 @@ namespace StingTools.Temp
         }
 
         /// <summary>
-        /// Returns CSV column index → STING parameter name mapping for a Source_Table type.
-        /// Column indices are 0-based matching TPL_SCHEDULE_METADATA.csv header order.
+        /// Returns CSV column name → STING parameter name mapping for a Source_Table type.
+        /// Keys are TPL_SCHEDULE_METADATA.csv header names (DSCH-2), resolved per load.
         /// </summary>
-        public static Dictionary<int, string> GetParamMapping(string sourceTable)
+        public static Dictionary<string, string> GetParamMapping(string sourceTable)
         {
             switch ((sourceTable ?? "").ToLowerInvariant())
             {
@@ -4922,12 +4905,11 @@ namespace StingTools.Temp
             }
         }
 
-        /// <summary>Parses Color_Hex (col 11) into R, G, B integer strings.
-        /// Returns null if hex is empty or invalid.</summary>
-        public static (string R, string G, string B)? ParseColorHex(string[] row)
+        /// <summary>Parses Color_Hex into R, G, B integer strings.
+        /// Returns null if hex is empty, absent or invalid.</summary>
+        public static (string R, string G, string B)? ParseColorHex(CsvRow row)
         {
-            if (row.Length <= 11) return null;
-            string hex = (row[11] ?? "").Trim().TrimStart('#');
+            string hex = row["Color_Hex"].TrimStart('#');
             if (hex.Length < 6) return null;
             try
             {
@@ -4936,49 +4918,51 @@ namespace StingTools.Temp
                 int b = Convert.ToInt32(hex.Substring(4, 2), 16);
                 return (r.ToString(), g.ToString(), b.ToString());
             }
-            catch (Exception ex) { StingLog.Warn($"ParseColorHex: invalid hex '{(row[11] ?? "")}': {ex.Message}"); return null; }
+            catch (Exception ex) { StingLog.Warn($"ParseColorHex: invalid hex '{row["Color_Hex"]}': {ex.Message}"); return null; }
         }
 
-        /// <summary>Combines Rule_Parameter(37) + Rule_Operator(38) + Rule_Value(39) into a single rules string.</summary>
-        public static string BuildRulesString(string[] row)
+        /// <summary>Combines Rule_Parameter + Rule_Operator + Rule_Value into a single rules string.
+        /// Empty when the row does not reach Rule_Value, as before.</summary>
+        public static string BuildRulesString(CsvRow row)
         {
-            if (row.Length < 40) return "";
-            string param = (row.Length > 37 ? row[37] : "") ?? "";
-            string op    = (row.Length > 38 ? row[38] : "") ?? "";
-            string val   = (row.Length > 39 ? row[39] : "") ?? "";
+            int valueCol = Col("Rule_Value");
+            if (valueCol < 0 || row.Count <= valueCol) return "";
+            string param = row["Rule_Parameter"];
+            string op    = row["Rule_Operator"];
+            string val   = row["Rule_Value"];
             if (string.IsNullOrWhiteSpace(param)) return "";
-            return $"{param.Trim()} {op.Trim()} {val.Trim()}".Trim();
+            return $"{param} {op} {val}".Trim();
         }
 
         // ── Common metadata columns present in all Source_Table types ──
-        private static Dictionary<int, string> CommonMapping()
+        private static Dictionary<string, string> CommonMapping()
         {
-            return new Dictionary<int, string>
+            return new Dictionary<string, string>
             {
-                { 5,  "MA_ELEMENT_NAME_TXT" },    // Name
-                { 6,  "MA_NOTES_TXT" },            // Description
-                { 7,  "WS_DISCIPLINE_TXT" },       // Discipline
-                { 15, "MA_STATUS_TXT" },           // Status
-                { 17, "PH_NUMBER_INT" },           // Sort_Order
+                { "Name",                    "MA_ELEMENT_NAME_TXT" },    // Name
+                { "Description",             "MA_NOTES_TXT" },            // Description
+                { "Discipline",              "WS_DISCIPLINE_TXT" },       // Discipline
+                { "Status",                  "MA_STATUS_TXT" },           // Status
+                { "Sort_Order",              "PH_NUMBER_INT" },           // Sort_Order
             };
         }
 
         // ── dimension_styles → Dimension Style Schedule ──
         // Schedule fields: DS_NAME_TXT, DS_TYPE_TXT, DS_TEXT_SIZE_NR, DS_TEXT_FONT_TXT,
         //   DS_TICK_MARK_TXT, DS_TICK_SIZE_NR, DS_UNITS_FORMAT_TXT, DS_PRECISION_TXT, USAGE_TXT
-        private static Dictionary<int, string> DimensionStylesMapping()
+        private static Dictionary<string, string> DimensionStylesMapping()
         {
-            return new Dictionary<int, string>
+            return new Dictionary<string, string>
             {
-                { 5,  "DS_NAME_TXT" },             // Name
-                { 23, "DS_TYPE_TXT" },             // Type
-                { 27, "DS_TEXT_SIZE_NR" },          // Text_Size_mm
-                { 83, "DS_TEXT_FONT_TXT" },        // Font_Name
-                { 31, "DS_TICK_MARK_TXT" },        // Tick_Mark_Style
-                { 32, "DS_TICK_SIZE_NR" },         // Tick_Mark_Size_mm
-                { 33, "DS_UNITS_FORMAT_TXT" },     // Units_Format
-                { 34, "DS_PRECISION_TXT" },        // Precision
-                { 6,  "USAGE_TXT" },               // Description → Usage
+                { "Name",                    "DS_NAME_TXT" },             // Name
+                { "Type",                    "DS_TYPE_TXT" },             // Type
+                { "Text_Size_mm",            "DS_TEXT_SIZE_NR" },          // Text_Size_mm
+                { "Font_Name",               "DS_TEXT_FONT_TXT" },        // Font_Name
+                { "Tick_Mark_Style",         "DS_TICK_MARK_TXT" },        // Tick_Mark_Style
+                { "Tick_Mark_Size_mm",       "DS_TICK_SIZE_NR" },         // Tick_Mark_Size_mm
+                { "Units_Format",            "DS_UNITS_FORMAT_TXT" },     // Units_Format
+                { "Precision",               "DS_PRECISION_TXT" },        // Precision
+                { "Description",             "USAGE_TXT" },               // Description → Usage
             };
         }
 
@@ -4986,203 +4970,203 @@ namespace StingTools.Temp
         // Schedule fields: FLT_NAME_TXT, FLT_CATEGORIES_TXT, FLT_RULES_TXT,
         //   FLT_LINE_COLOR_R/G/B_INT, FLT_LINE_WEIGHT_INT, FLT_SURFACE_PATTERN_TXT,
         //   FLT_CUT_PATTERN_TXT, FLT_TRANSPARENCY_INT, FLT_USED_IN_TEMPLATES_TXT, FLT_STATUS_TXT
-        private static Dictionary<int, string> FiltersMapping()
+        private static Dictionary<string, string> FiltersMapping()
         {
-            return new Dictionary<int, string>
+            return new Dictionary<string, string>
             {
-                { 5,  "FLT_NAME_TXT" },            // Name
-                { 36, "FLT_CATEGORIES_TXT" },      // Categories
-                { 40, "FLT_LINE_WEIGHT_INT" },     // Override_Lines_Weight
-                { 41, "FLT_SURFACE_PATTERN_TXT" }, // Override_Surface_Pattern
-                { 42, "FLT_TRANSPARENCY_INT" },    // Override_Transparency
-                { 43, "FLT_USED_IN_TEMPLATES_TXT" }, // Apply_To
-                { 15, "FLT_STATUS_TXT" },          // Status
+                { "Name",                    "FLT_NAME_TXT" },            // Name
+                { "Categories",              "FLT_CATEGORIES_TXT" },      // Categories
+                { "Override_Lines_Weight",   "FLT_LINE_WEIGHT_INT" },     // Override_Lines_Weight
+                { "Override_Surface_Pattern", "FLT_SURFACE_PATTERN_TXT" }, // Override_Surface_Pattern
+                { "Override_Transparency",   "FLT_TRANSPARENCY_INT" },    // Override_Transparency
+                { "Apply_To",                "FLT_USED_IN_TEMPLATES_TXT" }, // Apply_To
+                { "Status",                  "FLT_STATUS_TXT" },          // Status
             };
-            // Note: FLT_RULES_TXT is built from cols 37+38+39 via BuildRulesString()
-            // Note: FLT_LINE_COLOR_R/G/B_INT parsed from Color_Hex(11) via ParseColorHex()
+            // Note: FLT_RULES_TXT is built from Rule_Parameter + Rule_Operator + Rule_Value via BuildRulesString()
+            // Note: FLT_LINE_COLOR_R/G/B_INT parsed from Color_Hex via ParseColorHex()
         }
 
         // ── line_styles → Line Style Schedule ──
         // Schedule fields: LS_NAME_TXT, LS_WEIGHT_INT, COLOR_R/G/B_INT,
         //   LS_PATTERN_TXT, USAGE_TXT, LS_STATUS_TXT
-        private static Dictionary<int, string> LineStylesMapping()
+        private static Dictionary<string, string> LineStylesMapping()
         {
-            return new Dictionary<int, string>
+            return new Dictionary<string, string>
             {
-                { 5,  "LS_NAME_TXT" },             // Name
-                { 53, "LS_WEIGHT_INT" },           // Line_Weight
-                { 54, "LS_PATTERN_TXT" },          // Line_Pattern
-                { 6,  "USAGE_TXT" },               // Description → Usage
-                { 15, "LS_STATUS_TXT" },           // Status
+                { "Name",                    "LS_NAME_TXT" },             // Name
+                { "Line_Weight",             "LS_WEIGHT_INT" },           // Line_Weight
+                { "Line_Pattern",            "LS_PATTERN_TXT" },          // Line_Pattern
+                { "Description",             "USAGE_TXT" },               // Description → Usage
+                { "Status",                  "LS_STATUS_TXT" },           // Status
             };
-            // Note: COLOR_R/G/B_INT parsed from Color_Hex(11) via ParseColorHex()
+            // Note: COLOR_R/G/B_INT parsed from Color_Hex via ParseColorHex()
         }
 
         // ── object_styles → Object Style Schedule ──
         // Schedule fields: OS_CATEGORY_TXT, OS_SUBCATEGORY_TXT, OS_PROJECTION_WEIGHT_INT,
         //   OS_CUT_WEIGHT_INT, COLOR_R/G/B_INT, OS_PATTERN_TXT, OS_MATERIAL_TXT
-        private static Dictionary<int, string> ObjectStylesMapping()
+        private static Dictionary<string, string> ObjectStylesMapping()
         {
-            return new Dictionary<int, string>
+            return new Dictionary<string, string>
             {
-                { 59, "OS_CATEGORY_TXT" },          // Category
-                { 60, "OS_SUBCATEGORY_TXT" },       // Subcategory
-                { 61, "OS_PROJECTION_WEIGHT_INT" }, // Line_Weight_Projection
-                { 62, "OS_CUT_WEIGHT_INT" },        // Line_Weight_Cut
-                { 54, "OS_PATTERN_TXT" },           // Line_Pattern
-                { 63, "OS_MATERIAL_TXT" },          // Material
+                { "Category",                "OS_CATEGORY_TXT" },          // Category
+                { "Subcategory",             "OS_SUBCATEGORY_TXT" },       // Subcategory
+                { "Line_Weight_Projection",  "OS_PROJECTION_WEIGHT_INT" }, // Line_Weight_Projection
+                { "Line_Weight_Cut",         "OS_CUT_WEIGHT_INT" },        // Line_Weight_Cut
+                { "Line_Pattern",            "OS_PATTERN_TXT" },           // Line_Pattern
+                { "Material",                "OS_MATERIAL_TXT" },          // Material
             };
-            // Note: COLOR_R/G/B_INT parsed from Color_Hex(11) via ParseColorHex()
+            // Note: COLOR_R/G/B_INT parsed from Color_Hex via ParseColorHex()
         }
 
         // ── phases → Phase Schedule ──
         // Schedule fields: PH_NAME_TXT, PH_NUMBER_INT, PH_DESCRIPTION_TXT,
         //   PH_START_DATE_TXT, PH_END_DATE_TXT, PH_STATUS_TXT, COLOR_R/G/B_INT
-        private static Dictionary<int, string> PhasesMapping()
+        private static Dictionary<string, string> PhasesMapping()
         {
-            return new Dictionary<int, string>
+            return new Dictionary<string, string>
             {
-                { 5,  "PH_NAME_TXT" },             // Name
-                { 69, "PH_NUMBER_INT" },           // Sequence_Number
-                { 6,  "PH_DESCRIPTION_TXT" },     // Description
-                { 15, "PH_STATUS_TXT" },           // Status
+                { "Name",                    "PH_NAME_TXT" },             // Name
+                { "Sequence_Number",         "PH_NUMBER_INT" },           // Sequence_Number
+                { "Description",             "PH_DESCRIPTION_TXT" },     // Description
+                { "Status",                  "PH_STATUS_TXT" },           // Status
             };
-            // Note: COLOR_R/G/B_INT parsed from Color_Hex(11) via ParseColorHex()
+            // Note: COLOR_R/G/B_INT parsed from Color_Hex via ParseColorHex()
         }
 
         // ── text_styles → Text Style Schedule ──
         // Schedule fields: TS_NAME_TXT, TS_FONT_NAME_TXT, TS_FONT_SIZE_NR,
         //   TS_BOLD_BOOL, TS_ITALIC_BOOL, TS_WIDTH_FACTOR_NR,
         //   USAGE_TXT, TS_STATUS_TXT
-        private static Dictionary<int, string> TextStylesMapping()
+        private static Dictionary<string, string> TextStylesMapping()
         {
-            return new Dictionary<int, string>
+            return new Dictionary<string, string>
             {
-                { 5,  "TS_NAME_TXT" },             // Name
-                { 83, "TS_FONT_NAME_TXT" },        // Font_Name
-                { 27, "TS_FONT_SIZE_NR" },         // Text_Size_mm
-                { 84, "TS_BOLD_BOOL" },            // Bold
-                { 85, "TS_ITALIC_BOOL" },          // Italic
-                { 86, "TS_WIDTH_FACTOR_NR" },      // Width_Factor
-                { 6,  "USAGE_TXT" },               // Description → Usage
-                { 15, "TS_STATUS_TXT" },           // Status
+                { "Name",                    "TS_NAME_TXT" },             // Name
+                { "Font_Name",               "TS_FONT_NAME_TXT" },        // Font_Name
+                { "Text_Size_mm",            "TS_FONT_SIZE_NR" },         // Text_Size_mm
+                { "Bold",                    "TS_BOLD_BOOL" },            // Bold
+                { "Italic",                  "TS_ITALIC_BOOL" },          // Italic
+                { "Width_Factor",            "TS_WIDTH_FACTOR_NR" },      // Width_Factor
+                { "Description",             "USAGE_TXT" },               // Description → Usage
+                { "Status",                  "TS_STATUS_TXT" },           // Status
             };
         }
 
         // ── worksets → Workset Schedule ──
         // Schedule fields: WS_NAME_TXT, WS_DISCIPLINE_TXT, WS_TYPE_TXT,
         //   WS_OWNER_TXT, WS_DESCRIPTION_TXT, WS_EDITABLE_DEFAULT_BOOL, WS_VISIBLE_DEFAULT_BOOL
-        private static Dictionary<int, string> WorksetsMapping()
+        private static Dictionary<string, string> WorksetsMapping()
         {
-            return new Dictionary<int, string>
+            return new Dictionary<string, string>
             {
-                { 5,   "WS_NAME_TXT" },             // Name
-                { 7,   "WS_DISCIPLINE_TXT" },       // Discipline
-                { 59,  "WS_TYPE_TXT" },             // Category → Type
-                { 6,   "WS_DESCRIPTION_TXT" },      // Description
-                { 108, "WS_EDITABLE_DEFAULT_BOOL" }, // Editable_Default
+                { "Name",                    "WS_NAME_TXT" },             // Name
+                { "Discipline",              "WS_DISCIPLINE_TXT" },       // Discipline
+                { "Category",                "WS_TYPE_TXT" },             // Category → Type
+                { "Description",             "WS_DESCRIPTION_TXT" },      // Description
+                { "Editable_Default",        "WS_EDITABLE_DEFAULT_BOOL" }, // Editable_Default
             };
         }
 
         // ── arrowheads (no dedicated schedule — use common metadata params) ──
-        private static Dictionary<int, string> ArrowheadsMapping()
+        private static Dictionary<string, string> ArrowheadsMapping()
         {
-            return new Dictionary<int, string>
+            return new Dictionary<string, string>
             {
-                { 5,  "MA_ELEMENT_NAME_TXT" },     // Name
-                { 23, "DS_TYPE_TXT" },             // Type (Arrow/Dot/etc.)
-                { 24, "DS_TEXT_SIZE_NR" },         // Angle_Degrees (reuse numeric)
-                { 25, "DS_TICK_SIZE_NR" },         // Size_mm (reuse numeric)
-                { 26, "DS_PRECISION_TXT" },        // Fill (reuse text)
-                { 6,  "MA_NOTES_TXT" },            // Description
+                { "Name",                    "MA_ELEMENT_NAME_TXT" },     // Name
+                { "Type",                    "DS_TYPE_TXT" },             // Type (Arrow/Dot/etc.)
+                { "Angle_Degrees",           "DS_TEXT_SIZE_NR" },         // Angle_Degrees (reuse numeric)
+                { "Size_mm",                 "DS_TICK_SIZE_NR" },         // Size_mm (reuse numeric)
+                { "Fill",                    "DS_PRECISION_TXT" },        // Fill (reuse text)
+                { "Description",             "MA_NOTES_TXT" },            // Description
             };
         }
 
         // ── line_patterns (no dedicated schedule) ──
-        private static Dictionary<int, string> LinePatternsMapping()
+        private static Dictionary<string, string> LinePatternsMapping()
         {
-            return new Dictionary<int, string>
+            return new Dictionary<string, string>
             {
-                { 5,  "MA_ELEMENT_NAME_TXT" },     // Name
-                { 44, "LS_PATTERN_TXT" },          // Segment_1_Type
-                { 45, "LS_WEIGHT_INT" },           // Segment_1_Length_mm (reuse numeric)
-                { 52, "DS_TICK_SIZE_NR" },         // Space_Length_mm (reuse numeric)
-                { 6,  "MA_NOTES_TXT" },            // Description
+                { "Name",                    "MA_ELEMENT_NAME_TXT" },     // Name
+                { "Segment_1_Type",          "LS_PATTERN_TXT" },          // Segment_1_Type
+                { "Segment_1_Length_mm",     "LS_WEIGHT_INT" },           // Segment_1_Length_mm (reuse numeric)
+                { "Space_Length_mm",         "DS_TICK_SIZE_NR" },         // Space_Length_mm (reuse numeric)
+                { "Description",             "MA_NOTES_TXT" },            // Description
             };
         }
 
         // ── line_weights (no dedicated schedule) ──
-        private static Dictionary<int, string> LineWeightsMapping()
+        private static Dictionary<string, string> LineWeightsMapping()
         {
-            return new Dictionary<int, string>
+            return new Dictionary<string, string>
             {
-                { 5,  "MA_ELEMENT_NAME_TXT" },     // Name
-                { 55, "PH_NUMBER_INT" },           // Line_Number
-                { 56, "DS_TICK_SIZE_NR" },         // Thickness_mm
-                { 57, "USAGE_TXT" },               // Projection_Use
-                { 58, "MA_NOTES_TXT" },            // Cut_Use
+                { "Name",                    "MA_ELEMENT_NAME_TXT" },     // Name
+                { "Line_Number",             "PH_NUMBER_INT" },           // Line_Number
+                { "Thickness_mm",            "DS_TICK_SIZE_NR" },         // Thickness_mm
+                { "Projection_Use",          "USAGE_TXT" },               // Projection_Use
+                { "Cut_Use",                 "MA_NOTES_TXT" },            // Cut_Use
             };
         }
 
         // ── phase_filters (no dedicated schedule) ──
-        private static Dictionary<int, string> PhaseFiltersMapping()
+        private static Dictionary<string, string> PhaseFiltersMapping()
         {
-            return new Dictionary<int, string>
+            return new Dictionary<string, string>
             {
-                { 5,  "MA_ELEMENT_NAME_TXT" },     // Name
-                { 64, "FLT_RULES_TXT" },           // New
-                { 65, "FLT_CATEGORIES_TXT" },      // Existing
-                { 66, "FLT_SURFACE_PATTERN_TXT" }, // Demolished
-                { 67, "FLT_CUT_PATTERN_TXT" },     // Temporary
-                { 68, "MA_NOTES_TXT" },            // Future
+                { "Name",                    "MA_ELEMENT_NAME_TXT" },     // Name
+                { "New",                     "FLT_RULES_TXT" },           // New
+                { "Existing",                "FLT_CATEGORIES_TXT" },      // Existing
+                { "Demolished",              "FLT_SURFACE_PATTERN_TXT" }, // Demolished
+                { "Temporary",               "FLT_CUT_PATTERN_TXT" },     // Temporary
+                { "Future",                  "MA_NOTES_TXT" },            // Future
             };
         }
 
         // ── schedule_parameters (814 rows — no dedicated schedule) ──
-        private static Dictionary<int, string> ScheduleParametersMapping()
+        private static Dictionary<string, string> ScheduleParametersMapping()
         {
-            return new Dictionary<int, string>
+            return new Dictionary<string, string>
             {
-                { 5,  "MA_ELEMENT_NAME_TXT" },     // Name
-                { 71, "SPARE_PARAM_01_TXT" },      // GUID
-                { 72, "SPARE_PARAM_02_TXT" },      // Data_Type
-                { 73, "SPARE_PARAM_03_TXT" },      // Group_Name
-                { 74, "MA_STATUS_TXT" },           // Visible
-                { 75, "MA_PRIORITY_TXT" },         // User_Modifiable
-                { 77, "MA_ACTION_REQUIRED_TXT" },  // Schedule_Recommended
-                { 6,  "MA_NOTES_TXT" },            // Description
+                { "Name",                    "MA_ELEMENT_NAME_TXT" },     // Name
+                { "GUID",                    "SPARE_PARAM_01_TXT" },      // GUID
+                { "Data_Type",               "SPARE_PARAM_02_TXT" },      // Data_Type
+                { "Group_Name",              "SPARE_PARAM_03_TXT" },      // Group_Name
+                { "Visible",                 "MA_STATUS_TXT" },           // Visible
+                { "User_Modifiable",         "MA_PRIORITY_TXT" },         // User_Modifiable
+                { "Schedule_Recommended",    "MA_ACTION_REQUIRED_TXT" },  // Schedule_Recommended
+                { "Description",             "MA_NOTES_TXT" },            // Description
             };
         }
 
         // ── schedule_templates (no dedicated schedule) ──
-        private static Dictionary<int, string> ScheduleTemplatesMapping()
+        private static Dictionary<string, string> ScheduleTemplatesMapping()
         {
-            return new Dictionary<int, string>
+            return new Dictionary<string, string>
             {
-                { 5,  "MA_ELEMENT_NAME_TXT" },     // Name
-                { 59, "MA_ELEMENT_CATEGORY_TXT" }, // Category
-                { 78, "MA_ISSUES_FOUND_TXT" },     // Parameters
-                { 79, "MA_ACTION_REQUIRED_TXT" },  // Group_By
-                { 80, "MA_PRIORITY_TXT" },         // Sort_By
-                { 81, "FLT_RULES_TXT" },           // Filter
-                { 82, "MA_NOTES_TXT" },            // Totals
-                { 6,  "MA_TEMPLATE_COMPLIANCE_TXT" }, // Description
+                { "Name",                    "MA_ELEMENT_NAME_TXT" },     // Name
+                { "Category",                "MA_ELEMENT_CATEGORY_TXT" }, // Category
+                { "Parameters",              "MA_ISSUES_FOUND_TXT" },     // Parameters
+                { "Group_By",                "MA_ACTION_REQUIRED_TXT" },  // Group_By
+                { "Sort_By",                 "MA_PRIORITY_TXT" },         // Sort_By
+                { "Filter",                  "FLT_RULES_TXT" },           // Filter
+                { "Totals",                  "MA_NOTES_TXT" },            // Totals
+                { "Description",             "MA_TEMPLATE_COMPLIANCE_TXT" }, // Description
             };
         }
 
         // ── view_templates (no dedicated schedule) ──
-        private static Dictionary<int, string> ViewTemplatesMapping()
+        private static Dictionary<string, string> ViewTemplatesMapping()
         {
-            return new Dictionary<int, string>
+            return new Dictionary<string, string>
             {
-                { 5,  "MA_ELEMENT_NAME_TXT" },     // Name
-                { 91, "SPARE_PARAM_01_TXT" },      // View_Type
-                { 92, "SPARE_PARAM_02_TXT" },      // Detail_Level
-                { 93, "SPARE_PARAM_03_TXT" },      // Visual_Style
-                { 94, "DS_TEXT_SIZE_NR" },          // Scale (reuse numeric)
-                { 95, "FLT_RULES_TXT" },           // Filters_Applied
-                { 96, "FLT_NAME_TXT" },            // Phase_Filter
-                { 6,  "MA_NOTES_TXT" },            // Description
+                { "Name",                    "MA_ELEMENT_NAME_TXT" },     // Name
+                { "View_Type",               "SPARE_PARAM_01_TXT" },      // View_Type
+                { "Detail_Level",            "SPARE_PARAM_02_TXT" },      // Detail_Level
+                { "Visual_Style",            "SPARE_PARAM_03_TXT" },      // Visual_Style
+                { "Scale",                   "DS_TEXT_SIZE_NR" },          // Scale (reuse numeric)
+                { "Filters_Applied",         "FLT_RULES_TXT" },           // Filters_Applied
+                { "Phase_Filter",            "FLT_NAME_TXT" },            // Phase_Filter
+                { "Description",             "MA_NOTES_TXT" },            // Description
             };
         }
     }

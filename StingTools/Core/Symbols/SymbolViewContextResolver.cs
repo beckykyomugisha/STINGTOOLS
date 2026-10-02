@@ -64,9 +64,6 @@ namespace StingTools.Core.Symbols
             return false;
         }
 
-        public static bool IsPlanLikeView(View view)
-            => view != null && (view.ViewType == ViewType.FloorPlan || view.ViewType == ViewType.CeilingPlan);
-
         public static string ToKey(SymbolViewContext ctx)
         {
             switch (ctx)

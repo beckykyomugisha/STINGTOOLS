@@ -7,7 +7,7 @@
 //   Plumbing_RainwaterCalc      — RWH yield + SuDS + soakaway + septic
 //   Plumbing_TrapVentAudit      — trap type + seal + vent DN audit
 //   Plumbing_PRVSchedule        — pressure zone + PRV set-point
-//   Plumbing_DeadLegScan        — HSG 274 dead-leg detector
+//   Plumbing_DeadLegScan        — dead-leg detector (HTM 04-01 / BS 8558 limits, STING_TMV_STANDARDS.json)
 //   Plumbing_CrossConnection    — potable / non-potable cross-conn graph
 //   Plumbing_RecircBalance      — DHW recirc heat-loss + DRV pre-set
 //   Plumbing_StackCapacity      — BS EN 12056-2 stack DU capacity check
@@ -371,17 +371,26 @@ namespace StingTools.Commands.Plumbing
             var inst = StingPlumbingPanel.Instance;
             if (inst != null) { inst.SetStatus(status); return Result.Succeeded; }
 
-            var panel = StingResultPanel.Create("Dead-Leg Scan (HSG 274)");
+            var panel = StingResultPanel.Create("Dead-Leg Scan");
             panel.AddSection("SUMMARY")
                  .Metric("Pipes scanned", r.PipesScanned.ToString())
+                 .Metric("Legs checked",  r.LegsChecked.ToString())
                  .Metric("Legs flagged",  r.LegsFlagged.ToString())
+                 .Metric("Legs not checked", r.LegsNotChecked.ToString())
                  .Metric("Pipes written", r.PipesWritten.ToString());
             if (r.Findings.Any())
             {
                 panel.AddSection("FINDINGS (first 50)");
                 foreach (var f in r.Findings.OrderByDescending(x => x.LegLengthM).Take(50))
-                    panel.Text($"[{f.Severity}] Pipe {f.TerminalPipeId.Value} ({f.SystemName}) · leg {f.LegLengthM:F1} m · DN{f.LegPipeDiameterMm:F0} — {f.Notes}");
+                    panel.Text($"[{f.Severity}] Pipe {f.TerminalPipeId.Value} ({f.SystemName}) · leg {f.LegLengthM:F1} m · DN{f.LegPipeDiameterMm:F0} — {f.Notes}"
+                               + (string.IsNullOrWhiteSpace(f.Verify) ? "" : $" · VERIFY: {f.Verify}"));
             }
+            if (r.NotCheckedReasons.Count > 0)
+            {
+                panel.AddSection("NOT CHECKED");
+                foreach (var kv in r.NotCheckedReasons) panel.Text($"{kv.Value} × {kv.Key}");
+            }
+            foreach (var w in r.Warnings.Take(5)) panel.Text("⚠ " + w);
             panel.Show();
             return Result.Succeeded;
         }

@@ -954,43 +954,6 @@ namespace StingTools.Model
         }
 
         /// <summary>
-        /// Identifies edges of a slab boundary that need edge beams
-        /// (edges not supported by walls or other slabs).
-        /// </summary>
-        public static List<(XYZ Start, XYZ End)> FindUnsupportedEdges(
-            CurveLoop boundary, List<XYZ> wallEndpoints, double toleranceFt = 1.0)
-        {
-            var unsupported = new List<(XYZ Start, XYZ End)>();
-
-            foreach (var curve in boundary)
-            {
-                var start = curve.GetEndPoint(0);
-                var end = curve.GetEndPoint(1);
-
-                // Check if this edge is near any wall
-                bool hasSupport = false;
-                if (wallEndpoints != null)
-                {
-                    foreach (var wp in wallEndpoints)
-                    {
-                        // Check if wall endpoint is near this edge (within tolerance)
-                        double distToLine = DistancePointToLine(wp, start, end);
-                        if (distToLine < toleranceFt)
-                        {
-                            hasSupport = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (!hasSupport)
-                    unsupported.Add((start, end));
-            }
-
-            return unsupported;
-        }
-
-        /// <summary>
         /// Calculates reinforcement zones based on support conditions.
         /// Returns list of zones with position type (top/bottom) and extent.
         /// </summary>
@@ -1055,19 +1018,6 @@ namespace StingTools.Model
                 }
             }
             return inside;
-        }
-
-        internal static double DistancePointToLine(XYZ point, XYZ lineStart, XYZ lineEnd)
-        {
-            var lineDir = lineEnd - lineStart;
-            double lineLenSq = lineDir.GetLength();
-            if (lineLenSq < 1e-9) return point.DistanceTo(lineStart);
-            lineLenSq *= lineLenSq;
-
-            double t = Math.Max(0, Math.Min(1,
-                (point - lineStart).DotProduct(lineDir) / lineLenSq));
-            var projection = lineStart + lineDir * t;
-            return point.DistanceTo(projection);
         }
     }
 

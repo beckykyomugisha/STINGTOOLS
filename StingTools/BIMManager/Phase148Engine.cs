@@ -604,9 +604,9 @@ namespace StingTools.BIMManager
             }
         }
 
-        /// <summary>BIM-4D-HANDOVER-01: read the DD4 planned date so the
-        /// 4D scheduling engine can extend its timeline beyond the
-        /// construction-finish milestone.</summary>
+        /// <summary>BIM-4D-HANDOVER-01: the DD4 date (actual, else planned), or
+        /// null when undated. Scheduling4DEngine.AutoGenerateSchedule puts it on
+        /// the programme as a milestone and extends the end date to it.</summary>
         public static DateTime? GetDD4HandoverDate(Document doc)
         {
             var m = Load(doc).FirstOrDefault(x =>

@@ -823,8 +823,9 @@ namespace StingTools.UI
             /// <summary>
             /// Document sync — the local state of this deliverable on THIS
             /// machine, resolved from the Planscape Companion's sync folder.
-            /// Set by BuildCoordData; empty when nothing is synced, which is the
-            /// normal case on a machine with no Companion.
+            /// Set by BuildCoordData (CompanionSyncBridge.ResolveState) when the
+            /// model's server project is linked in this machine's Companion;
+            /// empty otherwise, and for a row with no local copy.
             /// </summary>
             public string SyncBadge { get; set; } = "";
             public string SyncTooltip { get; set; } = "";
@@ -6759,84 +6760,23 @@ namespace StingTools.UI
                     var sp = new StackPanel { Margin = new Thickness(0, 8, 0, 8) };
                     sp.Children.Add(new TextBlock { Text = "5D Cost Configuration", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8), Foreground = navyBrush });
 
-                    sp.Children.Add(new TextBlock { Text = "Cost Rates:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
-                    var dg = new DataGrid
-                    {
-                        AutoGenerateColumns = false,
-                        CanUserAddRows = true,
-                        Height = 150,
-                        Margin = new Thickness(0, 0, 0, 8)
-                    };
-                    // Phase 98: Unit column is now a strict dropdown so the
-                    // 5D roll-up doesn't get salted with "m2"/"m²"/"sq.m"/"Sq m"
-                    // inconsistencies that broke cost aggregation by unit.
-                    var costUnitList = new List<string>
-                    {
-                        "m²", "m³", "m", "kg", "tonne", "no.", "item", "ea", "l/s", "kW", "kVA", "hour", "day", "sum"
-                    };
-                    var costUnitStyle = new Style(typeof(ComboBox));
-                    costUnitStyle.Setters.Add(new Setter(ComboBox.IsEditableProperty, true));
-                    dg.Columns.Add(new DataGridTextColumn     { Header = "Category",  Binding = new System.Windows.Data.Binding("Category"),                                          Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-                    dg.Columns.Add(new DataGridTextColumn     { Header = "Rate UGX",  Binding = new System.Windows.Data.Binding("RateUGX"),                                           Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    dg.Columns.Add(new DataGridTextColumn     { Header = "Rate USD",  Binding = new System.Windows.Data.Binding("RateUSD"),                                           Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    dg.Columns.Add(new DataGridComboBoxColumn { Header = "Unit",      ItemsSource = costUnitList, SelectedItemBinding = new System.Windows.Data.Binding("Unit"),       Width = new DataGridLength(1, DataGridLengthUnitType.Star), EditingElementStyle = costUnitStyle });
-                    dg.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<CostRateRow>
-                    {
-                        new CostRateRow { Category = "Walls",       RateUGX = "850000",  RateUSD = "230",  Unit = "m²" },
-                        new CostRateRow { Category = "Floors",      RateUGX = "650000",  RateUSD = "175",  Unit = "m²" },
-                        new CostRateRow { Category = "Roofs",       RateUGX = "950000",  RateUSD = "260",  Unit = "m²" },
-                        new CostRateRow { Category = "MEP Systems",  RateUGX = "1200000", RateUSD = "325",  Unit = "m²" },
-                        new CostRateRow { Category = "Finishes",    RateUGX = "420000",  RateUSD = "115",  Unit = "m²" }
-                    };
-                    sp.Children.Add(dg);
+                    // DSCH-29 — the rates the estimate actually uses: the project's resolved
+                    // cost-rate file, read-only. This grid used to show five hard-coded demo
+                    // rows (Walls 850,000 UGX against a file that says 315,000) and accepted
+                    // edits that nothing ever read.
+                    sp.Children.Add(new TextBlock { Text = "Cost rates (the project's rate file):", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
+                    BuildRateFileView(sp, null);
 
-                    // Phase 104: contingency and overhead sliders now show their live % value
-                    // and snap to whole integers via TickFrequency/IsSnapToTickEnabled so the
-                    // resulting cost estimate is reproducible.
-                    var contingencyRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
-                    contingencyRow.Children.Add(new TextBlock { Text = "Contingency %:", Width = 130, VerticalAlignment = VerticalAlignment.Center });
-                    var contingencySlider = new Slider
+                    // DSCH-29 — the Contingency / Overhead sliders were removed. The estimate
+                    // (Scheduling4DEngine.GenerateCostEstimate) takes no such input; it applies
+                    // the BOQ document's own tender percentages, so the sliders changed nothing.
+                    sp.Children.Add(new TextBlock
                     {
-                        Minimum = 0, Maximum = 25, Value = 10, Width = 200,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        TickFrequency = 1, IsSnapToTickEnabled = true,
-                        TickPlacement = System.Windows.Controls.Primitives.TickPlacement.BottomRight,
-                        AutoToolTipPlacement = AutoToolTipPlacement.TopLeft
-                    };
-                    var contingencyValueLabel = new TextBlock
-                    {
-                        Text = $"{contingencySlider.Value:F0} %", Width = 55,
-                        FontWeight = FontWeights.SemiBold, FontSize = 12,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        Margin = new Thickness(8, 0, 0, 0), Foreground = navyBrush, TextAlignment = TextAlignment.Right
-                    };
-                    contingencySlider.ValueChanged += (ss, ee) => contingencyValueLabel.Text = $"{ee.NewValue:F0} %";
-                    contingencyRow.Children.Add(contingencySlider);
-                    contingencyRow.Children.Add(contingencyValueLabel);
-                    sp.Children.Add(contingencyRow);
-
-                    var overheadRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
-                    overheadRow.Children.Add(new TextBlock { Text = "Overhead %:", Width = 130, VerticalAlignment = VerticalAlignment.Center });
-                    var overheadSlider = new Slider
-                    {
-                        Minimum = 0, Maximum = 20, Value = 8, Width = 200,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        TickFrequency = 1, IsSnapToTickEnabled = true,
-                        TickPlacement = System.Windows.Controls.Primitives.TickPlacement.BottomRight,
-                        AutoToolTipPlacement = AutoToolTipPlacement.TopLeft
-                    };
-                    var overheadValueLabel = new TextBlock
-                    {
-                        Text = $"{overheadSlider.Value:F0} %", Width = 55,
-                        FontWeight = FontWeights.SemiBold, FontSize = 12,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        Margin = new Thickness(8, 0, 0, 0), Foreground = navyBrush, TextAlignment = TextAlignment.Right
-                    };
-                    overheadSlider.ValueChanged += (ss, ee) => overheadValueLabel.Text = $"{ee.NewValue:F0} %";
-                    overheadRow.Children.Add(overheadSlider);
-                    overheadRow.Children.Add(overheadValueLabel);
-                    sp.Children.Add(overheadRow);
-
+                        Text = "Preliminaries, overhead & profit, contingency and VAT are taken from the BOQ tender " +
+                               "configuration (BOQ Cost Manager) - the same figures the BOQ Contract Sum uses.",
+                        FontSize = 11, TextWrapping = TextWrapping.Wrap, Foreground = Br(CSubtleFg),
+                        Margin = new Thickness(0, 4, 0, 4)
+                    });
                     var runBtn = new Button
                     {
                         Content = "Run Cost Estimate", Height = 32, Padding = new Thickness(16, 0, 16, 0),
@@ -7204,34 +7144,16 @@ namespace StingTools.UI
                     filterRow.Children.Add(discCb2);
                     sp.Children.Add(filterRow);
 
-                    sp.Children.Add(new TextBlock { Text = "Cost Rates (editable):", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) });
-                    var rateDg = MakeExcelDataGrid(160);
-                    // Phase 98: Unit dropdown — matches the 5D Cost Rates grid above.
-                    var rateUnitList = new List<string>
-                    {
-                        "m²", "m³", "m", "kg", "tonne", "no.", "item", "ea", "l/s", "kW", "kVA", "hour", "day", "sum"
-                    };
-                    var rateUnitStyle = new Style(typeof(ComboBox));
-                    rateUnitStyle.Setters.Add(new Setter(ComboBox.IsEditableProperty, true));
-                    rateDg.Columns.Add(new DataGridTextColumn     { Header = "Category",    Binding = new System.Windows.Data.Binding("Category"),                                          Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-                    rateDg.Columns.Add(new DataGridComboBoxColumn { Header = "Unit",        ItemsSource = rateUnitList, SelectedItemBinding = new System.Windows.Data.Binding("Unit"),       Width = 70, EditingElementStyle = rateUnitStyle });
-                    rateDg.Columns.Add(new DataGridTextColumn     { Header = "Rate UGX",    Binding = new System.Windows.Data.Binding("RateUGX"),                                           Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    rateDg.Columns.Add(new DataGridTextColumn     { Header = "Rate USD",    Binding = new System.Windows.Data.Binding("RateUSD"),                                           Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    rateDg.Columns.Add(new DataGridTextColumn     { Header = "Description", Binding = new System.Windows.Data.Binding("Description"),                                       Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-                    rateDg.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<ElementCostRow>
-                    {
-                        new ElementCostRow { Category = "Walls",   Unit = "m²", RateUGX = "850000",  RateUSD = "230",  Description = "Masonry / Blockwork" },
-                        new ElementCostRow { Category = "Floors",  Unit = "m²", RateUGX = "650000",  RateUSD = "175",  Description = "RC Slab" },
-                        new ElementCostRow { Category = "MEP",     Unit = "m²", RateUGX = "1200000", RateUSD = "325",  Description = "Mechanical, Electrical & Plumbing" }
-                    };
-                    sp.Children.Add(rateDg);
+                    // DSCH-29 — read-only view of the project's resolved rate file. This grid
+                    // was labelled "editable" and held three hard-coded demo rows; edits were
+                    // never saved or read by the trace.
+                    sp.Children.Add(new TextBlock { Text = "Cost rates (the project's rate file):", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) });
+                    BuildRateFileView(sp, "ElementCostRates");
 
                     var ectBtnRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
                     var recalcBtn = new Button { Content = "Recalculate", Height = 30, Padding = new Thickness(12, 0, 12, 0), Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 8, 0) };
-                    var expExcelBtn = new Button { Content = "Export Excel", Height = 30, Padding = new Thickness(12, 0, 12, 0), Background = Br(Color.FromRgb(0x2E, 0x7D, 0x32)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
                     recalcBtn.Click += (s, e) => DispatchAction("ElementCostTrace");
-                    expExcelBtn.Click += (s, e) => ExportDataGridToXlsx(rateDg, "ElementCostRates");
-                    ectBtnRow.Children.Add(recalcBtn); ectBtnRow.Children.Add(expExcelBtn);
+                    ectBtnRow.Children.Add(recalcBtn);
                     sp.Children.Add(ectBtnRow);
                     panelBorder.Child = sp;
                     return panelBorder;
@@ -7344,12 +7266,18 @@ namespace StingTools.UI
             public string DurationDays { get; set; }
         }
 
-        private class CostRateRow
+        /// <summary>DSCH-29 — one row of the project's cost-rate file, as read by
+        /// BOQ/Rates/CostRateCsv. Display only: the file is the owner.</summary>
+        private class RateFileRow
         {
-            public string Category { get; set; }
-            public string RateUGX  { get; set; }
-            public string RateUSD  { get; set; }
-            public string Unit     { get; set; }
+            public string Category    { get; set; }
+            public string Prod        { get; set; }
+            public string MatCode     { get; set; }
+            public string Discipline  { get; set; }
+            public string RateUGX     { get; set; }
+            public string RateUSD     { get; set; }
+            public string Unit        { get; set; }
+            public string Description { get; set; }
         }
 
         private class MilestoneEditRow
@@ -7361,14 +7289,6 @@ namespace StingTools.UI
             public string Notes      { get; set; }
         }
 
-        private class ElementCostRow
-        {
-            public string Category    { get; set; }
-            public string Unit        { get; set; }
-            public string RateUGX     { get; set; }
-            public string RateUSD     { get; set; }
-            public string Description { get; set; }
-        }
 
         private class PhaseSummaryRow
         {
@@ -8719,6 +8639,196 @@ namespace StingTools.UI
         }
 
         /// <summary>Phase 77: Export DataGrid rows to XLSX using StingExcelExporter.</summary>
+        /// <summary>
+        /// DSCH-29 — a read-only view of the cost-rate file the BOQ, the 5D estimate and the
+        /// cost stamp actually price from: <c>BOQCostManager.ResolveCostRatesPath(doc)</c>
+        /// (the Cost File Browser's project override, else the corporate card), parsed by the
+        /// one reader <c>BOQ/Rates/CostRateCsv</c>. The header names the file, its origin and
+        /// any parse problems; with no file the view says so in red and shows no rows. It
+        /// never invents rates and never accepts edits: the file is the single owner, so the
+        /// buttons open or re-pick the file and Refresh re-reads it.
+        /// </summary>
+        private void BuildRateFileView(StackPanel host, string exportTitle)
+        {
+            var header = new TextBlock { FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4) };
+            var emptyText = new TextBlock
+            {
+                FontSize = 12, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap,
+                Foreground = Br(CRed), Margin = new Thickness(0, 0, 0, 4), Visibility = Visibility.Collapsed
+            };
+            var problemsText = new TextBlock
+            {
+                FontSize = 11, TextWrapping = TextWrapping.Wrap, Foreground = Br(CAmber),
+                Margin = new Thickness(0, 0, 0, 4), Visibility = Visibility.Collapsed
+            };
+            var dg = new DataGrid
+            {
+                AutoGenerateColumns = false, IsReadOnly = true,
+                CanUserAddRows = false, CanUserDeleteRows = false,
+                CanUserSortColumns = true, CanUserResizeColumns = true,
+                HeadersVisibility = DataGridHeadersVisibility.Column,
+                GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                FontSize = 11, RowHeaderWidth = 0, MaxHeight = 220, Margin = new Thickness(0, 0, 0, 4)
+            };
+            void Col(string head, string prop, double stars) =>
+                dg.Columns.Add(new DataGridTextColumn { Header = head, Binding = new System.Windows.Data.Binding(prop), Width = new DataGridLength(stars, DataGridLengthUnitType.Star) });
+            Col("Category", nameof(RateFileRow.Category), 2);
+            Col("PROD", nameof(RateFileRow.Prod), 0.8);
+            Col("MAT_CODE", nameof(RateFileRow.MatCode), 0.9);
+            Col("Disc", nameof(RateFileRow.Discipline), 0.5);
+            Col("Rate UGX", nameof(RateFileRow.RateUGX), 1.1);
+            Col("Rate USD", nameof(RateFileRow.RateUSD), 0.9);
+            Col("Unit", nameof(RateFileRow.Unit), 0.6);
+            Col("Description", nameof(RateFileRow.Description), 2.5);
+
+            host.Children.Add(header);
+            host.Children.Add(emptyText);
+            host.Children.Add(dg);
+            host.Children.Add(problemsText);
+
+            string resolvedPath = null;
+            var openBtn = new Button { Content = "Open rate file", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 8, 0), Cursor = Cursors.Hand };
+            var chooseBtn = new Button { Content = "Choose rate file…", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 8, 0), Cursor = Cursors.Hand };
+            var refreshBtn = new Button { Content = "Refresh", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 8, 0), Cursor = Cursors.Hand };
+
+            void ShowEmpty(string why)
+            {
+                dg.ItemsSource = null;
+                dg.Visibility = Visibility.Collapsed;
+                emptyText.Text = why;
+                emptyText.Visibility = Visibility.Visible;
+                openBtn.IsEnabled = !string.IsNullOrEmpty(resolvedPath);
+            }
+
+            void Load()
+            {
+                resolvedPath = null;
+                problemsText.Visibility = Visibility.Collapsed;
+                emptyText.Visibility = Visibility.Collapsed;
+                dg.Visibility = Visibility.Visible;
+
+                Autodesk.Revit.DB.Document doc = null;
+                try { doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document; }
+                catch (Exception ex) { StingLog.Warn($"BCC rate file view: active document unavailable ({ex.Message})"); }
+                if (doc == null)
+                {
+                    header.Text = "Rate file: (no document open)";
+                    ShowEmpty("No model is open, so no project rate file can be resolved. No rates are shown.");
+                    return;
+                }
+
+                string path, overridePath;
+                try
+                {
+                    path = StingTools.BOQ.BOQCostManager.ResolveCostRatesPath(doc);
+                    overridePath = StingTools.BIMManager.CostFileBrowserCommand.LoadOverridePath(doc);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"BCC rate file view: could not resolve the cost-rate file: {ex.Message}");
+                    header.Text = "Rate file: (could not be resolved)";
+                    ShowEmpty("The cost-rate file could not be resolved: " + ex.Message);
+                    return;
+                }
+
+                if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                {
+                    header.Text = "Rate file: (none found)";
+                    ShowEmpty("No cost-rate file found. The BOQ will price only from rate overrides, the project rate card, " +
+                              "the material library and the USD default baseline. Choose a rate file, or restore " +
+                              "data/cost_rates_5d.csv.");
+                    return;
+                }
+                resolvedPath = path;
+                openBtn.IsEnabled = true;
+
+                bool isOverride = false;
+                try
+                {
+                    isOverride = !string.IsNullOrEmpty(overridePath) && string.Equals(
+                        System.IO.Path.GetFullPath(overridePath), System.IO.Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase);
+                }
+                catch (Exception ex) { StingLog.Warn($"BCC rate file view: override path compare: {ex.Message}"); }
+
+                StingTools.BOQ.Rates.CostRateCsv.Result parsed;
+                try
+                {
+                    parsed = StingTools.BOQ.Rates.CostRateCsv.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"BCC rate file view: could not read {path}: {ex.Message}");
+                    header.Text = "Rate file: " + path;
+                    ShowEmpty("The cost-rate file could not be read: " + ex.Message);
+                    return;
+                }
+
+                header.Text = "Rate file: " + path + Environment.NewLine +
+                              "Origin: " + (isOverride ? "project override (Cost File Browser)" : "corporate rate card") +
+                              $"  ·  {parsed.Rows.Count} rate row(s)  ·  read-only - edit the file, then Refresh";
+
+                if (parsed.Problems.Count > 0)
+                {
+                    problemsText.Text = $"{parsed.Problems.Count} problem(s) in the file: " +
+                        string.Join("; ", parsed.Problems.Take(3)) + (parsed.Problems.Count > 3 ? "; …" : "");
+                    problemsText.ToolTip = string.Join(Environment.NewLine, parsed.Problems);
+                    problemsText.Visibility = Visibility.Visible;
+                }
+
+                if (parsed.Rows.Count == 0)
+                {
+                    ShowEmpty("The rate file has no usable rate rows - every model line will be unpriced.");
+                    return;
+                }
+
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
+                dg.ItemsSource = parsed.Rows.Select(r => new RateFileRow
+                {
+                    Category = r.Category,
+                    Prod = r.Prod,
+                    MatCode = r.MatCode,
+                    Discipline = r.Discipline,
+                    RateUGX = r.Outcome != StingTools.BOQ.Rates.RateOutcome.Priced
+                        ? StingTools.BOQ.Rates.RateOutcomeToken.BillRateText(r.Outcome, r.IncludedIn)
+                        : r.RateUgx.HasValue ? r.RateUgx.Value.ToString("N0", inv) : "—",
+                    RateUSD = r.Outcome != StingTools.BOQ.Rates.RateOutcome.Priced
+                        ? StingTools.BOQ.Rates.RateOutcomeToken.BillRateText(r.Outcome, r.IncludedIn)
+                        : r.RateUsd.HasValue ? r.RateUsd.Value.ToString("N2", inv) : "—",
+                    Unit = r.Unit,
+                    Description = r.Description
+                }).ToList();
+            }
+
+            openBtn.Click += (s, e) =>
+            {
+                if (string.IsNullOrEmpty(resolvedPath)) return;
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(resolvedPath) { UseShellExecute = true })?.Dispose(); }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"BCC rate file view: open {resolvedPath}: {ex.Message}");
+                    TaskDialog.Show("STING", "Could not open the rate file:" + Environment.NewLine + resolvedPath +
+                                             Environment.NewLine + Environment.NewLine + ex.Message);
+                }
+            };
+            // The Cost File Browser runs on the Revit API thread; Refresh re-reads its choice.
+            chooseBtn.Click += (s, e) => DispatchAction("Cost_FileBrowser");
+            refreshBtn.Click += (s, e) => Load();
+
+            var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            btnRow.Children.Add(openBtn);
+            btnRow.Children.Add(chooseBtn);
+            btnRow.Children.Add(refreshBtn);
+            if (!string.IsNullOrEmpty(exportTitle))
+            {
+                var expBtn = new Button { Content = "Export Excel", Height = 28, Padding = new Thickness(10, 0, 10, 0), Cursor = Cursors.Hand };
+                expBtn.Click += (s, e) => ExportDataGridToXlsx(dg, exportTitle);
+                btnRow.Children.Add(expBtn);
+            }
+            host.Children.Add(btnRow);
+
+            Load();
+        }
+
         private void ExportDataGridToXlsx(DataGrid dg, string title)
         {
             try

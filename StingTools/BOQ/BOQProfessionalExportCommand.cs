@@ -219,7 +219,9 @@ namespace StingTools.BOQ
                     if (tcfg.IncludeDocumentControl)
                         BuildDocumentControlSheet(wb.Worksheets.Add("Document Control"), meta);
                     if (tcfg.IncludePreliminaries)
-                        BuildPreliminariesSheet(wb.Worksheets.Add("Preliminaries"), meta);
+                        BuildPreliminariesSheet(wb.Worksheets.Add("Preliminaries"), meta,
+                            boq.AllItems.Count(i => i.Source == BOQRowSource.ProvisionalSum
+                                                    && i.PsType == ProvisionalSumType.Undeclared));
                     if (tcfg.IncludePreambles)
                         BuildPreamblesSheet(wb.Worksheets.Add("Preambles"), boq, tcfg);
 
@@ -709,7 +711,7 @@ namespace StingTools.BOQ
         //  commonly used by senior QSs. Project-specific tokens substituted.
         // ══════════════════════════════════════════════════════════════════
 
-        private void BuildPreliminariesSheet(IXLWorksheet ws, ProjectMeta m)
+        private void BuildPreliminariesSheet(IXLWorksheet ws, ProjectMeta m, int psUndeclared)
         {
             ws.PageSetup.PageOrientation = XLPageOrientation.Portrait;
             ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
@@ -829,9 +831,14 @@ namespace StingTools.BOQ
                     "Provisional Sums (Defined and Undefined in the sense of NRM2) are included in the Bills for work that cannot be measured at "
                     + "the time of tender. The Contractor shall expend these sums only on the written instruction of the Contract Administrator "
                     + "and shall include pricing for main contractor's profit, attendance and on-costs against each Provisional Sum.",
+                }
+                // DSCH-35 — what the Defined / Undefined marker on each sum means (NRM2 2.9.1).
+                .Concat(ProvisionalSumTypes.PreambleClauses(psUndeclared))
+                .Concat(new[]
+                {
                     $"A contractual Contingency of {m.ContingencyPct:F1}% has been added to the Sub-total in the Grand Summary. Contingency shall be "
                     + "expended only on the written instruction of the Contract Administrator and shall be reconciled at Final Account.",
-                }),
+                }).ToArray()),
             };
 
             foreach (var (code, title, clauses) in sections)
@@ -1294,7 +1301,8 @@ namespace StingTools.BOQ
 
             double total = 0;
             var sortedItems = sec.Items
-                .OrderBy(i => i.Source == BOQRowSource.ProvisionalSum ? 2 : i.Source == BOQRowSource.Manual ? 1 : 0)
+                .OrderBy(i => i.Source == BOQRowSource.ProvisionalSum ? 3 : i.Source == BOQRowSource.PCSum ? 2
+                            : i.Source == BOQRowSource.Manual ? 1 : 0)
                 .ThenBy(i => i.SortOrder)
                 .ThenBy(i => i.Category)
                 .ThenBy(i => i.ItemName)
@@ -1337,6 +1345,12 @@ namespace StingTools.BOQ
                     ws.Cell(r, 6).Style.Border.SetBottomBorder(XLBorderStyleValues.Thin)
                         .Border.SetBottomBorderColor(XLColor.FromArgb(160, 160, 160));
                 }
+                else if (StingTools.BOQ.Rates.RateOutcomeToken.BillRateText(item.RateOutcome, item.IncludedIn) is string declaredRate)
+                {
+                    // DSCH-26 — "Nil" / "Incl." / "Incl. in <ref>": a decided price, not a blank.
+                    ws.Cell(r, 6).Value = declaredRate;
+                    ws.Cell(r, 6).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+                }
                 else if (item.RateUGX > 0)
                 {
                     ws.Cell(r, 6).Value = item.RateUGX;
@@ -1376,7 +1390,14 @@ namespace StingTools.BOQ
                 if (item.Source == BOQRowSource.ProvisionalSum)
                 {
                     ws.Range(r, 2, r, 7).Style.Fill.SetBackgroundColor(XLColor.FromArgb(237, 231, 246));
-                    ws.Cell(r, 3).Value = "PROVISIONAL SUM: " + para;
+                    // DSCH-35 — the NRM2 2.9.1 declaration rides on the line itself.
+                    ws.Cell(r, 3).Value = BoqSourceUtil.BillPrefix(item.Source, item.PsType) + para;
+                }
+                else if (item.Source == BOQRowSource.PCSum)
+                {
+                    // DSCH-44 — a prime cost sum reads as one, never as measured work.
+                    ws.Range(r, 2, r, 7).Style.Fill.SetBackgroundColor(XLColor.FromArgb(245, 240, 230));
+                    ws.Cell(r, 3).Value = BoqSourceUtil.BillPrefix(item.Source, item.PsType) + para;
                 }
                 else if (item.Source == BOQRowSource.Manual)
                 {
@@ -1805,8 +1826,8 @@ namespace StingTools.BOQ
                 {
                     idx++;
                     ws.Cell(r, 2).Value = $"PS.{idx:00}";
-                    ws.Cell(r, 3).Value = string.IsNullOrEmpty(ps.ResolvedNRM2Paragraph)
-                        ? ps.ItemName : ps.ResolvedNRM2Paragraph;
+                    ws.Cell(r, 3).Value = $"[{ProvisionalSumTypes.Marker(ps.PsType)}] "
+                        + (string.IsNullOrEmpty(ps.ResolvedNRM2Paragraph) ? ps.ItemName : ps.ResolvedNRM2Paragraph);
                     ws.Cell(r, 4).Value = ps.TotalUGX;
                     ws.Cell(r, 2).Style.Font.SetFontName(HeadFont).Font.SetFontSize(10).Font.SetBold(true)
                         .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
@@ -1821,6 +1842,45 @@ namespace StingTools.BOQ
                 // Total
                 ws.Cell(r, 3).Value = "TOTAL PROVISIONAL SUMS";
                 ws.Cell(r, 4).Value = psItems.Sum(p => p.TotalUGX);
+                ws.Range(r, 2, r, 4).Style
+                    .Fill.SetBackgroundColor(GreyLight)
+                    .Font.SetFontName(HeadFont).Font.SetFontSize(10).Font.SetBold(true).Font.SetFontColor(Navy)
+                    .Border.SetTopBorder(XLBorderStyleValues.Medium).Border.SetTopBorderColor(Navy)
+                    .Border.SetBottomBorder(XLBorderStyleValues.Double).Border.SetBottomBorderColor(Navy);
+                ws.Cell(r, 3).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+                ws.Cell(r, 4).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right)
+                    .NumberFormat.SetFormat("#,##0.00");
+                ws.Row(r).Height = 22;
+                r++;
+            }
+
+            // DSCH-44 — Prime Cost Sums, listed apart from provisional sums.
+            var pcItems = boq.AllItems.Where(i => i.Source == BOQRowSource.PCSum).ToList();
+            if (pcItems.Count > 0)
+            {
+                r += 1;
+                ws.Cell(r, 3).Value = "PRIME COST (PC) SUMS";
+                ws.Cell(r, 3).Style.Font.SetFontName(HeadFont).Font.SetFontSize(10).Font.SetBold(true).Font.SetFontColor(Navy);
+                r++;
+                int pcIdx = 0;
+                foreach (var pc in pcItems.OrderBy(p => p.NRM2Section))
+                {
+                    pcIdx++;
+                    ws.Cell(r, 2).Value = $"PC.{pcIdx:00}";
+                    ws.Cell(r, 3).Value = string.IsNullOrEmpty(pc.ResolvedNRM2Paragraph) ? pc.ItemName : pc.ResolvedNRM2Paragraph;
+                    ws.Cell(r, 4).Value = pc.TotalUGX;
+                    ws.Cell(r, 2).Style.Font.SetFontName(HeadFont).Font.SetFontSize(10).Font.SetBold(true)
+                        .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
+                    ws.Cell(r, 3).Style.Font.SetFontName(BodyFont).Font.SetFontSize(10)
+                        .Alignment.SetWrapText(true).Alignment.SetIndent(1);
+                    ws.Cell(r, 4).Style.Font.SetFontName(BodyFont).Font.SetFontSize(10)
+                        .NumberFormat.SetFormat("#,##0.00")
+                        .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+                    ws.Row(r).Height = 26;
+                    r++;
+                }
+                ws.Cell(r, 3).Value = "TOTAL PRIME COST SUMS";
+                ws.Cell(r, 4).Value = pcItems.Sum(p => p.TotalUGX);
                 ws.Range(r, 2, r, 4).Style
                     .Fill.SetBackgroundColor(GreyLight)
                     .Font.SetFontName(HeadFont).Font.SetFontSize(10).Font.SetBold(true).Font.SetFontColor(Navy)

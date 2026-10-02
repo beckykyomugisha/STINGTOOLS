@@ -21,15 +21,21 @@ using StingTools.Core;
 
 namespace StingTools.Core.Routing
 {
+    // DSCH round 5: the data files are snake_case (source_service, min_mm, ...).
+    // Without these attributes Newtonsoft bound only id / label / geometry /
+    // rationale / notes: every separation rule had an empty service and 0 mm, so
+    // RequiredSeparationMm was always 0 and SeparationChecker reported nothing; every
+    // corridor band allowed every service at 0 mm, so the first band claimed all of
+    // them. SeparationValidator, which reads the same file by key, always worked.
     public class SeparationRule
     {
         public string Id              { get; set; } = "";
-        public string SourceService   { get; set; } = "";
-        public string TargetService   { get; set; } = "";
+        [JsonProperty("source_service")]      public string SourceService   { get; set; } = "";
+        [JsonProperty("target_service")]      public string TargetService   { get; set; } = "";
         public string Geometry        { get; set; } = "any";
-        public double MinSeparationMm { get; set; }
-        public bool?  BothEnclosedMetal { get; set; }
-        public bool?  ShareContainment  { get; set; }
+        [JsonProperty("min_separation_mm")]   public double MinSeparationMm { get; set; }
+        [JsonProperty("both_enclosed_metal")] public bool?  BothEnclosedMetal { get; set; }
+        [JsonProperty("share_containment")]   public bool?  ShareContainment  { get; set; }
         public string Rationale       { get; set; } = "";
 
         public bool AppliesTo(string sourceService, string targetService)
@@ -58,9 +64,9 @@ namespace StingTools.Core.Routing
     {
         public string  Id              { get; set; } = "";
         public string  Label           { get; set; } = "";
-        public double  MinMm           { get; set; }
-        public double  MaxMm           { get; set; }
-        public List<string> AllowedServices { get; set; } = new List<string>();
+        [JsonProperty("min_mm")]           public double  MinMm           { get; set; }
+        [JsonProperty("max_mm")]           public double  MaxMm           { get; set; }
+        [JsonProperty("allowed_services")] public List<string> AllowedServices { get; set; } = new List<string>();
         public string  Notes           { get; set; } = "";
 
         public bool PermitsService(string serviceId)

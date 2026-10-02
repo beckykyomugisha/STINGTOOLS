@@ -32,7 +32,7 @@ python3 tools/converters/sting_to_psd.py --dry-run
 | Folder | Purpose |
 |---|---|
 | `shared/ifc/psd_out/` | PSD XML, regenerated each build, *not* committed (gitignored). |
-| `shared/ifc/revit_out/` | Revit shared-parameter file fragments, *committed* (used by `LoadSharedParamsCommand`). |
+| `shared/ifc/revit_out/` | Revit shared-parameter file fragment for every `Pset_Sting*` template, *committed*. No plugin code loads it (checked 2026-10-02); it is the file to hand Revit when authoring families against the IFC property sets. `--check` (CI: ifc-substrate.yml) fails when it is stale, and a property named like a `MR_PARAMETERS.txt` parameter takes that parameter's GUID and type. |
 
 The PSD output is regenerated; the Revit output is committed because
 shared-parameter GUIDs must be stable across Revit sessions, and the

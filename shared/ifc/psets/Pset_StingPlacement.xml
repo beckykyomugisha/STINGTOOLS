@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertySetTemplate xmlns="https://stingtools.io/schema/ifc/psets/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>Pset_StingPlacement</Name>
+    <Definition>STING fixture placement constraints written by FixturePlacementEngine - the anchor a fixture was placed from, its signed offset and the host side (DSCH-38).</Definition>
+    <IfdGuid>uuid:a1d15c11-000b-4001-9000-00000000000b</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.8.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>STING placement rules (Data/Placement/STING_PLACEMENT_RULES.*.json)</StandardsBasis>
+  </Governance>
+
+  <TemplateType>PSET_OCCURRENCEDRIVEN</TemplateType>
+
+  <Applicability>
+    <ApplicableEntity>IfcElement</ApplicableEntity>
+  </Applicability>
+
+  <Properties>
+
+    <Property name="PlacementAnchor" cardinality="optional">
+      <Definition>Anchor reference used by FixturePlacementEngine (e.g. DOOR_HINGE, ROOM_CENTRE, WALL_MIDPOINT). STING parameter ASS_PLACE_ANCHOR_TXT. DSCH-38: moved here from Pset_ElectricApplianceTypeCommon.PlacementAnchor, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="PlacementOffsetX" cardinality="optional">
+      <Definition>Signed horizontal offset from placement anchor in millimetres. STING parameter ASS_PLACE_OFFSET_X_MM. DSCH-38: moved here from Pset_ElectricApplianceTypeCommon.PlacementOffsetX, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>mm</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="PlacementSide" cardinality="optional">
+      <Definition>Wall or host side constraint (LEFT / RIGHT / EITHER). STING parameter ASS_PLACE_SIDE_TXT. DSCH-38: moved here from Pset_ElectricApplianceTypeCommon.PlacementSide, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+  </Properties>
+
+  <CorporateLock>
+    <Sha256>8e032976b960c0ea94b4970407601ba0cedac9e374726584fd777fe5e8070232</Sha256>
+    <LockedAtVersion>5.8.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(properties_with_metadata_plus_validation_rules))</Algorithm>
+  </CorporateLock>
+
+</StingPropertySetTemplate>

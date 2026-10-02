@@ -105,11 +105,12 @@ namespace StingTools.Core
                 StingLog.Info($"WorkflowScheduler: document-open trigger firing '{trigger.PresetName}'");
                 trigger.LastTriggered = DateTime.Now;
                 // Queue for execution — actual execution happens via ExternalEvent
-                _pendingPresets.Enqueue(trigger.PresetName);
+                Queue(trigger.PresetName);
             }
         }
 
-        /// <summary>WF-01/ED-01: Check compliance-fall triggers after tagging operations.</summary>
+        /// <summary>WF-01/ED-01: Check compliance-fall triggers. Called by ComplianceScan.Scan
+        /// after every fresh project scan.</summary>
         public static void CheckComplianceFallTriggers(Document doc, double currentCompliance)
         {
             if (doc == null) return;
@@ -125,7 +126,7 @@ namespace StingTools.Core
                         continue;
                     StingLog.Info($"WorkflowScheduler: compliance fall trigger firing '{trigger.PresetName}' (compliance={currentCompliance:F1}% < threshold={trigger.Threshold:F1}%)");
                     trigger.LastTriggered = DateTime.Now;
-                    _pendingPresets.Enqueue(trigger.PresetName);
+                    Queue(trigger.PresetName);
                 }
             }
         }
@@ -145,12 +146,13 @@ namespace StingTools.Core
                         continue;
                     StingLog.Info($"WorkflowScheduler: SLA violation trigger firing '{trigger.PresetName}' ({slaViolationCount} violations)");
                     trigger.LastTriggered = DateTime.Now;
-                    _pendingPresets.Enqueue(trigger.PresetName);
+                    Queue(trigger.PresetName);
                 }
             }
         }
 
-        /// <summary>Check warning threshold triggers.</summary>
+        /// <summary>Check warning threshold triggers. Called by WarningsEngine.ScanWarnings
+        /// after every genuine scan and by the morning briefing.</summary>
         public static void CheckWarningThresholdTriggers(Document doc, int warningCount)
         {
             if (doc == null) return;
@@ -165,28 +167,46 @@ namespace StingTools.Core
                         continue;
                     StingLog.Info($"WorkflowScheduler: warning threshold trigger firing '{trigger.PresetName}' ({warningCount} warnings >= {trigger.Threshold})");
                     trigger.LastTriggered = DateTime.Now;
-                    _pendingPresets.Enqueue(trigger.PresetName);
+                    Queue(trigger.PresetName);
                 }
             }
         }
 
-        // Queue of preset names pending execution
-        private static readonly ConcurrentQueue<string> _pendingPresets = new();
+        // Queue of preset names pending execution. A preset already waiting is not
+        // queued twice (WorkflowTriggerQueue).
+        private static readonly WorkflowTriggerQueue _pendingPresets = new WorkflowTriggerQueue();
+
+        /// <summary>
+        /// DSCH-40: queue a preset and schedule the Idling drain
+        /// (<see cref="WorkflowTriggerDrainJob"/>), which hands it to the command handler
+        /// when Revit is idle, rate-limited and never re-entrant. The queue used to drain
+        /// only when a document opened, and that drain set a parameter without ever
+        /// raising the command, so a mid-session trigger never ran its preset.
+        /// </summary>
+        private static void Queue(string presetName)
+        {
+            if (!_pendingPresets.Enqueue(presetName))
+            {
+                StingLog.Info($"WorkflowScheduler: '{presetName}' is already queued");
+                return;
+            }
+            try { StingIdlingScheduler.Enqueue(WorkflowTriggerDrainJob.Instance); }
+            catch (Exception ex) { StingLog.Warn($"WorkflowScheduler: could not schedule the trigger drain: {ex.Message}"); }
+        }
 
         /// <summary>
         /// Queue a preset for execution through the same consume path the trigger
-        /// engine uses (drained in StingToolsApp.OnDocumentOpened via
-        /// StingCommandHandler's ExternalEvent). Used by AUTO_RUN_WORKFLOW_ON_OPEN.
+        /// engine uses (the Idling drain, WorkflowTriggerDrainJob). Used by
+        /// AUTO_RUN_WORKFLOW_ON_OPEN.
         /// </summary>
         public static void EnqueuePreset(string presetName)
         {
             if (string.IsNullOrWhiteSpace(presetName)) return;
-            _pendingPresets.Enqueue(presetName.Trim());
+            Queue(presetName.Trim());
         }
 
         /// <summary>Dequeue next pending preset name, or null if empty.</summary>
-        public static string DequeuePendingPreset() =>
-            _pendingPresets.TryDequeue(out var name) ? name : null;
+        public static string DequeuePendingPreset() => _pendingPresets.TryDequeue();
 
         /// <summary>Whether there are pending presets to execute.</summary>
         public static bool HasPendingPresets => !_pendingPresets.IsEmpty;
@@ -259,7 +279,64 @@ namespace StingTools.Core
         public static void Reset()
         {
             lock (_lock) { _triggers.Clear(); }
-            while (_pendingPresets.TryDequeue(out _)) { }
+            _pendingPresets.Clear();
+        }
+    }
+
+    /// <summary>
+    /// DSCH-40: the Idling drain of the WorkflowScheduler queue. Scheduled by
+    /// WorkflowScheduler.Queue; StingIdlingScheduler keeps it while it returns false and
+    /// drops it once the queue is empty. Each tick asks
+    /// <see cref="WorkflowTriggerDrainPolicy.Decide"/>: a preset still running, a drain
+    /// already in progress, or fewer than 30 s since the last dispatch means wait.
+    /// Otherwise the next preset goes to the command handler's ExternalEvent
+    /// ("Workflow_RunQueued"), the same path a button click takes. A Raise that Revit
+    /// refuses is logged and the preset is put back.
+    /// </summary>
+    internal sealed class WorkflowTriggerDrainJob : IIdlingJob
+    {
+        internal static readonly WorkflowTriggerDrainJob Instance = new WorkflowTriggerDrainJob();
+
+        private static int _draining;            // re-entrancy guard (Interlocked)
+        private static DateTime? _lastDispatchUtc;
+
+        public string Name => "WorkflowTriggerDrain";
+        public int Priority => 5;
+        public int BudgetMs => 5;
+
+        public bool Execute(UIApplication uiApp)
+        {
+            if (Interlocked.CompareExchange(ref _draining, 1, 0) != 0)
+                return false;                    // re-entered: the outer call finishes
+            try
+            {
+                var decision = WorkflowTriggerDrainPolicy.Decide(
+                    WorkflowScheduler.HasPendingPresets, WorkflowEngine.IsRunningPreset, false,
+                    _lastDispatchUtc, DateTime.UtcNow, WorkflowTriggerDrainPolicy.MinInterval);
+                if (decision == WorkflowTriggerDrainPolicy.Decision.Idle) return true;
+                if (decision == WorkflowTriggerDrainPolicy.Decision.Wait) return false;
+
+                string preset = WorkflowScheduler.DequeuePendingPreset();
+                if (string.IsNullOrEmpty(preset)) return !WorkflowScheduler.HasPendingPresets;
+
+                _lastDispatchUtc = DateTime.UtcNow;
+                StingLog.Info($"WorkflowScheduler: dispatching queued preset '{preset}' on idle");
+                if (!UI.StingDockPanel.DispatchCommand("Workflow_RunQueued", preset))
+                {
+                    StingLog.Warn($"WorkflowScheduler: Revit did not accept the dispatch of '{preset}'; re-queued");
+                    WorkflowScheduler.EnqueuePreset(preset);
+                }
+                return !WorkflowScheduler.HasPendingPresets;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"WorkflowTriggerDrainJob: {ex.Message}");
+                return !WorkflowScheduler.HasPendingPresets;
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _draining, 0);
+            }
         }
     }
 
@@ -431,13 +508,13 @@ namespace StingTools.Core
                     }
                     case "tag_compliance":
                     {
-                        double threshold = double.TryParse(value, out var t) ? t : 80;
+                        double threshold = NumberText.TryParse(value, out var t) ? t : 80;
                         var scan = ComplianceScan.Scan(doc);
                         return scan != null && scan.CompliancePercent < threshold; // Execute if BELOW threshold
                     }
                     case "tag_compliance_above":
                     {
-                        double threshold = double.TryParse(value, out var t) ? t : 80;
+                        double threshold = NumberText.TryParse(value, out var t) ? t : 80;
                         var scan = ComplianceScan.Scan(doc);
                         return scan != null && scan.CompliancePercent >= threshold;
                     }
@@ -574,7 +651,7 @@ namespace StingTools.Core
                     case "affected_lt":
                         return parts.Length >= 3 && int.TryParse(parts[2], out var lt) && output.AffectedElementCount < lt;
                     case "compliance_delta_gt":
-                        return parts.Length >= 3 && double.TryParse(parts[2], out var cgt) && output.ComplianceDelta > cgt;
+                        return parts.Length >= 3 && NumberText.TryParse(parts[2], out var cgt) && output.ComplianceDelta > cgt;
                     default: return true;
                 }
             }
@@ -967,12 +1044,6 @@ namespace StingTools.Core
                 }
             }
             return false;
-        }
-
-        /// <summary>Get all rules (active + expired) for review.</summary>
-        public static List<SuppressionRule> GetAllRules()
-        {
-            lock (_lock) { return new List<SuppressionRule>(_rules); }
         }
 
         /// <summary>Get suppression audit report.</summary>
@@ -1381,143 +1452,16 @@ namespace StingTools.Core
     }
 
     // ════════════════════════════════════════════════════════════════
-    //  CC-05: SMART ACTION SEQUENCING — Dependency-aware actions
+    //  CC-06: CURRENT USER ROLE — ISO 19650 role code
     // ════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Manages action dependencies and prerequisite checking.
-    /// When user triggers an action, checks if prerequisites are met.
-    /// </summary>
-    internal static class ActionDependencyManager
-    {
-        /// <summary>Action dependency definition.</summary>
-        internal class ActionDependency
-        {
-            public string ActionTag { get; set; }
-            public List<string> Prerequisites { get; set; } = new();
-            public string Description { get; set; }
-        }
-
-        /// <summary>Built-in action dependency definitions.</summary>
-        private static readonly Dictionary<string, ActionDependency> _dependencies = new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["COBieExport"] = new ActionDependency
-            {
-                ActionTag = "COBieExport",
-                Prerequisites = new() { "ValidateTags", "WarningsAutoFix" },
-                Description = "COBie export requires clean tags and no critical warnings",
-            },
-            ["CreateTransmittal"] = new ActionDependency
-            {
-                ActionTag = "CreateTransmittal",
-                Prerequisites = new() { "ValidateTags" },
-                Description = "Transmittals should reference validated tag data",
-            },
-            ["BatchPrintSheets"] = new ActionDependency
-            {
-                ActionTag = "BatchPrintSheets",
-                Prerequisites = new() { "SheetNamingCheck" },
-                Description = "Print queue should use validated sheet names",
-            },
-            ["GenerateBEP"] = new ActionDependency
-            {
-                ActionTag = "GenerateBEP",
-                Prerequisites = new() { "ValidateTags", "ModelHealthDashboard" },
-                Description = "BEP generation benefits from current compliance and model health data",
-            },
-            ["ExportSheetRegister"] = new ActionDependency
-            {
-                ActionTag = "ExportSheetRegister",
-                Prerequisites = new() { "SheetNamingCheck" },
-                Description = "Sheet register should reflect validated sheet naming",
-            },
-            ["CreateRevision"] = new ActionDependency
-            {
-                ActionTag = "CreateRevision",
-                Prerequisites = new() { "RetagStale", "ValidateTags" },
-                Description = "Revisions should capture current state with no stale elements",
-            },
-        };
-
-        /// <summary>CC-05: Check prerequisites for an action. Returns unmet prerequisites.</summary>
-        public static List<string> GetUnmetPrerequisites(string actionTag, Document doc)
-        {
-            if (!_dependencies.TryGetValue(actionTag, out var dep))
-                return new List<string>();
-
-            var unmet = new List<string>();
-            foreach (var prereq in dep.Prerequisites)
-            {
-                if (!IsPrerequisiteMet(prereq, doc))
-                    unmet.Add(prereq);
-            }
-            return unmet;
-        }
-
-        /// <summary>Get the dependency description for an action.</summary>
-        public static string GetDependencyDescription(string actionTag)
-        {
-            return _dependencies.TryGetValue(actionTag, out var dep) ? dep.Description : null;
-        }
-
-        private static bool IsPrerequisiteMet(string prereq, Document doc)
-        {
-            if (doc == null) return false;
-            try
-            {
-                switch (prereq)
-                {
-                    case "ValidateTags":
-                        var scan = ComplianceScan.Scan(doc);
-                        return scan != null && scan.CompliancePercent >= 70; // Minimum 70% for downstream operations
-                    case "WarningsAutoFix":
-                        var warnings = doc.GetWarnings();
-                        int criticalCount = 0;
-                        foreach (var w in warnings ?? Enumerable.Empty<FailureMessage>())
-                        {
-                            string desc = w.GetDescriptionText()?.ToLowerInvariant() ?? "";
-                            if (desc.Contains("invalid sketch") || desc.Contains("duplicate instances"))
-                                criticalCount++;
-                        }
-                        return criticalCount == 0;
-                    case "RetagStale":
-                        // HIGH-12: Use cached ComplianceScan.StaleCount instead of full element scan
-                        return (ComplianceScan.Scan(doc)?.StaleCount ?? 0) == 0;
-                    case "SheetNamingCheck":
-                        return true; // Always allow — naming check is advisory
-                    case "ModelHealthDashboard":
-                        return true; // Always allow — health check is advisory
-                    default:
-                        return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"ActionDependencyManager.IsPrerequisiteMet '{prereq}': {ex.Message}");
-                return true; // Don't block on errors
-            }
-        }
-    }
-
-    // ════════════════════════════════════════════════════════════════
-    //  CC-06: ROLE-BASED ACTION GATING — ISO 19650 role visibility
-    // ════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Controls action visibility and approval requirements based on ISO 19650 roles.
-    /// Roles: A(Architect), M(Mechanical), E(Electrical), S(Structural), etc.
+    /// Reads the current user's ISO 19650 role code (USER_ROLE in project_config.json),
+    /// recorded on workflow audit entries. It gates nothing: a client-side permission
+    /// check is bypassable, so authorisation lives on the server (DSCH-27).
     /// </summary>
     internal static class RoleBasedAccessControl
     {
-        /// <summary>ISO 19650 role definition.</summary>
-        internal class RoleDefinition
-        {
-            public string Code { get; set; }
-            public string Name { get; set; }
-            public HashSet<string> AllowedActions { get; set; } = new(StringComparer.OrdinalIgnoreCase);
-            public HashSet<string> ApprovalRequiredActions { get; set; } = new(StringComparer.OrdinalIgnoreCase);
-        }
-
         // HIGH-13: Per-document cache for GetCurrentUserRole to avoid repeated file reads
         private static string _cachedUserRole;
         private static string _cachedUserRoleDocKey;
@@ -1544,70 +1488,6 @@ namespace StingTools.Core
         /// <summary>Invalidate role cache (call when config changes).</summary>
         public static void InvalidateRoleCache() { _cachedUserRole = null; _cachedUserRoleDocKey = null; }
 
-        /// <summary>CC-06: Check if action is allowed for current user role.</summary>
-        public static bool IsActionAllowed(string actionTag, string userRole = null)
-        {
-            userRole ??= GetCurrentUserRole();
-
-            // BIM Manager (K) and Coordinator (C) have all permissions
-            if (userRole == "K" || userRole == "C") return true;
-
-            // Check role-specific restrictions
-            var restrictedActions = GetRestrictedActions();
-            if (restrictedActions.TryGetValue(actionTag, out var allowedRoles))
-                return allowedRoles.Contains(userRole);
-
-            return true; // Default: allow
-        }
-
-        /// <summary>CC-06: Check if action requires approval.</summary>
-        public static bool RequiresApproval(string actionTag, string userRole = null)
-        {
-            userRole ??= GetCurrentUserRole();
-
-            // BIM Manager never needs approval
-            if (userRole == "K") return false;
-
-            // CDE state transitions always require approval from non-managers
-            var approvalRequired = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "UpdateCDEStatus", "BulkUpdateCDE", "CreateTransmittal",
-                "CreateRevision", "IssueSheetsForRevision",
-            };
-
-            return approvalRequired.Contains(actionTag);
-        }
-
-        /// <summary>Actions restricted to specific roles.</summary>
-        private static Dictionary<string, HashSet<string>> GetRestrictedActions()
-        {
-            return new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
-            {
-                // CDE transitions restricted to managers and coordinators
-                ["UpdateCDEStatus"] = new() { "K", "C", "I" },
-                ["BulkUpdateCDE"] = new() { "K", "C" },
-                // BEP generation restricted to BIM managers
-                ["GenerateBEP"] = new() { "K", "C", "I" },
-                ["UpdateBEP"] = new() { "K", "C" },
-                // Bulk delete operations restricted
-                ["PurgeSharedParams"] = new() { "K" },
-                ["DeleteUnusedViews"] = new() { "K", "C", "A", "M", "E", "S" },
-            };
-        }
-
-        /// <summary>Get role display name.</summary>
-        public static string GetRoleName(string code)
-        {
-            return code switch
-            {
-                "A" => "Architect", "M" => "Mechanical Engineer", "E" => "Electrical Engineer",
-                "S" => "Structural Engineer", "H" => "HVAC Engineer", "P" => "Plumber",
-                "C" => "BIM Coordinator", "I" => "Information Manager", "K" => "BIM Manager",
-                "Q" => "QA Manager", "F" => "Facilities Manager", "W" => "Contractor",
-                "L" => "Client", "Z" => "General User",
-                _ => $"Role {code}",
-            };
-        }
     }
 
 
@@ -1650,7 +1530,8 @@ namespace StingTools.Core
     {
         private static readonly ConcurrentDictionary<string, string> _previousOwners = new();
 
-        /// <summary>ED-03: Check for workset ownership changes and log to team activity.</summary>
+        /// <summary>ED-03: Check for workset ownership changes and log to team activity.
+        /// Called after every sync with central; the first call per document only seeds.</summary>
         public static void CheckWorksetChanges(Document doc)
         {
             if (doc == null || !doc.IsWorkshared) return;
@@ -1677,7 +1558,6 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"WorksetChangeNotifier: {ex.Message}"); }
         }
 
-        /// <summary>Reset tracking (document close).</summary>
         /// <summary>Reset tracking (document close).</summary>
         public static void Reset() => _previousOwners.Clear();
     }
@@ -1973,35 +1853,6 @@ namespace StingTools.Core
     }
 
     // ════════════════════════════════════════════════════════════════
-    //  EF-02: WARNING CLASSIFICATION CACHE
-    // ════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Thread-safe classification cache for WarningsEngine.
-    /// Avoids redundant regex evaluation for identical warning descriptions.
-    /// </summary>
-    internal static class WarningClassificationCache
-    {
-        private static readonly ConcurrentDictionary<string, (WarningCategory cat, WarningSeverity sev, string fix, bool autoFix)> _cache = new();
-
-        /// <summary>EF-02: Get cached classification or compute and cache.</summary>
-        public static (WarningCategory cat, WarningSeverity sev, string fix, bool autoFix) GetOrCompute(
-            string description, Func<string, (WarningCategory, WarningSeverity, string, bool)> computeFunc)
-        {
-            if (string.IsNullOrEmpty(description))
-                return (WarningCategory.Unknown, WarningSeverity.Info, "Review manually", false);
-
-            return _cache.GetOrAdd(description, desc => computeFunc(desc));
-        }
-
-        /// <summary>Clear cache (document close or after warning resolution).</summary>
-        public static void Clear() => _cache.Clear();
-
-        /// <summary>Number of cached entries.</summary>
-        public static int Count => _cache.Count;
-    }
-
-    // ════════════════════════════════════════════════════════════════
     //  EF-03: COMMAND RESOLUTION CACHE
     // ════════════════════════════════════════════════════════════════
 
@@ -2027,280 +1878,12 @@ namespace StingTools.Core
     }
 
     // ════════════════════════════════════════════════════════════════
-    //  EF-04: MULTI-THREADED DATA ASSEMBLY helper
-    // ════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Provides parallel data assembly for BIM Coordination Center.
-    /// Runs compliance scan, warning scan, issue load, revision load concurrently.
-    /// NOTE: Revit API is single-threaded, so only file I/O and analysis
-    /// are parallelized; Revit API calls remain on main thread.
-    /// </summary>
-    internal static class ParallelDataAssembler
-    {
-        /// <summary>Assembled data from parallel operations.</summary>
-        internal class AssembledData
-        {
-            public JArray Issues { get; set; }
-            public JArray Meetings { get; set; }
-            public List<string> SLAViolations { get; set; } = new();
-            public int SLAViolationCount { get; set; }
-        }
-
-        /// <summary>EF-04: Load file-based data in parallel (issues, meetings, SLA checks).
-        /// Revit API data (compliance, warnings) must be loaded on main thread.</summary>
-        public static AssembledData LoadFileData(string projectDir)
-        {
-            var result = new AssembledData();
-            if (string.IsNullOrEmpty(projectDir)) return result;
-
-            // File I/O can be parallelized
-            var issuesTask = System.Threading.Tasks.Task.Run(() =>
-            {
-                try
-                {
-                    string path = CoordStores.IssuesIn(projectDir);
-                    if (File.Exists(path)) return JArray.Parse(File.ReadAllText(path));
-                }
-                catch (Exception ex) { StingLog.Warn($"ParallelLoad issues: {ex.Message}"); }
-                return new JArray();
-            });
-
-            var meetingsTask = System.Threading.Tasks.Task.Run(() =>
-            {
-                try
-                {
-                    string path = CoordStores.MeetingsIn(projectDir);
-                    if (File.Exists(path)) return JArray.Parse(File.ReadAllText(path));
-                }
-                catch (Exception ex) { StingLog.Warn($"ParallelLoad meetings: {ex.Message}"); }
-                return new JArray();
-            });
-
-            try
-            {
-                System.Threading.Tasks.Task.WaitAll(issuesTask, meetingsTask);
-                result.Issues = issuesTask.Result;
-                result.Meetings = meetingsTask.Result;
-            }
-            catch (Exception ex) { StingLog.Warn($"ParallelDataAssembler: {ex.Message}"); }
-
-            return result;
-        }
-    }
-
-
-    // ════════════════════════════════════════════════════════════════
-    //  ISO-01: CDE STATE MACHINE ENFORCEMENT IN UI
-    // ════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Enforces ISO 19650 CDE state transitions with suitability code validation,
-    /// timestamp recording, and user notification.
-    /// </summary>
-    internal static class CDEStateMachine
-    {
-        /// <summary>Valid one-way CDE state transitions per ISO 19650-2.</summary>
-        private static readonly Dictionary<string, List<string>> ValidTransitions = new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["WIP"] = new() { "SHARED" },
-            ["SHARED"] = new() { "PUBLISHED", "WIP" },  // WIP = rework path
-            ["PUBLISHED"] = new() { "ARCHIVE" },
-            ["ARCHIVE"] = new(),                          // Terminal state
-            ["SUPERSEDED"] = new(),
-            ["WITHDRAWN"] = new(),
-        };
-
-        /// <summary>Required suitability codes per CDE state.</summary>
-        /// Single-sourced from Iso19650Suitability.DefaultFor (was a local map that sent
-        /// PUBLISHED to S4 and ARCHIVE to S7 — both SHARED codes).
-        private static readonly Dictionary<string, string> RequiredSuitability = new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["SHARED"] = StingTools.Core.Drawing.Iso19650Suitability.DefaultFor("SHARED"),
-            ["PUBLISHED"] = StingTools.Core.Drawing.Iso19650Suitability.DefaultFor("PUBLISHED"),
-            ["ARCHIVE"] = StingTools.Core.Drawing.Iso19650Suitability.DefaultFor("ARCHIVE"),
-        };
-
-        /// <summary>ISO-01: Validate a CDE state transition.
-        /// Returns (valid, reason, requiredSuitability).</summary>
-        public static (bool valid, string reason, string requiredSuitability) ValidateTransition(
-            string fromState, string toState)
-        {
-            if (string.IsNullOrEmpty(fromState) || string.IsNullOrEmpty(toState))
-                return (false, "Invalid state: empty value", "");
-
-            if (!ValidTransitions.TryGetValue(fromState, out var allowed))
-                return (false, $"Unknown source state: {fromState}", "");
-
-            if (!allowed.Contains(toState))
-                return (false, $"Invalid transition: {fromState} → {toState}. Allowed: {string.Join(", ", allowed)}", "");
-
-            string suitability = RequiredSuitability.GetValueOrDefault(toState, "");
-            return (true, "Valid", suitability);
-        }
-
-        /// <summary>ISO-01: Record a state transition with timestamp and user.</summary>
-        public static JObject RecordTransition(string documentId, string fromState, string toState,
-            string suitabilityCode, string user = null)
-        {
-            return new JObject
-            {
-                ["document_id"] = documentId,
-                ["from_state"] = fromState,
-                ["to_state"] = toState,
-                ["suitability_code"] = suitabilityCode,
-                ["timestamp"] = DateTime.Now.ToString("o"),
-                ["user"] = user ?? Environment.UserName,
-            };
-        }
-    }
-
-    // ════════════════════════════════════════════════════════════════
-    //  ISO-02: APPROVAL HIERARCHY — Multi-party approval chains
-    // ════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Defines approval hierarchies and delegation chains per ISO 19650.
-    /// Supports multi-party approval (requires N of M approvers).
-    /// </summary>
-    internal static class ApprovalHierarchy
-    {
-        /// <summary>An approval chain definition.</summary>
-        internal class ApprovalChain
-        {
-            public string ActionTag { get; set; }
-            public List<string> PrimaryApprovers { get; set; } = new();  // Role codes
-            public List<string> DelegateApprovers { get; set; } = new(); // Fallback roles
-            public int MinApprovers { get; set; } = 1;                   // Minimum approvals needed
-            public bool VetoEnabled { get; set; }                         // Any rejection = veto
-        }
-
-        /// <summary>Built-in approval chains per ISO 19650.</summary>
-        private static readonly Dictionary<string, ApprovalChain> _chains = new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["CDEPublish"] = new ApprovalChain
-            {
-                ActionTag = "CDEPublish",
-                PrimaryApprovers = new() { "K" },               // BIM Manager
-                DelegateApprovers = new() { "I", "C" },         // Info Manager, Coordinator
-                MinApprovers = 1,
-                VetoEnabled = true,
-            },
-            ["CDEArchive"] = new ApprovalChain
-            {
-                ActionTag = "CDEArchive",
-                PrimaryApprovers = new() { "K", "I" },          // Both required
-                DelegateApprovers = new(),
-                MinApprovers = 2,
-                VetoEnabled = true,
-            },
-            ["TransmittalSend"] = new ApprovalChain
-            {
-                ActionTag = "TransmittalSend",
-                PrimaryApprovers = new() { "K", "C" },
-                DelegateApprovers = new() { "I" },
-                MinApprovers = 1,
-                VetoEnabled = false,
-            },
-            ["RevisionIssue"] = new ApprovalChain
-            {
-                ActionTag = "RevisionIssue",
-                PrimaryApprovers = new() { "K" },
-                DelegateApprovers = new() { "C" },
-                MinApprovers = 1,
-                VetoEnabled = true,
-            },
-        };
-
-        /// <summary>ISO-02: Get approval chain for an action.</summary>
-        public static ApprovalChain GetChain(string actionTag)
-        {
-            _chains.TryGetValue(actionTag, out var chain);
-            return chain;
-        }
-
-        /// <summary>ISO-02: Check if current user can approve an action.</summary>
-        public static bool CanUserApprove(string actionTag, string userRole)
-        {
-            var chain = GetChain(actionTag);
-            if (chain == null) return true; // No chain = no approval needed
-            return chain.PrimaryApprovers.Contains(userRole) ||
-                   chain.DelegateApprovers.Contains(userRole);
-        }
-
-        /// <summary>ISO-02: Check if approval requirements are met.</summary>
-        public static (bool met, string reason) CheckApprovalStatus(
-            string actionTag, Dictionary<string, string> decisions)
-        {
-            var chain = GetChain(actionTag);
-            if (chain == null) return (true, "No approval required");
-
-            int approvedCount = decisions.Values.Count(v => v == "APPROVED");
-            int rejectedCount = decisions.Values.Count(v => v == "REJECTED");
-
-            if (chain.VetoEnabled && rejectedCount > 0)
-                return (false, $"Vetoed: {rejectedCount} rejection(s)");
-
-            if (approvedCount >= chain.MinApprovers)
-                return (true, $"Approved: {approvedCount}/{chain.MinApprovers} required approvals");
-
-            return (false, $"Pending: {approvedCount}/{chain.MinApprovers} approvals ({chain.MinApprovers - approvedCount} more needed)");
-        }
-    }
-
-    // ════════════════════════════════════════════════════════════════
-    //  ISO-03: INFORMATION MATURITY CLASSIFICATION — PAS 1192-2
-    // ════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Tracks Information Maturity (IM) classification per PAS 1192-2 / ISO 19650-2.
-    /// S0=task specific, S1=model/library, S2=information container,
-    /// S3=issued for coordination, S4=issued for approval, S5=issued for construction.
-    /// </summary>
-    internal static class InformationMaturityTracker
-    {
-        /// <summary>IM classification codes with descriptions.</summary>
-        public static readonly Dictionary<string, string> IMCodes = new()
-        {
-            ["S0"] = "Work in Progress — task specific",
-            ["S1"] = "Shared — model/library reference",
-            ["S2"] = "Shared — information container for coordination",
-            ["S3"] = "Issued for Coordination — review and comment",
-            ["S4"] = "Issued for Approval — stage gate",
-            ["S5"] = "Issued for Construction / Manufacturing",
-            ["S6"] = "Issued for As-Built / Record",
-            ["S7"] = "Issued for Archive",
-        };
-
-        /// <summary>ISO-03: Map CDE state to IM classification.</summary>
-        public static string CDEStateToIM(string cdeState)
-            => StingTools.Core.Drawing.Iso19650Suitability.DefaultFor(cdeState) ?? "S0";
-
-        /// <summary>ISO-03: Validate IM classification against CDE state.</summary>
-        public static (bool valid, string reason) ValidateIMAgainstCDE(string imCode, string cdeState)
-        {
-            string expectedIM = CDEStateToIM(cdeState);
-            if (string.IsNullOrEmpty(imCode))
-                return (false, $"No IM classification set. Expected: {expectedIM} for CDE state {cdeState}");
-            if (imCode == expectedIM)
-                return (true, "IM classification matches CDE state");
-            // A code is valid in a state when it belongs there (Iso19650Suitability.CdeStateFor).
-            // The numeric "S5 >= S4" comparison this replaces also passed an S4 as PUBLISHED.
-            string belongs = StingTools.Core.Drawing.Iso19650Suitability.CdeStateFor(imCode);
-            if (string.Equals(belongs, (cdeState ?? "").Trim(), StringComparison.OrdinalIgnoreCase))
-                return (true, $"IM {imCode} belongs in {cdeState}");
-            return (false, $"IM {imCode} belongs in {belongs ?? "no CDE state"}, not {cdeState} (default for {cdeState}: {expectedIM})");
-        }
-    }
-
-    // ════════════════════════════════════════════════════════════════
     //  CW-01: MID-DAY COORDINATION WORKFLOW PRESET
-    //  CW-03: COST/SCHEDULE IMPACT TOOLTIPS
     //  CW-04: REVIEW PREP WORKFLOW PRESET
     // ════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Provides coordinator-specific workflow presets and action impact tooltips.
+    /// Provides coordinator-specific workflow presets.
     /// </summary>
     internal static class CoordinatorWorkflowPresets
     {
@@ -2342,24 +1925,6 @@ namespace StingTools.Core
             };
         }
 
-        /// <summary>CW-03: Get action impact tooltip describing time/cost/discipline impact.</summary>
-        public static string GetActionImpact(string actionTag)
-        {
-            return actionTag switch
-            {
-                "RetagStale" => "⏱ ~2 min for 100 elements | Affects: all disciplines with moved elements",
-                "BatchTag" => "⏱ ~5 min for 10K elements | 📊 Improves compliance by 10-40%",
-                "WarningsAutoFix" => "⏱ ~1 min | Resolves 30-70% of auto-fixable warnings",
-                "COBieExport" => "⏱ ~3 min for 10K elements | 📋 Generates 19-sheet COBie workbook",
-                "ValidateTags" => "⏱ ~30 sec | 📊 Shows 4-bucket compliance report",
-                "GenerateBEP" => "⏱ ~1 min | 📋 Full BEP document with compliance data",
-                "AutoSchedule4D" => "⏱ ~2 min | 📊 4D timeline from 32-trade sequence",
-                "AutoCost5D" => "⏱ ~2 min | 💰 5D cost estimate from rate database",
-                "WeeklyCoordinatorReport" => "⏱ ~30 sec | 📋 Self-contained HTML report",
-                "CreateRevision" => "⏱ ~1 min | 🔄 Tags snapshot for revision delta tracking",
-                _ => "",
-            };
-        }
     }
 
     // ════════════════════════════════════════════════════════════════

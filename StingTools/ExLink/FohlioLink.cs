@@ -71,7 +71,7 @@ namespace StingTools.ExLink
         //                            contractor never writes
         //   "measured"               contractor-supplied - a normal priced line
         //   "ownerSupplied-excluded" out of this bill entirely (the element is skipped)
-        //   "pcSum"                  explicit contractual provisional / prime-cost sum
+        //   "pcSum"                  explicit contractual prime cost (PC) sum - a PC sum row, not a provisional sum (DSCH-44)
         public string BoqTreatment { get; set; } = "ffe";
         public Dictionary<string, string> BoqTreatmentByCategory { get; set; }
 

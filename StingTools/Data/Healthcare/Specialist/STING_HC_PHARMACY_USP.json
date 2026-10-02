@@ -1,15 +1,41 @@
 {
-  "schemaVersion": 1.0,
-  "description": "H-13 — USP <797> / <800> pharmacy cleanroom rules.",
-  "sterileCascade": [
-    {"code":"PEC-797","iso":"ISO 5","achMin":0},
-    {"code":"BUF-797","iso":"ISO 7","achMin":30,"deltaPaToAnteroomMin":5,"polarity":"POS"},
-    {"code":"ANT-797","iso":"ISO 7","achMin":30,"deltaPaToCorridorMin":5,"polarity":"POS"}
+  "_doc": [
+    "H-13 / DSCH-25 — USP <797> / <800> pharmacy cleanroom cascade. The ONE owner of these limits; read by",
+    "Core/Validation/Healthcare/UspCascade.cs (PharmacyUspAuditCommand, PressureRegimeValidator). No code constant backs them.",
+    "Differentials are in inches of water column as USP states them; Pa is derived (1 in w.c. = 249.0889 Pa).",
+    "roomClass is the CLN_ROOM_CLASS_TXT value a row audits (DSCH-36: every row has one). A suite is the primary class",
+    "(PH-CSP-797 buffer room, PH-CSP-800 C-SEC) plus the classes that extend it (-ANTE ante-room, -CSCA containment",
+    "segregated compounding area); the pharmacy audit checks the whole suite of the selected standard.",
+    "This file is the one owner of PH-CSP-* polarity, differential and air changes: HTMStandards and ASHRAE170Standards",
+    "hold no PH-CSP rows.",
+    "Every figure carries a 'verify' text: the values were confirmed from secondary sources, not the official USP text",
+    "(DSCH-41, re-checked 2026-10-02: the official text could not be read without a USP-NF subscription)."
   ],
-  "hazardousCascade": [
-    {"code":"CPEC-800","iso":"ISO 5","achMin":0,"externalExhaust":true},
-    {"code":"CSEC-800","iso":"ISO 7","achMin":30,"deltaPaToAnteroomMin":2.5,"polarity":"NEG","externalExhaust":true},
-    {"code":"ANT-800","iso":"ISO 7","achMin":30,"deltaPaToCorridorMin":5,"polarity":"POS"}
+  "schemaVersion": 2,
+  "description": "USP <797> / <800> pharmacy cleanroom pressure cascade and air-change minimums.",
+  "rooms": [
+    { "code": "BUF-797", "roomClass": "PH-CSP-797", "standard": "USP <797>", "iso": "ISO 7", "achMin": 30,
+      "polarity": "POS", "relativeTo": "the ante-room", "minInWc": 0.020, "externalExhaust": false,
+      "source": "USP <797> (2023) — buffer room at least 0.020 in w.c. positive to the ante-room; at least 30 ACPH",
+      "verify": "confirm 0.020 in w.c. and 30 ACPH against the official USP <797> text (checked 2026-10-02: the official chapter text is sold through USP-NF / the Compounding Compendium and needs an account; usp.org and uspnf.com refused automated reads, and the free <797> FAQ link on usp.org is dead; state-board guidance agrees but is secondary)" },
+    { "code": "ANT-797", "roomClass": "PH-CSP-797-ANTE", "standard": "USP <797>", "iso": "ISO 7", "achMin": 30,
+      "polarity": "POS", "relativeTo": "unclassified space", "minInWc": 0.020, "externalExhaust": false,
+      "source": "USP <797> (2023) — ante-room at least 0.020 in w.c. positive to unclassified space",
+      "verify": "confirm against the official USP <797> text (checked 2026-10-02: the official chapter text is sold through USP-NF / the Compounding Compendium and needs an account; usp.org and uspnf.com refused automated reads, and the free <797> FAQ link on usp.org is dead; state-board guidance agrees but is secondary)" },
+    { "code": "CSEC-800", "roomClass": "PH-CSP-800", "standard": "USP <800>", "iso": "ISO 7", "achMin": 30,
+      "polarity": "NEG", "relativeTo": "all adjacent areas", "minInWc": 0.01, "maxInWc": 0.03, "externalExhaust": true,
+      "source": "USP <800> — C-SEC (buffer room) negative between 0.01 and 0.03 in w.c. to all adjacent areas, externally exhausted, at least 30 ACPH",
+      "verify": "confirm 0.01–0.03 in w.c. and 30 ACPH against the official USP <800> text (checked 2026-10-02: the official chapter text is sold through USP-NF / the Compounding Compendium and needs an account; usp.org and uspnf.com refused automated reads, and the free <797> FAQ link on usp.org is dead; state-board guidance agrees but is secondary)" },
+    { "code": "ANT-800", "roomClass": "PH-CSP-800-ANTE", "standard": "USP <797> / <800>", "iso": "ISO 7", "achMin": 30,
+      "polarity": "POS", "relativeTo": "unclassified space", "minInWc": 0.020, "externalExhaust": false,
+      "source": "USP <797> (2023) ante-room requirement applied to the hazardous-drug ante-room",
+      "verify": "confirm the <800> ante-room pressure and ACPH against the official USP <797> / <800> text (checked 2026-10-02: the official chapter text is sold through USP-NF / the Compounding Compendium and needs an account; usp.org and uspnf.com refused automated reads, and the free <797> FAQ link on usp.org is dead; state-board guidance agrees but is secondary)" },
+    { "code": "CSCA-800", "roomClass": "PH-CSP-800-CSCA", "standard": "USP <800>", "iso": "unclassified", "achMin": 12,
+      "polarity": "NEG", "relativeTo": "all adjacent areas", "minInWc": 0.01, "maxInWc": 0.03, "externalExhaust": true,
+      "source": "USP <800> — containment segregated compounding area negative 0.01–0.03 in w.c., externally exhausted",
+      "verify": "confirm 0.01–0.03 in w.c. and 12 ACPH against the official USP <800> text (checked 2026-10-02: the official chapter text is sold through USP-NF / the Compounding Compendium and needs an account; usp.org and uspnf.com refused automated reads, and the free <797> FAQ link on usp.org is dead; state-board guidance agrees but is secondary)" }
   ],
-  "recertificationCycleMonths": 6
+  "recertificationCycleMonths": 6,
+  "recertificationSource": "USP <797> — certification of PECs and SECs at least every 6 months",
+  "recertificationVerify": "confirm against the official USP <797> text (checked 2026-10-02: the official chapter text is sold through USP-NF / the Compounding Compendium and needs an account; usp.org and uspnf.com refused automated reads, and the free <797> FAQ link on usp.org is dead; state-board guidance agrees but is secondary)"
 }

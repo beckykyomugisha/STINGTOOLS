@@ -179,7 +179,6 @@ namespace StingTools.Commands.Electrical.FeederSizing
                     DerateFactor    = s.DerateFactor,
                     DiversityFactor = s.DiversityPct > 0 ? s.DiversityPct / 100.0 : 1.0,
                     InstallMethod   = s.InstallMethod ?? "C",
-                    Material        = "Cu",
                     Insulation      = string.IsNullOrEmpty(s.Insulation) ? "PVC70" : s.Insulation,
                     CableType       = string.IsNullOrEmpty(s.CableType)
                                           ? StingTools.Core.Electrical.Bs7671Data.DefaultCableType : s.CableType,
@@ -200,6 +199,11 @@ namespace StingTools.Commands.Electrical.FeederSizing
                 }
                 else
                 {
+                    var mat = StingTools.Core.Electrical.ConductorMaterialSource.ForElement(feed, null);
+                    if (!mat.Ok) input.SkipReason = mat.Refusal + " on the supply circuit.";
+                    else if (mat.Assumed) input.DefaultsUsed.Add("conductor " + mat.Basis + " on the supply circuit");
+                    else input.Material = mat.Label;
+
                     double va = StingTools.Core.Electrical.ElecUnits.ApparentLoadVA(feed);
                     if (va > 0)
                     {

@@ -117,11 +117,22 @@ namespace StingTools.Core.Plumbing
             try
             {
                 var deadLegs = DeadLegDetector.Scan(doc, writeBack: false);
-                r.Htm.Total = deadLegs.PipesScanned;
+                // Only legs a limit applied to count; pipes that are not leg ends are
+                // not "passes" (they were never checked).
+                r.Htm.Total = deadLegs.LegsChecked + deadLegs.LegsNotChecked;
                 r.Htm.Fail  = deadLegs.LegsFlagged;
-                r.Htm.Pass  = Math.Max(0, deadLegs.PipesScanned - deadLegs.LegsFlagged);
+                r.Htm.Pass  = Math.Max(0, deadLegs.LegsChecked - deadLegs.LegsFlagged);
+                if (PlumbingTables.WaterSafety == null && deadLegs.PipesScanned > 0)
+                {
+                    // Limits unusable: nothing was checked, which must not read as 100 %.
+                    r.Htm.Total = deadLegs.PipesScanned;
+                    r.Htm.Warn  = deadLegs.PipesScanned;
+                }
                 if (deadLegs.LegsFlagged > 0)
-                    r.Htm.TopFindings.Add($"{deadLegs.LegsFlagged} dead-leg(s) > HSG 274 limits");
+                    r.Htm.TopFindings.Add($"{deadLegs.LegsFlagged} dead-leg(s) over their limit (HTM 04-01 / BS 8558)");
+                if (deadLegs.LegsNotChecked > 0)
+                    r.Htm.TopFindings.Add($"{deadLegs.LegsNotChecked} dead-leg(s) not checked");
+                foreach (var w in deadLegs.Warnings.Take(2)) r.Htm.TopFindings.Add(w);
             }
             catch (Exception ex) { r.Htm.TopFindings.Add("scan error: " + ex.Message); }
 

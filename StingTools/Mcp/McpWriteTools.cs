@@ -320,7 +320,7 @@ namespace StingTools.Mcp
                 {
                     // Display-unit string first (respects project units, e.g. "100" mm).
                     try { if (p.SetValueString(value)) return true; } catch { /* fall through */ }
-                    if (double.TryParse(value, out double dv)) return p.Set(dv);   // internal-unit fallback
+                    if (NumberText.TryParse(value, out double dv)) return p.Set(dv);   // internal-unit fallback
                     err = $"'{value}' is not numeric";
                     return false;
                 }

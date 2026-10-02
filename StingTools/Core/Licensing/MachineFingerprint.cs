@@ -19,9 +19,6 @@ namespace StingTools.Core.Licensing
         /// </summary>
         public static string Stable => _stable ??= FingerprintComposer.Compute(new List<string> { MachineGuid() });
 
-        /// <summary>True when at least MachineGuid + 1 hardware factor are real.</summary>
-        public static bool IsTrustworthy => FingerprintComposer.RealFactorCount(Factors()) >= 2;
-
         private static List<string> Factors() => new List<string>
         {
             MachineGuid(),

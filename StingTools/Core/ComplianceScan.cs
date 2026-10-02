@@ -560,6 +560,12 @@ namespace StingTools.Core
                 }
                 catch (Exception persistEx) { StingLog.Warn($"ComplianceScan ES persist: {persistEx.Message}"); }
 
+                // WF-01 / ED-01 (DSCH-27): an OnComplianceFall trigger in project_config.json
+                // used to be loaded and never checked. Every fresh project scan checks it now;
+                // a firing trigger queues its preset like the document-open and SLA triggers.
+                try { WorkflowScheduler.CheckComplianceFallTriggers(doc, result.CompliancePercent); }
+                catch (Exception trigEx) { StingLog.Warn($"ComplianceScan compliance-fall triggers: {trigEx.Message}"); }
+
                 return result;
             }
             finally

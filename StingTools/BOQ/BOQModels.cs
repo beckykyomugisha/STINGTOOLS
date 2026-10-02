@@ -10,48 +10,6 @@ using Autodesk.Revit.DB;
 
 namespace StingTools.BOQ
 {
-    public enum BOQRowSource
-    {
-        Model,
-        Manual,
-        ProvisionalSum,
-        Dayworks,       // P3.1 — daywork / time-and-material rows
-        PCSum          // P3.1 — prime-cost sum (named supplier allowance)
-    }
-
-    /// <summary>P3.1 — shared source label / parse helpers so the export label,
-    /// import parser and panel agree on one spelling per source.</summary>
-    public static class BoqSourceUtil
-    {
-        public static string Label(BOQRowSource s)
-        {
-            switch (s)
-            {
-                case BOQRowSource.Manual:         return "Manual";
-                case BOQRowSource.ProvisionalSum: return "Provisional Sum";
-                case BOQRowSource.Dayworks:       return "Dayworks";
-                case BOQRowSource.PCSum:          return "PC Sum";
-                default:                          return "Model";
-            }
-        }
-
-        /// <summary>Parse a source label (case-insensitive, substring-tolerant).
-        /// Returns Model for unrecognised input.</summary>
-        public static BOQRowSource Parse(string label)
-        {
-            string l = (label ?? "").Trim().ToLowerInvariant();
-            if (l.Contains("provisional")) return BOQRowSource.ProvisionalSum;
-            if (l.Contains("daywork"))     return BOQRowSource.Dayworks;
-            if (l.Contains("pc") || l.Contains("prime cost")) return BOQRowSource.PCSum;
-            if (l.Contains("manual"))      return BOQRowSource.Manual;
-            return BOQRowSource.Model;
-        }
-
-        /// <summary>True for QS-authored rows that must never be overwritten by
-        /// a model re-takeoff (everything except Model).</summary>
-        public static bool IsQsAuthored(BOQRowSource s) => s != BOQRowSource.Model;
-    }
-
     /// <summary>
     /// P2.2 — how a BOQ is grouped into sections. NRM2 supports both elemental
     /// (work-section) and locational (level / zone) bills; this enum selects
@@ -88,7 +46,7 @@ namespace StingTools.BOQ
     /// otherwise fold into the grand total as invisible zero-value lines; this
     /// surfaces them (count + a proxy monetary exposure) so they can't hide, and
     /// drives the export gate. "Could not measure" rows (measured unit, qty ≈ 0)
-    /// are counted separately. Legitimately-free categories (Rooms/Spaces/Areas)
+    /// are counted separately. Categories declared NOT MEASURED in STING_DEFAULT_COST_RATES.csv
     /// are excluded.
     /// </summary>
     public struct BoqUncostedRollup
@@ -217,6 +175,15 @@ namespace StingTools.BOQ
         public string Note;
         public string SourceModel;          // "" / null = host; else the linked model Title (Group by Source model)
         public BOQRowSource Source;
+
+        /// <summary>DSCH-35 — for a <see cref="BOQRowSource.ProvisionalSum"/> row: Defined or
+        /// Undefined in the sense of NRM2 2.9.1 (whether the contractor is deemed to have allowed
+        /// for programming, planning and preliminaries). Undeclared is never read as either: the
+        /// bill shows "NOT DECLARED" and the health check flags it. Older rows deserialise as
+        /// Undeclared, which is the truth about them. Written as text in the JSON stores.</summary>
+        [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
+        public ProvisionalSumType PsType = ProvisionalSumType.Undeclared;
+
         public string SnapshotRef;
         public long RevitElementId = -1;    // -1 for manual/PS rows
         public string UniqueId;             // Revit UniqueId (cross-doc, survives Revit save/reopen)
@@ -258,7 +225,17 @@ namespace StingTools.BOQ
         public string WbsCode;
         public string CbsCode;
         public DateTime LastCosted = DateTime.UtcNow;
-        public string RateSource;           // "CSV" | "COBie" | "Default" | "Manual" | "Override" | "Carbon" | "Interpolated" | "QS"
+        public string RateSource;           // "CSV" | "Default" | "Manual" | "Override" | "Carbon" | "Interpolated" | "QS" ("COBie" on rows costed before DSCH-28)
+        /// <summary>DSCH-26 — Priced, or a declared Nil / Included. A declared row has
+        /// RateUGX 0 and is NOT unpriced: the bill shows "Nil" / "Incl." and the health
+        /// score does not count it at risk. Defaults Priced so older snapshots read unchanged.</summary>
+        public StingTools.BOQ.Rates.RateOutcome RateOutcome = StingTools.BOQ.Rates.RateOutcome.Priced;
+        /// <summary>DSCH-26 — where an Included row's cost is carried ("E10/2"). Empty otherwise.</summary>
+        public string IncludedIn = "";
+        /// <summary>DSCH-26 — a positive rate or a declared Nil / Included. False means
+        /// nobody priced the line. Every "missing rate" count asks this, never RateUGX &lt;= 0.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool IsPriceDecided => StingTools.BOQ.Rates.RateChainRule.IsDecided(RateOutcome, RateUGX);
         public int RateConfidence = 60;     // 0-100 (Phase 11A)
         public int SortOrder;               // stable ordering within a section
 
@@ -398,6 +375,7 @@ namespace StingTools.BOQ
                 Note = this.Note,
                 SourceModel = this.SourceModel,
                 Source = this.Source,
+                PsType = this.PsType,             // DSCH-35
                 SnapshotRef = this.SnapshotRef,
                 RevitElementId = this.RevitElementId,
                 UniqueId = this.UniqueId,
@@ -408,6 +386,8 @@ namespace StingTools.BOQ
                 CbsCode = this.CbsCode,
                 LastCosted = this.LastCosted,
                 RateSource = this.RateSource,
+                RateOutcome = this.RateOutcome,   // DSCH-26
+                IncludedIn = this.IncludedIn,
                 RateConfidence = this.RateConfidence,
                 SortOrder = this.SortOrder,
                 LabourUGX = this.LabourUGX,

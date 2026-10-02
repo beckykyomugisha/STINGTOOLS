@@ -201,17 +201,23 @@ namespace StingTools.Commands.Electrical
                 string path = StingToolsApp.FindDataFile("STING_PANEL_SCHEDULE_TEMPLATES.json");
                 if (string.IsNullOrEmpty(path) || !File.Exists(path)) return rows;
                 var root = JObject.Parse(File.ReadAllText(path));
+                // DSCH round 4: the same keys PanelScheduleTemplateRegistry reads.
+                // This read rule["match"]["namePatterns"] and rule["template"], which
+                // the file has never had, so every row showed an empty pattern and
+                // template; priority came from a loop counter, and the fallback row
+                // printed the whole globalFallback object as a template name.
                 int pri = 0;
                 foreach (var rule in root["rules"] as JArray ?? new JArray())
                 {
                     pri++;
                     string pattern = string.Join(",",
-                        ((rule["match"]?["namePatterns"] as JArray)?.Select(t => t.ToString()) ?? Enumerable.Empty<string>()));
-                    string template = rule["template"]?.ToString() ?? "";
-                    rows.Add(new TemplateRuleRow { Priority = pri, Pattern = pattern, Template = template });
+                        ((rule["namePatterns"] as JArray)?.Select(t => t.ToString()) ?? Enumerable.Empty<string>()));
+                    string template = rule["templateName"]?.ToString() ?? "";
+                    int priority = (int?)rule["priority"] ?? pri;
+                    rows.Add(new TemplateRuleRow { Priority = priority, Pattern = pattern, Template = template });
                 }
-                if (root["globalFallback"] != null)
-                    rows.Add(new TemplateRuleRow { Priority = 999, Pattern = ".*", Template = root["globalFallback"].ToString() });
+                if ((bool?)root["globalFallback"]?["useFirstAvailableTemplate"] == true)
+                    rows.Add(new TemplateRuleRow { Priority = 999, Pattern = ".*", Template = "(first template in the project)" });
             }
             catch (Exception ex) { StingLog.Warn($"BuildTemplateRules: {ex.Message}"); }
             return rows;
@@ -381,7 +387,7 @@ namespace StingTools.Commands.Electrical
 
                 // VD scan
                 var opts = StingElectricalCommandHandler.CurrentVDOptions
-                           ?? new VDOptionsSnapshot { LightingLimitPct = 3.0, OtherLimitPct = 5.0, Material = "Cu", OperatingTempC = 70.0 };
+                           ?? new VDOptionsSnapshot { LightingLimitPct = 3.0, OtherLimitPct = 5.0, Material = null, OperatingTempC = 70.0 };
                 var vds = VoltageDropCommand.Calculate(doc, opts.Standard, opts.LightingLimitPct, opts.OtherLimitPct,
                                                        opts.Material, opts.OperatingTempC);
                 int bad = vds.Count(v => v.ExceedsThreshold);

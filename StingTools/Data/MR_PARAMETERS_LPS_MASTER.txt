@@ -28,13 +28,13 @@ GROUP	23	HEALTH_METRICS
 GROUP	24	ASBUILT
 GROUP	25	COMMISSIONING
 *PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE	HIDEWHENNOVALUE
-PARAM	e1c5f9d4-1001-5111-9111-100000000001	ELC_LPS_AIRTERM_TAG_TXT	TEXT		4	1	LPS air-terminal / finial tag -- full ISO 19650 tag for rod, mesh node, or strike termination [BS EN 62305-3 _5.2]	1
-PARAM	1eeb577d-342d-5039-97f1-f1dd8d80c8c4	ASS_TAG_1_TXT	TEXT		1	1	Ass Tag 1 Txt [ISO 19650-3:2020]	1
-PARAM	e1c5f9d4-1002-5111-9111-100000000002	ELC_LPS_DOWNCOND_TAG_TXT	TEXT		4	1	LPS down-conductor tag -- full tag for descent conductors connecting air terminals to earth [BS EN 62305-3 _5.3]	1
-PARAM	e1c5f9d4-1003-5111-9111-100000000003	ELC_LPS_EARTH_TAG_TXT	TEXT		4	1	LPS earth-electrode tag -- full tag for rod / ring / foundation / mesh earth electrode [BS EN 62305-3 _5.4]	1
-PARAM	e1c5f9d4-1004-5111-9111-100000000004	ELC_LPS_BOND_TAG_TXT	TEXT		4	1	LPS equipotential bonding tag -- full tag for bonding conductor or bonding bar [BS EN 62305-3 _6.2]	1
+PARAM	e1c5f9d4-1001-5111-9111-100000000001	ELC_LPS_AIRTERM_TAG_TXT	TEXT		4	1	LPS air-terminal / finial tag -- full ISO 19650 tag for rod, mesh node, or strike termination [BS EN 62305-3 s.5.2]	1
+PARAM	1eeb577d-342d-5039-97f1-f1dd8d80c8c4	ASS_TAG_1_TXT	TEXT		1	1	Full 8-segment tag [ISO 19650-3:2020]	1
+PARAM	e1c5f9d4-1002-5111-9111-100000000002	ELC_LPS_DOWNCOND_TAG_TXT	TEXT		4	1	LPS down-conductor tag -- full tag for descent conductors connecting air terminals to earth [BS EN 62305-3 s.5.3]	1
+PARAM	e1c5f9d4-1003-5111-9111-100000000003	ELC_LPS_EARTH_TAG_TXT	TEXT		4	1	LPS earth-electrode tag -- full tag for rod / ring / foundation / mesh earth electrode [BS EN 62305-3 s.5.4]	1
+PARAM	e1c5f9d4-1004-5111-9111-100000000004	ELC_LPS_BOND_TAG_TXT	TEXT		4	1	LPS equipotential bonding tag -- full tag for bonding conductor or bonding bar [BS EN 62305-3 s.6.2]	1
 PARAM	e1c5f9d4-1005-5111-9111-100000000005	ELC_LPS_SPD_TAG_TXT	TEXT		4	1	LPS surge protective device tag -- full tag for SPD Type 1 / 2 / 3 [BS EN 62305-4 / BS EN 61643]	1
-PARAM	e1c5f9d4-1006-5111-9111-100000000006	ELC_LPS_TESTCLAMP_TAG_TXT	TEXT		4	1	LPS test clamp / inspection point tag -- full tag for clamps allowing earth-resistance test [BS EN 62305-3 _7.2]	1
+PARAM	e1c5f9d4-1006-5111-9111-100000000006	ELC_LPS_TESTCLAMP_TAG_TXT	TEXT		4	1	LPS test clamp / inspection point tag -- full tag for clamps allowing earth-resistance test [BS EN 62305-3 s.7.2]	1
 PARAM	081c2e86-3af9-5658-8a26-63da9c1eccc2	ELC_LPS_CLASS_TXT	TEXT		4	1	LPS class per BS EN 62305 (I / II / III / IV)	1
 PARAM	b1080057-9890-5a0c-959a-46fb8847c766	TAG_PARA_STATE_2_BOOL	YESNO		17	1	Standard mode (tiers 1+2) [ISO 19650-3:2020]	1
 PARAM	a01025f4-6155-524e-8514-72507f5e04ef	ELC_LPS_ZONE_TXT	TEXT		4	1	Lightning protection zone per BS EN 62305-4 (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3)	1
@@ -90,23 +90,23 @@ PARAM	e72731ee-88d0-5341-b458-4ce288e5fbe4	CBN_A1_A3_KG_CO2E_DISP_TXT	TEXT		9	1	
 PARAM	9b913556-ac00-5a04-b53c-1e262498ad1d	TAG_PARA_STATE_6_BOOL	YESNO		17	1	Paragraph depth state tier 6 [ISO 19650-3:2020]	1
 PARAM	434c64bc-c14b-5c9e-8378-dece87752dca	CBN_A4_KG_CO2E_DISP_TXT	TEXT		9	1	Embodied carbon A4 transport to site kgCO2e — TEXT display mirror for tag labels	1
 PARAM	d45fbd40-963e-5e52-864f-e4964ef3b449	CBN_B6_KG_CO2E_YR_DISP_TXT	TEXT		9	1	Operational carbon B6 energy annual kgCO2e/yr — TEXT display mirror for tag labels	1
-PARAM	822bb665-a508-5268-b490-28d8546d6300	ASS_MANUFACTURER_TXT	TEXT		1	1	Ass Manufacturer Txt [ISO 19650-3:2020]	1
-PARAM	305de400-5d2f-54f6-a4ed-acc93f5a1ab2	ASS_MODEL_NR_TXT	TEXT		1	1	Ass Model Nr Txt [ISO 19650-3:2020]	1
-PARAM	3bc7b880-b296-532f-9faf-8c41d69df5c3	ASS_EXPECTED_LIFE_YEARS_YRS	TEXT		1	1	Ass Expected Life Years Yrs [ISO 19650-3:2020]	1
+PARAM	822bb665-a508-5268-b490-28d8546d6300	ASS_MANUFACTURER_TXT	TEXT		1	1	Manufacturer [ISO 19650-3:2020]	1
+PARAM	305de400-5d2f-54f6-a4ed-acc93f5a1ab2	ASS_MODEL_NR_TXT	TEXT		1	1	Model number [ISO 19650-3:2020]	1
+PARAM	3bc7b880-b296-532f-9faf-8c41d69df5c3	ASS_EXPECTED_LIFE_YEARS_YRS	TEXT		1	1	Expected service life (years) [ISO 19650-3:2020]	1
 PARAM	1a4353be-eaaa-5e46-95ee-b64a74667194	ASS_SPOOL_NR_TXT	TEXT		1	1	Spool or bundle number assigned by AssemblyBuilder	1
 PARAM	8eb03b28-aaf9-5803-8e87-f0655afbf08d	TAG_PARA_STATE_7_BOOL	YESNO		17	1	Paragraph depth state tier 7 [ISO 19650-3:2020]	1
 PARAM	29ba93ba-238e-5aad-930a-a621b0f43b5b	ASS_FAB_STATUS_TXT	TEXT		1	1	Fabrication status (NOT_STARTED / CUT / WELDED / INSPECTED / SHIPPED / INSTALLED)	1
 PARAM	a028f908-b100-53bc-b21a-1a0a6a03ffac	ASS_QC_INSPECTOR_TXT	TEXT		1	1	Name or ID of QC inspector who released the assembly	1
 PARAM	953575a9-1d0c-5bb5-a4d2-c52b4b4adf96	ASS_INSTALL_DATE_TXT	TEXT		1	1	DEPRECATED -- use ASS_INSTALLATION_DATE_TXT. ISO 8601 date when assembly was installed on site.	1
 PARAM	84726a5b-ca7f-59a8-9d3b-7d9f5b8fe4f3	CST_INSTALL_HRS_DISP_TXT	TEXT		2	1	Install time in hours per element for labour takeoff — TEXT display mirror for tag labels	1
-PARAM	01fcf005-60b1-5886-b52f-015cc7598787	ASS_CST_INSTALL_UGX_NR	TEXT		1	1	Ass Cst Install Ugx Nr [ISO 19650-3:2020]	1
+PARAM	01fcf005-60b1-5886-b52f-015cc7598787	ASS_CST_INSTALL_UGX_NR	TEXT		1	1	Installation cost (UGX) [ISO 19650-3:2020]	1
 PARAM	24b29d51-28da-59b4-a011-007d932651b7	CLASH_TRIAGE_SEVERITY_NR_DISP_TXT	TEXT		20	1	Clash triage severity 1 (lowest) to 5 (highest) — TEXT display mirror for tag labels	1
 PARAM	dd2f491c-8806-5cd2-bb21-d3b915646070	TAG_PARA_STATE_8_BOOL	YESNO		17	1	Paragraph depth state tier 8 [ISO 19650-3:2020]	1
 PARAM	5753b5aa-0008-4000-8000-000000000002	CLASH_TRIAGE_CATEGORY_TXT	TEXT		20	1	Clash triage category (STRUCTURAL / SERVICES / NON_CRITICAL)	1
 PARAM	5753b5aa-0008-4000-8000-000000000003	CLASH_RESOLUTION_STATUS_TXT	TEXT		20	1	Clash resolution status (PENDING / APPLIED / ACCEPTED)	1
 PARAM	ab05e034-3374-5996-a39f-cefdf502e852	ASS_CRITICALITY_RATING_TXT	TEXT		1	1	ASS_CRITICALITY_RATING_NR display mirror [auto-generated]	1
-PARAM	dc0d940f-e4ce-5e73-a0a7-fc7094148c84	ASS_ZONE_TXT	TEXT		1	1	Ass Zone Txt [ISO 19650-3:2020]	1
-PARAM	b1e51fab-fa88-50df-8b2f-bcdbe48e7c78	ASS_LVL_COD_TXT	TEXT		1	1	Ass Lvl Cod Txt [ISO 19650-3:2020]	1
+PARAM	dc0d940f-e4ce-5e73-a0a7-fc7094148c84	ASS_ZONE_TXT	TEXT		1	1	Zone code (Z01-Z04, ZZ, XX) [ISO 19650-3:2020]	1
+PARAM	b1e51fab-fa88-50df-8b2f-bcdbe48e7c78	ASS_LVL_COD_TXT	TEXT		1	1	Level code (L01, GF, B1, RF, XX) [ISO 19650-3:2020]	1
 PARAM	5ad7dbaa-5744-5ecb-98c1-80a316640285	ASBUILT_DEVIATION_MM_DISP_TXT	TEXT		24	1	As-built vs as-designed deviation in millimetres — TEXT display mirror for tag labels	1
 PARAM	482475c4-be76-5db3-87a6-8aac4a53dc74	TAG_PARA_STATE_9_BOOL	YESNO		17	1	Paragraph depth state tier 9 [ISO 19650-3:2020]	1
 PARAM	5753b5aa-0009-4000-8000-000000000002	ASBUILT_CAPTURE_DATE_TXT	TEXT		24	1	ISO 8601 date when as-built data captured from Planscape mobile	1
@@ -124,8 +124,8 @@ PARAM	a1b2c3d4-502e-4a01-b001-000000000146	ASS_TAG_7D_TXT	TEXT		1	1	TAG7 Section
 PARAM	a1b2c3d4-502f-4a01-b001-000000000147	ASS_TAG_7E_TXT	TEXT		1	1	TAG7 Section E: Technical Specifications	1
 PARAM	a1b2c3d4-5030-4a01-b001-000000000148	ASS_TAG_7F_TXT	TEXT		1	1	TAG7 Section F: Classification and Reference	1
 PARAM	f1d6f0e5-2007-5222-9222-200000000007	WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW	TEXT		4	1	Warning: down-conductor cross-section below class minimum (50 mm2 Cu / 70 mm2 Al / 50 mm2 Steel) [BS EN 62305-3 Tab 6] [HIGH]	1
-PARAM	f1d6f0e5-2008-5222-9222-200000000008	WARN_ELC_LPS_NO_BONDING	TEXT		4	1	Warning: equipotential bonding type not specified (DIRECT / SPD / ISOLATING_SPARK_GAP) [BS EN 62305-3 _6.2] [HIGH]	1
-PARAM	f1d6f0e5-2001-5222-9222-200000000001	WARN_ELC_LPS_NO_CLASS	TEXT		4	1	Warning: LPS class missing -- set ELC_LPS_CLASS_TXT to I / II / III / IV [BS EN 62305-1 _8] [CRITICAL]	1
+PARAM	f1d6f0e5-2008-5222-9222-200000000008	WARN_ELC_LPS_NO_BONDING	TEXT		4	1	Warning: equipotential bonding type not specified (DIRECT / SPD / ISOLATING_SPARK_GAP) [BS EN 62305-3 s.6.2] [HIGH]	1
+PARAM	f1d6f0e5-2001-5222-9222-200000000001	WARN_ELC_LPS_NO_CLASS	TEXT		4	1	Warning: LPS class missing -- set ELC_LPS_CLASS_TXT to I / II / III / IV [BS EN 62305-1 s.8] [CRITICAL]	1
 PARAM	a2b3c4d5-2222-4f04-9401-400000000001	WARN_PRJ_CLIENT_NAME_MISSING	TEXT		17	1	Title-block warning: PRJ_ORG_CLIENT_NAME_TXT empty in ProjectInformation - title blocks will stamp blank	1
 PARAM	a2b3c4d5-2222-4f04-9402-400000000002	WARN_PRJ_CODE_MISSING	TEXT		17	1	Title-block warning: PRJ_ORG_PROJECT_CODE_TXT empty - ISO 19650 sheet number cannot be assembled	1
 PARAM	a2b3c4d5-2222-4f04-9403-400000000003	WARN_PRJ_ORIGINATOR_MISSING	TEXT		17	1	Title-block warning: PRJ_ORG_ORIGINATOR_CODE_TXT empty - ISO 19650 originator field missing	1
@@ -133,11 +133,11 @@ PARAM	a2b3c4d5-2222-4f06-9601-600000000001	WARN_STING_DRAWING_TYPE_MISSING	TEXT	
 PARAM	a2b3c4d5-2222-4f06-9602-600000000002	WARN_STING_CROP_DRIFT	TEXT		17	1	View warning: STING_CROP_KIND_TXT / MARGIN_MM_TXT differ from profile - run SyncStyles to heal (Phase 183)	1
 PARAM	a2b3c4d5-2222-4f06-9603-600000000003	WARN_STING_PACK_DRIFT	TEXT		17	1	View warning: STING_PACK_CHECKSUM_TXT differs from current pack - managed template needs re-sync (Phase 137)	1
 PARAM	a2b3c4d5-2222-4f06-9604-600000000004	WARN_STING_STYLE_LOCKED_NOTICE	TEXT		17	1	View notice: STING_STYLE_LOCKED_BOOL = 1 - SyncStyles will skip this view (user-frozen)	1
-PARAM	f1d6f0e5-2010-5222-9222-200000000010	WARN_ELC_LPS_NO_ZONE	TEXT		4	1	Warning: lightning protection zone (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) not assigned [BS EN 62305-4 _4.1] [MEDIUM]	1
+PARAM	f1d6f0e5-2010-5222-9222-200000000010	WARN_ELC_LPS_NO_ZONE	TEXT		4	1	Warning: lightning protection zone (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) not assigned [BS EN 62305-4 s.4.1] [MEDIUM]	1
 PARAM	f1d6f0e5-2009-5222-9222-200000000009	WARN_ELC_LPS_MESH_SIZE_EXCEEDED	TEXT		4	1	Warning: air-termination mesh exceeds class limit (I=5x5, II=10x10, III=15x15, IV=20x20 m) [BS EN 62305-3 Tab 2] [HIGH]	1
 PARAM	f1d6f0e5-2004-5222-9222-200000000004	WARN_ELC_LPS_NO_RISK_ASSESSMENT	TEXT		4	1	Warning: BS EN 62305-2 risk assessment reference (R1..R4) not recorded -- class selection cannot be justified [HIGH]	1
 PARAM	f1d6f0e5-2002-5222-9222-200000000002	WARN_ELC_LPS_DOWN_COND_INSUFFICIENT	TEXT		4	1	Warning: down-conductor count below class minimum (Class I=4, II=3, III/IV=2) [BS EN 62305-3 Tab 4] [HIGH]	1
-PARAM	f1d6f0e5-2005-5222-9222-200000000005	WARN_ELC_LPS_SEPARATION_FAIL	TEXT		4	1	Warning: separation distance s = ki.kc.l/km is below computed value -- services may flashover during strike [BS EN 62305-3 _6.3] [HIGH]	1
-PARAM	f1d6f0e5-2003-5222-9222-200000000003	WARN_ELC_LPS_EARTH_RESISTANCE_HIGH	TEXT		4	1	Warning: earth resistance exceeds 10 ohm -- refit electrodes or supplement ring earth [BS EN 62305-3 _5.4.1] [HIGH]	1
-PARAM	f1d6f0e5-2006-5222-9222-200000000006	WARN_ELC_LPS_INSPECTION_OVERDUE	TEXT		4	1	Warning: inspection interval exceeded (Class I/II=12 mo, III/IV=24 mo) [BS EN 62305-3 _E.7] [MEDIUM]	1
+PARAM	f1d6f0e5-2005-5222-9222-200000000005	WARN_ELC_LPS_SEPARATION_FAIL	TEXT		4	1	Warning: separation distance s = ki.kc.l/km is below computed value -- services may flashover during strike [BS EN 62305-3 s.6.3] [HIGH]	1
+PARAM	f1d6f0e5-2003-5222-9222-200000000003	WARN_ELC_LPS_EARTH_RESISTANCE_HIGH	TEXT		4	1	Warning: earth resistance exceeds 10 ohm -- refit electrodes or supplement ring earth [BS EN 62305-3 s.5.4.1] [HIGH]	1
+PARAM	f1d6f0e5-2006-5222-9222-200000000006	WARN_ELC_LPS_INSPECTION_OVERDUE	TEXT		4	1	Warning: inspection interval exceeded (Class I/II=12 mo, III/IV=24 mo) [BS EN 62305-3 s.E.7] [MEDIUM]	1
 PARAM	e1c5f9d4-1007-5111-9111-100000000007	ELC_TAG_7_PARA_LPS_TXT	TEXT		4	1	Electrical TAG7 paragraph container for LPS (class, LPZ, down conductors, earth resistance, last test) [STING Phase 176]	1

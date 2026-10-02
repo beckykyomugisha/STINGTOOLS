@@ -157,6 +157,12 @@ namespace StingTools.Commands.Electrical
             // back-derived from the circuit's apparent current at PF = 1 so the
             // sizer re-derives the SAME design current (we do not re-model load).
             double csa = 0, vd = 0;
+            var matR = StingTools.Core.Electrical.ConductorMaterialSource.ForElement(circuit, null);
+            if (!matR.Ok)
+            {
+                result.Reason = matR.Refusal;
+                return result;
+            }
             if (result.HasCurrent)
             {
                 double loadKW = phases == 3
@@ -169,7 +175,7 @@ namespace StingTools.Commands.Electrical
                     VoltageV      = voltV,
                     PowerFactor   = 1.0,
                     LengthM       = result.HasLength ? lengthM : 0.0,
-                    Material      = "Cu",
+                    Material      = matR.Ok && !matR.Assumed ? matR.Label : null,   // null: the sizer says copper assumed
                     Insulation    = "PVC70",
                     // KUT-7 — the active selection, not a hardcoded BS 7671. This
                     // annotates a wire on a drawing, so the standard it was sized under
@@ -219,7 +225,8 @@ namespace StingTools.Commands.Electrical
                 Phase:         phases == 3 ? "3Ø" : "1Ø",
                 CoreCount:     cores,
                 CsaMm2:        csa,
-                ConductorMat:  "Cu",
+                // Printed only when recorded: an annotation must not state copper on an assumption.
+                ConductorMat:  matR.Assumed ? "" : matR.Label,
                 CircuitNumber: circNum,
                 PanelName:     panel,
                 VoltDropPct:   vd,

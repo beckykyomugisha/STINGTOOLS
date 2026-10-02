@@ -5,12 +5,12 @@
   "description": "Manifest for the single deployable KUT project overlay pack. Copy this whole _BIM_COORD/ folder into the temple project folder (next to the central .rvt). Every file below merges over a corporate baseline shipped in StingTools/Data/ — project entries win by the stated merge key, so deploying this pack activates and localises, never forks. To start a pack for a different owner, copy this folder, edit each file, and update this manifest — nothing here is referenced by name from code.",
   "files": [
     {
-      "file": "project_config.json",
+      "file": "../project_config.json",
       "overlays": "TagConfig lookup tables (LOC_CODES / ZONE_CODES / sequence grouping)",
       "corporateBaseline": "built-in TagConfig.LoadDefaults()",
       "mergeKey": "whole-file replace of the keys present",
       "readBy": "StingTools.Core.TagConfig.LoadFromFile",
-      "purpose": "Six-building campus LOC codes (BLD1..BLD6 + EXT) and per-building sequence grouping. The tag scheme's volume map depends on these codes existing."
+      "purpose": "Six-building campus LOC codes (BLD1..BLD6 + EXT) and per-building sequence grouping. The tag scheme's volume map depends on these codes existing. Deploy it BESIDE THE .rvt, not in _BIM_COORD/: every reader looks next to the model (TagConfig.LoadFromFile via StingToolsApp), so inside this folder it was never applied."
     },
     {
       "file": "tag_schemes.json",

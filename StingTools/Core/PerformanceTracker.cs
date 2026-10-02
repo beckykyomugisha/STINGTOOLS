@@ -26,6 +26,8 @@ namespace StingTools.Core
     ///   }
     ///
     ///   string report = PerformanceTracker.GetReport();
+    ///
+    /// When Enabled, StingToolsApp.OnShutdown writes GetReport() to the session log.
     /// </summary>
     public static class PerformanceTracker
     {

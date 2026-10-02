@@ -173,6 +173,7 @@ namespace StingTools.Core.MaterialSchedule
 
     public static class StageMapper
     {
+        // D1: test-oracle - StingTools.Boq.Tests/StageMapperTests.cs
         /// <summary>
         /// Resolve a row to a stage id. Precedence: constituent kind → category →
         /// level code → the caller's named default. An unmatched row is never

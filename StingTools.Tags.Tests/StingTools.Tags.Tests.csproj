@@ -63,6 +63,16 @@
     <Compile Include="..\StingTools\Core\TagTokenPolicy.cs" Link="Core\TagTokenPolicy.cs" />
     <Compile Include="..\StingTools\Core\TokenConfidenceBands.cs" Link="Core\TokenConfidenceBands.cs" />
     <Compile Include="..\StingTools\Core\SysConnectorChoice.cs" Link="Core\SysConnectorChoice.cs" />
+    <!-- DSCH-24: the plugin reader of the shared IFC pset map (Revit-free). -->
+    <Compile Include="..\StingTools\V6\IfcPsetMapping.cs" Link="V6\IfcPsetMapping.cs" />
+    <!-- DSCH-46: the Companion/BCC contract (Revit-free; also compiled into the Companion and the plugin) - CompanionPaths.ProjectCodeFor. -->
+    <Compile Include="..\Planscape.Companion\CompanionIpcContract.cs" Link="Companion\CompanionIpcContract.cs" />
+    <!-- DSCH-38 follow-up: ArchiCAD import ordered-fallback resolver (Revit-free). -->
+    <Compile Include="..\StingTools\Commands\Interop\ArchiCadPropertyResolver.cs" Link="Interop\ArchiCadPropertyResolver.cs" />
+    <!-- DSCH-27: Revit category -> Tag Studio Scale-tab multiplier key. -->
+    <Compile Include="..\StingTools\Core\ScaleTierCategoryKey.cs" Link="Core\ScaleTierCategoryKey.cs" />
+    <!-- DSCH-27: SEQ_RANGE_ALLOCATION parser (Revit-free). -->
+    <Compile Include="..\StingTools\Core\SeqRangeAllocationParser.cs" Link="Core\SeqRangeAllocationParser.cs" />
     <!-- Numeric text extracted from a Revit value string. Revit-free: the culture and
          separator cases are exactly the ones that look obvious and are not. -->
     <Compile Include="..\StingTools\Core\UnitValueText.cs" Link="Core\UnitValueText.cs" />
@@ -90,6 +100,9 @@
     <Compile Include="..\StingTools\Core\Content\ContentRootReport.cs" Link="Core\Content\ContentRootReport.cs" />
     <Compile Include="..\StingTools\Core\Content\ContentFileFilter.cs" Link="Core\Content\ContentFileFilter.cs" />
     <Compile Include="..\StingTools\Core\Electrical\SpareCapacityTarget.cs" Link="Core\Electrical\SpareCapacityTarget.cs" />
+    <!-- DSCH-47: warning direction / message are registry fields, not prose. -->
+    <Compile Include="..\StingTools\Core\WarningThresholdRule.cs" Link="Core\WarningThresholdRule.cs" />
+    <Compile Include="..\StingTools\Core\NumberText.cs" Link="Core\NumberText.cs" />
     <Compile Include="..\StingTools\Core\Electrical\CircuitSlotParser.cs" Link="Core\Electrical\CircuitSlotParser.cs" />
     <!-- TAG7 / PARAM-5: a NUMBER-bound ELC_CKT_NR reads "3", not "3.00". -->
     <Compile Include="..\StingTools\Core\Electrical\CircuitNumberText.cs" Link="Core\Electrical\CircuitNumberText.cs" />
@@ -108,6 +121,8 @@
          parser, plus the resistive voltage-drop engine. Both Revit-free; the sizing
          tests run against the SHIPPED STING_WIRE_TABLES.json so a data edit fails here. -->
     <Compile Include="..\StingTools\Core\Electrical\Bs7671CableSizing.cs" Link="Core\Electrical\Bs7671CableSizing.cs" />
+    <Compile Include="..\StingTools\Core\Electrical\NecConductorSelection.cs" Link="Core\Electrical\NecConductorSelection.cs" />
+    <Compile Include="..\StingTools\Commands\Electrical\Busbar\BusbarSizerEngine.cs" Link="Commands\Electrical\Busbar\BusbarSizerEngine.cs" />
     <Compile Include="..\StingTools\Core\Electrical\Bs7671TableLayering.cs" Link="Core\Electrical\Bs7671TableLayering.cs" />
     <Compile Include="..\StingTools\Core\Electrical\CircuitVoltageDrop.cs" Link="Core\Electrical\CircuitVoltageDrop.cs" />
     <Compile Include="..\StingTools\Commands\Electrical\VoltageDrop\VoltageDropEngine.cs" Link="Commands\Electrical\VoltageDrop\VoltageDropEngine.cs" />
@@ -158,6 +173,7 @@
     <Compile Include="..\StingTools\Core\IssueSchema.cs" Link="Core\IssueSchema.cs" />
     <Compile Include="..\StingTools\Core\IssueStatusNormalizer.cs" Link="Core\IssueStatusNormalizer.cs" />
     <Compile Include="..\StingTools\Core\SeqAssigner.cs" Link="Core\SeqAssigner.cs" />
+    <Compile Include="..\StingTools\Core\WorkflowTriggerQueue.cs" Link="Core\WorkflowTriggerQueue.cs" />
     <Compile Include="..\StingTools\Core\SeqBlockReservation.cs" Link="Core\SeqBlockReservation.cs" />
     <Compile Include="..\StingTools\Core\Validation\ProgramAuditEngine.cs" Link="Core\Validation\ProgramAuditEngine.cs" />
     <!-- WI-7: the Revit-free half of the LOD engine — matrix model, "*"-fallback
@@ -176,6 +192,8 @@
          selectivity model. Both Revit-free by design; the commands that call them are not. -->
     <Compile Include="..\StingTools\Commands\Electrical\ArcFlash\ArcFlashEngine.cs" Link="Commands\Electrical\ArcFlash\ArcFlashEngine.cs" />
     <Compile Include="..\StingTools\Commands\Electrical\ArcFlash\Ieee1584_2018.cs" Link="Commands\Electrical\ArcFlash\Ieee1584_2018.cs" />
+    <!-- DSCH-25: arc-flash band colours + Z535.4 label header, one owner (the data file). -->
+    <Compile Include="..\StingTools\Commands\Electrical\ArcFlash\ArcFlashPresentation.cs" Link="Commands\Electrical\ArcFlash\ArcFlashPresentation.cs" />
     <Compile Include="..\StingTools\Commands\Electrical\Coordination\IecMcbBands.cs" Link="Commands\Electrical\Coordination\IecMcbBands.cs" />
     <Compile Include="..\StingTools\Core\Hvac\LifeCycleCostEngine.cs" Link="Core\Hvac\LifeCycleCostEngine.cs" />
     <Compile Include="..\StingTools\Core\ScopeBoxLoc.cs" Link="Core\ScopeBoxLoc.cs" />

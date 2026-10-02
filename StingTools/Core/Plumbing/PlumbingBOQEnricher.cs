@@ -48,7 +48,7 @@ namespace StingTools.Core.Plumbing
             var items = new List<BOQLineItem>();
             if (doc == null) return items;
 
-            var rates = BOQCostManager.LoadCsvRates();
+            var rates = BOQCostManager.LoadCsvRates(doc);
             var ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
             var skip = excludeRevitElementIds ?? new HashSet<long>();
 

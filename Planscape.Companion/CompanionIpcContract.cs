@@ -108,6 +108,56 @@ internal static class CompanionPaths
     }
 
     /// <summary>
+    /// The project code this machine's Companion linked to a server project id,
+    /// read straight from the settings file. Null when the file is missing or
+    /// unreadable, or the project is not linked here - the normal case for a
+    /// project nobody has asked to sync.
+    ///
+    /// <para>BCC knows the server project id, not the code the Companion was
+    /// linked with (<c>--link &lt;id&gt; &lt;code&gt;</c> takes the code from the
+    /// user), so the id is the key both sides share.</para>
+    /// </summary>
+    public static string? ResolveProjectCode(string? projectId)
+    {
+        if (string.IsNullOrWhiteSpace(projectId)) return null;
+        try
+        {
+            if (!File.Exists(SettingsPath)) return null;
+            return ProjectCodeFor(JObject.Parse(File.ReadAllText(SettingsPath)), projectId);
+        }
+        catch (Exception)
+        {
+            // Same rule as ResolveProjectFolder: a settings file mid-write is not
+            // worth surfacing for a badge.
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The <c>projectCode</c> of the <c>projects[]</c> entry whose <c>projectId</c>
+    /// is <paramref name="projectId"/> (compared as GUIDs when both parse, so
+    /// "N" and "D" formats agree), or null. A linked entry with a blank code
+    /// returns null rather than "", which no folder could be named after.
+    /// </summary>
+    public static string? ProjectCodeFor(JObject? settings, string? projectId)
+    {
+        if (settings == null || string.IsNullOrWhiteSpace(projectId)) return null;
+        bool wantGuid = Guid.TryParse(projectId, out Guid want);
+        foreach (var p in settings["projects"] as JArray ?? new JArray())
+        {
+            string? id = p?["projectId"]?.Type == JTokenType.String ? p["projectId"]!.Value<string>() : null;
+            if (string.IsNullOrWhiteSpace(id)) continue;
+            bool same = wantGuid && Guid.TryParse(id, out Guid got)
+                ? got == want
+                : string.Equals(id!.Trim(), projectId!.Trim(), StringComparison.OrdinalIgnoreCase);
+            if (!same) continue;
+            string? code = p?["projectCode"]?.Type == JTokenType.String ? p["projectCode"]!.Value<string>() : null;
+            return string.IsNullOrWhiteSpace(code) ? null : code;
+        }
+        return null;
+    }
+
+    /// <summary>
     /// The sync folder for a project code, read straight from the settings file:
     /// per-project override → global root → default. Returns null when the file
     /// is missing or the project is not linked on this machine, which is the

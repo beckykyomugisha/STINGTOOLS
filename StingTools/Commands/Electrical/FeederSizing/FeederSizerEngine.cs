@@ -23,7 +23,9 @@ namespace StingTools.Commands.Electrical.FeederSizing
         public double DerateFactor    { get; set; } = 1.0;
         public double DiversityFactor { get; set; } = 1.0;
         public string InstallMethod   { get; set; } = "C";
-        public string Material        { get; set; } = "Cu";
+        /// <summary>"Cu" / "Al" / "CCA", from the feeding circuit's ELC_WIRE_COND_MAT_TXT;
+        /// null = not recorded (the sizer assumes copper and says so).</summary>
+        public string Material        { get; set; }
         /// <summary>PVC70 or XLPE90; with <see cref="CableType"/> and the method this picks
         /// the Appendix 4 table (4D1A / 4D2A / 4D4A / 4E2A / 4E4A).</summary>
         public string Insulation      { get; set; } = "PVC70";

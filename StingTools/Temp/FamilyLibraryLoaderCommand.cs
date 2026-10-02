@@ -31,7 +31,9 @@ namespace StingTools.Temp
     [Regeneration(RegenerationOption.Manual)]
     public class FamilyLibraryLoaderCommand : IExternalCommand
     {
-        // Configurable so a hotfix bundle can ship without a plugin redeploy.
+        // Fallbacks. project_config.json FAMILY_LIBRARY_URL / FAMILY_LIBRARY_SHA256 override
+        // them, so a hotfix bundle can ship without a plugin redeploy; FAMILY_LIBRARY_LOCAL_ZIP
+        // names a zip on disk (or a share) that is used instead of downloading.
         private const string DefaultCdnZipUrl = "https://cdn.planscape.app/families/PlanscapeStandard-v1.0.0.zip";
         private const string DefaultExpectedSha256 = ""; // empty = skip integrity check (dev / first ship)
 
@@ -42,10 +44,28 @@ namespace StingTools.Temp
 
             try
             {
-                var bundleDir = EnsureBundleAsync(DefaultCdnZipUrl, DefaultExpectedSha256).GetAwaiter().GetResult();
+                string url = ConfigOr("FAMILY_LIBRARY_URL", TagConfig.GetConfigValue("FAMILY_LIBRARY_URL"), DefaultCdnZipUrl);
+                string sha = ConfigOr("FAMILY_LIBRARY_SHA256", TagConfig.GetConfigValue("FAMILY_LIBRARY_SHA256"), DefaultExpectedSha256);
+                string localZip = ConfigOr("FAMILY_LIBRARY_LOCAL_ZIP", TagConfig.GetConfigValue("FAMILY_LIBRARY_LOCAL_ZIP"), "");
+
+                string? bundleDir;
+                if (!string.IsNullOrEmpty(localZip) && File.Exists(localZip))
+                {
+                    bundleDir = EnsureBundleFromLocalZip(localZip, sha);
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(localZip))
+                        StingLog.Warn($"FAMILY_LIBRARY_LOCAL_ZIP '{localZip}' does not exist; downloading {url} instead.");
+                    bundleDir = EnsureBundleAsync(url, sha).GetAwaiter().GetResult();
+                }
                 if (string.IsNullOrEmpty(bundleDir))
                 {
-                    TaskDialog.Show("Family Library", "Bundle download failed. Check log + network. You can paste a local zip path in project_config.json under family_library.local_zip.");
+                    TaskDialog.Show("Family Library",
+                        "Could not obtain the family library bundle (download failed, or the SHA-256 did not match). " +
+                        "See the STING log.\n\n" +
+                        "In project_config.json you can set FAMILY_LIBRARY_LOCAL_ZIP to a local zip path, " +
+                        "FAMILY_LIBRARY_URL to another download URL, and FAMILY_LIBRARY_SHA256 to its expected hash.");
                     return Result.Failed;
                 }
 
@@ -71,12 +91,51 @@ namespace StingTools.Temp
 
         // ── Bundle resolver ────────────────────────────────────────────
 
+        private static string ConfigOr(string key, string? value, string fallback)
+        {
+            string v = (value ?? "").Trim();
+            if (v.Length == 0) return fallback;
+            StingLog.Info($"Family library: {key} from project_config.json");
+            return v;
+        }
+
+        private static string CacheRootFor(string zipNameOrUrl)
+        {
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "Planscape", "Families", InferVersionFromUrl(zipNameOrUrl));
+        }
+
+        /// <summary>
+        /// FAMILY_LIBRARY_LOCAL_ZIP: verify (when a SHA-256 is given) and extract a local zip into
+        /// the same per-version cache a download would use. No network.
+        /// </summary>
+        private static string? EnsureBundleFromLocalZip(string zipPath, string expectedSha)
+        {
+            var cacheRoot = CacheRootFor(zipPath);
+            if (Directory.Exists(cacheRoot) && File.Exists(Path.Combine(cacheRoot, "manifest.json")))
+            {
+                StingLog.Info($"Family bundle cached: {cacheRoot}");
+                return cacheRoot;
+            }
+            if (!string.IsNullOrEmpty(expectedSha))
+            {
+                var sha = ComputeSha256(zipPath);
+                if (!string.Equals(sha, expectedSha, StringComparison.OrdinalIgnoreCase))
+                {
+                    StingLog.Warn($"Family bundle SHA mismatch for {zipPath}. expected={expectedSha} actual={sha}");
+                    return null;
+                }
+            }
+            Directory.CreateDirectory(cacheRoot);
+            ZipFile.ExtractToDirectory(zipPath, cacheRoot, overwriteFiles: true);
+            StingLog.Info($"Family bundle extracted from local zip {zipPath}: {cacheRoot}");
+            return cacheRoot;
+        }
+
         private static async Task<string?> EnsureBundleAsync(string url, string expectedSha)
         {
-            var version = InferVersionFromUrl(url);
-            var cacheRoot = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "Planscape", "Families", version);
+            var cacheRoot = CacheRootFor(url);
 
             if (Directory.Exists(cacheRoot) && File.Exists(Path.Combine(cacheRoot, "manifest.json")))
             {

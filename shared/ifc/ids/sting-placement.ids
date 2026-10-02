@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS"
+     xmlns:xs="http://www.w3.org/2001/XMLSchema"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+
+  <info>
+    <title>STING — Fixture placement constraints (Pset_StingPlacement)</title>
+    <copyright>Planscape Limited, 2026</copyright>
+    <version>1.0.0</version>
+    <description>IDS encoding of shared/ifc/psets/Pset_StingPlacement.xml: every property, when present, carries the data type the template declares; the few properties whose values are fixed by a standard or by the code that writes them are also checked for value. One specification per property, in template order.</description>
+    <author>info@stingtools.io</author>
+    <date>2026-10-02</date>
+    <purpose>STING property-set contract validation (DSCH-38 follow-up)</purpose>
+    <milestone>Stage_4_TechnicalDesign</milestone>
+  </info>
+
+  <specifications>
+
+    <specification name="PlacementAnchor_type"
+                   identifier="PLACE-001"
+                   description="When Pset_StingPlacement.PlacementAnchor is present it is an IfcLabel."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingPlacement</simpleValue></propertySet>
+          <baseName><simpleValue>PlacementAnchor</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingPlacement</simpleValue></propertySet>
+          <baseName><simpleValue>PlacementAnchor</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="PlacementOffsetX_type"
+                   identifier="PLACE-002"
+                   description="When Pset_StingPlacement.PlacementOffsetX is present it is an IfcReal (in mm)."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingPlacement</simpleValue></propertySet>
+          <baseName><simpleValue>PlacementOffsetX</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCREAL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingPlacement</simpleValue></propertySet>
+          <baseName><simpleValue>PlacementOffsetX</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="PlacementSide_type"
+                   identifier="PLACE-003"
+                   description="When Pset_StingPlacement.PlacementSide is present it is an IfcLabel; The host-side values FixturePlacementEngine writes (ParamRegistry.PLACE_SIDE)."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingPlacement</simpleValue></propertySet>
+          <baseName><simpleValue>PlacementSide</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingPlacement</simpleValue></propertySet>
+          <baseName><simpleValue>PlacementSide</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="LEFT"/>
+              <xs:enumeration value="RIGHT"/>
+              <xs:enumeration value="EITHER"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+  </specifications>
+</ids>

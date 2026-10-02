@@ -259,6 +259,13 @@ namespace StingTools.Core.Electrical
 
         // ── element → input mapping ──────────────────────────────────────────────
 
+        private static string MaterialFor(ElectricalSystem sys, string setting, ref string skipReason)
+        {
+            var m = ConductorMaterialSource.ForElement(sys, setting);
+            if (!m.Ok) { skipReason = m.Refusal; return null; }
+            return m.Assumed ? null : m.Label;
+        }
+
         private static CableSizeInput MapInput(ElectricalSystem sys, CableSizeInput a, out string skipReason)
         {
             skipReason = null;
@@ -275,6 +282,8 @@ namespace StingTools.Core.Electrical
 
             int poles = SafePoles(sys);
             int phases = poles >= 3 ? 3 : 1;
+            string matText = MaterialFor(sys, a.Material, ref skipReason);
+            if (skipReason != null) return null;
 
             return new CableSizeInput
             {
@@ -285,7 +294,9 @@ namespace StingTools.Core.Electrical
                 Phases = phases,
                 LengthM = lengthM,
                 InstallMethod = string.IsNullOrEmpty(a.InstallMethod) ? "C" : a.InstallMethod,
-                Material = string.IsNullOrEmpty(a.Material) ? "Cu" : a.Material,
+                // The circuit's recorded material wins over the run's setting; with neither,
+                // null — the sizer assumes copper and says so in its warning.
+                Material = matText,
                 Insulation = string.IsNullOrEmpty(a.Insulation) ? "PVC70" : a.Insulation,
                 // Apply must size on the same table the CABLE tab calculated with.
                 CableType = string.IsNullOrEmpty(a.CableType) ? Bs7671Data.DefaultCableType : a.CableType,

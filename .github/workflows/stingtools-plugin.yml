@@ -9,6 +9,8 @@ on:
       - 'Planscape.Server/src/Planscape.Shared/**'
       - 'Planscape.Server/src/Planscape.PluginSync/**'
       - 'tools/**'
+      - 'project-templates/**'
+      - 'GUIDES/kibale-project-config/**'
       - '.github/workflows/stingtools-plugin.yml'
   pull_request:
     branches: [main]
@@ -16,6 +18,8 @@ on:
       - 'StingTools/**'
       - 'StingTools.Standards/**'
       - 'tools/**'
+      - 'project-templates/**'
+      - 'GUIDES/kibale-project-config/**'
       - '.github/workflows/stingtools-plugin.yml'
 
 env:
@@ -43,6 +47,96 @@ jobs:
           done
           [ $FAIL -eq 0 ] && echo "✓ All JSON files valid"
           exit $FAIL
+
+      # Data schemas (DSCH): every file under StingTools/Data, project-templates,
+      # GUIDES/kibale-project-config and tools must be registered in
+      # tools/data_schemas.json, and is checked against what is declared there —
+      # CSV headers and per-row field counts, JSON unknown keys (derived from the
+      # POCO) and duplicate keys, encoding and line endings. The validator existed
+      # since H-5 and ran in NO workflow, so when D6 inserted PROD into
+      # cost_rates_5d.csv it failed on main for weeks and nobody saw it, while the
+      # 5D Cost Trace — still indexing by position — silently lost every rate.
+      # The self-test runs first: it mutates real files and fails if any defect
+      # goes uncaught, so a broken checker cannot report green.
+      - name: Data-schema validator catches what it claims to
+        run: python3 tools/validate_data_schemas.py --self-test
+
+      - name: Data files match their schemas
+        run: python3 tools/validate_data_schemas.py
+
+      # DSCH round 2: eleven check scripts under tools/ ran in NO workflow, so each
+      # could regress unseen — the state validate_data_schemas.py was in. Each is a
+      # ratchet or a zero-tolerance check that passes on main today. Not gated, with
+      # the reason, in docs/WORKLOG_DATA_SCHEMAS.md (DSCH-6/7/12 later fixed and
+      # gated below).
+      # DSCH-6: a parameter both a formula and C# write is two owners racing; the
+      # formula back-filled what the engine had deliberately cleared. Ratchet.
+      - name: No new parameter with two owners
+        run: python3 tools/validate_dual_owner.py
+
+      # DSCH-7: the QS NRM2 review round trip (export -> verdict -> apply) works.
+      - name: QS NRM2 review round trip
+        run: python3 tools/check_qs_nrm2_review.py
+
+      # DSCH-12: a public static map/predicate in Core that nothing calls is a
+      # mechanism that cannot fire. One tokenised pass (2 s, was 8 min); ratchet.
+      - name: No new declared-but-uncalled map or predicate
+        run: python3 tools/validate_declared_but_uncalled.py
+
+      # DSCH-40: the wide scope - tuple return types, members outside Core/,
+      # Load* / Build* names - under its own ratchet, so the Core baseline stays 0.
+      - name: No new declared-but-uncalled member (wide scope)
+        run: python3 tools/validate_declared_but_uncalled.py --wide
+
+      # DSCH-46b: instance methods and unread const / static readonly fields, each
+      # under its own ratchet (the 253 + 62 unread *_GUID constants were this shape).
+      - name: No new declared-but-uncalled instance method
+        run: python3 tools/validate_declared_but_uncalled.py --instance
+
+      - name: No new declared-but-unread field
+        run: python3 tools/validate_declared_but_uncalled.py --fields
+
+      # DSCH-27: test-oracle markers are verified, not trusted; prove the check fires.
+      - name: Declared-but-uncalled marker check can fail
+        run: python3 tools/validate_declared_but_uncalled.py --self-test
+
+      - name: Binding scope has not grown
+        run: python3 tools/check_binding_scope.py --check
+
+      - name: Shared-parameter kit files agree on GUID and type
+        run: python3 tools/check_shared_param_types.py
+
+      - name: Tag vocabulary has no sentinel that doubles as a code
+        run: python3 tools/check_tag_vocabulary.py --check
+
+      - name: Every title-block CSV row is defined, bound and offered
+        run: python3 tools/check_title_block_surfaces.py
+
+      - name: KUT coordination cycle has no unbaselined interactive step
+        run: python3 tools/check_unattended_cycle.py
+
+      - name: Parameter readership matcher works
+        run: python3 tools/validate_param_readership.py --self-test
+
+      - name: Parameter readership has not regressed
+        run: python3 tools/validate_param_readership.py
+
+      - name: Gap-register header count is current
+        run: python3 tools/register_count.py --check
+
+      - name: No new declared-but-unbound shared parameter
+        run: python3 tools/binding_simulator.py --check
+
+      - name: Content-manifest checksums match the shipped tag families
+        run: python3 tools/restamp_content_manifest.py --check StingTools/Data/TagFamilies
+
+      - name: Commands resolve the application through a resolver
+        shell: pwsh
+        run: ./tools/check_command_app_acquisition.ps1
+
+      - name: No new dispatch drift
+        shell: pwsh
+        run: ./tools/check_dispatch_parity.ps1
 
       # Drawing-type corporate lock: every corporate entry in
       # STING_DRAWING_TYPES.json carries a SHA-256 of its C# serialisation, and
@@ -115,6 +209,17 @@ jobs:
       # authored from one file would not load into a project bound from the other.
       - name: Shared-parameter files agree
         run: python3 tools/check_shared_param_files.py
+
+      # ParamRegistry.Ext("KEY") returns "" for a key it does not know, and a mapped
+      # name no shared-parameter file defines is never bound: either way reads find
+      # nothing and writes do nothing, silently. 50 lookups were in that state
+      # (DSCH-36, DSCH-42) - the batch tagger's token-lock check among them. Keys are
+      # enumerated from the source, so a new Ext("...") is checked as it is written.
+      - name: Ext() lookup check catches what it claims to
+        run: python3 tools/check_ext_keys.py --self-test
+
+      - name: Every Ext() lookup names a defined shared parameter
+        run: python3 tools/check_ext_keys.py
 
       # STING_TAG_TOKEN_POLICY.json shipped on 2026-08-10 documenting all ten ISO 19650
       # tag tokens, was named in two TagConfig comments, and was read by NOTHING until

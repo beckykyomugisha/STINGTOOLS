@@ -4,7 +4,8 @@ sync_csv_from_txt.py
 Sync MR_PARAMETERS.csv from the transformed MR_PARAMETERS.txt:
   1. Update Data_Type for all params whose type changed in TXT
   2. Update Group_Name for all params whose group changed in TXT
-  3. Add rows for new _TXT mirror params
+  3. Update Description for all params whose description changed in TXT
+  4. Add rows for new _TXT mirror params
 
 PARAM-1. Step 2 did not exist, and that is the whole defect: the script corrected
 Data_Type on an existing row but never Group_Name, so a parameter whose group moved
@@ -15,7 +16,19 @@ names live in a separate GROUP table (*GROUP ID NAME -> GROUP\t1\tASS_MNG), so t
 id must be resolved before anything is compared. Comparing the raw id to the CSV's
 Group_Name makes all 3,598 rows look wrong -- which is a broken instrument, not a
 finding, and is exactly the false positive this script is here to stop producing.
+
+DSCH-31. Step 3 did not exist either. The .txt Description is what Revit shows as the
+parameter's tooltip, so it is the one that matters, but a description corrected in the
+.txt never reached the .csv: ELC_ARC_FLASH_PPE_CAT kept "NFPA 70E PPE category 0-4"
+there after the parameter had started holding an incident-energy band, and 150 rows had
+drifted. param-csv-drift.yml regenerates this file and fails on any diff, so with step
+3 a description can no longer differ between the two files. PARAMETER_CATEGORIES.csv
+already takes its Description from the .txt (gen_binding_views.py). Since DSCH-47 the
+"description" fields in PARAMETER_REGISTRY.json are generated from the .txt too, by
+tools/sync_registry_from_txt.py; the behaviour they used to carry (a warning's printed
+text and comparison direction, a parameter's deprecation) is in fields of its own.
 """
+import csv
 import io
 import shutil
 import pathlib
@@ -141,18 +154,24 @@ def main():
         if not line.strip():
             rows.append(('blank', line))
             continue
-        parts = line.rstrip('\n').split(',')
+        # Parsed with the csv module, not split(','): a Description holding a comma
+        # is quoted, and a bare split puts its tail in the next column. The raw line
+        # is kept, and written back unchanged unless a field changes below (see the
+        # idempotency note at the output step).
+        raw = line.rstrip('\n')
+        parts = next(csv.reader([raw]))
         while len(parts) < len(header):
             parts.append('')
         name = parts[col['Parameter_Name']]
         existing_by_name[name] = len(rows)
-        rows.append(('data', parts))
+        rows.append(('data', [parts, raw, False]))
 
-    type_fixes = 0; group_fixes = 0; added = 0
+    type_fixes = 0; group_fixes = 0; desc_fixes = 0; added = 0
     # Update existing rows
-    for _, parts in rows:
+    for _, entry in rows:
         if _ != 'data':
             continue
+        parts = entry[0]
         name = parts[col['Parameter_Name']]
         if name in txt_params:
             txt_type = txt_params[name]['type']
@@ -160,6 +179,7 @@ def main():
             if csv_type != txt_type:
                 parts[col['Data_Type']] = txt_type
                 type_fixes += 1
+                entry[2] = True
 
             # PARAM-1. The .txt is authoritative for the group too. Group names are
             # bare identifiers (BLE_ELES, RGL_CMPL) so this needs no CSV quoting --
@@ -170,11 +190,19 @@ def main():
             if parts[col['Group_Name']] != txt_group:
                 parts[col['Group_Name']] = txt_group
                 group_fixes += 1
+                entry[2] = True
+
+            # DSCH-31. The .txt Description is the one Revit shows; the .csv mirrors it.
+            txt_desc = txt_params[name]['description']
+            if parts[col['Description']] != txt_desc:
+                parts[col['Description']] = txt_desc
+                desc_fixes += 1
+                entry[2] = True
 
     # Add missing mirror params. The category is derived from the existing rows of
     # the same group (derive_category); it used to be 'Generic Models' for every row.
-    existing = [(p[col['Parameter_Name']], p[col['Group_Name']], p[col['Revit_Category']])
-                for k, p in rows if k == 'data']
+    existing = [(e[0][col['Parameter_Name']], e[0][col['Group_Name']], e[0][col['Revit_Category']])
+                for k, e in rows if k == 'data']
     new_rows = []
     for name, info in txt_params.items():
         if name not in existing_by_name:
@@ -189,10 +217,21 @@ def main():
     shutil.copy2(CSV, CSV.with_suffix('.csv.bak'))
     out_lines = list(comment_lines)
     out_lines.append(','.join(header) + '\n')
-    for kind, row in rows:
+    def _csv_field(f):
+        f = '' if f is None else str(f)
+        if any(c in f for c in (',', '"', '\n', '\r')):
+            return '"' + f.replace('"', '""') + '"'
+        return f
+
+    for kind, entry in rows:
         if kind == 'blank':
             continue  # drop blank lines
-        out_lines.append(','.join(row) + '\n')
+        parts, raw, changed = entry
+        # An unchanged row is written back byte-for-byte (its raw line). A changed row
+        # is re-encoded field by field -- once; on the next run its fields equal the
+        # .txt, it is unchanged, and its (now re-encoded) raw line is kept. That is
+        # what keeps the script idempotent.
+        out_lines.append((','.join(_csv_field(c) for c in parts) if changed else raw) + '\n')
     # New rows are assembled from .txt FIELDS, which have never been through a CSV
     # encoder. A description containing a comma -- "…, e.g. Pr_30" -- written with a
     # bare join produces one field too many and shifts every column after Description
@@ -203,12 +242,7 @@ def main():
     # and split, so their text still carries any quotes it already had, and rejoining
     # reproduces the original bytes. That identity is what makes this script
     # idempotent, and quoting them again would wrap quoted text in a second layer.
-    def _csv_field(f):
-        f = '' if f is None else str(f)
-        if any(c in f for c in (',', '"', '\n', '\r')):
-            return '"' + f.replace('"', '""') + '"'
-        return f
-
+    # (_csv_field is defined above, where changed existing rows use it too.)
     for row in new_rows:
         out_lines.append(','.join(_csv_field(c) for c in row) + '\n')
 
@@ -246,7 +280,8 @@ def main():
     # writer, which is the root-cause half.
     with io.open(CSV, 'w', encoding='utf-8', newline='\n') as fh:
         fh.write(''.join(out_lines))
-    print(f"Type fixes: {type_fixes}, Group fixes: {group_fixes}, New mirror rows added: {added}")
+    print(f"Type fixes: {type_fixes}, Group fixes: {group_fixes}, Description fixes: {desc_fixes}, "
+          f"New mirror rows added: {added}")
     print(f"Total CSV rows now: {len([l for l in out_lines if not l.startswith('#') and l.strip() and not l.startswith('Revit')])}")
 
 if __name__ == '__main__':

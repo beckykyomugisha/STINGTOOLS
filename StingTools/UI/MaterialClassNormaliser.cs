@@ -79,13 +79,18 @@ namespace StingTools.UI
                 {
                     string path = StingToolsApp.FindDataFile("STING_MATERIAL_CLASS_NORMALISER.csv");
                     if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
-                    foreach (var line in File.ReadAllLines(path).Skip(1))
+                    // DSCH-2: columns by header name, not position.
+                    var t = CsvTable.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                    var missing = t.Missing("RawPattern", "Canonical");
+                    if (missing.Count > 0)
                     {
-                        if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-                        var f = StingToolsApp.ParseCsvLine(line);
-                        if (f == null || f.Length < 2) continue;
-                        string pat = (f[0] ?? "").Trim();
-                        string can = (f[1] ?? "").Trim();
+                        StingLog.Warn($"MaterialClassNormaliser: {path} header has no {string.Join(", ", missing)} column; no rules loaded.");
+                        return;
+                    }
+                    foreach (var r in t.Rows)
+                    {
+                        string pat = r["RawPattern"];
+                        string can = r["Canonical"];
                         if (string.IsNullOrEmpty(pat) || string.IsNullOrEmpty(can)) continue;
                         try { _rules.Add(new ClassNormalisationRule { Pattern = new Regex(pat, RegexOptions.Compiled), Canonical = can }); }
                         catch (Exception ex) { StingLog.Warn($"ClassNorm bad regex '{pat}': {ex.Message}"); }

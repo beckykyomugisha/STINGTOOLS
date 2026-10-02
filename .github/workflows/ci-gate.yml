@@ -48,6 +48,9 @@ jobs:
             plugin:
               - 'StingTools/**'
               - 'StingTools.Standards/**'
+              - 'tools/**'
+              - 'project-templates/**'
+              - 'GUIDES/kibale-project-config/**'
               - '.github/workflows/stingtools-plugin.yml'
             server:
               - 'Planscape.Server/**'

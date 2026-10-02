@@ -41,6 +41,7 @@ namespace StingTools.Commands.Electrical
         {
             new PresetStepInputs.Choice("Cu", "copper"),
             new PresetStepInputs.Choice("Al", "aluminium", "aluminum"),
+            new PresetStepInputs.Choice("CCA", "copper-clad aluminium", "copper-clad aluminum", "copperclad"),
         };
 
         internal static bool PanelOpen => StingElectricalCommandHandler.ActivePanel != null;
@@ -230,7 +231,7 @@ namespace StingTools.Commands.Electrical
             {
                 LoadKW = b?.LoadKW ?? 0, VoltageV = b?.VoltageV ?? 0, Phases = b?.Phases ?? 1,
                 PowerFactor = b?.PowerFactor ?? 0.85, LengthM = b?.LengthM ?? 0, VDLimitPct = b?.VDLimitPct ?? 3.0,
-                InstallMethod = b?.InstallMethod ?? "C", Material = b?.Material ?? "Cu",
+                InstallMethod = b?.InstallMethod ?? "C", Material = b?.Material,   // null: copper, assumed and said by the sizer
                 Insulation = b?.Insulation ?? "PVC70", CableType = b?.CableType ?? "Multicore",
                 Standard = b?.Standard ?? ElectricalStandardId.Bs7671,
             };

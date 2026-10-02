@@ -68,24 +68,6 @@ namespace StingTools.Commands.Fabrication
         public string Name { get; set; } = "";
     }
 
-    public class PcfSystemRow
-    {
-        public bool Include { get; set; } = true;
-        public string System { get; set; } = "";
-        public int PipeCount { get; set; }
-        public int FittingCount { get; set; }
-        public int AccessoryCount { get; set; }
-    }
-
-    public class MajFabRow
-    {
-        public bool Include { get; set; } = true;
-        public long ElementId { get; set; }
-        public string Category { get; set; } = "";
-        public string ServiceName { get; set; } = "";
-        public string PartName { get; set; } = "";
-    }
-
     // ── Runner ────────────────────────────────────────────────
 
     public static class FabricationActionRunner
@@ -266,54 +248,6 @@ namespace StingTools.Commands.Fabrication
             var weld = BuildWeldMapRows(doc, ids);
             string path = FabricationXlsxExporter.ExportConsolidatedBom(doc, pkg, cut, weld);
             return string.IsNullOrEmpty(path) ? "BOM roll-up failed (see log)." : $"BOM roll-up saved to:\n{path}";
-        }
-
-        // ── PCF / MAJ preview + run (#14) ─────────────────────
-
-        public static List<PcfSystemRow> BuildPcfRows(Document doc, IList<ElementId> ids)
-        {
-            return ids
-                .Select(id => doc.GetElement(id))
-                .Where(e => e != null && e.Category != null)
-                .Where(e =>
-                {
-                    int bic = (int)e.Category.Id.Value;
-                    return bic == (int)BuiltInCategory.OST_PipeCurves
-                        || bic == (int)BuiltInCategory.OST_PipeFitting
-                        || bic == (int)BuiltInCategory.OST_PipeAccessory;
-                })
-                .GroupBy(e =>
-                {
-                    try { return (e as Autodesk.Revit.DB.Plumbing.Pipe)?.MEPSystem?.Name ?? "UNKNOWN"; }
-                    catch { return "UNKNOWN"; }
-                })
-                .Select(g => new PcfSystemRow
-                {
-                    System         = g.Key,
-                    PipeCount      = g.Count(e => (int)e.Category.Id.Value == (int)BuiltInCategory.OST_PipeCurves),
-                    FittingCount   = g.Count(e => (int)e.Category.Id.Value == (int)BuiltInCategory.OST_PipeFitting),
-                    AccessoryCount = g.Count(e => (int)e.Category.Id.Value == (int)BuiltInCategory.OST_PipeAccessory),
-                })
-                .OrderBy(r => r.System, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-        }
-
-        public static List<MajFabRow> BuildMajRows(Document doc, IList<ElementId> ids)
-        {
-            var rows = new List<MajFabRow>();
-            foreach (var id in ids)
-            {
-                var el = doc.GetElement(id);
-                if (el == null) continue;
-                rows.Add(new MajFabRow
-                {
-                    ElementId   = id.Value,
-                    Category    = global::StingTools.Core.ParameterHelpers.GetCategoryName(el),
-                    ServiceName = StingTools.Core.Mep.ServiceSystemName.Read(el),
-                    PartName    = el.Name ?? "",
-                });
-            }
-            return rows;
         }
 
         // ── Isometrics (existing SP-... sheets) ───────────────

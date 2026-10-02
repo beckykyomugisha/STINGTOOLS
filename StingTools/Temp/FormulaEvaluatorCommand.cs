@@ -465,17 +465,39 @@ namespace StingTools.Temp
 
             try
             {
-                var lines = File.ReadAllLines(csvPath)
-                    .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
-                    .Skip(1); // skip header
+                // DSCH-2: columns are read by header name, not position.
+                var table = CsvTable.Parse(File.ReadAllLines(csvPath), StingToolsApp.ParseCsvLine);
+                string[] required = { "Discipline", "Parameter_Name", "Data_Type", "Revit_Formula",
+                    "Description", "Input_Parameters", "Unit", "Dependency_Level" };
+                var missingCols = table.Missing(required);
+                if (missingCols.Count > 0)
+                {
+                    StingLog.Warn($"FORMULAS_WITH_DEPENDENCIES.csv: header lacks column(s) {string.Join(", ", missingCols)} — no formulas loaded ({csvPath})");
+                    return formulas;
+                }
+                // A row must reach Dependency_Level (the 10th column today) to load.
+                int minFields = required.Max(c => table.Col(c)) + 1;
+                int geomCol = table.Col("Uses_Builtin_Geometry");
+                int builtinCol = table.Col("Builtin_Inputs");
 
-                int droppedShort = 0;
+                int droppedShort = 0, familyOnly = 0;
                 var droppedNames = new List<string>();
 
-                foreach (string line in lines)
+                foreach (var row in table.Rows)
                 {
-                    string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 10)
+                    string[] cols = row.Fields;
+                    // DSCH-3: exactly Discipline, Parameter_Name, Data_Type, Revit_Formula
+                    // is the declared "family formula only" row (the *_TAG_7_PARA_*
+                    // narratives). Family-formula authoring (TemplateManagerCommands)
+                    // uses it; the project formula engine has nothing to evaluate, by
+                    // design - counted once, not warned about on every load. Rows of
+                    // 5-9 fields are still truncated and still warned below (G-6).
+                    if (cols.Length == 4 && !string.IsNullOrWhiteSpace(row["Parameter_Name"]))
+                    {
+                        familyOnly++;
+                        continue;
+                    }
+                    if (cols.Length < minFields)
                     {
                         // G-6 — was a bare `continue`. A row that terminates early was
                         // dropped with no log line at all, so the formula simply did not
@@ -484,40 +506,41 @@ namespace StingTools.Temp
                         // BE EVALUATED visible; this makes a formula that was never LOADED
                         // visible.
                         droppedShort++;
-                        droppedNames.Add(cols.Length > 1 && !string.IsNullOrWhiteSpace(cols[1])
-                            ? $"{cols[1].Trim()} ({cols.Length} cols)"
+                        string rowName = row["Parameter_Name"];
+                        droppedNames.Add(!string.IsNullOrWhiteSpace(rowName)
+                            ? $"{rowName} ({cols.Length} cols)"
                             : $"<unnamed> ({cols.Length} cols)");
                         continue;
                     }
 
                     var formula = new FormulaDefinition
                     {
-                        Discipline = cols[0].Trim(),
-                        ParameterName = cols[1].Trim(),
-                        DataType = cols[2].Trim(),
-                        Expression = cols[3].Trim(),
-                        Description = cols[4].Trim(),
-                        InputParameters = cols[5].Trim()
+                        Discipline = row["Discipline"],
+                        ParameterName = row["Parameter_Name"],
+                        DataType = row["Data_Type"],
+                        Expression = row["Revit_Formula"],
+                        Description = row["Description"],
+                        InputParameters = row["Input_Parameters"]
                             .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
                             .Select(s => s.Trim()).ToArray(),
-                        Unit = cols[6].Trim(),
+                        Unit = row["Unit"],
                     };
 
-                    // Dependency_Level (col 9) is only a HINT. The authoritative
+                    // Dependency_Level is only a HINT. The authoritative
                     // ordering is COMPUTED below by topological sort over each
                     // formula's real token dependencies, so a shifted/corrupted
                     // column (unescaped commas push a GUID into this slot on some
                     // rows) cannot break ordering — and we never warn on it.
-                    int.TryParse(cols[9].Trim(), out int depLevel);
+                    int.TryParse(row["Dependency_Level"], out int depLevel);
                     formula.DependencyLevel = depLevel; // provisional — overwritten after topo sort
 
-                    // Parse uses builtin geometry (column 10)
-                    formula.UsesBuiltinGeometry = cols.Length > 10 &&
-                        cols[10].Trim().Equals("True", StringComparison.OrdinalIgnoreCase);
+                    // Parse uses builtin geometry
+                    formula.UsesBuiltinGeometry = geomCol >= 0 && cols.Length > geomCol &&
+                        row["Uses_Builtin_Geometry"].Equals("True", StringComparison.OrdinalIgnoreCase);
 
-                    // Parse builtin inputs (column 11)
-                    formula.BuiltinInputs = cols.Length > 11
-                        ? cols[11].Trim()
+                    // Parse builtin inputs
+                    formula.BuiltinInputs = builtinCol >= 0 && cols.Length > builtinCol
+                        ? row["Builtin_Inputs"]
                             .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
                             .Select(s => s.Trim()).ToArray()
                         : Array.Empty<string>();
@@ -536,6 +559,8 @@ namespace StingTools.Temp
                 // indistinguishable, from the model, from one that loaded and did
                 // nothing; naming them is the only way a user finds out the CSV is
                 // truncated rather than the feature being broken.
+                if (familyOnly > 0)
+                    StingLog.Info($"Formula load: {familyOnly} family-formula-only row(s) (4 fields) left to family authoring.");
                 if (droppedShort > 0)
                 {
                     StingLog.Warn($"Formula load: DROPPED {droppedShort} row(s) with fewer than 10 columns — "

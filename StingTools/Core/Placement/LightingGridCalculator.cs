@@ -212,18 +212,22 @@ namespace StingTools.Core.Placement
             }
             try
             {
-                var lines = File.ReadAllLines(path);
-                bool first = true;
-                foreach (var raw in lines)
+                // DSCH-2: columns by header name, not position.
+                var t = CsvTable.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                var missing = t.Missing("room_name_pattern", "en12464_room_code", "target_lux");
+                if (missing.Count > 0)
                 {
-                    if (string.IsNullOrWhiteSpace(raw) || raw.StartsWith("#")) continue;
-                    if (first) { first = false; continue; } // header
-                    var cols = StingToolsApp.ParseCsvLine(raw);
-                    if (cols == null || cols.Length < 3) continue;
-                    string patt = cols[0];
-                    string code = cols[1];
+                    StingLog.Warn($"LightingGridCalculator: {path} header has no {string.Join(", ", missing)} column; classifier left empty.");
+                    return;
+                }
+                int iLux = t.Col("target_lux");
+                foreach (var r in t.Rows)
+                {
+                    if (r.Count <= Math.Max(iLux, Math.Max(t.Col("room_name_pattern"), t.Col("en12464_room_code")))) continue;
+                    string patt = r["room_name_pattern"];
+                    string code = r["en12464_room_code"];
                     double lux = 0.0;
-                    double.TryParse(cols[2], System.Globalization.NumberStyles.Any,
+                    double.TryParse(r["target_lux"], System.Globalization.NumberStyles.Any,
                                     System.Globalization.CultureInfo.InvariantCulture, out lux);
                     if (string.IsNullOrEmpty(patt) || string.IsNullOrEmpty(code)) continue;
                     Regex rx;
@@ -248,16 +252,18 @@ namespace StingTools.Core.Placement
             if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
             try
             {
-                var lines = File.ReadAllLines(path);
-                bool first = true;
-                foreach (var raw in lines)
+                // DSCH-2: columns by header name, not position.
+                var t = CsvTable.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                var missing = t.Missing("room_code", "target_lux_Em");
+                if (missing.Count > 0)
                 {
-                    if (string.IsNullOrWhiteSpace(raw) || raw.StartsWith("#")) continue;
-                    if (first) { first = false; continue; }
-                    var cols = StingToolsApp.ParseCsvLine(raw);
-                    if (cols == null || cols.Length < 2) continue;
-                    string code = cols[0];
-                    if (!double.TryParse(cols[1], System.Globalization.NumberStyles.Any,
+                    StingLog.Warn($"LightingGridCalculator: {path} header has no {string.Join(", ", missing)} column; lux targets left empty.");
+                    return;
+                }
+                foreach (var r in t.Rows)
+                {
+                    string code = r["room_code"];
+                    if (!double.TryParse(r["target_lux_Em"], System.Globalization.NumberStyles.Any,
                                          System.Globalization.CultureInfo.InvariantCulture,
                                          out double lux)) continue;
                     _luxTargets[code] = lux;

@@ -2634,7 +2634,7 @@ namespace StingTools.BIMManager
             // category map only fills the fallback for as-yet-uncosted types.
             // UGX matches the UGX-named parameter (the old reader mislabelled a
             // USD column as the UGX replacement cost).
-            var costRateByCategory = StingTools.BOQ.BOQCostManager.LoadCsvRates();
+            var costRateByCategory = StingTools.BOQ.BOQCostManager.LoadCsvRates(doc);
             StingLog.Info($"IG-01: ReplacementCost fallback from {costRateByCategory.Count} canonical cost rates");
 
             var types = new List<Dictionary<string, string>>();
@@ -3993,25 +3993,9 @@ namespace StingTools.BIMManager
                 StingLog.Warn($"BEP XLSX export failed: {ex.Message}");
             }
 
-            // Save allowed codes for BEP validation
-            string dataPath = StingToolsApp.DataPath ?? "";
-            if (!string.IsNullOrEmpty(dataPath))
-            {
-                try
-                {
-                    var validationBep = new JObject
-                    {
-                        ["project_name"] = wd.ProjectName,
-                        ["allowed_disc"] = bep["allowed_codes"]?["allowed_disc"],
-                        ["allowed_loc"] = bep["allowed_codes"]?["allowed_loc"],
-                        ["allowed_zone"] = bep["allowed_codes"]?["allowed_zone"],
-                        ["allowed_sys"] = bep["allowed_codes"]?["allowed_sys"]
-                    };
-                    OutputLocationHelper.WriteAllTextAtomic(Path.Combine(dataPath, "project_bep.json"),
-                        validationBep.ToString(Formatting.Indented));
-                }
-                catch (Exception ex2) { StingLog.Warn($"BEP validation file: {ex2.Message}"); }
-            }
+            // BEP validation reads bepPath above (allowed_codes nested). Nothing is written to
+            // the install's data folder: it is shared by every project, so a per-project copy
+            // there overwrote the corporate sample and leaked one project's codes into the next.
 
             // Auto-register exports in CDE document register
             if (!string.IsNullOrEmpty(xlsxPath))

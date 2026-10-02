@@ -12,11 +12,15 @@ name: IFC Substrate Validation
 on:
   push:
     paths:
+      - 'tools/converters/**'
+      - 'StingTools/Data/MR_PARAMETERS.txt'
       - 'shared/ifc/**'
       - 'tools/enums/**'
       - '.github/workflows/ifc-substrate.yml'
   pull_request:
     paths:
+      - 'tools/converters/**'
+      - 'StingTools/Data/MR_PARAMETERS.txt'
       - 'shared/ifc/**'
       - 'tools/enums/**'
       - '.github/workflows/ifc-substrate.yml'
@@ -47,6 +51,23 @@ jobs:
       # ---------------------------------------------------------------
       - name: Checksum drift (enums + psets)
         run: python3 tools/enums/compute_checksums.py --check
+
+      # ---------------------------------------------------------------
+      # 1b. Generated files are current (DSCH-38 follow-up)
+      # ---------------------------------------------------------------
+      # The Revit shared-parameter fragment is generated from every
+      # Pset_Sting* template; a property named like a MR_PARAMETERS.txt
+      # parameter must reuse its GUID and a compatible type.
+      - name: Revit fragment of the Pset templates is current
+        run: python3 tools/converters/sting_to_revit_params.py --check
+
+      # The buildingSMART Pset/Qto index the IFC map tests check against is
+      # generated from the ifcopenshell PSD templates; pin the version it was
+      # built with, or a new release would read as drift.
+      - name: buildingSMART Pset index is current
+        run: |
+          pip install "ifcopenshell==0.8.5"
+          python3 tools/enums/bsi_pset_index.py --check
 
       # ---------------------------------------------------------------
       # 2. bSDD publication-plan summary drift check

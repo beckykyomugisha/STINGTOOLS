@@ -61,6 +61,7 @@ namespace StingTools.Core.Drawing
             new KeyValuePair<string, string>("Legend",      Legend),
         };
 
+        // D1: test-oracle - StingTools.Tags.Tests/ViewportTypeNamingTests.cs
         public static bool IsCanonical(string name)
             => !string.IsNullOrWhiteSpace(name)
             && Canonical.Any(c => string.Equals(c, name.Trim(), StringComparison.OrdinalIgnoreCase));

@@ -136,31 +136,6 @@ namespace StingTools.ExLink
             _cachedProperties = null;
         }
 
-        /// <summary>
-        /// Get distinct source groups present in a property list, for UI filtering.
-        /// </summary>
-        public static List<string> GetSourceGroups(List<AvailableProperty> properties)
-        {
-            return properties
-                .Select(p => p.SourceType)
-                .Distinct()
-                .OrderBy(s => GetSourceSortOrder(s))
-                .ToList();
-        }
-
-        /// <summary>
-        /// Get distinct parameter groups present in a property list, for UI filtering.
-        /// </summary>
-        public static List<string> GetParameterGroups(List<AvailableProperty> properties)
-        {
-            return properties
-                .Where(p => !string.IsNullOrEmpty(p.ParameterGroup))
-                .Select(p => p.ParameterGroup)
-                .Distinct()
-                .OrderBy(g => g)
-                .ToList();
-        }
-
         // ════════════════════════════════════════════════════════════════════
         //  Source 1: Calculated (synthetic) properties
         // ════════════════════════════════════════════════════════════════════

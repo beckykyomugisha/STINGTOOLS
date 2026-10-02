@@ -26610,3 +26610,157 @@ Build 0/0; Tags.Tests 5,530; `run_ci_gates.py --quick` 36/36; checksums OK. Not 
 
 Build 0/0; Tags.Tests 5,626; `run_ci_gates.py --quick` 36/36; checksums OK.
 
+#### Completed (Data-schema drift: one registry, gated in CI, nine review rounds — branch `claude/data-schema-drift-validators-a30f10`, 2026-10-01)
+
+`tools/validate_data_schemas.py` failed on `main` (`cost_rates_5d.csv` header mismatch:
+D6 had inserted `PROD`) and ran in no workflow. It now runs on every PR and push in
+`stingtools-plugin.yml` → *Validate data files*, preceded by a self-test that plants 29
+defects in temp copies of real files and fails if any goes uncaught. Full record:
+`docs/WORKLOG_DATA_SCHEMAS.md`; contributor note: `docs/DATA_SCHEMAS.md`.
+
+- **PROD kept** and declared (schema v2): it is the most specific rate key (DISC|PROD, D6).
+  `BOQ/Rates/CostRateCsv` is the one parser for the cost card, by header name; the
+  **5D Cost Trace had lost every rate** (it read the discipline letter as the USD rate),
+  and the Cost File Browser rejected the shipped format and claimed an override it never
+  applied (DSCH-1). `CostRateCsvTests` replays the column insertion.
+- **One source of truth**: `tools/data_schemas.json` registers all 633 files under
+  `StingTools/Data`, `project-templates`, `GUIDES/kibale-project-config` and `tools/` —
+  197 with a full schema (CSV columns pinned; JSON keys derived from the C# class,
+  including `[JsonProperty]` names, private aliases, fields, inheritance and partial
+  classes), 211 structural (UTF-8, line endings, strict JSON with no duplicate keys),
+  225 non-data. An unregistered file fails with the `--scaffold` command to run.
+  Also: per-row field counts, `minFields`, `refersTo` / `valueRefersTo` to
+  `MR_PARAMETERS.txt`, `docKeys` with reasons, unique file names under Data, and a stale
+  `alsoAllowed` entry fails.
+- **Eleven tools/ checks that ran in no workflow are gated**; `binding_simulator.py` gains
+  a ratchet and its stale baseline is refreshed.
+- **Silent defects fixed** (each was a value that loaded as nothing): MEP symbol
+  catalogue read in the ISO layout (no view ever matched); all 191 ArchiCAD IFC property
+  mappings unbound (plus a U-value typo and IFC booleans); routing separation rules and
+  corridor bands bound no snake_case key (separation never checked); two families never
+  got `MAT_COST_SUPPLY_NR` / `STING_EMB_CARBON_NR`; `CST_CALC_BLOCKS_NR` never
+  evaluated; material-class regexes split by a comma; BOQ client vocabulary never loaded;
+  sector-pack OH&P to a key nothing reads; electrical snapshot and demand-factor report
+  read keys their files lack; lift carbon hours; classification standard read from the
+  wrong folder; auto-tagger disc filter from a JSON array; material schema checks read
+  nothing; a project rate card (priority 87) is outranked by the CSV unless a rate policy re-ranks it (DSCH-23); duplicate `WORKFLOW_PlumbingDesign`
+  labels; mixed line endings; a shadowed pump catalogue renamed to an example.
+- A geometry-aware separation refinement was **reverted** after review (it relaxed real
+  checks); the conservative rule stands — DSCH-22.
+
+Build 0/0; `run_ci_gates.py --quick` 50/50; all 16 unit-test projects green. Nothing was
+run in Revit: 16 checks are listed under NEEDS REVIT CHECK in the worklog. Open items:
+ROADMAP DSCH-1..22.
+
+#### Completed (Data-schema open items DSCH-1..23 implemented — branch `claude/data-schema-drift-validators-a30f10`, 2026-10-01)
+
+The items the data-schema PR had recorded were worked rather than left open. Detail and
+the per-item table: `docs/WORKLOG_DATA_SCHEMAS.md` → *Implementing the open DSCH items*.
+
+- **One owner per value.** Electrical (aluminium factor, MCB/MCCB breaker lists, AIC
+  margin, LPS risk/Cd/SPD, arc-flash PPE categories, carbon hours), plumbing (supply
+  velocity / pressure drop, drainage minimum gradient, Manning n by material, TMV limits,
+  pressure-regime `standard`, healthcare specialist defaults) and BIM/config (one project BEP
+  path, tag placement default, family-library source, seed swap candidates, brand fonts,
+  `projectTypePresets`) now read their data files. Where data and a code constant disagree on
+  an engineering value, the code value is kept and the difference logged (DSCH-25).
+- **Pricing.** The Cost File Browser's override prices (DSCH-1); a project rate card outranks
+  the corporate CSV (priority 93, DSCH-23); both material libraries carry
+  `MAT_COST_UNIT_OF_MEASURE`, and a library rate in another unit is refused (DSCH-16).
+- **Separation** distinguishes a crossing (two horizontal runs, perpendicular, intersecting in
+  plan) from parallel and vertical runs — `Core/Routing/SeparationGeometry`, Revit-free, tested
+  over every shipped pair (DSCH-22).
+- **Reading data.** `Core/NumberText` parses machine text invariant-first at ~96 sites;
+  `Core/CsvTable` reads single-table CSVs by column name; the readers of ~40 pinned CSVs were
+  converted, fixing four latent mis-reads (the material duplicate check flagged 801 / 439 false
+  duplicates by reading `SOURCE_SHEET`). The schema gate now fails a data row pinned as a header (DSCH-2).
+- **Gates.** Dual-owner (5 formula rows C# also computes, deleted), QS NRM2 review harness and
+  declared-but-uncalled (8 min → 2 s, named baseline) now run in CI. The hand-written JSON
+  Schemas, two dead data files and three orphans (moved to `docs/reference/`) are gone; KUT's
+  `project_config.json` ships where readers look, and the old location is forbidden.
+
+Not run in Revit: seven checks under *NEEDS REVIT CHECK (open-items batch)*. Open:
+ROADMAP DSCH-24..29.
+
+#### Completed (DSCH-24..29 decided by specialist review and implemented — branch `claude/data-schema-drift-validators-a30f10`, 2026-10-01)
+
+Four specialist reviews (electrical, public health / healthcare MEP, quantity surveying, software
+architecture) decided the open data-schema items with cited evidence. All decisions were
+implemented on seven parallel branches and merged. Detail: `docs/WORKLOG_DATA_SCHEMAS.md`, section
+*Specialist decisions on DSCH-24..29*.
+
+- **Safety bug fixed**: breaker selection returned the largest standard rating when the load
+  exceeded it, so a 500 A NEC load was given 400 A and a 200 A Circuit Wizard circuit a 125 A MCB,
+  with no warning. It now refuses. NEC ratings are the full Table 240.6(A) list (15-6000 A), held
+  only in `STING_WIRE_TABLES.json`.
+- **Arc-flash labels** no longer print a PPE category beside the incident energy (NFPA 70E
+  130.5(H)). They carry a Z535 WARNING / DANGER header and a DRAFT line. One colour set, by energy
+  band, with no green.
+- **Water safety**: TMV limits by outlet and scheme (healthcare baths at 42-44 C no longer fail);
+  USP <797>/<800> pressure per room; dead legs from HTM 04-01 (3 m spur, 2 m blended) instead of six
+  unsourced figures; `Plumb_TMVRegister` no longer marks every TMV as passing.
+- **Design wind** per design day; 4.0 m/s assumed and flagged until site data is entered.
+- **Pricing**: Nil and Incl. can be declared in a rate cell; a bare 0 no longer discards the
+  category rate. The COBie cost-code provider, which never decided a price, is deleted. The BCC
+  5D grids show the real rate file instead of demo rates.
+- **IFC**: one pset map shared by plugin and server. The server's tag lookup named a parameter
+  that does not exist and always fell back.
+- **Dead code**: 35 uncalled members deleted; 10 wired (compliance-fall and warning-threshold
+  triggers, workset activity, scale multipliers, SEQ range flagging, ceiling finish offset, box
+  pre-flight, discipline profiles, performance log, chase offset); 9 verified test oracles.
+  Baseline 53 to 0.
+
+Unconfirmed figures ship with a `verify` note (ROADMAP DSCH-41). Not run in Revit: ten checks under
+*NEEDS REVIT CHECK (specialist batch)*. Open: ROADMAP DSCH-30..41.
+
+#### Completed (DSCH-30..42 code-only follow-ups — branch `claude/data-schema-drift-validators-a30f10`, 2026-10-01)
+
+Every open data-schema item that needs only code, on eight parallel branches. Detail:
+`docs/WORKLOG_DATA_SCHEMAS.md`, section *Code-only follow-ups DSCH-30..42*.
+
+- **Electrical**: NEC 240.4(B)/(C) conductor rules in every NEC sizing path; 240.4(D) upsizes the
+  conductor instead of returning a breaker below the sizing current (a 17 A continuous load got
+  20 A on 12 AWG); the Circuit Wizard no longer re-sizes NEC circuits to BS 7671 at Create; one
+  `ElectricalStandardId.IsNec` predicate; Z535 safety-alert symbol on arc-flash labels.
+- **Water safety**: Scottish SHTM 04-01 TMV limits (bath 43 C) selected by
+  `PRJ_ORG_HEALTH_HTM_REGION_TXT`; five TMV parameters defined so measurements reach the check;
+  USP ante-room and C-SCA rooms audited; one owner for pharmacy ventilation.
+- **Cost**: provisional sums record Defined / Undefined (NRM2 2.9) through to both exports; the
+  element rate-override storage (ES v3) can hold Nil / Included without deleting old entries.
+- **Tagging and workflow**: SEQ allocation honours `SEQ_RANGE_ALLOCATION` and refuses past the
+  maximum; queued workflow presets now actually run (on Idling); Fix Duplicates can no longer
+  write a duplicate.
+- **IFC**: STING `DEMOLISHED` and IFC `DEMOLISH` translate both ways in plugin and server.
+- **Parameters (DSCH-42)**: 56 lookups that silently read and wrote nothing are mapped, defined or
+  deleted, including the Batch Tag token-lock check; `tools/check_ext_keys.py` gates them.
+  Parameter descriptions now sync from MR_PARAMETERS.txt (150 drifted rows corrected).
+- **Gates**: a wide declared-but-uncalled scan under its own ratchet (60).
+
+Not run in Revit: ten checks under *NEEDS REVIT CHECK (code-only batch)*. Open: ROADMAP DSCH-34,
+37, 41, 43..47.
+
+#### Completed (Open DSCH items 34..47 implemented — branch `claude/data-schema-drift-validators-a30f10`, 2026-10-02)
+
+Every remaining data-schema item, worked by specialist agents on seventeen parallel branches.
+Detail: `docs/WORKLOG_DATA_SCHEMAS.md`, section *Open items implemented: DSCH-34..47*.
+
+- **Electrical standards data corrected against NFPA's own text**: NEC 240.6(A) (10 A, fuse extras),
+  seven Table 310.16 cells, the 310.15(B)(1)(1) ambient correction and 250.66. Copper-clad aluminium
+  is supported for NEC and refused by name for BS 7671; every conductor material goes through one
+  reader, so "ALUMINIUM" is no longer sized as copper.
+- **Silent failures fixed**: every Material Hub button (dead since May), the Sustainability gate's
+  empty input, the spare-ways and pipe-gradient warnings (dead since April), water savings credited
+  to unmodelled fixtures, a BOQ server push that failed on Postgres, Bonsai inventing MEP inputs.
+- **Cost**: NOT MEASURED categories from data; Nil / Included in the row menu; PC sums filed as PC
+  sums and synced; star rates price variations.
+- **Water and healthcare**: TMV3 and SHTM limits confirmed from NHS D 08 / SHTM 04-01; paediatric
+  baths checked in Scotland; Wales recorded as adopting HTM 04-01; TMV test results importable.
+- **Climate**: ASHRAE design wind for all 42 sites, with station and edition.
+- **IFC**: the 65 unconfirmed map rows resolved against buildingSMART (45 moved to STING property
+  sets); ArchiCAD import reads IFC4 then IFC2X3 names in order; all 13 IDS valid IDS 1.0 in CI.
+- **Parameters**: warning direction and deprecation are fields; MR_PARAMETERS.txt owns descriptions,
+  gated; 762 placeholder descriptions written; one install-hours parameter.
+- **Dead code**: wide ratchet 60 to 0; two new ratchets (instance methods 33, fields 139); ~315 unread
+  GUID constants removed; data-schema gate now also requires exact case for hand-declared keys.
+
+Not run in Revit: twelve checks under *NEEDS REVIT CHECK (open-items batch)*. Open: ROADMAP DSCH-48..53.

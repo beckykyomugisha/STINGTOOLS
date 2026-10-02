@@ -364,18 +364,6 @@ namespace StingTools.Core
             set { _activePreset = value; }
         }
 
-        /// <summary>Get the display style for an element based on the active preset.</summary>
-        public static Tag7DisplayStyle GetDisplayStyle(Element el)
-        {
-            if (ActivePreset == null) return null;
-
-            string value = ParameterHelpers.GetValueText(el, ActivePreset.DiscriminatorParam);
-            if (!string.IsNullOrEmpty(value) && ActivePreset.Styles.TryGetValue(value, out var style))
-                return style;
-
-            return ActivePreset.DefaultStyle;
-        }
-
         /// <summary>All built-in TAG7 display presets.</summary>
         public static readonly Tag7DisplayPreset[] BuiltInPresets = BuildPresets();
 
@@ -489,7 +477,7 @@ namespace StingTools.Core
                 {
                     Name = "Completeness",
                     Description = "RAG status: Green=Complete (all 8 tokens), Orange=Partial, Red=Missing critical tokens",
-                    DiscriminatorParam = "_COMPLETENESS_", // Special: computed by GetDisplayStyle override
+                    DiscriminatorParam = "_COMPLETENESS_", // Special: computed by GetDisplayStyleSmart
                     Styles = new Dictionary<string, Tag7DisplayStyle>
                     {
                         { "COMPLETE",    new Tag7DisplayStyle { HeaderColor = "#2E7D32", BackgroundTint = "#E8F5E9", Label = "Complete",
@@ -619,11 +607,15 @@ namespace StingTools.Core
                 string configPath = StingToolsApp.FindDataFile("project_config.json");
                 if (string.IsNullOrEmpty(configPath)) return;
 
-                string json = File.ReadAllText(configPath);
-                Dictionary<string, object> data = JsonConvert.DeserializeObject<Dictionary<string, object>>(json)
-                    ?? new Dictionary<string, object>();
-                data["ACTIVE_PRESET"] = presetName;
-                File.WriteAllText(configPath, JsonConvert.SerializeObject(data, Formatting.Indented));
+                // DSCH-10: the same merge + atomic replace SaveToFile uses. This
+                // rewrote the whole file in place, so a crash mid-write left a
+                // truncated project_config.json, and re-serialising every key could
+                // reorder or retype values it did not own.
+                string merged = ConfigFileMerge.Merge(File.ReadAllText(configPath),
+                    new Dictionary<string, object> { ["ACTIVE_PRESET"] = presetName }, out _);
+                string tmp = configPath + ".tmp";
+                File.WriteAllText(tmp, merged);
+                File.Move(tmp, configPath, true);
             }
             catch (Exception ex)
             {
@@ -1544,7 +1536,7 @@ namespace StingTools.Core
                 string ugx      = ParameterHelpers.GetDisplayText(el, ParamRegistry.CST_UG_PRICE_UGX);
                 string usd      = ParameterHelpers.GetDisplayText(el, ParamRegistry.CST_INTL_PRICE_USD);
                 string quote    = ParameterHelpers.GetDisplayText(el, ParamRegistry.CST_QUOTE_REF_TXT);
-                string hrs      = ParameterHelpers.GetDisplayText(el, ParamRegistry.CST_INSTALL_HRS);
+                string hrs      = InstallHours.ReadDisplayText(el);
                 string crew     = ParameterHelpers.GetDisplayText(el, ParamRegistry.CST_LABOUR_CREW_TXT);
                 string rate     = ParameterHelpers.GetDisplayText(el, ParamRegistry.CST_LABOUR_RATE_GBP);
                 var parts = new List<string>();
@@ -1647,15 +1639,6 @@ namespace StingTools.Core
                 if (parts.Count > 0) result.SectionT10 = string.Join(" • ", parts);
             }
             catch (Exception ex) { StingLog.Warn("BuildTier4To10Summaries T10 failed: " + ex.Message); }
-        }
-
-        /// <summary>
-        /// Backward-compatible wrapper: returns the plain narrative string.
-        /// All existing callers use this — returns exactly the same output as before.
-        /// </summary>
-        public static string BuildTag7Narrative(Document doc, Element el, string categoryName, string[] tokenValues)
-        {
-            return BuildTag7Sections(doc, el, categoryName, tokenValues).PlainNarrative;
         }
 
         /// <summary>
@@ -2205,7 +2188,7 @@ namespace StingTools.Core
             {
                 string h = ParameterHelpers.GetValueText(el, ParamRegistry.WALL_HEIGHT);
                 string t = ParameterHelpers.GetValueText(el, ParamRegistry.WALL_THICKNESS);
-                if (double.TryParse(h, out double hv) && double.TryParse(t, out double tv) && tv > 0)
+                if (NumberText.TryParse(h, out double hv) && NumberText.TryParse(t, out double tv) && tv > 0)
                     return (hv / tv).ToString("F1");
                 return null;
             }
@@ -2275,6 +2258,9 @@ namespace StingTools.Core
             // Carbon footprint
             if (wp.Contains("CARBON"))
                 return ParameterHelpers.GetValueText(el, "PER_SUST_CARBON_FOOTPRINT_KG");
+            // Door sound insulation Rw (dB) - the value BOQParagraphEnhancer reads too.
+            if (wp.Contains("DOOR_ACOUSTIC"))
+                return ParameterHelpers.GetValueText(el, "BLE_DOOR_ACOUSTIC_RATING_DB");
             // Acoustic ratings
             if (wp.Contains("ACOUSTIC") && wp.Contains("STC"))
                 return ParameterHelpers.GetValueText(el, "PER_ACOUSTIC_WALL_STC");
@@ -2283,11 +2269,18 @@ namespace StingTools.Core
             // ELC efficiency
             if (wp.Contains("EFF_RATIO"))
                 return ParameterHelpers.GetValueText(el, "HVC_EFF_RATIO_NR");
-            // Short circuit
+            // Short circuit: the board's rated short-circuit capacity (kA). The
+            // board's prospective fault current is ELC_PNL_SHORT_CIRCUIT_RATING_KA.
             if (wp.Contains("SHORT_CIRCUIT"))
                 return ParameterHelpers.GetValueText(el, "ELC_PNL_SHORT_CIRCUIT_KA");
-            // Spare ways
+            // Spare ways, as a percentage of the board's ways. This branch lost its
+            // return in ecf1e8f21 (ELC_PNL_SPARE_WAYS_PCT deleted as dead), which
+            // made the NEXT if its body: from then until DSCH-47 neither the spare-ways
+            // nor the pipe-gradient warning was ever evaluated.
             if (wp.Contains("SPARE_WAYS"))
+                return WarningThresholdRule.PercentOf(
+                    ParameterHelpers.GetValueText(el, "ELC_PNL_SPARE_WAYS_NR"),
+                    ParameterHelpers.GetValueText(el, "ELC_PNL_NUM_OF_WAYS_NR"));
             // Pipe gradient
             if (wp.Contains("PIPE_GRADIENT"))
                 return ParameterHelpers.GetValueText(el, "PLM_PIPE_GRADIENT_PCT");

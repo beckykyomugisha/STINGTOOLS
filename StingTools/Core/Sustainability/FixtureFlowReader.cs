@@ -10,7 +10,8 @@
 //
 // The Revit adapter (SustainabilityEngine.ReadDesignFixtureFlows) classifies
 // each plumbing fixture, tries an explicit stamped flow parameter first, then
-// falls back to this name parser, and aggregates a median per fixture kind.
+// falls back to this name parser, and WaterFixtureAggregator averages per kind
+// against the baseline (an unrated kind keeps the baseline flow).
 //
 // Pure POCO / Revit-free + unit-tested. Name parsing is the testable part.
 

@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS"
+     xmlns:xs="http://www.w3.org/2001/XMLSchema"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+
+  <info>
+    <title>STING — Bonsai MEP calculation results (Pset_StingMEP)</title>
+    <copyright>Planscape Limited, 2026</copyright>
+    <version>1.0.0</version>
+    <description>IDS encoding of shared/ifc/psets/Pset_StingMEP.xml: every property, when present, carries the data type the template declares; the few properties whose values are fixed by a standard or by the code that writes them are also checked for value. One specification per property, in template order. Files the Bonsai add-on wrote before 5.8.0 hold these numbers as IfcLabel text and fail the data-type checks; re-run the calculation to rewrite them as numbers.</description>
+    <author>info@stingtools.io</author>
+    <date>2026-10-02</date>
+    <purpose>STING property-set contract validation (DSCH-38 follow-up)</purpose>
+    <milestone>Stage_4_TechnicalDesign</milestone>
+  </info>
+
+  <specifications>
+
+    <specification name="PLM_SUP_FLOW_LS_type"
+                   identifier="MEP-001"
+                   description="When Pset_StingMEP.PLM_SUP_FLOW_LS is present it is an IfcReal (in l/s)."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingMEP</simpleValue></propertySet>
+          <baseName><simpleValue>PLM_SUP_FLOW_LS</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCREAL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingMEP</simpleValue></propertySet>
+          <baseName><simpleValue>PLM_SUP_FLOW_LS</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="PLM_SUP_DN_type"
+                   identifier="MEP-002"
+                   description="When Pset_StingMEP.PLM_SUP_DN is present it is an IfcInteger (in mm); A nominal diameter in mm."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingMEP</simpleValue></propertySet>
+          <baseName><simpleValue>PLM_SUP_DN</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCINTEGER" cardinality="required">
+          <propertySet><simpleValue>Pset_StingMEP</simpleValue></propertySet>
+          <baseName><simpleValue>PLM_SUP_DN</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:integer">
+              <xs:minInclusive value="1"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="PLM_SUP_VEL_MS_type"
+                   identifier="MEP-003"
+                   description="When Pset_StingMEP.PLM_SUP_VEL_MS is present it is an IfcReal (in m/s)."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingMEP</simpleValue></propertySet>
+          <baseName><simpleValue>PLM_SUP_VEL_MS</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCREAL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingMEP</simpleValue></propertySet>
+          <baseName><simpleValue>PLM_SUP_VEL_MS</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="PLM_DRN_DU_type"
+                   identifier="MEP-004"
+                   description="When Pset_StingMEP.PLM_DRN_DU is present it is an IfcReal (in DU)."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingMEP</simpleValue></propertySet>
+          <baseName><simpleValue>PLM_DRN_DU</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCREAL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingMEP</simpleValue></propertySet>
+          <baseName><simpleValue>PLM_DRN_DU</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="ELC_CONDUIT_DN_MM_type"
+                   identifier="MEP-005"
+                   description="When Pset_StingMEP.ELC_CONDUIT_DN_MM is present it is an IfcReal (in mm)."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingMEP</simpleValue></propertySet>
+          <baseName><simpleValue>ELC_CONDUIT_DN_MM</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCREAL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingMEP</simpleValue></propertySet>
+          <baseName><simpleValue>ELC_CONDUIT_DN_MM</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="ELC_CABLE_COUNT_type"
+                   identifier="MEP-006"
+                   description="When Pset_StingMEP.ELC_CABLE_COUNT is present it is an IfcInteger; A count."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingMEP</simpleValue></propertySet>
+          <baseName><simpleValue>ELC_CABLE_COUNT</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCINTEGER" cardinality="required">
+          <propertySet><simpleValue>Pset_StingMEP</simpleValue></propertySet>
+          <baseName><simpleValue>ELC_CABLE_COUNT</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:integer">
+              <xs:minInclusive value="0"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="ELC_CABLE_OD_MM_type"
+                   identifier="MEP-007"
+                   description="When Pset_StingMEP.ELC_CABLE_OD_MM is present it is an IfcReal (in mm)."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingMEP</simpleValue></propertySet>
+          <baseName><simpleValue>ELC_CABLE_OD_MM</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCREAL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingMEP</simpleValue></propertySet>
+          <baseName><simpleValue>ELC_CABLE_OD_MM</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="ELC_FILL_PCT_type"
+                   identifier="MEP-008"
+                   description="When Pset_StingMEP.ELC_FILL_PCT is present it is an IfcReal (in %)."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingMEP</simpleValue></propertySet>
+          <baseName><simpleValue>ELC_FILL_PCT</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCREAL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingMEP</simpleValue></propertySet>
+          <baseName><simpleValue>ELC_FILL_PCT</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="ELC_FILL_STATUS_type"
+                   identifier="MEP-009"
+                   description="When Pset_StingMEP.ELC_FILL_STATUS is present it is an IfcLabel; The two verdicts Calc Conduit Fill writes."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingMEP</simpleValue></propertySet>
+          <baseName><simpleValue>ELC_FILL_STATUS</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingMEP</simpleValue></propertySet>
+          <baseName><simpleValue>ELC_FILL_STATUS</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="OK"/>
+              <xs:enumeration value="OVERLOADED"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+  </specifications>
+</ids>

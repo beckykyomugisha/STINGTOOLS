@@ -1312,6 +1312,8 @@ namespace StingTools.UI
                      "Value the unpriced sheets at their own build-up percentages (labour / materials / plant), writing the valuation back to the register and exporting an annexure-style priced sheet. CSV.", false),
                     ("Attach Daywork to VO", "Daywork_Attach",
                      "Attach a priced sheet to a variation as a Daywork-rated item. Its value then reaches the final account through that VO instead of standalone — counted once, never twice.", false),
+                    ("Apply Star Rate to VO", "Variation_ApplyStarRate",
+                     "Price a new variation item at a saved star rate: pick the rate and an open variation (Draft / Submitted / Reviewed), enter the measured quantity. Refuses a settled variation, a currency mismatch or an empty build-up - never converted or guessed.", false),
                 }));
 
             sp.Children.Add(BuildActionGroup("Delivery & Risk (ISO 19650)",
@@ -3740,7 +3742,7 @@ namespace StingTools.UI
             try { rooms = new FilteredElementCollector(Doc).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType().GetElementCount(); } catch { }
             try { phases = new FilteredElementCollector(Doc).OfClass(typeof(Phase)).GetElementCount(); } catch { }
             int items = _boq?.AllItems.Count ?? 0;
-            int priced = _boq?.AllItems.Count(i => i.RateUGX > 0) ?? 0;
+            int priced = _boq?.AllItems.Count(i => i.IsPriceDecided) ?? 0;   // DSCH-26: NIL / INCL count as priced
             double pricedPct = items > 0 ? 100.0 * priced / items : 0;
 
             void Row(int r, string k, string v, bool warn)
@@ -4770,9 +4772,24 @@ namespace StingTools.UI
             ctx.Items.Add(new Separator());
             Add("Mark as modeled",           () => ChangeSource(vm, BOQRowSource.Model));
             Add("Mark as manual / unmodeled", () => ChangeSource(vm, BOQRowSource.Manual));
-            Add("Mark as provisional sum",   () => ChangeSource(vm, BOQRowSource.ProvisionalSum));
+            // DSCH-35 — a provisional sum is entered with its NRM2 2.9.1 declaration.
+            Add("Mark as provisional sum — Defined",   () => ChangeToProvisionalSum(vm, ProvisionalSumType.Defined));
+            Add("Mark as provisional sum — Undefined", () => ChangeToProvisionalSum(vm, ProvisionalSumType.Undefined));
             Add("Mark as dayworks",          () => ChangeSource(vm, BOQRowSource.Dayworks));
             Add("Mark as PC sum",            () => ChangeSource(vm, BOQRowSource.PCSum));
+            ctx.Items.Add(new Separator());
+            // DSCH-43 — declare the element rate override's outcome (v3 ES schema).
+            // Model rows only: the override lives on the element(s).
+            bool hasElements = vm.Underlying.Source == BOQRowSource.Model && RateOutcomeElementIds(vm).Count > 0;
+            Add("Rate: Nil",              () => SetRateOutcome(vm, "Nil", ""), enabled: hasElements);
+            Add("Rate: Included in…",     () =>
+            {
+                string reference = PromptString(
+                    "Which item carries this cost? (e.g. E10/2 or 14.3.2)", vm.Underlying.IncludedIn ?? "");
+                if (reference == null) return;   // cancelled
+                SetRateOutcome(vm, "Included", reference);
+            }, enabled: hasElements);
+            Add("Clear outcome",          () => SetRateOutcome(vm, "Clear", ""), enabled: hasElements);
             ctx.Items.Add(new Separator());
             Add("Duplicate row",        () => DuplicateRow(vm));
             Add("Delete row",           () => DeleteRow(vm),
@@ -4903,6 +4920,41 @@ namespace StingTools.UI
             vm.Underlying.Source = src;
             PersistManualRows();
             RefreshDisplay();
+        }
+
+        private void ChangeToProvisionalSum(BOQItemViewModel vm, ProvisionalSumType type)
+        {
+            vm.Underlying.PsType = type;
+            ChangeSource(vm, BOQRowSource.ProvisionalSum);
+        }
+
+        /// <summary>DSCH-43 — the element(s) a row's rate override lives on:
+        /// every constituent of an aggregated row, else the row's own element.</summary>
+        private static List<long> RateOutcomeElementIds(BOQItemViewModel vm)
+        {
+            var ids = vm.ConstituentElementIds.Where(id => id > 0).Distinct().ToList();
+            if (ids.Count == 0 && vm.RevitElementId > 0) ids.Add(vm.RevitElementId);
+            return ids;
+        }
+
+        /// <summary>
+        /// DSCH-43 — write (or clear) the v3 rate-override outcome on the row's
+        /// element(s). Runs on the Revit thread via BOQSetRateOutcomeCommand, inside
+        /// a STING transaction; the command posts what it wrote and every refusal
+        /// into the inline result region. The panel refreshes after, so the row
+        /// re-prices through the chain ("Nil" / "Incl. in …").
+        /// </summary>
+        private void SetRateOutcome(BOQItemViewModel vm, string edit, string includedIn)
+        {
+            try
+            {
+                StingCommandHandler.SetExtraParam("RateOutcomeElementIds", string.Join(",", RateOutcomeElementIds(vm)));
+                StingCommandHandler.SetExtraParam("RateOutcomeEdit", edit);
+                StingCommandHandler.SetExtraParam("RateOutcomeIncludedIn", includedIn ?? "");
+                StingCommandHandler.SetExtraParam("InlineHost", "1");
+                DispatchAction("BOQSetRateOutcome");
+            }
+            catch (Exception ex) { StingLog.Error("BOQ SetRateOutcome", ex); }
         }
 
         private void DuplicateRow(BOQItemViewModel vm)
@@ -5378,6 +5430,10 @@ namespace StingTools.UI
             string section = PromptString("Section number:", "22");
             string disc = PromptString("Discipline code (A/S/M/E/P/FP/PS):", "A");
             string type = PromptString("Row type (Manual / PS / Dayworks / PC Sum):", "Manual");
+            // DSCH-35 — no default: a blank answer leaves the sum NOT DECLARED (flagged).
+            string psType = BoqSourceUtil.Parse(type) == BOQRowSource.ProvisionalSum
+                ? PromptString("Provisional sum type — Defined or Undefined (NRM2 2.9.1):", "")
+                : "";
 
             if (!double.TryParse(qtyStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double qty)) qty = 1;
             if (!double.TryParse(rateStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double rate)) rate = 0;
@@ -5389,6 +5445,7 @@ namespace StingTools.UI
             StingCommandHandler.SetExtraParam("ManualRowSection", section ?? "22");
             StingCommandHandler.SetExtraParam("ManualRowDisc", disc ?? "A");
             StingCommandHandler.SetExtraParam("ManualRowSource", type ?? "Manual");
+            StingCommandHandler.SetExtraParam("ManualRowPsType", psType ?? "");
             DispatchAction("BOQAddManualRow");
         }
 
@@ -6988,7 +7045,10 @@ namespace StingTools.UI
             {
                 switch (_item.Source)
                 {
-                    case BOQRowSource.ProvisionalSum: return "PS";
+                    case BOQRowSource.ProvisionalSum:
+                        // DSCH-35 — D / U, or "?" while undeclared.
+                        return _item.PsType == ProvisionalSumType.Defined ? "PS-D"
+                             : _item.PsType == ProvisionalSumType.Undefined ? "PS-U" : "PS ?";
                     case BOQRowSource.Manual:         return "Manual";
                     case BOQRowSource.Dayworks:       return "Daywk";
                     case BOQRowSource.PCSum:          return "PC";

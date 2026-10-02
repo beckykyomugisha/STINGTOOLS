@@ -53,7 +53,7 @@ namespace StingTools.Core.Electrical
         /// <summary>Approximate weight per metre: Cu 9 kg/km/mm²
         /// (conductor + insulation), Al 3 kg/km/mm².</summary>
         public double WeightPerMetreKg =>
-            (ConductorMaterial == "AL" ? 0.003 : 0.009) * CsaMm2 * CoreCount;
+            (StingTools.Standards.NEC2023.ConductorMaterialText.IsAluminium(ConductorMaterial) ? 0.003 : 0.009) * CsaMm2 * CoreCount;
     }
 
     public class CableManifest

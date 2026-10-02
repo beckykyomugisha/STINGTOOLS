@@ -580,7 +580,7 @@ namespace StingTools.Core.Routing
                 var p = el.LookupParameter("FIXTURE_DROP_OFFSET_Z_MM");
                 if (p == null || !p.HasValue) return 0.0;
                 if (p.StorageType == StorageType.Double) return p.AsDouble() / MmToFt;
-                if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out double s)) return s;
+                if (p.StorageType == StorageType.String && StingTools.Core.NumberText.TryParse(p.AsString(), out double s)) return s;
             }
             catch (Exception ex) { StingLog.Warn($"DropEngineBase: read FIXTURE_DROP_OFFSET_Z_MM failed: {ex.Message}"); }
             return 0.0;

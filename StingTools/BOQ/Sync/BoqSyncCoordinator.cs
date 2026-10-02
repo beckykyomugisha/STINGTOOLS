@@ -76,6 +76,17 @@ namespace StingTools.BOQ.Sync
                     return result;
                 }
 
+                // Every server line needs a classification; refuse before a baseline
+                // is created rather than leave an empty one behind.
+                string unclassified = BoqLineClassification.PreflightProblem(boq.AllItems.Select(i => i.NRM2Section));
+                if (unclassified != null)
+                {
+                    result.SyncState = "Pending";
+                    result.Detail = unclassified;
+                    StingLog.Warn($"BoqSyncCoordinator: {unclassified}");
+                    return result;
+                }
+
                 var client = PlanscapeServerClient.Instance;
                 if (client == null)
                 {
@@ -214,6 +225,10 @@ namespace StingTools.BOQ.Sync
             return new
             {
                 sectionCode = item.NRM2Section ?? "",
+                // The server resolves (system, code) to its ClassificationCode within the
+                // tenant and refuses a line it cannot classify — it never defaults one.
+                classificationSystemCode = BoqLineClassification.SystemCode,
+                classificationCode = BoqLineClassification.CodeFor(item.NRM2Section),
                 itemDescription = string.IsNullOrEmpty(item.ResolvedNRM2Paragraph)
                     ? (item.Category ?? "")
                     : item.ResolvedNRM2Paragraph,
@@ -249,7 +264,11 @@ namespace StingTools.BOQ.Sync
                 deductionQuantity = Math.Round(item.DeductionQuantity, 6),
                 unitRate = Math.Round(item.RateUGX, 2),
                 currency = "UGX",
-                lineKind = MapSourceToLineKind(item.Source),
+                lineKind = BoqSourceUtil.SyncLineKind(item.Source),
+                // DSCH-44 — NRM2 2.9.1 Defined / Undefined / NotDeclared, on provisional
+                // sums only (null otherwise, so the server stores nothing for them).
+                provisionalSumType = item.Source == BOQRowSource.ProvisionalSum
+                    ? ProvisionalSumTypes.WireToken(item.PsType) : null,
                 pricingBasis = "Remeasure",
                 // Carbon: ship the authoritative engine TOTAL (`embodiedCarbonKg`)
                 // AND a per-unit value derived from it against the FINAL quantity,
@@ -279,17 +298,6 @@ namespace StingTools.BOQ.Sync
             double basis = WastePreBase(item);
             if (basis <= 0 || item.WastageQuantity == 0) return 0;
             return item.WastageQuantity / basis * 100.0;
-        }
-
-        private static string MapSourceToLineKind(BOQRowSource source)
-        {
-            switch (source)
-            {
-                case BOQRowSource.ProvisionalSum: return "ProvisionalSum";
-                case BOQRowSource.Manual: return "Manual";
-                case BOQRowSource.Model:
-                default: return "Measured";
-            }
         }
     }
 }

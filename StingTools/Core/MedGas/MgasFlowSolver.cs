@@ -67,7 +67,7 @@ namespace StingTools.Core.MedGas
                 {
                     double v = p.StorageType == StorageType.Double  ? p.AsDouble()
                               : p.StorageType == StorageType.Integer ? p.AsInteger()
-                              : (double.TryParse(p.AsString(), out var s) ? s : 0);
+                              : (StingTools.Core.NumberText.TryParse(p.AsString(), out var s) ? s : 0);
                     if (v > 0) return v;
                 }
             } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }

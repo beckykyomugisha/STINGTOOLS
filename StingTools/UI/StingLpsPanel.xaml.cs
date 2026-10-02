@@ -156,7 +156,7 @@ namespace StingTools.UI
             RiskFactorRows.Add(new RiskFactorRow { Factor = "Cc — Internal contents",   Description = "Ordinary=1.0 · valuable=2.0 · irreplaceable=3.0 · high-fire=2.5 · explosive=5.0",                              Value = 1.0 });
             RiskFactorRows.Add(new RiskFactorRow { Factor = "Cd — Occupant hazard",     Description = "Low (few occupants)=1.0 · medium (public access)=2.0 · high (vulnerable/mass)=5.0",                          Value = 1.0 });
             RiskFactorRows.Add(new RiskFactorRow { Factor = "Ce — Consequence of failure", Description = "Low=1.0 · medium=2.0 · high=5.0 · extreme=10.0",                                                          Value = 1.0 });
-            RiskFactorRows.Add(new RiskFactorRow { Factor = "Cd_loc — Location factor",  Description = "BS EN 62305-2 §A.4: isolated=2.0 · low hill=1.0 · surrounded by taller=0.25 · in city=0.5",                  Value = 1.0 });
+            RiskFactorRows.Add(new RiskFactorRow { Factor = "Cd_loc — Location factor",  Description = "BS EN 62305-2 Table A.1: surrounded by equal/taller=0.25 · surrounded by lower=0.5 · isolated=1.0 · hilltop=2.0",                  Value = 1.0 });
         }
 
         // ──────────────────────────────────────────────────────────────
@@ -210,9 +210,10 @@ namespace StingTools.UI
         {
             if (combo == null) return;
             combo.Items.Clear();
-            // BS EN 62305-2 Annex A.4 — Cd location factor lookup table.
-            // Hard-coded because the data file's serviceFactors array is
-            // for service-entry Ct, not location Cd.
+            // BS EN 62305-2 Table A.1 — C_D relative location of the structure.
+            // Read from STING_LPS_RISK_TABLES.json → locationCd (the
+            // RISK_FACTORS serviceFactors array is service-entry Ct, not Cd);
+            // the built-in values below are the fallback and match the data.
             var locOptions = new (string Label, double Value)[]
             {
                 ("Surrounded by taller objects (city)",            0.25),
@@ -220,6 +221,25 @@ namespace StingTools.UI
                 ("Isolated structure (no taller objects nearby)",  1.0),
                 ("Isolated on hill / mountain top",                2.0),
             };
+            var locKeys = new[] { "SURROUNDED_EQUAL_HIGHER", "SURROUNDED_LOWER", "ISOLATED", "HILLTOP" };
+            try
+            {
+                string tPath = StingToolsApp.FindDataFile("STING_LPS_RISK_TABLES.json");
+                var cd = !string.IsNullOrEmpty(tPath) && File.Exists(tPath)
+                    ? JObject.Parse(File.ReadAllText(tPath))["locationCd"] as JObject : null;
+                if (cd != null)
+                    for (int i = 0; i < locOptions.Length; i++)
+                    {
+                        var tok = cd[locKeys[i]];
+                        if (tok == null || (tok.Type != JTokenType.Float && tok.Type != JTokenType.Integer)) continue;
+                        double v = tok.Value<double>();
+                        if (v > 0) locOptions[i].Value = v;
+                    }
+                else
+                    StingLog.WarnRateLimited("LpsPanel.LocationCd",
+                        "STING_LPS_RISK_TABLES.json locationCd not found; using built-in Cd values.");
+            }
+            catch (Exception ex) { StingLog.Warn($"PopulateLocationFactorCombo: {ex.Message}"); }
             foreach (var o in locOptions)
             {
                 combo.Items.Add(new ComboBoxItem

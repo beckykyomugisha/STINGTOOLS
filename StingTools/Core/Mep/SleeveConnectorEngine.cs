@@ -262,7 +262,7 @@ namespace StingTools.Core.Mep
                 if (p == null || !p.HasValue) return 0.0;
                 if (p.StorageType == StorageType.Double)
                     return p.AsDouble() / MmToFt;             // stored internal feet → mm
-                if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out double s))
+                if (p.StorageType == StorageType.String && StingTools.Core.NumberText.TryParse(p.AsString(), out double s))
                     return s;                                 // stored as plain mm text
             }
             catch (Exception ex) { StingLog.Warn($"SleeveConnectorEngine: read {DropOffsetParam} failed: {ex.Message}"); }
@@ -282,7 +282,7 @@ namespace StingTools.Core.Mep
                 if (mh != null && mh.HasValue)
                 {
                     double hMm = double.NaN;
-                    if (mh.StorageType == StorageType.String && double.TryParse(mh.AsString(), out double s)) hMm = s;
+                    if (mh.StorageType == StorageType.String && StingTools.Core.NumberText.TryParse(mh.AsString(), out double s)) hMm = s;
                     else if (mh.StorageType == StorageType.Double) hMm = mh.AsDouble() / MmToFt;
                     if (!double.IsNaN(hMm) && hMm <= 1.0) return -1.0; // floor box
                 }

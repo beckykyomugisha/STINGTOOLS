@@ -20,14 +20,8 @@
     <specification name="CST_RATE_SOURCE_enumeration"
                    ifcVersion="IFC4"
                    identifier="COST-001"
-                   description="When CST_RATE_SOURCE_TXT is present it must be one of the recognised rate-source values."
-                   requirementSeverity="optional">
-      <applicability>
-        <entity>
-          <name>
-            <simpleValue>IFCELEMENT</simpleValue>
-          </name>
-        </entity>
+                   description="When CST_RATE_SOURCE_TXT is present it must be one of the recognised rate-source values. Severity: advisory - report a failure, do not block the exchange (this was the non-standard requirementSeverity=&quot;optional&quot;, which IDS 1.0 does not define). Applies to any element carrying the property (IfcElement is abstract, and an IDS entity facet matches only that exact class, so an IFCELEMENT facet matched nothing).">
+      <applicability minOccurs="0" maxOccurs="unbounded">
         <property>
           <propertySet><simpleValue>Pset_StingCostManagement</simpleValue></propertySet>
           <baseName><simpleValue>CST_RATE_SOURCE_TXT</simpleValue></baseName>
@@ -53,14 +47,8 @@
     <specification name="CST_BOQ_UNIT_enumeration"
                    ifcVersion="IFC4"
                    identifier="COST-002"
-                   description="When CST_BOQ_UNIT_TXT is present it must be an NRM2-valid measurement unit."
-                   requirementSeverity="optional">
-      <applicability>
-        <entity>
-          <name>
-            <simpleValue>IFCELEMENT</simpleValue>
-          </name>
-        </entity>
+                   description="When CST_BOQ_UNIT_TXT is present it must be an NRM2-valid measurement unit. Severity: advisory - report a failure, do not block the exchange (this was the non-standard requirementSeverity=&quot;optional&quot;, which IDS 1.0 does not define). Applies to any element carrying the property (IfcElement is abstract, and an IDS entity facet matches only that exact class, so an IFCELEMENT facet matched nothing).">
+      <applicability minOccurs="0" maxOccurs="unbounded">
         <property>
           <propertySet><simpleValue>Pset_StingCostManagement</simpleValue></propertySet>
           <baseName><simpleValue>CST_BOQ_UNIT_TXT</simpleValue></baseName>

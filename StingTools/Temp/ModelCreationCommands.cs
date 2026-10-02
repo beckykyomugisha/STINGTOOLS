@@ -756,10 +756,10 @@ namespace StingTools.Temp
                         if (parts.Length < 5) continue;
 
                         string name = parts[0].Trim();
-                        if (!double.TryParse(parts[1], out double x1)) continue;
-                        if (!double.TryParse(parts[2], out double y1)) continue;
-                        if (!double.TryParse(parts[3], out double x2)) continue;
-                        if (!double.TryParse(parts[4], out double y2)) continue;
+                        if (!NumberText.TryParse(parts[1], out double x1)) continue;
+                        if (!NumberText.TryParse(parts[2], out double y1)) continue;
+                        if (!NumberText.TryParse(parts[3], out double x2)) continue;
+                        if (!NumberText.TryParse(parts[4], out double y2)) continue;
 
                         // Convert mm to feet
                         var start = new XYZ(x1 / 304.8, y1 / 304.8, 0);
@@ -830,7 +830,7 @@ namespace StingTools.Temp
                         if (parts.Length < 2) continue;
 
                         string name = parts[0].Trim();
-                        if (!double.TryParse(parts[1], out double elevationMm)) continue;
+                        if (!NumberText.TryParse(parts[1], out double elevationMm)) continue;
 
                         double elevationFt = elevationMm / 304.8;
 
@@ -978,19 +978,6 @@ namespace StingTools.Temp
 
             // Only return if within reasonable distance (5 feet ~ 1.5m)
             return minDist < 5 ? nearest : null;
-        }
-
-        /// <summary>
-        /// Get all family symbols for a category, grouped by family.
-        /// </summary>
-        public static Dictionary<string, List<FamilySymbol>> GetFamilySymbolsByCategory(Document doc, BuiltInCategory category)
-        {
-            return new FilteredElementCollector(doc)
-                .OfCategory(category)
-                .OfClass(typeof(FamilySymbol))
-                .Cast<FamilySymbol>()
-                .GroupBy(s => s.Family.Name)
-                .ToDictionary(g => g.Key, g => g.OrderBy(s => s.Name).ToList());
         }
     }
 

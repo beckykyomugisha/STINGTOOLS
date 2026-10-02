@@ -7,7 +7,6 @@
     "project-rate-card (93) negotiated sub-contractor rate card (_BIM_COORD/rate_card.json)",
     "csv-default (90)      cost_rates_5d.csv category rate",
     "material-library (85) MAT panel ALL_MODEL_COST / MATERIAL_LOOKUP.csv",
-    "cobie-typemap (75)    COBIE_TYPE_MAP.csv -> rate code",
     "default-baseline (60) Scheduling4DEngine fallback",
     "bcis-http (DISABLED)  live BCIS HTTP feed - off for deterministic KUT tenders"
   ],

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertySetTemplate xmlns="https://stingtools.io/schema/ifc/psets/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>Pset_StingMEP</Name>
+    <Definition>STING MEP calculation results written and read by the Bonsai add-on (stingtools-bonsai ops/mep_ops.py): Hazen-Williams supply pipe sizing, BS EN 12056-2 discharge units and conduit fill. The add-on wrote this set before it was declared; the property names are the ones it has always used, so files it wrote stay readable. Numbers were written as IfcLabel text before 5.8.0 and as IfcReal / IfcInteger since; the add-on reads both. Property names are the add-on's, not Revit shared-parameter names (the plugin's water-supply sizer writes PLM_SUP_QD_LPS / PLM_SUP_VEL_MPS / PLM_SUP_DN_REQ_MM instead).</Definition>
+    <IfdGuid>uuid:a1d15c11-000d-4001-9000-00000000000d</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.8.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>Hazen-Williams pipe flow; BS EN 12056-2 (discharge units); BS 7671 Appendix 5 (conduit capacity)</StandardsBasis>
+  </Governance>
+
+  <TemplateType>PSET_OCCURRENCEDRIVEN</TemplateType>
+
+  <Applicability>
+    <ApplicableEntity>IfcPipeSegment</ApplicableEntity>
+    <ApplicableEntity>IfcSanitaryTerminal</ApplicableEntity>
+    <ApplicableEntity>IfcCableCarrierSegment</ApplicableEntity>
+  </Applicability>
+
+  <Properties>
+
+    <Property name="PLM_SUP_FLOW_LS" cardinality="optional">
+      <Definition>Supply pipe design flow in litres per second. An input: Calc Pipe Flow (H-W) sizes for it, refuses a segment without it, and does not write it (it used to overwrite it with the selected DN's full-bore capacity, so a second run sized for the wrong flow).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>l/s</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="PLM_SUP_DN" cardinality="optional">
+      <Definition>Supply pipe nominal diameter (DN, mm) selected by Calc Pipe Flow (H-W): the smallest DN in the series whose full-bore Hazen-Williams capacity carries PLM_SUP_FLOW_LS at no more than 3.0 m/s.</Definition>
+      <DataType>IfcInteger</DataType>
+      <Unit>mm</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="PLM_SUP_VEL_MS" cardinality="optional">
+      <Definition>Supply pipe velocity in metres per second: the design flow PLM_SUP_FLOW_LS over the bore area of the selected DN, written by Calc Pipe Flow (H-W).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>m/s</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="PLM_DRN_DU" cardinality="optional">
+      <Definition>Discharge unit of a sanitary terminal (BS EN 12056-2 Table 1), written by Calc Drainage Units (DU). A terminal whose PredefinedType and Name match no table entry is refused, not given a default.</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>DU</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="ELC_CONDUIT_DN_MM" cardinality="optional">
+      <Definition>Conduit internal diameter in millimetres. A required input of Calc Conduit Fill (a segment without it is refused); not written by STING.</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>mm</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="ELC_CABLE_COUNT" cardinality="optional">
+      <Definition>Number of cables in the conduit. A required input of Calc Conduit Fill (a segment without it is refused); not written by STING.</Definition>
+      <DataType>IfcInteger</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="ELC_CABLE_OD_MM" cardinality="optional">
+      <Definition>Overall diameter of one cable in millimetres. A required input of Calc Conduit Fill (a segment without it is refused); not written by STING.</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>mm</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="ELC_FILL_PCT" cardinality="optional">
+      <Definition>Conduit fill as a percentage of the conduit cross-section, written by Calc Conduit Fill.</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>%</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="ELC_FILL_STATUS" cardinality="optional">
+      <Definition>Conduit fill verdict written by Calc Conduit Fill: OK (fill at or below 40 %) or OVERLOADED.</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+  </Properties>
+
+  <CorporateLock>
+    <Sha256>edb66b8e893e822d2b379fbc76e928736b4bf46ab5e818a850f78890e5d0d14d</Sha256>
+    <LockedAtVersion>5.8.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(properties_with_metadata_plus_validation_rules))</Algorithm>
+  </CorporateLock>
+
+</StingPropertySetTemplate>

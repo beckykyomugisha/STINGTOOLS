@@ -34,21 +34,25 @@ namespace StingTools.V6
                 StingLog.Warn($"LabourHoursEngine: rates CSV not found at {path}");
                 return _cached = list;
             }
-            foreach (var raw in File.ReadAllLines(path))
+            // DSCH-2: by column name. The header row was a '#' comment until
+            // 2026-10-01, so it is required now; a file without it is refused.
+            var t = CsvTable.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+            var missing = t.Missing("category_name", "family_filter", "unit", "hours_per_unit", "crew", "rate_gbp_per_hour");
+            if (missing.Count > 0)
             {
-                if (string.IsNullOrWhiteSpace(raw) || raw.StartsWith("#")) continue;
-                var cols = StingToolsApp.ParseCsvLine(raw);
-                if (cols == null || cols.Length < 6) continue;
-                // InvariantCulture: CSV uses "." as the decimal separator everywhere.
-                var inv = System.Globalization.CultureInfo.InvariantCulture;
-                if (!double.TryParse(cols[3], System.Globalization.NumberStyles.Float, inv, out var hpu)) continue;
-                double gph = 0; double.TryParse(cols[5], System.Globalization.NumberStyles.Float, inv, out gph);
+                StingLog.Warn($"LabourHoursEngine: {path} has no column(s) {string.Join(", ", missing)} - no labour rates loaded");
+                return _cached = list;
+            }
+            foreach (var r in t.Rows)
+            {
+                if (!NumberText.TryParseInvariant(r["hours_per_unit"], out var hpu)) continue;
+                NumberText.TryParseInvariant(r["rate_gbp_per_hour"], out var gph);
                 list.Add(new Rate
                 {
-                    Category = cols[0].Trim(),
-                    FamilyFilter = cols[1].Trim(),
-                    Unit = cols[2].Trim().ToUpperInvariant(),
-                    HoursPerUnit = hpu, Crew = cols[4].Trim(), GbpPerHour = gph,
+                    Category = r["category_name"],
+                    FamilyFilter = r["family_filter"],
+                    Unit = r["unit"].ToUpperInvariant(),
+                    HoursPerUnit = hpu, Crew = r["crew"], GbpPerHour = gph,
                 });
             }
             return _cached = list;

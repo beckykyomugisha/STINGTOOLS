@@ -420,26 +420,33 @@ namespace StingTools.Docs
             }
             try
             {
-                var lines = File.ReadAllLines(path);
                 // Header row tells us which discipline columns exist; however we
                 // always expose the canonical nine columns on the grid. Values
-                // from the file are mapped positionally by header name.
-                if (lines.Length < 1) { _pathLabel.Text = path; MarkClean(); return; }
-                string[] header = SplitCsv(lines[0]);
-                var discColMap = new Dictionary<int, string>();
-                for (int i = 2; i < header.Length; i++)
-                    discColMap[i] = header[i].Trim().ToUpperInvariant();
-
-                for (int r = 1; r < lines.Length; r++)
+                // from the file are mapped by header name (DSCH-2).
+                var table = CsvTable.Parse(File.ReadAllLines(path), SplitCsv);
+                if (table.HeaderLine == 0) { _pathLabel.Text = path; MarkClean(); return; }
+                int nameCol = table.Col("ParameterName"), dfltCol = table.Col("DefaultValue");
+                if (nameCol < 0 || dfltCol < 0)
                 {
-                    string ln = lines[r];
-                    if (string.IsNullOrWhiteSpace(ln) || ln.TrimStart().StartsWith("#")) continue;
-                    string[] cols = SplitCsv(ln);
+                    string missing = string.Join(", ", table.Missing("ParameterName", "DefaultValue"));
+                    StingLog.Warn($"TB Editor: {path} header lacks {missing} — not loaded");
+                    MessageBox.Show(this, $"Could not read CSV:\n\n{path}\n\nThe header has no {missing} column.",
+                        "STING Title Block Editor", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                var discColMap = new Dictionary<int, string>();
+                for (int i = 0; i < table.Header.Count; i++)
+                    if (i != nameCol && i != dfltCol)
+                        discColMap[i] = table.Header[i].ToUpperInvariant();
+
+                foreach (var csvRow in table.Rows)
+                {
+                    string[] cols = csvRow.Fields;
                     if (cols.Length == 0) continue;
                     var row = new TitleBlockCsvRow
                     {
-                        ParameterName = cols.Length > 0 ? cols[0] : "",
-                        DefaultValue  = cols.Length > 1 ? cols[1] : ""
+                        ParameterName = nameCol < cols.Length ? cols[nameCol] : "",
+                        DefaultValue  = dfltCol < cols.Length ? cols[dfltCol] : ""
                     };
                     foreach (var kvp in discColMap)
                     {

@@ -39,8 +39,6 @@ namespace StingTools.Core.Sync
         /// <summary>How often the debounce timer checks whether a push is due.</summary>
         private const int PollIntervalMs = 1_000;
 
-        public static bool IsLive { get { lock (_lifecycleLock) { return _triggersActive; } } }
-
         internal static string DocKey(Document doc) =>
             doc?.ProjectInformation?.UniqueId ?? doc?.PathName ?? "host";
 

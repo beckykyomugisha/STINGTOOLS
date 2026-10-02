@@ -4,23 +4,28 @@ using Xunit;
 
 namespace StingTools.Sustainability.Tests
 {
-    // WS A4 / D3 — the orchestrator now reads real fixtures (classified + averaged
-    // by WaterFixtureAggregator) and computes a real RWH yield via
-    // RainwaterHarvestingCalc that folds into the EDGE water %. These cover the pure
-    // pieces that wiring depends on.
+    // WS A4 / D3 — the orchestrator (SustainabilityEngine.ReadDesignFixtureFlows)
+    // classifies each plumbing fixture with FixtureFlowReader.ClassifyKind, feeds its
+    // rating into WaterFixtureAggregator and builds the design flows with BuildOrNull
+    // against the BASELINE (DSCH-46b - it used to build them itself and gave an
+    // unrated kind the class low-flow default, claiming a saving nobody modelled).
+    // It also computes a real RWH yield via RainwaterHarvestingCalc that folds into
+    // the EDGE water %. These cover the pure pieces that wiring depends on.
     public class WaterFixtureAndRwhTests
     {
-        // ── Fixture classification ────────────────────────────────────────────
+        // ── Fixture classification: ONE classifier (FixtureFlowReader) ─────────
+        // The aggregator carried a second keyword classifier that disagreed with it
+        // ("pan", "tap", "vanity"); it was deleted, and these cases moved here.
         [Theory]
-        [InlineData("WC Close-coupled", WaterFixtureAggregator.FixtureKind.Wc)]
-        [InlineData("Standard Toilet", WaterFixtureAggregator.FixtureKind.Wc)]
-        [InlineData("Wall Urinal", WaterFixtureAggregator.FixtureKind.Urinal)]
-        [InlineData("Wash Hand Basin", WaterFixtureAggregator.FixtureKind.Basin)]
-        [InlineData("Shower Mixer", WaterFixtureAggregator.FixtureKind.Shower)]
-        [InlineData("Kitchen Sink", WaterFixtureAggregator.FixtureKind.Kitchen)]
-        [InlineData("Floor Drain", WaterFixtureAggregator.FixtureKind.Unknown)]
-        public void Classify_ByName(string name, WaterFixtureAggregator.FixtureKind expected)
-            => Assert.Equal(expected, WaterFixtureAggregator.Classify(name));
+        [InlineData("WC Close-coupled", FixtureKind.Wc)]
+        [InlineData("Standard Toilet", FixtureKind.Wc)]
+        [InlineData("Wall Urinal", FixtureKind.Urinal)]
+        [InlineData("Wash Hand Basin", FixtureKind.Basin)]
+        [InlineData("Shower Mixer", FixtureKind.Shower)]
+        [InlineData("Kitchen Sink", FixtureKind.KitchenTap)]
+        [InlineData("Floor Drain", FixtureKind.Unknown)]
+        public void Classify_ByName(string name, FixtureKind expected)
+            => Assert.Equal(expected, FixtureFlowReader.ClassifyKind(name));
 
         // ── Aggregation ───────────────────────────────────────────────────────
         [Fact]
@@ -35,9 +40,9 @@ namespace StingTools.Sustainability.Tests
         public void Aggregator_AveragesReadings_AndFallsBackPerCategory()
         {
             var agg = new WaterFixtureAggregator();
-            agg.AddByName("WC low-flush", flushLitres: 4.0, flowLpm: 0);
-            agg.AddByName("WC low-flush", flushLitres: 4.5, flowLpm: 0);
-            agg.AddByName("Basin spray tap", flushLitres: 0, flowLpm: 5.0);
+            agg.Add(FixtureKind.Wc, 4.0);
+            agg.Add(FixtureKind.Wc, 4.5);
+            agg.Add(FixtureKind.Basin, 5.0);
 
             var fallback = new FixtureFlows { WcLpf = 6, UrinalLpf = 4, BasinTapLpm = 8, ShowerLpm = 10, KitchenTapLpm = 8 };
             var flows = agg.BuildOrNull(fallback);
@@ -48,6 +53,54 @@ namespace StingTools.Sustainability.Tests
             // Unread categories inherit the baseline (claim no saving).
             Assert.Equal(4, flows.UrinalLpf, 2);
             Assert.Equal(10, flows.ShowerLpm, 2);
+        }
+
+        // DSCH-46b - an unrated kind takes the BASELINE flow, so it claims no
+        // saving. The engine's old path gave it the class low-flow default
+        // (FixtureFlows() = 6/4/8/10/8), which is below every shipped baseline.
+        [Fact]
+        public void UnratedKinds_TakeTheBaseline_NotTheLowFlowClassDefault()
+        {
+            var agg = new WaterFixtureAggregator();
+            agg.Add(FixtureKind.Wc, 4.0);
+            var baseline = new FixtureFlows { WcLpf = 6, UrinalLpf = 4, BasinTapLpm = 12, ShowerLpm = 15, KitchenTapLpm = 12 };
+            var flows = agg.BuildOrNull(baseline);
+            Assert.Equal(4.0, flows.WcLpf, 3);
+            Assert.Equal(12, flows.BasinTapLpm, 3);
+            Assert.Equal(15, flows.ShowerLpm, 3);
+            Assert.Equal(12, flows.KitchenTapLpm, 3);
+
+            var profile = WaterUsageProfileRegistry
+                .LoadFromJson(TestData.Read("STING_WATER_USAGE_PROFILES.json")).Get("office");
+            double onlyWc = AnnualWaterEstimator.Estimate(flows, baseline, profile, 100).WaterSavingsPct;
+            double viaClassDefault = AnnualWaterEstimator.Estimate(
+                new FixtureFlows { WcLpf = 4.0 }, baseline, profile, 100).WaterSavingsPct;
+            Assert.True(onlyWc < viaClassDefault,
+                "rating only the WCs must claim less saving than the old class-default path");
+        }
+
+        [Fact]
+        public void Summary_NamesReadKinds_AndTheBaselineOnes()
+        {
+            var agg = new WaterFixtureAggregator();
+            agg.Add(FixtureKind.Wc, 4.0);
+            agg.Add(FixtureKind.Wc, 5.0);
+            agg.Add(FixtureKind.Shower, 8.0);
+            var baseline = new FixtureFlows { WcLpf = 6, UrinalLpf = 4, BasinTapLpm = 12, ShowerLpm = 15, KitchenTapLpm = 12 };
+            string s = agg.Summary(agg.BuildOrNull(baseline));
+            Assert.Contains("WC 4.5 L/flush (2 fixtures)", s);
+            Assert.Contains("shower 8 L/min (1 fixture)", s);
+            Assert.Contains("urinal, basin tap, kitchen tap", s);
+            Assert.Contains("baseline", s);
+        }
+
+        [Fact]
+        public void UnknownKind_IsNotAReading()
+        {
+            var agg = new WaterFixtureAggregator();
+            agg.Add(FixtureKind.Unknown, 5.0);
+            Assert.Equal(0, agg.ReadingCount);
+            Assert.Null(agg.BuildOrNull(new FixtureFlows()));
         }
 
         // ── RWH yield via RainwaterHarvestingCalc folds into the EDGE water % ──

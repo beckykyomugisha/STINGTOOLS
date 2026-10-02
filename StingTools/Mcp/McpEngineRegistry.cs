@@ -400,7 +400,7 @@ namespace StingTools.Mcp
             return new CableSizeInput
             {
                 InstallMethod  = a["installMethod"]?.Value<string>() ?? "C",
-                Material       = a["material"]?.Value<string>() ?? "Cu",
+                Material       = a["material"]?.Value<string>(),   // omitted: copper, assumed and said so by the sizer
                 Insulation     = a["insulation"]?.Value<string>() ?? "PVC70",
                 CableType      = a["cableType"]?.Value<string>() ?? StingTools.Core.Electrical.Bs7671Data.DefaultCableType,
                 VDLimitPct     = a["vdLimitPct"]?.Value<double?>() ?? 3.0,

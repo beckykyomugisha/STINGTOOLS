@@ -90,9 +90,10 @@ namespace StingTools.Commands.Electrical.Reports
             double cpc = SafeDouble(sys, "ELC_CPC_SZ_MM");
 
             // Canonical MR_PARAMETERS: ELC_CBL_INS_TYPE_TXT (Phase 188 fix).
-            // Conductor material isn't tabulated in MR_PARAMETERS yet — default
-            // to copper unless project schema adds an ELC_CBL_COND_MAT_TXT.
-            string mat = "Cu";
+            // Conductor material: ELC_WIRE_COND_MAT_TXT on the circuit; blank = copper,
+            // ASSUMED and shown as such in the cable type column.
+            var matR = StingTools.Core.Electrical.ConductorMaterialSource.ForElement(sys, null);
+            string mat = !matR.Ok ? "material not recognised" : matR.Assumed ? "Cu (assumed)" : matR.Label;
             string ins = sys.LookupParameter("ELC_CBL_INS_TYPE_TXT")?.AsString() ?? "PVC";
             // Number of conductors (cores) for weight scaling.
             // RBS_ELEC_NUMBER_OF_RUNS doesn't exist in modern Revit API — use
@@ -107,8 +108,11 @@ namespace StingTools.Commands.Electrical.Reports
 
             // Weight estimate: copper PVC ≈ 9 kg/100m at 2.5 mm², linear in CSA
             // (BS 6004 informative). Aluminium ≈ 0.32× by mass.
-            double kgPerM = (mat == "Al" ? 0.32 : 1.0) * (csa * 0.012 + 0.06);
-            double weight = lenM * kgPerM * Math.Max(cores, 1);
+            // No weight for CCA or an unrecognised material: no factor is held for them.
+            bool weightKnown = matR.Ok && matR.Material != StingTools.Standards.NEC2023.ConductorMaterial.CopperCladAluminum;
+            double kgPerM = (matR.Ok && matR.Material == StingTools.Standards.NEC2023.ConductorMaterial.Aluminum ? 0.32 : 1.0)
+                          * (csa * 0.012 + 0.06);
+            double weight = weightKnown ? lenM * kgPerM * Math.Max(cores, 1) : 0;
 
             string from = sys.PanelName ?? "—";
             string to   = "(loads)";
@@ -179,7 +183,7 @@ namespace StingTools.Commands.Electrical.Reports
             try
             {
                 if (p.StorageType == StorageType.Double) return p.AsDouble();
-                if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out double v)) return v;
+                if (p.StorageType == StorageType.String && StingTools.Core.NumberText.TryParse(p.AsString(), out double v)) return v;
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
             }
             catch { }

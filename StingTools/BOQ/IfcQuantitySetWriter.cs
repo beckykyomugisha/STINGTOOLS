@@ -175,6 +175,10 @@ namespace StingTools.BOQ
                     if (StampString(el,  "Pset_StingCost", "RateSource",     item.RateSource ?? "")) wroteHere++;
                     if (StampString(el,  "Pset_StingCost", "NRM2Section",    item.NRM2Section ?? "")) wroteHere++;
                     if (StampBoolean(el, "Pset_StingCost", "ProvisionalSum", item.Source == BOQRowSource.ProvisionalSum)) wroteHere++;
+                    // DSCH-44 — the NRM2 2.9.1 declaration rides with the flag; blank on any
+                    // other line, so a sum that stops being provisional loses its stale type.
+                    if (StampString(el,  "Pset_StingCost", "ProvisionalSumType",
+                            item.Source == BOQRowSource.ProvisionalSum ? ProvisionalSumTypes.WireToken(item.PsType) : "")) wroteHere++;
 
                     // I-1 — Pset_EnvironmentalImpactIndicators carries the
                     // material's embodied carbon + EPD provenance + Uniclass

@@ -44,21 +44,6 @@ namespace StingTools.UI
 
         public static string ResolvePrimary(string materialClass) => Resolve(materialClass)?.Primary;
 
-        /// <summary>True when <paramref name="discipline"/> is an allowed
-        /// discipline for materials of class <paramref name="materialClass"/>
-        /// (primary or secondary). False when the affinity is known but
-        /// the discipline isn't on the list. True (permissive) when no
-        /// affinity rule matches.</summary>
-        public static bool IsAllowedOn(string materialClass, string discipline)
-        {
-            var aff = Resolve(materialClass);
-            if (aff == null) return true; // unknown class — permissive
-            if (string.Equals(aff.Primary, discipline, StringComparison.OrdinalIgnoreCase)) return true;
-            foreach (var s in aff.Secondary)
-                if (string.Equals(s, discipline, StringComparison.OrdinalIgnoreCase)) return true;
-            return false;
-        }
-
         private static void EnsureLoaded()
         {
             lock (_lock)
@@ -69,25 +54,31 @@ namespace StingTools.UI
                 {
                     string path = StingToolsApp.FindDataFile("STING_MATERIAL_DISCIPLINE_AFFINITY.csv");
                     if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
-                    var lines = File.ReadAllLines(path);
-                    for (int i = 1; i < lines.Length; i++)
+                    // DSCH-2: columns by header name, not position.
+                    var t = CsvTable.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                    var missing = t.Missing("MaterialClassPattern", "PrimaryDiscipline");
+                    if (missing.Count > 0)
                     {
-                        var line = lines[i];
-                        if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-                        var f = StingToolsApp.ParseCsvLine(line);
-                        if (f == null || f.Length < 2) continue;
-                        string pat = (f[0] ?? "").Trim();
+                        StingLog.Warn($"MaterialDisciplineAffinity: {path} header has no {string.Join(", ", missing)} column; no rules loaded.");
+                        return;
+                    }
+                    int iPrimary = t.Col("PrimaryDiscipline");
+                    foreach (var r in t.Rows)
+                    {
+                        if (r.Count <= iPrimary) continue;
+                        string pat = r["MaterialClassPattern"];
                         if (string.IsNullOrEmpty(pat)) continue;
                         try
                         {
                             var aff = new DisciplineAffinity
                             {
                                 Pattern = new Regex(pat, RegexOptions.Compiled),
-                                Primary = (f[1] ?? "").Trim(),
-                                Notes = f.Length > 3 ? (f[3] ?? "").Trim() : "",
+                                Primary = r["PrimaryDiscipline"],
+                                Notes = r["Notes"],
                             };
-                            if (f.Length > 2 && !string.IsNullOrWhiteSpace(f[2]))
-                                aff.Secondary.AddRange(f[2].Split(','));
+                            string secondary = r["SecondaryDisciplines"];
+                            if (!string.IsNullOrWhiteSpace(secondary))
+                                aff.Secondary.AddRange(secondary.Split(','));
                             _rules.Add(aff);
                         }
                         catch (Exception ex) { StingLog.Warn($"Affinity bad pattern '{pat}': {ex.Message}"); }

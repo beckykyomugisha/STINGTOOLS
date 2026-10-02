@@ -379,7 +379,10 @@ namespace StingTools.Tags
 
                     string seqKey = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, currentZone, currentLoc);
                     simCounters.TryGetValue(seqKey, out int sc);
-                    simCounters[seqKey] = sc + 1;
+                    // DSCH-39: predict with the DISC's SEQ_RANGE_ALLOCATION, as tagging will:
+                    // a new counter starts at the range minimum.
+                    var simRange = TagConfig.SeqRangeFor(disc);
+                    simCounters[seqKey] = SeqAssigner.FloorForRange(sc, simRange) + 1;
                     string seqSchemeCtx = TagConfig.CurrentSeqScheme == SeqScheme.ZonePrefix ? currentZone
                                         : TagConfig.CurrentSeqScheme == SeqScheme.DiscPrefix ? disc
                                         : "";
@@ -406,6 +409,16 @@ namespace StingTools.Tags
                             predictedTag = TagConfig.TagPrefix + ParamRegistry.Separator + predictedTag;
                         if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
                             predictedTag = predictedTag + ParamRegistry.Separator + TagConfig.TagSuffix;
+                    }
+                    if (simRange != null && simCounters[seqKey] > simRange.Value.Max)
+                    {
+                        // Tagging refuses a number past the range maximum (SeqFailureReason.RangeExhausted).
+                        auditIssues.Add(new AuditIssue
+                        {
+                            ElementId = el.Id,
+                            IssueType = "SEQ_RANGE_FULL",
+                            Description = $"SEQ group {seqKey} would pass the SEQ_RANGE_ALLOCATION maximum {simRange.Value.Max} for DISC '{disc}' - tagging will refuse this element"
+                        });
                     }
                     if (collisionCount > 0) predictedCollisions++;
                     simTags.Add(predictedTag);

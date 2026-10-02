@@ -26,6 +26,8 @@ namespace StingTools.Core
         public JObject BoqDefaults;
         public List<string> WorkflowPresets = new List<string>();
         public string Notes;
+        /// <summary>Key into STING_SPATIAL_CODES.json projectTypePresets; written to PROJECT_TYPE on apply.</summary>
+        public string SpatialPreset;
     }
 
     internal static class SectorPackLoader
@@ -48,7 +50,8 @@ namespace StingTools.Core
                         TagStyle = j["tag_style"]?.ToString() ?? "",
                         PreambleProfile = j["preamble_profile"]?.ToString() ?? "",
                         BoqDefaults = j["boq_defaults"] as JObject,
-                        Notes = j["notes"]?.ToString() ?? ""
+                        Notes = j["notes"]?.ToString() ?? "",
+                        SpatialPreset = j["spatial_preset"]?.ToString() ?? ""
                     };
                     if (j["families"] is JArray fa) foreach (var x in fa) p.Families.Add(x.ToString());
                     if (j["presets"]  is JArray pa) foreach (var x in pa) p.Presets.Add(x.ToString());
@@ -70,10 +73,22 @@ namespace StingTools.Core
                 if (pack.BoqDefaults != null)
                 {
                     foreach (var kv in pack.BoqDefaults.Properties())
-                        TagConfig.SetConfigValue("BOQ_TENDER_" + kv.Name, kv.Value.ToString());
+                    {
+                        // DSCH round 5: the shipped packs say OVERHEAD_PROFIT_PCT, every
+                        // reader asks for BOQ_TENDER_OHP_PCT, so a pack's OH&P was written
+                        // to a key nothing reads. Invariant culture: JValue.ToString()
+                        // would write 12.5 as "12,5" on a comma-decimal locale.
+                        string key = kv.Name == "OVERHEAD_PROFIT_PCT" ? "OHP_PCT" : kv.Name;
+                        string value = kv.Value is JValue jv
+                            ? Convert.ToString(jv.Value, System.Globalization.CultureInfo.InvariantCulture)
+                            : kv.Value.ToString();
+                        TagConfig.SetConfigValue("BOQ_TENDER_" + key, value);
+                    }
                 }
                 if (!string.IsNullOrEmpty(pack.TagStyle))
                     TagConfig.SetConfigValue("DEFAULT_TAG_STYLE", pack.TagStyle);
+                if (!string.IsNullOrWhiteSpace(pack.SpatialPreset))
+                    TagConfig.SetConfigValue("PROJECT_TYPE", pack.SpatialPreset.Trim());
                 TagConfig.SetConfigValue("ACTIVE_SECTOR_PACK", pack.Id);
                 StingLog.Info($"Sector pack applied: {pack.Label} (families={pack.Families.Count}, presets={pack.Presets.Count})");
             }

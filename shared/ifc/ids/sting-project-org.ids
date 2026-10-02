@@ -133,7 +133,7 @@
         </property>
       </applicability>
       <requirements>
-        <property dataType="IFCLABEL" cardinality="required">
+        <property dataType="IFCTEXT" cardinality="required">
           <propertySet><simpleValue>Pset_StingProjectOrg</simpleValue></propertySet>
           <baseName><simpleValue>CompanyName</simpleValue></baseName>
           <value>
@@ -157,7 +157,7 @@
         </property>
       </applicability>
       <requirements>
-        <property dataType="IFCLABEL" cardinality="required">
+        <property dataType="IFCTEXT" cardinality="required">
           <propertySet><simpleValue>Pset_StingProjectOrg</simpleValue></propertySet>
           <baseName><simpleValue>ClientName</simpleValue></baseName>
           <value>

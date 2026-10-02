@@ -11,8 +11,15 @@
 //  "provisional sum" (FF&E here is defined and priced, not deferred).
 //  Per-category overrides: "measured" (contractor-supplied, full markups),
 //  "ownerSupplied-excluded" (out of this bill), or "pcSum" (the explicit
-//  contractual Provisional / Prime-Cost mechanism for those who want it). An item
-//  is exactly one of the four — never double-counted.
+//  contractual Prime Cost sum for those who want it). An item is exactly one of
+//  the four — never double-counted.
+//
+//  DSCH-44 — "pcSum" lines were filed as PROVISIONAL sums. A Fohlio register
+//  line is a priced allowance for named goods from a supplier register: a prime
+//  cost sum, not undesigned work. It is now a PC sum (BOQRowSource.PCSum), and
+//  no NRM2 2.9.1 Defined / Undefined declaration is asked of it. The "provision*"
+//  alias still reads as pcSum — it is the same Fohlio mechanism under an older
+//  name; a true provisional sum is entered in the bill, not through the register.
 // ══════════════════════════════════════════════════════════════════════════
 using System;
 using System.Collections.Generic;
@@ -22,7 +29,7 @@ namespace StingTools.BOQ
     public static class FfeTreatment
     {
         public const string Ffe      = "ffe";                    // default — transparent Owner-procured FF&E category
-        public const string PcSum    = "pcSum";                  // explicit opt-in — contractual provisional / prime-cost sum
+        public const string PcSum    = "pcSum";                  // explicit opt-in — contractual prime cost (PC) sum
         public const string Measured = "measured";
         public const string Excluded = "ownerSupplied-excluded";
 
@@ -38,6 +45,11 @@ namespace StingTools.BOQ
             if (s.StartsWith("pc") || s.Contains("provision")) return PcSum;
             return Ffe;
         }
+
+        /// <summary>DSCH-44 — the bill row a priced FF&amp;E line becomes: a PC sum for
+        /// pcSum, otherwise a model line (ffe / measured). Excluded never reaches the bill.</summary>
+        public static BOQRowSource RowSource(string treatment)
+            => Normalize(treatment) == PcSum ? BOQRowSource.PCSum : BOQRowSource.Model;
 
         /// <summary>Resolve the treatment for a category: per-category override →
         /// map default → the transparent FF&amp;E category. Case-insensitive match.</summary>

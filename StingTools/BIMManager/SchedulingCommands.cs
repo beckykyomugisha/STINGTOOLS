@@ -108,39 +108,52 @@ namespace StingTools.BIMManager
 
         // ── Default Unit Cost Rates ──
         //
-        // Phase 184d: data moved out of the C# initializer into
-        // Data/STING_DEFAULT_COST_RATES.csv so a QS can edit the baseline
-        // without a code rebuild. DefaultCostRates is now a lazy-loaded
-        // view over the CSV. All existing callers (line 736/815/909 in
-        // GenerateCostEstimate, line 1593 in the template exporter, and
-        // BOQ.Rates.DefaultRateProvider) continue to work unchanged.
-        //
-        // A small built-in fallback covers the case where the CSV is
-        // missing — defensive only; the CSV is shipped with the plugin.
+        // Phase 184d: data lives in Data/STING_DEFAULT_COST_RATES.csv so a QS
+        // can edit the baseline without a rebuild. DSCH-34: the same file says
+        // which categories are NOT MEASURED (never bill items); the BOQ takeoff
+        // and health score read IsNotMeasuredCategory, not a list in code.
+        // Parsed by the Revit-free BOQ.Rates.DefaultCostRatesCsv.
         private static Dictionary<string, (double ratePerUnit, string unit, string description)>? _defaultCostRatesCache;
+        private static HashSet<string>? _notMeasuredCache;
         private static readonly object _defaultCostRatesLock = new object();
 
         internal static Dictionary<string, (double ratePerUnit, string unit, string description)> DefaultCostRates
         {
-            get
+            get { return EnsureDefaultCostRates().rates; }
+        }
+
+        /// <summary>
+        /// DSCH-34 — true when STING_DEFAULT_COST_RATES.csv declares the category
+        /// NOT MEASURED. With the file missing or unreadable nothing is excluded
+        /// (and the loader says so in the log): those elements then surface as
+        /// unpriced rows rather than vanishing on an assumption.
+        /// </summary>
+        internal static bool IsNotMeasuredCategory(string category)
+            => !string.IsNullOrWhiteSpace(category) && EnsureDefaultCostRates().notMeasured.Contains(category.Trim());
+
+        private static (Dictionary<string, (double ratePerUnit, string unit, string description)> rates, HashSet<string> notMeasured)
+            EnsureDefaultCostRates()
+        {
+            lock (_defaultCostRatesLock)
             {
-                if (_defaultCostRatesCache != null) return _defaultCostRatesCache;
-                lock (_defaultCostRatesLock)
+                if (_defaultCostRatesCache == null || _notMeasuredCache == null)
                 {
-                    if (_defaultCostRatesCache != null) return _defaultCostRatesCache;
-                    _defaultCostRatesCache = LoadDefaultCostRatesCsv();
-                    return _defaultCostRatesCache;
+                    var notMeasured = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    _defaultCostRatesCache = LoadDefaultCostRatesCsv(notMeasured);
+                    _notMeasuredCache = notMeasured;
                 }
+                return (_defaultCostRatesCache, _notMeasuredCache);
             }
         }
 
         /// <summary>Force a reload from disk — called by Cost_ReloadRules.</summary>
         internal static void InvalidateDefaultCostRates()
         {
-            lock (_defaultCostRatesLock) { _defaultCostRatesCache = null; }
+            lock (_defaultCostRatesLock) { _defaultCostRatesCache = null; _notMeasuredCache = null; }
         }
 
-        private static Dictionary<string, (double ratePerUnit, string unit, string description)> LoadDefaultCostRatesCsv()
+        private static Dictionary<string, (double ratePerUnit, string unit, string description)> LoadDefaultCostRatesCsv(
+            HashSet<string> notMeasuredOut)
         {
             // Start from the emergency fallback (5 entries — keeps the
             // worst-case behaviour usable). CSV entries override inline
@@ -154,33 +167,27 @@ namespace StingTools.BIMManager
                 {
                     StingLog.Warn(
                         $"Scheduling4DEngine.LoadDefaultCostRatesCsv: STING_DEFAULT_COST_RATES.csv NOT FOUND. " +
-                        $"Falling back to {rates.Count} emergency entries — most categories will resolve to zero rate. " +
+                        $"Falling back to {rates.Count} emergency entries — most categories will resolve to zero rate, " +
+                        $"and no category is excluded as NOT MEASURED (rooms, analytical elements etc. will show as unpriced). " +
                         $"Restore data/STING_DEFAULT_COST_RATES.csv or run Cost_ReloadRules after restoring.");
                     return rates;
                 }
-                bool headerSeen = false;
-                foreach (string raw in System.IO.File.ReadAllLines(path))
+                // DSCH-2 / DSCH-34: columns by header name; rate cell is a number or NOT MEASURED.
+                var t = StingTools.BOQ.Rates.DefaultCostRatesCsv.Parse(
+                    System.IO.File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                if (t.MissingColumns.Count > 0)
                 {
-                    if (string.IsNullOrWhiteSpace(raw)) continue;
-                    string line = raw.TrimStart();
-                    if (line.StartsWith("#")) continue;
-                    var cols = StingToolsApp.ParseCsvLine(raw);
-                    if (cols == null || cols.Length < 3) continue;
-                    if (!headerSeen)
-                    {
-                        // First non-comment line is the header.
-                        headerSeen = true;
-                        if (cols[0].Equals("Category", StringComparison.OrdinalIgnoreCase)) continue;
-                    }
-                    string cat = cols[0].Trim();
-                    if (!double.TryParse(cols[1], System.Globalization.NumberStyles.Any,
-                            System.Globalization.CultureInfo.InvariantCulture, out double rate))
-                        continue;
-                    string unit = cols[2].Trim();
-                    string desc = cols.Length > 3 ? cols[3].Trim() : cat;
-                    rates[cat] = (rate, unit, desc);
+                    StingLog.Warn($"Scheduling4DEngine.LoadDefaultCostRatesCsv: {System.IO.Path.GetFileName(path)} " +
+                        $"header has no {string.Join(", ", t.MissingColumns)} column(s) — using {rates.Count} emergency entries " +
+                        $"and no NOT MEASURED categories.");
+                    return rates;
                 }
-                StingLog.Info($"Scheduling4DEngine.LoadDefaultCostRatesCsv: merged CSV → {rates.Count} default cost rates ({System.IO.Path.GetFileName(path)} + inline).");
+                foreach (string problem in t.Problems)
+                    StingLog.Warn($"Scheduling4DEngine.LoadDefaultCostRatesCsv: {System.IO.Path.GetFileName(path)} {problem}");
+                foreach (var kv in t.Rates) rates[kv.Key] = kv.Value;
+                foreach (string cat in t.NotMeasured) { rates.Remove(cat); notMeasuredOut.Add(cat); }
+                StingLog.Info($"Scheduling4DEngine.LoadDefaultCostRatesCsv: {rates.Count} default cost rates, " +
+                    $"{notMeasuredOut.Count} NOT MEASURED categories ({System.IO.Path.GetFileName(path)} + inline).");
             }
             catch (Exception ex)
             {
@@ -360,12 +367,25 @@ namespace StingTools.BIMManager
 
             tasks.Add(CreateTask(taskId++, "Handover", "HANDOVER",
                 currentDate, currentDate.AddDays(5), 0, new JArray(), 0));
+            DateTime projectEnd = currentDate.AddDays(5);
+
+            // BIM-4D-HANDOVER-01: the DD4 information hand-over is a milestone of its
+            // own, dated in _BIM_COORD/data_drops.json (Data Drop Tracker). When the
+            // project has dated it, it goes on the programme and may extend the end
+            // date. Undated (the shipped default) adds nothing - no invented date.
+            DateTime? dd4 = DataDropTracker.GetDD4HandoverDate(doc);
+            if (dd4.HasValue)
+            {
+                tasks.Add(CreateTask(taskId++, "DD4 - Information Handover (data drop)", "DATA_DROP",
+                    dd4.Value, dd4.Value, 0, new JArray(), 0));
+                if (dd4.Value > projectEnd) projectEnd = dd4.Value;
+            }
 
             schedule["tasks"] = tasks;
             schedule["total_tasks"] = tasks.Count;
-            schedule["project_end"] = currentDate.AddDays(5).ToString("yyyy-MM-dd");
+            schedule["project_end"] = projectEnd.ToString("yyyy-MM-dd");
 
-            int totalDays = (int)(currentDate.AddDays(5) - projectStart).TotalDays;
+            int totalDays = (int)(projectEnd - projectStart).TotalDays;
             schedule["total_duration_days"] = totalDays;
             schedule["total_duration_weeks"] = Math.Round(totalDays / 7.0, 1);
 
@@ -737,7 +757,7 @@ namespace StingTools.BIMManager
             // The `costRates` parameter is intentionally ignored. Rates resolve
             // through the canonical Rates/ provider chain (parameter / ES
             // overrides -> project rate card -> material library -> corporate
-            // cost_rates_5d.csv -> COBie map -> default), the SAME source the BOQ
+            // cost_rates_5d.csv -> default), the SAME source the BOQ
             // uses, so the cash-flow curve and the BOQ Contract Sum reconcile to
             // one number. Per-project rate overrides go through the canonical
             // surfaces (<project>/_BIM_COORD/rate_card.json + the MAT panel),
@@ -1467,7 +1487,7 @@ namespace StingTools.BIMManager
                 "  2. Project rate card  <project>/_BIM_COORD/rate_card.json\n" +
                 "  3. Material-library rates (the MAT panel)\n" +
                 "  4. Corporate baseline  data/cost_rates_5d.csv\n" +
-                "  5. COBie type map → built-in defaults\n\n" +
+                "  5. Built-in USD benchmark defaults (data/STING_DEFAULT_COST_RATES.csv)\n\n" +
                 $"Corporate baseline currently provides {Scheduling4DEngine.DefaultCostRates.Count} category rates.\n" +
                 "To override per project, edit the project rate card or the MAT panel,\n" +
                 "then run 'Auto Cost'.");
@@ -2263,7 +2283,7 @@ namespace StingTools.BIMManager
                 var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
                 // Load cost rates from CSV
-                var costRates = LoadCostRates();
+                var costRates = LoadCostRates(doc);
                 if (costRates.Count == 0)
                 {
                     TaskDialog.Show("5D Cost Trace", "No cost rates found. Check cost_rates_5d.csv.");
@@ -2404,53 +2424,41 @@ namespace StingTools.BIMManager
             public string Description { get; set; } = "";
         }
 
-        private Dictionary<string, CostRateEntry> LoadCostRates()
+        private Dictionary<string, CostRateEntry> LoadCostRates(Document doc)
         {
             var rates = new Dictionary<string, CostRateEntry>(StringComparer.OrdinalIgnoreCase);
-            // Phase 40: Use configurable cost rates filename from project_config.json
-            string costFile = Core.TagConfig.CostRatesFileName ?? "cost_rates_5d.csv";
-            string path = StingToolsApp.FindDataFile(costFile);
+            // DSCH-1: the same file the BOQ prices from (the project's Cost File
+            // Browser override, else the corporate card).
+            string path = StingTools.BOQ.BOQCostManager.ResolveCostRatesPath(doc);
+            string costFile = string.IsNullOrEmpty(path) ? "cost_rates_5d.csv" : System.IO.Path.GetFileName(path);
             if (string.IsNullOrEmpty(path)) return rates;
 
             try
             {
-                string[] lines = File.ReadAllLines(path);
-                if (lines.Length < 2) return rates;
-
-                // Auto-detect column layout from header
-                string header = lines[0].ToLowerInvariant();
-                bool is7Col = header.Contains("mat_code");
-
-                for (int i = 1; i < lines.Length; i++)
+                // By header NAME (BOQ/Rates/CostRateCsv). This reader used to take
+                // cols[3] as the USD rate; D6 inserted PROD at index 1, cols[3]
+                // became MAT_DISCIPLINE ("A"), every row failed to parse and the
+                // trace reported "No cost rates found" against a full file.
+                var parsed = StingTools.BOQ.Rates.CostRateCsv.Parse(
+                    File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                foreach (string problem in parsed.Problems)
+                    StingLog.Warn($"LoadCostRates: {costFile} {problem}");
+                foreach (var row in parsed.Rows)
                 {
-                    string[] cols = StingToolsApp.ParseCsvLine(lines[i]);
-                    if (cols.Length < 3) continue;
-
-                    if (is7Col && cols.Length >= 7)
+                    // The trace is a USD view; a legacy single-rate card has no
+                    // currency column, so its one rate is shown as written.
+                    double? rate = row.RateUsd ?? (parsed.Layout.IsLegacyRateCard ? row.RateUgx : null);
+                    if (rate == null || string.IsNullOrEmpty(row.Category)) continue;
+                    // First row wins, as in BOQCostManager.LoadCsvRates (CA-1), so the
+                    // trace and the BOQ quote the same rate for a repeated category
+                    // ("Pipe Accessories" has three rows). This view used to keep the last.
+                    if (rates.ContainsKey(row.Category)) continue;
+                    rates[row.Category] = new CostRateEntry
                     {
-                        // 7-col format: Category, MAT_CODE, MAT_DISCIPLINE, Unit_Rate_USD, Unit_Rate_UGX, Unit, Description
-                        if (double.TryParse(cols[3], NumberStyles.Any, CultureInfo.InvariantCulture, out double rate))
-                        {
-                            rates[cols[0].Trim()] = new CostRateEntry
-                            {
-                                UnitRate = rate,
-                                Unit = cols.Length > 5 ? cols[5].Trim() : "each",
-                                Description = cols.Length > 6 ? cols[6].Trim() : ""
-                            };
-                        }
-                    }
-                    else
-                    {
-                        // 3-col format: Category, Rate, Unit
-                        if (double.TryParse(cols[1], NumberStyles.Any, CultureInfo.InvariantCulture, out double rate))
-                        {
-                            rates[cols[0].Trim()] = new CostRateEntry
-                            {
-                                UnitRate = rate,
-                                Unit = cols.Length > 2 ? cols[2].Trim() : "each"
-                            };
-                        }
-                    }
+                        UnitRate = rate.Value,
+                        Unit = string.IsNullOrEmpty(row.Unit) ? "each" : row.Unit,
+                        Description = row.Description
+                    };
                 }
             }
             catch (Exception ex) { StingLog.Warn($"LoadCostRates: {ex.Message}"); }
@@ -2510,10 +2518,14 @@ namespace StingTools.BIMManager
         {
             // STUB — full implementation pending
             UI.BIMCoordinationCenter.CurrentInstance?.Show4DInlineResult("Configure Cost File",
-                "5D Cost Rate File: cost_rates_5d.csv (default location: model folder)\n" +
-                "To customise, place a cost_rates_5d.csv file in the same folder as the Revit model.\n" +
-                "Column format: Category, Unit, UnitRate, Labour, Material, Plant\n" +
-                "\nFull file browser configuration — coming in next phase.");
+                // DSCH round 7: this described a file in the model folder (FindDataFile
+                // never looks there) and a column layout no reader understands.
+                "5D Cost Rate File: this project's Cost File Browser override if set,\n" +
+                "else data/cost_rates_5d.csv in the plugin folder\n" +
+                "(or the file named by CostRatesFileName in project_config.json).\n" +
+                "Columns, by name: Category, PROD, MAT_CODE, MAT_DISCIPLINE, Unit_Rate_USD,\n" +
+                "Unit_Rate_UGX, Unit, Description - see tools/data_schemas.json.\n" +
+                "A project rate card goes in _data/coord/rate_card.json.");
             return Result.Succeeded;
         }
     }

@@ -201,6 +201,7 @@ namespace StingTools.UI.Plumbing
                     case "Plumb_SpoolSchedule":     Run<StingTools.Commands.Plumbing.PlumbSpoolScheduleCommand>(app); break;
                     case "Plumb_DrainageSchematic": Run<StingTools.Commands.Plumbing.PlumbDrainageSchematicCommand>(app); break;
                     case "Plumb_TMVEngine":         Run<StingTools.Commands.Plumbing.PlumbTMVEngineCommand>(app); break;
+                    case "Plumb_TMVImportTests":    Run<StingTools.Commands.Plumbing.PlumbTMVImportTestsCommand>(app); break;
                     case "Plumb_LegionellaReport":  Run<StingTools.Commands.Plumbing.PlumbLegionellaReportCommand>(app); break;
                     case "Plumb_WaterSafetyPlan":   Run<StingTools.Commands.Plumbing.PlumbWaterSafetyPlanCommand>(app); break;
 

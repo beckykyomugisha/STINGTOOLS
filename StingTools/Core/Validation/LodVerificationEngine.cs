@@ -305,7 +305,7 @@ namespace StingTools.Core.Validation
                     case StorageType.Double: return p.AsDouble();
                     case StorageType.Integer: return p.AsInteger();
                     case StorageType.String:
-                        return double.TryParse(p.AsString(), out double d) ? d : (double?)null;
+                        return StingTools.Core.NumberText.TryParse(p.AsString(), out double d) ? d : (double?)null;
                     default: return null;
                 }
             }

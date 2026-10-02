@@ -19,6 +19,11 @@ USAGE
   python3 tools/converters/sting_to_revit_params.py
       --in shared/ifc/psets/Pset_StingTags.xml
 
+  # CI gate: exit 1 if the committed fragment is not what the Pset XML
+  # (and MR_PARAMETERS.txt) generate, or a property disagrees with
+  # MR_PARAMETERS.txt on type
+  python3 tools/converters/sting_to_revit_params.py --check
+
 OUTPUT FORMAT
 
 Revit shared-parameter file format (per Autodesk Revit Help):
@@ -49,6 +54,18 @@ carries IfdGuids per Pset but not per property. This script generates
 deterministic per-property GUIDs by hashing (PsetName + PropName) so
 that re-running produces the same GUIDs. Once Pset XML grows per-
 property GUIDs, this converter switches to using those directly.
+
+ONE GUID PER NAME (DSCH-38 follow-up)
+
+Some templates name their properties after existing STING shared parameters
+(Pset_StingCostManagement's CST_INSTALL_HRS, Pset_StingHVACExecution's HVC_*).
+Revit keys a shared parameter on its GUID, so a fragment that minted a second
+GUID for CST_INSTALL_HRS would define a different parameter with the same
+name as the one MR_PARAMETERS.txt binds. Such a property takes the GUID and
+data type from StingTools/Data/MR_PARAMETERS.txt (read only - the reference,
+as tools/check_shared_param_files.py treats it). When the template's data type
+maps to a different Revit type, --check fails and names it: one of the two
+is wrong and a person decides which.
 """
 
 from __future__ import annotations
@@ -64,6 +81,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PSETS_DIR = REPO_ROOT / "shared" / "ifc" / "psets"
 DEFAULT_OUT = REPO_ROOT / "shared" / "ifc" / "revit_out" / "MR_PARAMETERS_Pset_fragment.txt"
 PSET_NS = "https://stingtools.io/schema/ifc/psets/v1"
+REFERENCE = REPO_ROOT / "StingTools" / "Data" / "MR_PARAMETERS.txt"
+# (template's Revit type, MR_PARAMETERS type) pairs that hold the same value: an
+# IfcInteger property may be stored in a NUMBER parameter (HVC_PEAK_HOUR).
+COMPATIBLE = {("INTEGER", "NUMBER")}
 
 DATATYPE_MAP = {
     "IfcLabel":      "TEXT",
@@ -103,8 +124,25 @@ def emit_param(prop_guid: str, prop_name: str, datatype: str, group_id: int, des
            f"PARAM\t{prop_guid}\t{prop_name}\t{datatype}\t\t{group_id}\t1\t{clean}\t1"
 
 
-def convert(pset_path: Path, group_id: int) -> tuple[list[str], str]:
-    """Convert one Pset XML to a list of Revit lines + group name."""
+def load_reference(path: Path = REFERENCE) -> dict[str, tuple[str, str]]:
+    """name -> (GUID, Revit type) from the project shared-parameter file."""
+    ref: dict[str, tuple[str, str]] = {}
+    if not path.exists():
+        return ref
+    raw = path.read_bytes()
+    text = raw.decode("utf-16") if raw[:2] in (b"\xff\xfe", b"\xfe\xff") else raw.decode("utf-8-sig", errors="replace")
+    for line in text.splitlines():
+        c = line.split("\t")
+        if c[0] == "PARAM" and len(c) > 3:
+            ref.setdefault(c[2], (c[1], c[3]))
+    return ref
+
+
+def convert(pset_path: Path, group_id: int, reference: dict | None = None,
+            conflicts: list | None = None) -> tuple[list[str], str]:
+    """Convert one Pset XML to a list of Revit lines + group name. A property
+    named like a parameter in ``reference`` reuses that parameter's GUID and
+    type; a type disagreement is appended to ``conflicts``."""
     root = ET.parse(pset_path).getroot()
     if root.tag != f"{{{PSET_NS}}}StingPropertySetTemplate":
         raise ValueError(f"{pset_path}: root is not StingPropertySetTemplate")
@@ -120,6 +158,12 @@ def convert(pset_path: Path, group_id: int) -> tuple[list[str], str]:
         prop_name = p.attrib["name"]
         prop_guid = deterministic_guid(pset_name, prop_name)
         datatype = DATATYPE_MAP.get(_text(p, "DataType"), "TEXT")
+        if reference and prop_name in reference:
+            ref_guid, ref_type = reference[prop_name]
+            if ref_type != datatype and (datatype, ref_type) not in COMPATIBLE and conflicts is not None:
+                conflicts.append(f"{pset_name}.{prop_name}: template {_text(p, 'DataType') or 'IfcLabel'} -> "
+                                 f"{datatype}, but MR_PARAMETERS.txt declares {ref_type}")
+            prop_guid, datatype = ref_guid, ref_type
         description = _text(p, "Definition")
         lines.append(emit_param(prop_guid, prop_name, datatype, group_id, description))
     return lines, pset_name
@@ -130,10 +174,13 @@ def main(argv: list[str]) -> int:
     p.add_argument("--in", dest="src", help="single Pset XML (omit to convert all)")
     p.add_argument("--out", default=str(DEFAULT_OUT))
     p.add_argument("--verbose", action="store_true")
+    p.add_argument("--check", action="store_true",
+                   help="exit 1 if --out is stale or a property disagrees with MR_PARAMETERS.txt")
     args = p.parse_args(argv)
+    reference = load_reference()
+    conflicts: list[str] = []
 
     out_path = Path(args.out)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
 
     psets: list[Path]
     if args.src:
@@ -158,7 +205,7 @@ def main(argv: list[str]) -> int:
     next_group_id = 200  # leave 1-199 for hand-curated existing groups
 
     for pset_path in psets:
-        params, name = convert(pset_path, next_group_id)
+        params, name = convert(pset_path, next_group_id, reference, conflicts)
         group_lines.append(emit_group(next_group_id, name))
         param_lines.extend(params)
         next_group_id += 1
@@ -169,9 +216,25 @@ def main(argv: list[str]) -> int:
     output.append("*PARAM\tGUID\tNAME\tDATATYPE\tDATACATEGORY\tGROUP\tVISIBLE\tDESCRIPTION\tUSERMODIFIABLE")
     output.extend(param_lines)
 
-    out_path.write_text("\n".join(output) + "\n", encoding="utf-8")
+    text = "\n".join(output) + "\n"
+    if conflicts:
+        print("Pset properties disagree with MR_PARAMETERS.txt on type (fix one side):", file=sys.stderr)
+        for c in conflicts:
+            print("  " + c, file=sys.stderr)
+    if args.check:
+        current = out_path.read_text(encoding="utf-8") if out_path.exists() else ""
+        if current.replace("\r\n", "\n") != text:
+            print(f"{out_path} is stale - run python tools/converters/sting_to_revit_params.py", file=sys.stderr)
+            return 1
+        if conflicts:
+            return 1
+        print(f"{out_path} is current ({len(group_lines)} groups, {len(param_lines)} params)")
+        return 0
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
     print(f"wrote {out_path} ({len(group_lines)} groups, {len(param_lines)} params)")
-    return 0
+    return 1 if conflicts else 0
 
 
 if __name__ == "__main__":

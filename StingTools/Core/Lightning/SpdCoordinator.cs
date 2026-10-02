@@ -243,6 +243,27 @@ namespace StingTools.Core.Lightning
             catch (Exception ex) { StingLog.Warn($"GetMinIimpKaForClass: {ex.Message}"); return 12.5; }
         }
 
+        /// <summary>
+        /// Severity a rule violation is reported at: STING_LPS_SPD_CATALOGUE.json
+        /// coordinationRules[id].severity ("FAIL" / "WARN"), else <paramref name="fallback"/>.
+        /// A violation is never downgraded to Pass by data.
+        /// </summary>
+        public static LpsSeverity GetRuleSeverity(string ruleId, LpsSeverity fallback)
+        {
+            try
+            {
+                var rule = (Load()["coordinationRules"] as JArray)?.OfType<JObject>()
+                    .FirstOrDefault(r => string.Equals(r["id"]?.ToString(), ruleId, StringComparison.OrdinalIgnoreCase));
+                string sev = rule?["severity"]?.ToString()?.Trim().ToUpperInvariant();
+                if (sev == "FAIL") return LpsSeverity.Fail;
+                if (sev == "WARN") return LpsSeverity.Warn;
+                StingLog.WarnRateLimited("SpdCoordinator.RuleSeverity." + ruleId,
+                    $"SPD catalogue coordinationRules {ruleId}: severity '{sev ?? "(missing)"}' is not FAIL/WARN; using {fallback}.");
+            }
+            catch (Exception ex) { StingLog.Warn($"GetRuleSeverity {ruleId}: {ex.Message}"); }
+            return fallback;
+        }
+
         public static double GetMinCascadeSeparationM()
         {
             try { return Load()["minSeparationCableLengthM"]?.Value<double>() ?? 10.0; }
@@ -338,6 +359,13 @@ namespace StingTools.Core.Lightning
             var items = new List<LpsComplianceItem>();
             if (installed == null) installed = new List<SpdInstance>();
 
+            // Violation severities come from the catalogue's coordinationRules
+            // (built-in values as the fallback; they agree with the shipped data).
+            var sevPresent = GetRuleSeverity("RULE_TYPE_PRESENT", LpsSeverity.Fail);
+            var sevUpUw    = GetRuleSeverity("RULE_UP_LE_UW", LpsSeverity.Fail);
+            var sevIimp    = GetRuleSeverity("RULE_IIMP_GE_CLASS", LpsSeverity.Fail);
+            var sevCascade = GetRuleSeverity("RULE_CASCADE_ENERGY", LpsSeverity.Warn);
+
             // RULE_TYPE_PRESENT — at least one Type 1 at MAIN_INCOMER, Type 2 at SUB_DB
             foreach (var loc in AllLocations().Where(l => l.RequiredType != 3))
             {
@@ -347,7 +375,7 @@ namespace StingTools.Core.Lightning
                 items.Add(present
                     ? new LpsComplianceItem { Severity = LpsSeverity.Pass, CheckName = "SPD_PRESENT_" + loc.Id,
                         Message = $"Type {loc.RequiredType} SPD installed at {loc.Label}." }
-                    : new LpsComplianceItem { Severity = LpsSeverity.Fail, CheckName = "SPD_PRESENT_" + loc.Id,
+                    : new LpsComplianceItem { Severity = sevPresent, CheckName = "SPD_PRESENT_" + loc.Id,
                         Message = $"No Type {loc.RequiredType} SPD installed at {loc.Label} ({loc.Iec62305Section})." });
             }
 
@@ -356,7 +384,7 @@ namespace StingTools.Core.Lightning
             {
                 if (s.UpKv <= 0) continue;
                 if (s.UpKv > equipmentWithstandKv)
-                    items.Add(new LpsComplianceItem { Severity = LpsSeverity.Fail, CheckName = "SPD_UP_GT_UW",
+                    items.Add(new LpsComplianceItem { Severity = sevUpUw, CheckName = "SPD_UP_GT_UW",
                         Message = $"SPD '{s.Tag}' Up = {s.UpKv:F2} kV exceeds equipment withstand Uw = {equipmentWithstandKv:F2} kV (IEC 61643)." });
             }
 
@@ -365,7 +393,7 @@ namespace StingTools.Core.Lightning
             foreach (var s in installed.Where(x => x.Type == 1 || x.Type == 12))
             {
                 if (s.IimpKa < minIimp)
-                    items.Add(new LpsComplianceItem { Severity = LpsSeverity.Fail, CheckName = "SPD_IIMP_BELOW_CLASS",
+                    items.Add(new LpsComplianceItem { Severity = sevIimp, CheckName = "SPD_IIMP_BELOW_CLASS",
                         Message = $"SPD '{s.Tag}' Iimp = {s.IimpKa:F1} kA below class {lpsClass} minimum {minIimp:F1} kA." });
             }
             if (installed.Any(s => s.Type == 1 || s.Type == 12) &&
@@ -393,7 +421,7 @@ namespace StingTools.Core.Lightning
                 }
             }
             if (cascadeWarn > 0)
-                items.Add(new LpsComplianceItem { Severity = LpsSeverity.Warn, CheckName = "SPD_CASCADE_ENERGY",
+                items.Add(new LpsComplianceItem { Severity = sevCascade, CheckName = "SPD_CASCADE_ENERGY",
                     Message = $"{cascadeWarn} Type 1↔Type 2 pair(s) lack manufacturer pairing and < {minSep:F0} m cable separation (IEC 62305-4 §6.2.4)." });
             else if (t1s.Count > 0 && t2s.Count > 0)
                 items.Add(new LpsComplianceItem { Severity = LpsSeverity.Pass, CheckName = "SPD_CASCADE_ENERGY",

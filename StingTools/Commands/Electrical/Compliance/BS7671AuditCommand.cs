@@ -60,12 +60,17 @@ namespace StingTools.Commands.Electrical.Compliance
             }
 
             var results = new List<CircuitAuditResult>();
+            var notChecked = new List<string>();
             foreach (var sys in systems)
             {
                 try
                 {
-                    var inp = BuildInput(doc, sys, earthing, wireTables);
-                    if (inp == null) continue;
+                    var inp = BuildInput(doc, sys, earthing, wireTables, out string skip);
+                    if (inp == null)
+                    {
+                        if (skip != null) notChecked.Add($"{sys.PanelName}/{sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER)?.AsString()}: {skip}");
+                        continue;
+                    }
                     inp.Thresholds = thresholds;
                     var r = BS7671ComplianceEngine.AuditCircuit(inp);
                     if (r != null) results.Add(r);
@@ -95,9 +100,11 @@ namespace StingTools.Commands.Electrical.Compliance
             sb.AppendLine();
             sb.AppendLine($"✅ PASS         : {pass}");
             sb.AppendLine($"⚠ PASS_VIA_RCD : {viaRcd}  (Zs fails ADS but RCD makes it compliant per §411.4.5)");
-            sb.AppendLine($"❔ UNVERIFIED   : {unverified}  (Zs passes, but the adiabatic check needs a clearing time: no IEC 60898 band for this device, or the fault current is below its trip range)");
+            sb.AppendLine($"❔ UNVERIFIED   : {unverified}  (Zs passes, but the adiabatic check needs a clearing time: no IEC 60898 band for this device, or the fault current is below its trip range; or Zs itself is NOT CHECKED because the device's Ia comes from a time/current table, e.g. BS 88)");
             if (withAssumptions > 0) sb.AppendLine($"ℹ {withAssumptions} circuit(s) used ASSUMED inputs (see the Assumed inputs column) — verdicts on those rest on the assumptions.");
             sb.AppendLine($"❌ FAIL         : {fail}  (review CPC sizing, OCPD type, or apply RCD)");
+            if (notChecked.Count > 0)
+                sb.AppendLine($"⛔ NOT CHECKED  : {notChecked.Count}  ({string.Join("; ", notChecked.Take(3))}{(notChecked.Count > 3 ? "; …" : "")})");
 
             var topFails = results.Where(r => r.Verdict == "FAIL").Take(3).ToList();
             if (topFails.Count > 0)
@@ -116,8 +123,9 @@ namespace StingTools.Commands.Electrical.Compliance
         }
 
         private static CircuitAuditInput BuildInput(Document doc, ElectricalSystem sys,
-            string earthing, WireTableSet wireTables)
+            string earthing, WireTableSet wireTables, out string skip)
         {
+            skip = null;
             // Every input the model does not hold is defaulted AND recorded: the
             // verdict rests on it, so the report must say so.
             var assumed = new List<string>();
@@ -150,7 +158,13 @@ namespace StingTools.Commands.Electrical.Compliance
             // is canonical: ELC_CBL_INS_TYPE_TXT (Phase 188 fix).
             string ocpd = "MCB_C";  // BS EN 60898 Type C is the safe default
             assumed.Add("OCPD Type C MCB");
-            string mat = "Cu";       // copper unless project specifies aluminium
+            // Conductor material: ELC_WIRE_COND_MAT_TXT on the circuit; blank = copper, assumed.
+            var matR = StingTools.Core.Electrical.ConductorMaterialSource.ForElement(sys, null);
+            if (!matR.Ok) { skip = matR.Refusal; return null; }
+            if (matR.Material == StingTools.Standards.NEC2023.ConductorMaterial.CopperCladAluminum)
+            { skip = StingTools.Standards.NEC2023.ConductorMaterialText.NoBsDataRefusal; return null; }
+            if (matR.Assumed) assumed.Add(matR.Basis);
+            string mat = matR.Label;
             string ins = sys.LookupParameter("ELC_CBL_INS_TYPE_TXT")?.AsString() ?? "PVC";
 
             string load = (sys.LoadName ?? sys.Name ?? "").ToLowerInvariant();
@@ -198,7 +212,7 @@ namespace StingTools.Commands.Electrical.Compliance
             try
             {
                 if (p.StorageType == StorageType.Double) return p.AsDouble();
-                if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out double v)) return v;
+                if (p.StorageType == StorageType.String && StingTools.Core.NumberText.TryParse(p.AsString(), out double v)) return v;
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
             }
             catch { }
@@ -242,8 +256,16 @@ namespace StingTools.Commands.Electrical.Compliance
                     ws.Cell(row, 4).Value = r.OcpdType ?? "";
                     ws.Cell(row, 5).Value = r.RatingA;
                     ws.Cell(row, 6).Value = r.ZsActualOhm;
-                    ws.Cell(row, 7).Value = r.ZsMaxOhm;
-                    ws.Cell(row, 8).Value = r.ZsMarginPct;
+                    if (r.ZsChecked)
+                    {
+                        ws.Cell(row, 7).Value = r.ZsMaxOhm;
+                        ws.Cell(row, 8).Value = r.ZsMarginPct;
+                    }
+                    else
+                    {
+                        ws.Cell(row, 7).Value = "NOT CHECKED";
+                        ws.Cell(row, 8).Value = "—";
+                    }
                     ws.Cell(row, 9).Value = r.ProspectivePscA / 1000.0;
                     if (double.IsNaN(r.ClearingTimeMs)) ws.Cell(row, 10).Value = "no band";
                     else ws.Cell(row, 10).Value = r.ClearingTimeMs;

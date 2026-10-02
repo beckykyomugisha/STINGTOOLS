@@ -48,6 +48,16 @@ shutil.copyfile(MAP, MAP + '.bak')
 shutil.copyfile(SHEET, SHEET + '.bak')
 fails = 0
 try:
+    # DSCH-7: the harness assumes a BLANK review sheet. Since the QS filled in all
+    # 37 verdicts (#878) the real sheet is not blank, so checks 1 and 9 failed on
+    # every run. Blank the review columns on the working copy; `finally` restores
+    # the real sheet from the .bak either way.
+    rows = sheet_rows()
+    for r in rows:
+        for col in ('QS_VERDICT', 'QS_NRM2', 'QS_NOTE'):
+            if col in r:
+                r[col] = ''
+    write_sheet(rows)
     rows = sheet_rows()
     target = rows[0]
     rid, before = target['ROW'], target['Current_Nrm2']
@@ -86,7 +96,8 @@ try:
     # 4. an NRM2 code that exists nowhere in the map is refused (typo guard).
     rows = sheet_rows(); rows[0]['QS_NRM2'] = '444'; write_sheet(rows)
     rc, out = run('--apply')
-    check('an unknown NRM2 code is refused', rc == 1 and 'appears nowhere else' in out)
+    # The refusal wording changed in #880 ("is not a work section this project has").
+    check('an unknown NRM2 code is refused', rc == 1 and 'is not a work section' in out)
     check('  ... and writes nothing', map_nrm2(rid) == before)
 
     # 5. a stale sheet (category no longer matches) is refused.

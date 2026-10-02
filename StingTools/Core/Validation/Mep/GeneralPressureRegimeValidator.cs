@@ -94,7 +94,8 @@ namespace StingTools.Core.Validation.Mep
                         {
                             Id          = kv.Key,
                             Label       = (string)po["label"] ?? kv.Key,
-                            Standard    = (string)po["_standard"] ?? "",
+                            // "standard"; "_standard" is the pre-2026-10 key, still read.
+                            Standard    = (string)po["standard"] ?? (string)po["_standard"] ?? "",
                             ClassParam  = (string)po["classParam"]  ?? "CLN_ROOM_CLASS_TXT",
                             DeltaParam  = (string)po["deltaParam"]  ?? "CLN_PRESS_DELTA_DESIGN_PA_NR",
                             RegimeParam = (string)po["regimeParam"] ?? "CLN_PRESS_REGIME_TXT",

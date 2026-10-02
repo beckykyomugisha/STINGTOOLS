@@ -419,7 +419,7 @@ namespace StingTools.Commands.Electrical.Lighting
                 try
                 {
                     if (p.StorageType == StorageType.Double) { var v = p.AsDouble(); if (v > 0) return v; }
-                    if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out double v2) && v2 > 0) return v2;
+                    if (p.StorageType == StorageType.String && StingTools.Core.NumberText.TryParse(p.AsString(), out double v2) && v2 > 0) return v2;
                     if (p.StorageType == StorageType.Integer) { var v = p.AsInteger(); if (v > 0) return v; }
                 }
                 catch { }

@@ -139,6 +139,15 @@ namespace StingTools.BIMManager
             }
         }
 
+        /// <summary>
+        /// The Companion's project code for the server project this model is
+        /// linked to, or null when the model is unlinked or this machine's
+        /// Companion has not linked that project. Null means "no badges", which
+        /// is the honest answer: there is no sync folder to look in.
+        /// </summary>
+        public static string LinkedProjectCode(Guid projectId)
+            => projectId == Guid.Empty ? null : CompanionPaths.ResolveProjectCode(projectId.ToString());
+
         /// <summary>Short chip label, or empty for a row with nothing to say.</summary>
         public static string BadgeLabel(LocalSyncState state)
         {

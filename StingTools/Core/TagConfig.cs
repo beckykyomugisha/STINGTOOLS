@@ -192,6 +192,7 @@ namespace StingTools.Core
         /// <summary>
         /// Validates token values against discipline profile constraints.
         /// Returns a list of validation error messages (empty if all valid).
+        /// Enforced through ISO19650Validator.ValidateElement.
         /// </summary>
         public static List<string> ValidateAgainstProfile(string disc, string sys, string func, string prod)
         {
@@ -346,9 +347,15 @@ namespace StingTools.Core
         public static double SheetMarginBottomMm { get; set; } = 15.0;
         public static double SheetMarginGapMm { get; set; } = 8.0;
 
-        /// <summary>FUT-01: SEQ namespace range allocation per linked model.
-        /// Loaded from SEQ_RANGE_ALLOCATION in project_config.json.
-        /// Format: {"ARCH": [1, 4999], "MEP": [5000, 8999], "STR": [9000, 9999]}.</summary>
+        /// <summary>FUT-01: SEQ namespace range allocation per DISC code, so federated
+        /// discipline models number into disjoint ranges. Loaded from SEQ_RANGE_ALLOCATION
+        /// in project_config.json by SeqRangeAllocationParser:
+        /// {"M": [1, 9999], "E": [10000, 19999]} or {"M": {"min": 1, "max": 9999}}.
+        /// Checked by ISO19650Validator.ValidateElement (ValidateSeqRange) and applied at
+        /// allocation (DSCH-39, SeqAssigner.AssignNext via SeqRangeFor): the range covers
+        /// every counter of that DISC, a new counter starts at the minimum, and the number
+        /// after the maximum is refused (stats warning, element not tagged). A DISC with no
+        /// entry numbers 1 to the pad capacity, as before.</summary>
         public static Dictionary<string, (int Min, int Max)> SeqRangeAllocation { get; internal set; }
             = new Dictionary<string, (int, int)>(StringComparer.OrdinalIgnoreCase);
 
@@ -405,15 +412,22 @@ namespace StingTools.Core
             return whole;
         }
 
-        /// <summary>FUT-01: Validate a SEQ number is within the allocated range for the model discipline.
-        /// Returns null if valid, error message if out of range.</summary>
+        /// <summary>DSCH-39: the allocated range for <paramref name="disc"/>, or null when
+        /// SEQ_RANGE_ALLOCATION has no entry for it (allocation is then unconstrained).
+        /// The one lookup every SEQ allocator passes to SeqAssigner.AssignNext.</summary>
+        public static (int Min, int Max)? SeqRangeFor(string disc)
+            => !string.IsNullOrEmpty(disc) && SeqRangeAllocation.TryGetValue(disc, out var r)
+                ? r : ((int Min, int Max)?)null;
+
+        /// <summary>FUT-01: Validate a SEQ number is within the range allocated to a DISC code.
+        /// Returns null if valid (or no allocation is defined), error message if out of range.</summary>
         public static string ValidateSeqRange(int seqNumber, string modelDiscipline)
         {
             string Pad(int n) => n.ToString().PadLeft(EffectiveSeqPad, '0');
             if (SeqRangeAllocation.Count == 0) return null; // No allocation defined
             var (min, max) = GetSeqRange(modelDiscipline);
             if (seqNumber < min || seqNumber > max)
-                return $"SEQ {Pad(seqNumber)} is outside allocated range {Pad(min)}-{Pad(max)} for model '{modelDiscipline}'. " +
+                return $"SEQ {Pad(seqNumber)} is outside allocated range {Pad(min)}-{Pad(max)} for DISC '{modelDiscipline}'. " +
                        $"Configure SEQ_RANGE_ALLOCATION in project_config.json.";
             return null;
         }
@@ -445,7 +459,7 @@ namespace StingTools.Core
                 if (token == null) return defaultValue;
                 if (token.Type == Newtonsoft.Json.Linq.JTokenType.Float) return (double)token;
                 if (token.Type == Newtonsoft.Json.Linq.JTokenType.Integer) return (long)token;
-                if (double.TryParse(token.ToString(), out double val)) return val;
+                if (NumberText.TryParse(token.ToString(), out double val)) return val;
             }
             catch (Exception ex) { StingLog.Warn($"GetConfigDouble({key}): {ex.Message}"); }
             return defaultValue;
@@ -702,18 +716,6 @@ namespace StingTools.Core
             return LastScope ?? "active_view";
         }
 
-        /// <summary>Get scope label for display in reports.</summary>
-        public static string GetScopeLabel(string scope, Autodesk.Revit.UI.UIDocument uidoc)
-        {
-            return scope switch
-            {
-                "selection" => $"selected elements ({uidoc?.Selection?.GetElementIds()?.Count ?? 0})",
-                "active_view" => $"active view '{uidoc?.ActiveView?.Name ?? "unknown"}'",
-                "project" => "entire project",
-                _ => scope ?? "unknown"
-            };
-        }
-
         /// <summary>
         /// When false (default), LOC/ZONE validation uses format checks (alphanumeric, 1-8 chars)
         /// instead of strict code-list validation. Set to true in project_config.json via
@@ -894,6 +896,14 @@ namespace StingTools.Core
                         }
                         CurrentSeqScheme = parsed;
                     }
+                    else
+                    {
+                        // DSCH round 6: an unknown value (the Kibale overlay shipped
+                        // "DISC_SYS_LVL") was dropped without a word and the previous
+                        // scheme kept. Say so; the value stays unapplied.
+                        StingLog.Warn($"SEQ_SCHEME '{seqSchemeStr}' in {path} is not a sequence scheme " +
+                                      $"({string.Join(" / ", Enum.GetNames(typeof(SeqScheme)))}); keeping {CurrentSeqScheme}.");
+                    }
                 }
                 if (data.TryGetValue("SEQ_INCLUDE_ZONE", out object seqZoneObj))
                 {
@@ -1012,21 +1022,21 @@ namespace StingTools.Core
                 {
                     if (proxFt is double pd) rawRadius = pd;
                     else if (proxFt is long pl) rawRadius = pl;
-                    else double.TryParse(proxFt?.ToString(), out rawRadius);
+                    else NumberText.TryParse(proxFt?.ToString(), out rawRadius);
                     unitToFt = 1.0;
                 }
                 else if (data.TryGetValue("PROXIMITY_RADIUS_M", out object proxM))
                 {
                     if (proxM is double pd) rawRadius = pd;
                     else if (proxM is long pl) rawRadius = pl;
-                    else double.TryParse(proxM?.ToString(), out rawRadius);
+                    else NumberText.TryParse(proxM?.ToString(), out rawRadius);
                     unitToFt = 3.28084; // 1 m = 3.28084 ft
                 }
                 else if (data.TryGetValue("PROXIMITY_RADIUS_MM", out object proxMm))
                 {
                     if (proxMm is double pd) rawRadius = pd;
                     else if (proxMm is long pl) rawRadius = pl;
-                    else double.TryParse(proxMm?.ToString(), out rawRadius);
+                    else NumberText.TryParse(proxMm?.ToString(), out rawRadius);
                     unitToFt = 0.00328084; // 1 mm = 0.00328084 ft
                 }
                 if (!double.IsNaN(rawRadius))
@@ -1223,6 +1233,18 @@ namespace StingTools.Core
                     else StingLog.Warn($"TagConfig: SEQ_LOCK_MODE '{slmObj}' is not block / warn / off — using block.");
                 }
 
+                // DSCH-27: SEQ_RANGE_ALLOCATION was documented and read (GetSeqRange /
+                // ValidateSeqRange) but never loaded, so the allocation could not apply.
+                {
+                    var seqRangeProblems = new List<string>();
+                    data.TryGetValue("SEQ_RANGE_ALLOCATION", out object seqRangeObj);
+                    SeqRangeAllocation = SeqRangeAllocationParser.Parse(
+                        seqRangeObj as Newtonsoft.Json.Linq.JToken, seqRangeProblems);
+                    foreach (var problem in seqRangeProblems) StingLog.Warn($"TagConfig: {problem}");
+                    if (SeqRangeAllocation.Count > 0)
+                        StingLog.Info($"TagConfig: SEQ_RANGE_ALLOCATION — {SeqRangeAllocation.Count} DISC range(s)");
+                }
+
                 // Load configurable formula/grid cache TTL
                 FormulaCacheTTLMinutes = 5;
                 if (data.TryGetValue("FORMULA_CACHE_TTL_MINUTES", out object fctObj))
@@ -1384,6 +1406,7 @@ namespace StingTools.Core
             AutoRunWorkflowOnOpen = string.Empty;
             // NP11: Reset SEQ scheme state on LoadDefaults to prevent cross-project bleed
             CurrentSeqScheme = SeqScheme.Numeric;
+            SeqRangeAllocation = new Dictionary<string, (int Min, int Max)>(StringComparer.OrdinalIgnoreCase);
             SeqIncludeZone = false;
             SeqIncludeLoc = false;
             SeqLevelReset = false;
@@ -1801,7 +1824,7 @@ namespace StingTools.Core
         /// DISCIPLINE default when that is one of them (Walls → ARC, Generic Models → GEN),
         /// else the first listed. It used to return the first listed, and LPS is listed
         /// before ARC / STR / GEN, so walls, roofs and foundations defaulted to LPS.
-        /// Use <see cref="GetAllSysCodes"/> when the full list is needed.</summary>
+        /// The full list per category is the reverse map (GetReverseSysMap).</summary>
         public static string GetSysCode(string categoryName)
         {
             if (string.IsNullOrEmpty(categoryName)) return string.Empty;
@@ -1809,13 +1832,6 @@ namespace StingTools.Core
             if (!reverse.TryGetValue(categoryName, out var list) || list.Count == 0) return string.Empty;
             string disc = DiscMap != null && DiscMap.TryGetValue(categoryName, out string d) ? d : null;
             return CategoryTokenDefaults.ChooseCategorySys(list, disc);
-        }
-
-        /// <summary>Get ALL valid SYS codes for a category (e.g., Pipes → DCW, DHW, SAN, RWD, GAS, FP, HWS).</summary>
-        public static List<string> GetAllSysCodes(string categoryName)
-        {
-            var reverse = GetReverseSysMap();
-            return reverse.TryGetValue(categoryName, out var list) ? list : new List<string>();
         }
 
         /// <summary>Get the FUNC code for a SYS code (basic lookup).</summary>
@@ -2313,19 +2329,19 @@ namespace StingTools.Core
             var map = new Dictionary<string, List<(string, string)>>(StringComparer.OrdinalIgnoreCase);
             try
             {
-                bool first = true;
-                foreach (string raw in System.IO.File.ReadLines(csvPath))
+                // DSCH-2: columns by header name, not position.
+                var t = CsvTable.Parse(System.IO.File.ReadLines(csvPath), StingToolsApp.ParseCsvLine);
+                var missing = t.Missing("PROD_CODE", "CATEGORY", "FAMILY_PATTERN");
+                if (missing.Count > 0)
                 {
-                    if (first) { first = false; continue; }
-                    string line = raw.Trim();
-                    if (string.IsNullOrEmpty(line) || line.StartsWith("#")) continue;
-
-                    // CSV: PROD_CODE,CATEGORY,FAMILY_PATTERN,DESCRIPTION,...
-                    var cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols == null || cols.Length < 3) continue;
-                    string prodCode = cols[0].Trim();
-                    string category = cols[1].Trim();
-                    string pattern  = cols[2].Trim().ToUpperInvariant();
+                    StingLog.Warn($"TagConfig: {csvPath} header has no {string.Join(", ", missing)} column; PROD rules not loaded");
+                    return null;
+                }
+                foreach (var r in t.Rows)
+                {
+                    string prodCode = r["PROD_CODE"];
+                    string category = r["CATEGORY"];
+                    string pattern  = r["FAMILY_PATTERN"].ToUpperInvariant();
                     if (string.IsNullOrEmpty(prodCode) || string.IsNullOrEmpty(category) || string.IsNullOrEmpty(pattern)) continue;
 
                     if (!map.TryGetValue(category, out var list))
@@ -2778,7 +2794,7 @@ namespace StingTools.Core
             Dictionary<string, string> catOverrides = null;
             if (overwriteTokens)
             {
-                string lockStr = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
+                string lockStr = ParameterHelpers.GetString(el, ParamRegistry.ASS_TOKEN_LOCK_TXT);
                 if (!string.IsNullOrWhiteSpace(lockStr))
                     lockedKeys = new HashSet<string>(
                         lockStr.Split(',').Select(k => k.Trim()).Where(k => k.Length > 0),
@@ -2976,6 +2992,9 @@ namespace StingTools.Core
             tagBody += Separator;
             string tagSuffix = string.IsNullOrEmpty(TagSuffix) ? string.Empty : Separator + TagSuffix;
 
+            // DSCH-39: the SEQ_RANGE_ALLOCATION entry for this DISC (null = none).
+            var seqRange = SeqRangeFor(disc);
+
             // Snapshot the counter so any later failure can restore it.
             int seqPreAlloc = sequenceCounters.TryGetValue(seqKey, out int _preAlloc) ? _preAlloc : 0;
 
@@ -3014,10 +3033,13 @@ namespace StingTools.Core
                     seq = storedSeq;
                     tag = candidate;
                     // Keep the counter ahead of every number in use, so a later
-                    // allocation in this group cannot hand the same one out.
+                    // allocation in this group cannot hand the same one out. A held
+                    // number outside the DISC's range does not move it (DSCH-39): it
+                    // cannot collide with an in-range allocation, and one above the
+                    // maximum would otherwise block the whole group.
                     int held = int.TryParse(storedSeq, out int n) ? n
                              : CurrentSeqScheme == SeqScheme.Alpha ? FromAlpha(storedSeq) : 0;
-                    if (held > seqPreAlloc) sequenceCounters[seqKey] = held;
+                    if (held > seqPreAlloc && SeqAssigner.InRange(held, seqRange)) sequenceCounters[seqKey] = held;
                 }
                 else
                 {
@@ -3057,7 +3079,7 @@ namespace StingTools.Core
                 SeqResult seqRes = SeqAssigner.AssignNext(
                     seqKey, sequenceCounters, tagBody, tagSuffix,
                     CurrentSeqScheme, seqPad, seqSchemeContext,
-                    MaxCollisionDepth, existingTags);
+                    MaxCollisionDepth, existingTags, range: seqRange);
 
                 if (!seqRes.Success)
                 {
@@ -3069,6 +3091,10 @@ namespace StingTools.Core
                             $"SEQ overflow in collision loop: group {seqKey} exceeded pad-{seqPad} capacity — skipping element {el.Id}",
                         SeqFailureReason.SafetyExhausted =>
                             $"Collision safety limit ({MaxCollisionDepth}) exhausted for group {seqKey} — element {el.Id} skipped to prevent a duplicate tag",
+                        SeqFailureReason.RangeExhausted =>
+                            $"SEQ range full: group {seqKey} has no number left in the SEQ_RANGE_ALLOCATION range {seqRange?.Min}-{seqRange?.Max} for DISC '{disc}' — element {el.Id} not tagged (widen the range in project_config.json)",
+                        SeqFailureReason.ReservationOutsideRange =>
+                            $"SEQ reserved by the server for group {seqKey} is outside the SEQ_RANGE_ALLOCATION range {seqRange?.Min}-{seqRange?.Max} for DISC '{disc}' — element {el.Id} not tagged",
                         _ => $"SEQ assignment failed for element {el.Id}",
                     };
                     if (seqRes.Failure == SeqFailureReason.SafetyExhausted) StingLog.Error(why);

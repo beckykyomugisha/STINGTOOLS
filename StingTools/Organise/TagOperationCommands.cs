@@ -341,6 +341,7 @@ namespace StingTools.Organise
             // Merge existing tags for complete collision detection
             foreach (string t in existingTagIndex) tagIndex.Add(t);
             int fixedCount = 0;
+            int refusedCount = 0;
 
             int totalDupElements = duplicates.Sum(kvp => kvp.Value.Count - 1);
             var fixProgress = StingProgressDialog.Show("Fix Duplicates", totalDupElements);
@@ -383,27 +384,29 @@ namespace StingTools.Organise
                         string seqKey = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone, loc);
                         if (!seqCounters.TryGetValue(seqKey, out _)) seqCounters[seqKey] = 0;
 
-                        // Find next unique SEQ
-                        string newTag = "";
-                        string newSeq = "";
-                        int maxSeqVal = (int)Math.Pow(10, ParamRegistry.NumPad) - 1;
-                        int safety = 10000;
-                        do
+                        // Find next unique SEQ through the one allocator (DSCH-39): it
+                        // honours the DISC's SEQ_RANGE_ALLOCATION and refuses an overflow.
+                        // This loop used to write the last (duplicate) tag after an overflow.
+                        // FIX-WR11: TAG_PREFIX / TAG_SUFFIX are part of the compared tag.
+                        string tagBody = string.Join(ParamRegistry.Separator, disc, loc, zone, lvl, sys, func, prod)
+                                       + ParamRegistry.Separator;
+                        if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                            tagBody = TagConfig.TagPrefix + ParamRegistry.Separator + tagBody;
+                        string tagSuffix = string.IsNullOrEmpty(TagConfig.TagSuffix)
+                            ? "" : ParamRegistry.Separator + TagConfig.TagSuffix;
+                        var seqRes = SeqAssigner.AssignNext(
+                            seqKey, seqCounters, tagBody, tagSuffix, SeqScheme.Numeric,
+                            ParamRegistry.NumPad, "", 10000, tagIndex,
+                            range: TagConfig.SeqRangeFor(disc));
+                        if (!seqRes.Success)
                         {
-                            seqCounters[seqKey]++;
-                            if (seqCounters[seqKey] > maxSeqVal)
-                            {
-                                StingLog.Warn($"FixDuplicates SEQ overflow for group {seqKey}");
-                                break;
-                            }
-                            newSeq = seqCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
-                            newTag = string.Join(ParamRegistry.Separator, disc, loc, zone, lvl, sys, func, prod, newSeq);
-                            // FIX-WR11: Apply TAG_PREFIX/TAG_SUFFIX for consistency
-                            if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
-                                newTag = TagConfig.TagPrefix + ParamRegistry.Separator + newTag;
-                            if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
-                                newTag = newTag + ParamRegistry.Separator + TagConfig.TagSuffix;
-                        } while (tagIndex.Contains(newTag) && safety-- > 0);
+                            StingLog.Warn($"FixDuplicates: no SEQ for {elem.Id} in group {seqKey} ({seqRes.Failure}) — element left unchanged");
+                            refusedCount++;
+                            fixProgress.Increment($"Skipped {elem.Id}");
+                            continue;
+                        }
+                        string newSeq = seqRes.Seq;
+                        string newTag = seqRes.Tag;
 
                         tagIndex.Add(newTag);
                         ParameterHelpers.SetString(elem, ParamRegistry.SEQ, newSeq, overwrite: true);
@@ -470,7 +473,11 @@ namespace StingTools.Organise
             StingAutoTagger.InvalidateContext();
             TagConfig.CheckComplianceGate(doc, "FixDuplicates"); // Phase 67d
             TaskDialog.Show("Fix Duplicates",
-                $"Fixed {fixedCount} duplicate tags across {duplicates.Count} tag values.{dupeNote}");
+                $"Fixed {fixedCount} duplicate tags across {duplicates.Count} tag values.{dupeNote}"
+                + (refusedCount > 0
+                    ? $"\n{refusedCount} element(s) left unchanged: no sequence number free in their group "
+                      + "(pad capacity or SEQ_RANGE_ALLOCATION range full) — see the log."
+                    : ""));
             return Result.Succeeded;
         }
     }
@@ -3842,34 +3849,6 @@ namespace StingTools.Organise
         }
 
         /// <summary>
-        /// Resolve a set of selected element IDs (which may be host elements rather
-        /// than annotation tags) to the IndependentTag annotations that tag them in
-        /// the given view. This bridges the gap when users select host elements
-        /// (walls, ducts, equipment) instead of the annotation tags themselves.
-        /// </summary>
-        public static List<IndependentTag> ResolveToAnnotationTags(Document doc, View view, ICollection<ElementId> selectedIds)
-        {
-            var tags = new List<IndependentTag>();
-            if (selectedIds == null || selectedIds.Count == 0 || view == null)
-                return tags;
-
-            var hostIds = new HashSet<ElementId>(selectedIds);
-            foreach (var tag in new FilteredElementCollector(doc, view.Id)
-                .OfClass(typeof(IndependentTag))
-                .Cast<IndependentTag>())
-            {
-                try
-                {
-                    var taggedIds = tag.GetTaggedLocalElementIds();
-                    if (taggedIds.Any(id => hostIds.Contains(id)))
-                        tags.Add(tag);
-                }
-                catch (Exception ex) { StingLog.Warn($"Resolve annotation tag from host failed: {ex.Message}"); }
-            }
-            return tags;
-        }
-
-        /// <summary>
         /// Get center point of an element for tag/leader placement.
         /// Uses Location first (most reliable), then view-aware bounding box,
         /// then global bounding box as final fallback. Returns XY center at
@@ -3908,48 +3887,6 @@ namespace StingTools.Organise
                 return (bb.Min + bb.Max) / 2.0;
 
             return null;
-        }
-
-        /// <summary>
-        /// Determine which side of the host element the tag head is on.
-        /// Returns: "right", "left", "above", or "below".
-        /// </summary>
-        public static string GetLeaderSide(Document doc, IndependentTag tag)
-        {
-            try
-            {
-                var hostIds = tag.GetTaggedLocalElementIds();
-                if (hostIds.Count == 0) return "right";
-                Element host = doc.GetElement(hostIds.First());
-                if (host == null) return "right";
-
-                View view = doc.GetElement(tag.OwnerViewId) as View;
-                XYZ hostCenter = GetElementCenter(host, view);
-                if (hostCenter == null) return "right";
-
-                // Use actual elbow if available for more accurate side detection
-                XYZ reference = hostCenter;
-                try
-                {
-                    var refs = tag.GetTaggedReferences();
-                    if (tag.HasLeader && refs != null && refs.Count > 0)
-                    {
-                        XYZ elbow = tag.GetLeaderElbow(refs.First());
-                        if (elbow != null) reference = elbow;
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"Get leader elbow reference failed: {ex.Message}"); }
-
-                XYZ tagHead = tag.TagHeadPosition;
-                double dx = tagHead.X - reference.X;
-                double dy = tagHead.Y - reference.Y;
-
-                if (Math.Abs(dx) > Math.Abs(dy))
-                    return dx > 0 ? "right" : "left";
-                else
-                    return dy > 0 ? "above" : "below";
-            }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "right"; }
         }
 
         /// <summary>

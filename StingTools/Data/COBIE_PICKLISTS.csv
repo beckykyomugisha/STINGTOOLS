@@ -147,8 +147,11 @@ ClinicalRoomClass,IMG-CT,CT room
 ClinicalRoomClass,IMG-MRI,MRI suite
 ClinicalRoomClass,IMG-XRY,X-ray room
 ClinicalRoomClass,IMG-LIN,Linac vault
-ClinicalRoomClass,PH-CSP-797,USP <797> sterile compounding
-ClinicalRoomClass,PH-CSP-800,USP <800> hazardous compounding
+ClinicalRoomClass,PH-CSP-797,USP <797> sterile compounding buffer room
+ClinicalRoomClass,PH-CSP-800,USP <800> hazardous compounding C-SEC (buffer room)
+ClinicalRoomClass,PH-CSP-797-ANTE,USP <797> ante-room
+ClinicalRoomClass,PH-CSP-800-ANTE,USP <800> hazardous-drug ante-room
+ClinicalRoomClass,PH-CSP-800-CSCA,USP <800> containment segregated compounding area (C-SCA)
 ClinicalRoomClass,MORT,Mortuary
 ClinicalRoomClass,POST,Post-mortem
 ClinicalRoomClass,DIAL,Dialysis station

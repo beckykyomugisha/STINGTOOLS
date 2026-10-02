@@ -46,13 +46,19 @@ namespace StingTools.Temp
 
                 if (!string.IsNullOrEmpty(csvPath))
                 {
-                    var lines = File.ReadAllLines(csvPath);
-                    foreach (var line in lines.Skip(1))
-                    {
-                        var parts = StingToolsApp.ParseCsvLine(line);
-                        if (parts.Length > 0 && !string.IsNullOrEmpty(parts[0]))
-                            csvParams.Add(parts[0].Trim());
-                    }
+                    // DSCH-2: by column name. Skip(1) took only the first of ~30 "#"
+                    // comment lines as the header, so the rest and the real header
+                    // were counted as parameter names.
+                    var table = CsvTable.Parse(File.ReadAllLines(csvPath), StingToolsApp.ParseCsvLine);
+                    if (!table.Has("Parameter_Name"))
+                        StingLog.Warn($"CATEGORY_BINDINGS.csv: header lacks column Parameter_Name ({csvPath})");
+                    else
+                        foreach (var row in table.Rows)
+                        {
+                            string p = row["Parameter_Name"];
+                            if (!string.IsNullOrEmpty(p))
+                                csvParams.Add(p);
+                        }
                 }
                 else
                 {
@@ -285,12 +291,15 @@ namespace StingTools.Temp
                     sb.AppendLine($"  {kv.Key}: {kv.Value}");
 
                 // Show first 10 parameters
+                int nameCol = Array.FindIndex(header, h => h.Trim().Equals("Parameter Name", StringComparison.OrdinalIgnoreCase));
+                if (nameCol < 0)
+                    StingLog.Warn($"PARAMETER_CATEGORIES.csv: header lacks column Parameter Name ({path})");
                 sb.AppendLine("\nFirst 10 parameters:");
-                for (int i = firstData; i < Math.Min(firstData + 10, lines.Length); i++)
+                for (int i = firstData; nameCol >= 0 && i < Math.Min(firstData + 10, lines.Length); i++)
                 {
                     var parts = StingToolsApp.ParseCsvLine(lines[i]);
-                    if (parts.Length > 0)
-                        sb.AppendLine($"  {parts[0].Trim()}");
+                    if (parts.Length > nameCol)
+                        sb.AppendLine($"  {parts[nameCol].Trim()}");
                 }
 
                 TaskDialog.Show("STING Parameter Metadata", sb.ToString());
@@ -328,24 +337,34 @@ namespace StingTools.Temp
                     return Result.Failed;
                 }
 
-                var lines = File.ReadAllLines(path).Skip(1).ToList();
+                // DSCH-2: by column name. Skip(1) took only the first of the "#"
+                // comment lines as the header, so the rest (and the real header)
+                // were parsed as bindings.
+                var table = CsvTable.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
                 var sb = new StringBuilder();
                 sb.AppendLine("═══ Family Parameter Bindings Validation ═══\n");
-                sb.AppendLine($"CSV entries: {lines.Count}");
+                sb.AppendLine($"CSV entries: {table.Rows.Count}");
 
                 // Parse CSV
                 var csvGuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 var csvParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 var categories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-                foreach (var line in lines)
+                var missingCols = table.Missing("ParameterName", "GUID");
+                if (missingCols.Count > 0)
+                    StingLog.Warn($"FAMILY_PARAMETER_BINDINGS.csv: header lacks column(s) {string.Join(", ", missingCols)} ({path})");
+                else
                 {
-                    var parts = StingToolsApp.ParseCsvLine(line);
-                    if (parts.Length < 3) continue;
-                    csvParams.Add(parts[1].Trim());
-                    csvGuids.Add(parts[2].Trim());
-                    if (parts.Length > 6)
-                        categories.Add(parts[6].Trim());
+                    int minFields = Math.Max(table.Col("ParameterName"), table.Col("GUID")) + 1;
+                    int catCol = table.Col("RevitCategory");
+                    foreach (var row in table.Rows)
+                    {
+                        if (row.Count < minFields) continue;
+                        csvParams.Add(row["ParameterName"]);
+                        csvGuids.Add(row["GUID"]);
+                        if (catCol >= 0 && row.Count > catCol)
+                            categories.Add(row["RevitCategory"]);
+                    }
                 }
 
                 sb.AppendLine($"Unique parameters: {csvParams.Count}");

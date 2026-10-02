@@ -41,6 +41,27 @@ namespace StingTools.Core.Branding
         public string RagRed       { get; set; } = "#A9322D";
     }
 
+    /// <summary>One brand font: family name and point size.</summary>
+    public class BrandFont
+    {
+        public string Family { get; set; }
+        public double Size   { get; set; }
+        public BrandFont() { }
+        public BrandFont(string family, double size) { Family = family; Size = size; }
+    }
+
+    /// <summary>
+    /// The brand's <c>fonts</c> block. Defaults are the values shipped in
+    /// Data/Templates/STING_CORPORATE_BRAND.json, so a missing file or key changes nothing.
+    /// </summary>
+    public class BrandFonts
+    {
+        public BrandFont Body    { get; set; } = new BrandFont("Calibri", 10);
+        public BrandFont Heading { get; set; } = new BrandFont("Calibri", 14);
+        public BrandFont Mono    { get; set; } = new BrandFont("Consolas", 9);
+        public BrandFont Cover   { get; set; } = new BrandFont("Segoe UI Semibold", 22);
+    }
+
     public class BrandInfo
     {
         public string CompanyName    { get; set; } = "Planscape Limited";
@@ -53,6 +74,7 @@ namespace StingTools.Core.Branding
         public string LogoPrimary    { get; set; } = "";
         public string LogoMono       { get; set; } = "";
         public BrandPalette Palette  { get; set; } = new BrandPalette();
+        public BrandFonts Fonts      { get; set; } = new BrandFonts();
         public string FooterText     { get; set; } = "";
         public string Disclaimer     { get; set; } = "";
         public string CopyrightMask  { get; set; } = "";
@@ -124,6 +146,13 @@ namespace StingTools.Core.Branding
                     brand.Palette.RagAmber     = p.Value<string>("rag_amber")     ?? brand.Palette.RagAmber;
                     brand.Palette.RagRed       = p.Value<string>("rag_red")       ?? brand.Palette.RagRed;
                 }
+                if (root["fonts"] is JObject fonts)
+                {
+                    brand.Fonts.Body    = ReadFont(fonts["body"],      brand.Fonts.Body);
+                    brand.Fonts.Heading = ReadFont(fonts["heading"],   brand.Fonts.Heading);
+                    brand.Fonts.Mono    = ReadFont(fonts["monospace"], brand.Fonts.Mono);
+                    brand.Fonts.Cover   = ReadFont(fonts["cover"],     brand.Fonts.Cover);
+                }
                 var d = root["document_defaults"];
                 if (d != null)
                 {
@@ -136,6 +165,21 @@ namespace StingTools.Core.Branding
             catch (Exception ex)
             { StingLog.Warn($"CorporateBrand.Load: {ex.Message}"); }
             return brand;
+        }
+
+        /// <summary>{ "family": "...", "size_pt": n }; a missing or invalid field keeps the default.</summary>
+        private static BrandFont ReadFont(JToken node, BrandFont fallback)
+        {
+            if (!(node is JObject o)) return fallback;
+            string family = o.Value<string>("family");
+            double size = fallback.Size;
+            var sz = o["size_pt"];
+            if (sz != null && (sz.Type == JTokenType.Integer || sz.Type == JTokenType.Float))
+            {
+                double v = sz.Value<double>();
+                if (v > 0) size = v;
+            }
+            return new BrandFont(string.IsNullOrWhiteSpace(family) ? fallback.Family : family.Trim(), size);
         }
 
         private static string ResolvePath(Document doc)

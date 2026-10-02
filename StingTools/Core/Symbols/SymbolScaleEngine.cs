@@ -22,11 +22,5 @@ namespace StingTools.Core.Symbols
         public static string GetScaleTier(int scale)
             => SymbolStandardRegistry.GetScaleTier(scale);
 
-        public static bool ShouldSimplify(View view, int elementCount)
-        {
-            if (view == null) return false;
-            try { return view.Scale > 200 && elementCount > 50; }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
-        }
     }
 }

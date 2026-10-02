@@ -214,7 +214,7 @@ namespace StingTools.Commands.TagStudio
             // Declared out - the library's own decision, and the same source the
             // per-family skip consults, so the dialog cannot promise one thing
             // and the run do another.
-            // IsNonUniversal, NOT Resolve. Resolve does a full category
+            // LabelMasterGroup, NOT Resolve. Resolve does a full category
             // resolution, and FindTagCategory inside it enumerates every
             // category in the document - once per call. Asking it 206 times to
             // fill in this dialog froze Revit on the UI thread before the dialog

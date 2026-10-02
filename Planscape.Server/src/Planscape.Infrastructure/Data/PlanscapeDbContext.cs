@@ -1685,6 +1685,7 @@ public class PlanscapeDbContext : DbContext
             e.Property(x => x.Level).HasMaxLength(40);
             e.Property(x => x.Zone).HasMaxLength(40);
             e.Property(x => x.LineKind).HasMaxLength(20);
+            e.Property(x => x.ProvisionalSumType).HasMaxLength(12);   // DSCH-44
             e.Property(x => x.PricingBasis).HasMaxLength(20);
             e.Property(x => x.Notes).HasMaxLength(2000);
             e.Property(x => x.CreatedBy).HasMaxLength(200);

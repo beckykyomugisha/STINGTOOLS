@@ -33,6 +33,11 @@ USAGE
     python tools/fix_material_data.py                 # dry run, prints report
     python tools/fix_material_data.py --report out.md # dry run + write report
     python tools/fix_material_data.py --apply         # writes, after .bak
+    python tools/fix_material_data.py --only uom --apply
+        # ONLY step 4: append MAT_COST_UNIT_OF_MEASURE, leaving every existing
+        # byte of each row as it is (DSCH-16). Names are join keys
+        # (MaterialNameCache, MATERIAL_LOOKUP, FinishCodeRegistry), so the name
+        # and class steps are not run in this mode.
 
 Every run is idempotent: applying twice changes nothing the second time.
 """
@@ -335,6 +340,51 @@ def process(path, apply_changes, log):
     return stats, (not has_uom)
 
 
+
+def process_uom_only(path, apply_changes, log):
+    """Append MAT_COST_UNIT_OF_MEASURE as the LAST column without rewriting any
+    existing field: positional readers keep their indexes, and the diff is one
+    appended value per row. Idempotent: a file that already has the column is
+    only filled where the cell is blank."""
+    raw = open(path, "rb").read()
+    bom = raw.startswith(b"\xef\xbb\xbf")
+    text = raw.decode("utf-8-sig")
+    nl = "\r\n" if "\r\n" in text else "\n"
+    lines = text.split(nl)
+    hdr_i = next(i for i, ln in enumerate(lines) if ln.strip() and not ln.startswith("#"))
+    header = next(csv.reader([lines[hdr_i]]))
+    idx = {name: i for i, name in enumerate(header)}
+    has_uom = UOM_COL in idx
+    set_n, unresolved = 0, []
+    counts = Counter()
+    for i in range(hdr_i + 1, len(lines)):
+        ln = lines[i]
+        if not ln.strip() or ln.startswith("#"):
+            continue
+        r = next(csv.reader([ln]))
+        uom, _ = resolve_uom(r[idx["MAT_CATEGORY"]], r[idx["MAT_NAME"]], r[idx["MAT_ELEMENT_TYPE"]])
+        if has_uom:
+            continue                    # never rewrite an existing row in this mode
+        lines[i] = ln + "," + (uom or "")
+        if uom:
+            set_n += 1
+            counts[uom] += 1
+        else:
+            unresolved.append(r[idx["MAT_NAME"]])
+    if not has_uom:
+        lines[hdr_i] = lines[hdr_i] + "," + UOM_COL
+    log.append(f"\n## {os.path.basename(path)} (uom only)\n")
+    log.append(f"- `{UOM_COL}` populated: **{set_n}**; left blank (no rule): **{len(unresolved)}**"
+               + ("" if has_uom else "  _(column added)_"))
+    if counts:
+        log.append("- units: " + ", ".join(f"`{k}` {v}" for k, v in counts.most_common()))
+    if apply_changes and not has_uom:
+        shutil.copy2(path, path + ".bak")
+        open(path, "wb").write((b"\xef\xbb\xbf" if bom else b"") + nl.join(lines).encode("utf-8"))
+        os.remove(path + ".bak")
+        log.append("_Written._")
+    return set_n, not has_uom
+
 def update_schema(apply_changes, log):
     """Keep MATERIAL_SCHEMA.json honest: it already declares 70 for 72 real
     columns (gap E-8). Add the two carbon columns AND the new UOM column."""
@@ -379,7 +429,18 @@ def main():
     ap.add_argument("--apply", action="store_true",
                     help="write the files (default is a dry run)")
     ap.add_argument("--report", metavar="PATH", help="write the report to a file")
+    ap.add_argument("--only", choices=["uom"],
+                    help="run one step only (uom: append MAT_COST_UNIT_OF_MEASURE, nothing else)")
     args = ap.parse_args()
+
+    if args.only == "uom":
+        log = ["# Material cost unit of measure - " + ("APPLIED" if args.apply else "DRY RUN")]
+        for fn in FILES:
+            path = os.path.join(DATA, fn)
+            if os.path.exists(path):
+                process_uom_only(path, args.apply, log)
+        print("\n".join(log))
+        return
 
     log = ["# Material data alignment — "
            + ("APPLIED" if args.apply else "DRY RUN (nothing written)")]
