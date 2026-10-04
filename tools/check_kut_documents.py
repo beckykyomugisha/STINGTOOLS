@@ -967,6 +967,15 @@ HAND_EDITED_DIR = "KUT_DOCS_WORKING/source"
 HAND_EDITED_EXEMPT = {"KUT_NAMING_MIGRATION_MAP.md"}
 _OLD_SITE_CODE = re.compile(r"\b(TE|MH|HS|GB|UB|GH)\b")
 _OLD_ORIGINATOR = re.compile(r"\bPLNS\b|KUT\s*-\s*[A-Z]{4}\s*-")
+INTERNAL_PLAYBOOK = "KUT_BIM_MANAGER_PLAYBOOK_INTERNAL_STINGTOOLS.docx"
+
+
+def _docx_paragraphs(path: Path):
+    """Paragraph texts of a .docx, stdlib only (the gate runs on a bare runner)."""
+    import zipfile
+    xml = zipfile.ZipFile(path).read("word/document.xml").decode("utf-8")
+    return ["".join(re.findall(r"<w:t[^>]*>([^<]*)</w:t>", p))
+            for p in re.findall(r"<w:p[ >].*?</w:p>", xml, re.S)]
 
 
 def check_hand_edited_sources(root: Path, f: Findings, verbose: bool):
@@ -983,8 +992,18 @@ def check_hand_edited_sources(root: Path, f: Findings, verbose: bool):
     if not files:
         f.fail(HAND_EDITED_DIR, "no hand-edited sources found -- the check reads nothing")
         return
-    for p in files:
-        for n, line in enumerate(p.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+    # The internal playbook .docx is hand-maintained too (ROADMAP MOB-7): nothing
+    # regenerates it, so it carried the four-character PLNS advice for weeks after
+    # the register question was settled. Read it paragraph by paragraph.
+    internal = root / K.ISSUED_DIR / INTERNAL_PLAYBOOK
+    if not internal.exists():
+        f.fail(INTERNAL_PLAYBOOK, "missing -- the retired-code check reads it")
+    sources = [(p.name, p.read_text(encoding="utf-8", errors="replace").splitlines()) for p in files]
+    if internal.exists():
+        sources.append((INTERNAL_PLAYBOOK, _docx_paragraphs(internal)))
+    for name, lines in sources:
+        p = Path(name)
+        for n, line in enumerate(lines, 1):
             low = line.lower()
             if line.lstrip().startswith(">") or "withdrawn" in low or "old site code" in low:
                 continue

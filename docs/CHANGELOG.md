@@ -26697,3 +26697,8 @@ Gate OK (100 assertions); overlay `--check` current; 37 KUT tests pass. Not run 
   CAD Standard: `6` schedules and diagrams, `7`/`8` user-defined, `9` 3D. The pack now follows the
   NCS order. Banding stays "proposed, confirm at kickoff" (BEP 15.2). The gate compares the 3D band
   across the pack and both hand-edited tables; red on the previous `SHEET_BANDS`.
+- **Internal BIM Manager playbook (.docx) corrected and now checked (MOB-7, partial).** Part I item 5
+  still advised the four-character `PLNS` and widening the originator rule; the Week 1 decision and
+  the risk row still framed originator length as open; the overlay steps listed four of seven files
+  and omitted `project_config.json`. Eight paragraphs edited in place (formatting untouched; Word
+  opens it). `check_hand_edited_sources` now reads the .docx too; red on the previous file.
