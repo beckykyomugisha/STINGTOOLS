@@ -19,6 +19,7 @@ documents cover one topic, the **current** one is marked ✅ and the superseded 
 | [`SYSTEM_STATUS.md`](SYSTEM_STATUS.md) | What has been runtime-verified vs. written-but-unrun. |
 | [`TAGGING_ACCURACY_TEST_PROTOCOL.md`](TAGGING_ACCURACY_TEST_PROTOCOL.md) | ✅ **Current.** Revit tests for the TAGACC-1..15 tagging fixes: the automated smoke tests, the two-user worksharing check, and the Tag Rules settings. Method only; results go in `ROADMAP.md`. |
 | [`WORKLOG_TAGGING.md`](WORKLOG_TAGGING.md) | ✅ **Current.** The running worklog of the tagging review-and-fix loop: resume point, hand-done Revit steps, NEEDS REVIT CHECK, decisions, open findings. |
+| [`TAGGING_LOOP_RUNNER.md`](TAGGING_LOOP_RUNNER.md) | ✅ **Current.** Paste-in prompt for the next tagging loop: remaining items (TAGFAM-9b style writers, DRAW-9b stamps, spot-slope fixture, config seams, auto-load, re-timing) run as at least three fix-and-recheck rounds. |
 | [`TAG_TEST_PROTOCOL.md`](TAG_TEST_PROTOCOL.md) | The five Revit tests that close Phases 287-293, with where each button is. Method only; results go in `ROADMAP.md`. |
 | [`TESTING_GUIDE.md`](TESTING_GUIDE.md) | How to test the plugin and server. |
 
