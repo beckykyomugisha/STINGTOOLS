@@ -186,7 +186,7 @@ namespace StingTools.UI
                         catch (Exception ex) { StingLog.Warn($"Merge '{loser.Name}' → '{keeper.Name}': {ex.Message}"); }
                     }
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
             return merged;
         }

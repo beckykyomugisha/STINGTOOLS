@@ -47,7 +47,7 @@ namespace StingTools.UI
                     var p = mat.LookupParameter(ParamName);
                     if (p == null || p.IsReadOnly || p.StorageType != StorageType.String) { t.RollBack(); return false; }
                     p.Set(state ?? "Draft");
-                    t.Commit();
+                    StingTx.Commit(t); // a rollback lands in the catch → false
                 }
                 MaterialAuditLogger.Log(doc, "MAT_LifecycleChange", mat.Name,
                     new Dictionary<string, object> { ["state"] = state });

@@ -210,7 +210,8 @@ namespace StingTools.UI.PlacementCenter
 
                         if (any) typesUpdated++;
                     }
-                    t.Commit();
+                    if (!StingTx.TryCommit(t, null, out string why))
+                    { typesUpdated = 0; writes = 0; } // rolled back: nothing was written (TryCommit logged why)
                 }
             }
             catch (Exception ex)

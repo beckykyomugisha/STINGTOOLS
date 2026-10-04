@@ -353,6 +353,7 @@ namespace StingTools.UI
                         if (sys == null) continue;
 
                         var route = CircuitWalker.Walk(_doc, sys);
+                        int circuitTouched = 0; // counted into touched only once this circuit commits
                         using (var t = new Transaction(_doc, "STING Stamp Profile"))
                         {
                             t.Start();
@@ -370,10 +371,12 @@ namespace StingTools.UI
                                 any |= ParameterHelpers.SetString(seg, "ELC_WIRE_PROFILE_ID_TXT", profile.Id, overwrite: true);
                                 any |= ParameterHelpers.SetString(seg, "ELC_CKT_NR",     sys.Name ?? "", overwrite: true);
                                 any |= ParameterHelpers.SetString(seg, "ELC_PNL_NAME_TXT",       sys.PanelName ?? "", overwrite: true);
-                                if (any) touched++;
+                                if (any) circuitTouched++;
                             }
-                            t.Commit();
+                            // one circuit's rollback counts as that circuit failing; the rest carry on
+                            if (!StingTx.TryCommit(t, null, out string why)) { StingLog.Warn(why); continue; }
                         }
+                        touched += circuitTouched;
                     }
                     tg.Assimilate();
                 }

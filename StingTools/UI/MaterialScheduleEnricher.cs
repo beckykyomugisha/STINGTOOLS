@@ -74,7 +74,13 @@ namespace StingTools.UI
                             StingLog.Warn($"MaterialScheduleEnricher '{sched.Name}': {ex.Message}");
                         }
                     }
-                    t.Commit();
+                    if (!StingTx.TryCommit(t, null, out string why))
+                    {
+                        // a rollback undoes every schedule's added fields
+                        result.SchedulesEnriched = 0;
+                        result.FieldsAdded = 0;
+                        result.SkippedReasons.Add(why);
+                    }
                 }
                 StingLog.Info($"MaterialScheduleEnricher: {result.SchedulesEnriched}/{result.SchedulesScanned} schedules enriched, {result.FieldsAdded} fields added.");
             }

@@ -143,7 +143,7 @@ namespace StingTools.UI
                     }
                     catch (Exception ex) { StingLog.Warn($"WhatIfEngine Commit {row.ElementId}: {ex.Message}"); }
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
             MaterialAuditLogger.Log(doc, "MAT_WhatIfSwap", preview.ToMaterial,
                 new Dictionary<string, object>

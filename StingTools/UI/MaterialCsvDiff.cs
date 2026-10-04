@@ -144,7 +144,7 @@ namespace StingTools.UI
                     }
                     catch (Exception ex) { StingLog.Warn($"CsvDiff.Apply '{u.MaterialName}': {ex.Message}"); }
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
             return written;
         }

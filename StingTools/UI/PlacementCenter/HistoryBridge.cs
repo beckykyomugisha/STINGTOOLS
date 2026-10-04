@@ -124,7 +124,8 @@ namespace StingTools.UI.PlacementCenter
                         }
                         catch { skipped++; }
                     }
-                    t.Commit();
+                    if (!StingTx.TryCommit(t, null, out string why))
+                    { skipped += deleted; deleted = 0; } // rolled back: nothing was deleted (TryCommit logged why)
                 }
             }
             catch (Exception ex)

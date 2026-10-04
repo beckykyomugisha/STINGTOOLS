@@ -47,7 +47,7 @@ namespace StingTools.UI
                         case "CutBg":     mat.CutBackgroundPatternId     = patternId; break;
                         default: t.RollBack(); return false;
                     }
-                    t.Commit();
+                    StingTx.Commit(t); // a rollback lands in the catch → false
                 }
                 MaterialAuditLogger.Log(doc, "MAT_PatternChange", mat.Name,
                     new Dictionary<string, object> { ["slot"] = slot, ["pattern"] = patternId.Value });
@@ -65,7 +65,7 @@ namespace StingTools.UI
                 {
                     t.Start();
                     mat.Color = new Color(r, g, b);
-                    t.Commit();
+                    StingTx.Commit(t); // a rollback lands in the catch → false
                 }
                 MaterialAuditLogger.Log(doc, "MAT_ColorChange", mat.Name,
                     new Dictionary<string, object> { ["rgb"] = $"{r},{g},{b}" });

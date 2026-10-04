@@ -64,7 +64,7 @@ namespace StingTools.UI
                     }
                     catch (Exception ex) { StingLog.Warn($"NormaliseProject '{m?.Name}': {ex.Message}"); }
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
             return touched;
         }

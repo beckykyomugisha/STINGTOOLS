@@ -957,7 +957,7 @@ namespace StingTools.UI
                     }
                 }
 
-                if (renamed > 0 || failed == 0) tx.Commit(); else tx.RollBack();
+                if (renamed > 0 || failed == 0) StingTx.Commit(tx); else tx.RollBack();
             }
 
             var sb = new StringBuilder();
@@ -1050,7 +1050,7 @@ namespace StingTools.UI
                         }
                         catch (Exception ex) { StingLog.Warn($"Clear scope box on '{v.Name}': {ex.Message}"); }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 return $"Cleared the scope box from {cleared} view(s).";
             });
@@ -1082,7 +1082,7 @@ namespace StingTools.UI
                         }
                         catch (Exception ex) { StingLog.Warn($"Auto-assign on '{v.Name}': {ex.Message}"); }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 return $"Auto-assigned a scope box to {assigned} view(s).";
             });

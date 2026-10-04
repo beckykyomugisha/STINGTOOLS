@@ -1287,7 +1287,7 @@ namespace StingTools.UI
                                         {
                                             tx.Start();
                                             view.ViewTemplateId = tpl.Id;
-                                            tx.Commit();
+                                            StingTx.Commit(tx);
                                         }
                                         TaskDialog.Show("STING", $"Assigned template '{tplName}' to '{view.Name}'.");
                                     }
@@ -1311,7 +1311,7 @@ namespace StingTools.UI
                                     {
                                         tx.Start();
                                         view.ViewTemplateId = ElementId.InvalidElementId;
-                                        tx.Commit();
+                                        StingTx.Commit(tx);
                                     }
                                     TaskDialog.Show("STING", $"Removed template from '{view.Name}'.");
                                 }
@@ -1373,7 +1373,7 @@ namespace StingTools.UI
                                     {
                                         tx.Start();
                                         bool ok = Docs.DocAutomationHelper.AssignScopeBox(view, new ElementId(sbId));
-                                        tx.Commit();
+                                        StingTx.Commit(tx);
                                         if (ok)
                                             StingLog.Info($"Assigned scope box '{scopeBoxName}' to '{view.Name}'.");
                                     }
@@ -1403,7 +1403,7 @@ namespace StingTools.UI
                                                 p.Set(ElementId.InvalidElementId);
                                         }
                                         catch (Exception ex) { StingLog.Warn($"RemoveScopeBox: {ex.Message}"); }
-                                        tx.Commit();
+                                        StingTx.Commit(tx);
                                     }
                                 }
                             }
@@ -2397,13 +2397,14 @@ namespace StingTools.UI
                             // every analysed wall, so the dispatch needs to own
                             // a transaction (the engine writes via SetString).
                             List<Model.AcousticResult> results;
+                            string aaRolledBack = null; // the results stand; only the ACO_RW_DB stamps are lost
                             try
                             {
                                 using (var tx = new Transaction(aaDoc, "STING Acoustic Analysis"))
                                 {
                                     tx.Start();
                                     results = Model.AcousticAnalysisOrchestrator.AnalyseModel(aaDoc);
-                                    tx.Commit();
+                                    StingTx.TryCommit(tx, null, out aaRolledBack);
                                 }
                             }
                             catch (Exception exA)
@@ -2412,7 +2413,7 @@ namespace StingTools.UI
                                 results = Model.AcousticAnalysisOrchestrator.AnalyseModel(aaDoc);
                             }
                             int fails = results.Count(r => !r.Pass);
-                            var sb = new System.Text.StringBuilder($"Acoustic Analysis: {results.Count} checks ({fails} failures)\nACO_RW_DB stamped on every analysed wall.\n\n");
+                            var sb = new System.Text.StringBuilder($"Acoustic Analysis: {results.Count} checks ({fails} failures)\n{(aaRolledBack ?? "ACO_RW_DB stamped on every analysed wall.")}\n\n");
                             foreach (var r in results.Take(30)) sb.AppendLine(r.ToString());
                             TaskDialog.Show("Acoustic Analysis", sb.ToString());
                         }
@@ -2485,6 +2486,7 @@ namespace StingTools.UI
                             int torsionStamped = 0, tolStamped = 0;
                             (int creepInsp, int creepStamped, string creepSum) = (0, 0, "");
                             (int connInsp,  int connStamped,  string connSum)  = (0, 0, "");
+                            string sdRolledBack = null;
                             try
                             {
                                 using (var tx = new Transaction(sdDoc, "STING Stamp Structural Deep"))
@@ -2502,11 +2504,13 @@ namespace StingTools.UI
                                     // run is atomic.
                                     (creepInsp, creepStamped, creepSum) = Model.CreepDeflectionAnalysis.AnalyseModel(sdDoc);
                                     (connInsp,  connStamped,  connSum)  = Model.ConnectionDetailingEngine.AnalyseModel(sdDoc);
-                                    tx.Commit();
+                                    if (!StingTx.TryCommit(tx, null, out sdRolledBack))
+                                        torsionStamped = tolStamped = creepStamped = connStamped = 0; // nothing stamped
                                 }
                             }
                             catch (Exception exTx) { Core.StingLog.Warn($"Structural-deep writeback: {exTx.Message}"); }
                             TaskDialog.Show("Structural Deep Analysis",
+                                (sdRolledBack != null ? sdRolledBack + "\n\n" : "") +
                                 $"Torsion Cases: {torsion.Count}  (STR_BEAM_TORSION_KNM stamped: {torsionStamped})\n" +
                                 $"Tolerance Checks: {tolerances.Count}  (STR_FAB_TOLERANCE_MM stamped: {tolStamped})\n" +
                                 $"Creep Deflection: {creepInsp} concrete beams  (STRUCT_FRM_DEFLECTION_MM stamped: {creepStamped})\n" +
@@ -4722,7 +4726,7 @@ namespace StingTools.UI
                 {
                     t.Start();
                     act(uidoc.ActiveView);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
             }
             catch (Exception ex)
@@ -4822,7 +4826,7 @@ namespace StingTools.UI
             {
                 tx.Start();
                 uidoc.Document.Delete(ids);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
         }
 
@@ -5246,7 +5250,7 @@ namespace StingTools.UI
                             written++;
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("Bulk Write", $"Updated {written} of {ids.Count} elements.");
         }
@@ -5292,7 +5296,7 @@ namespace StingTools.UI
                 ogs.SetHalftone(on);
                 foreach (ElementId id in ids)
                     uidoc.ActiveView.SetElementOverrides(id, ogs);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
         }
 
@@ -5306,7 +5310,7 @@ namespace StingTools.UI
             {
                 tx.Start();
                 uidoc.ActiveView.HideElements(ids);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
         }
 
@@ -5320,7 +5324,7 @@ namespace StingTools.UI
             {
                 tx.Start();
                 uidoc.ActiveView.UnhideElements(ids);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
         }
 
@@ -5340,7 +5344,7 @@ namespace StingTools.UI
                     }
                     catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
         }
 
@@ -5388,7 +5392,7 @@ namespace StingTools.UI
                     if (el != null && ParameterHelpers.SetString(el, paramName, value, overwrite: true))
                         written++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show($"Set {label}", $"Updated {written} of {ids.Count} elements.");
         }
@@ -5566,7 +5570,7 @@ namespace StingTools.UI
                         view.SetElementOverrides(id, ogs);
                     colorIdx++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Color By Parameter",
@@ -5610,7 +5614,7 @@ namespace StingTools.UI
                 }
                 foreach (ElementId id in ids)
                     view.SetElementOverrides(id, ogs);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
         }
 
@@ -5634,7 +5638,7 @@ namespace StingTools.UI
                 ogs.SetSurfaceTransparency(transparency);
                 foreach (ElementId id in ids)
                     view.SetElementOverrides(id, ogs);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
         }
 
@@ -5720,7 +5724,7 @@ namespace StingTools.UI
                     }
                     catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("Schedule Sync", $"Aligned {moved} schedules to same X position.");
         }
@@ -5807,7 +5811,7 @@ namespace StingTools.UI
                     }
                     catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("Match Widest",
                 $"Set {updated} columns to widest width ({maxWidth * 304.8:F1}mm).");
@@ -5854,7 +5858,7 @@ namespace StingTools.UI
                     }
                     catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("Column Width", $"Updated {updated} column widths.");
         }
@@ -5922,7 +5926,7 @@ namespace StingTools.UI
                     catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Auto-Fit",
@@ -5969,7 +5973,7 @@ namespace StingTools.UI
                     }
                     catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Toggle Hidden",
@@ -6006,7 +6010,7 @@ namespace StingTools.UI
                         catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             StingLog.Info($"TextAlign {alignment}: {aligned}");
         }
@@ -6036,7 +6040,7 @@ namespace StingTools.UI
                     }
                     catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             StingLog.Info($"TextAlignAxis: {moved} text notes aligned");
         }
@@ -6066,7 +6070,7 @@ namespace StingTools.UI
                         catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             StingLog.Info($"TextLeader {mode}: toggled {toggled}");
         }
@@ -6101,7 +6105,7 @@ namespace StingTools.UI
                         catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("Dim Reset", $"Reset overrides on {reset} dimensions.");
         }
@@ -6128,7 +6132,7 @@ namespace StingTools.UI
                         catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("Dim Reset Text", $"Reset text overrides on {reset} dimensions.");
         }
@@ -6203,7 +6207,7 @@ namespace StingTools.UI
                     vp.SetBoxCenter(new XYZ(refCenter.X, vp.GetBoxCenter().Y, 0));
                     aligned++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("Legend Sync", $"Aligned {aligned} legends to same X position.");
         }
@@ -6266,7 +6270,7 @@ namespace StingTools.UI
                     }
                     catch (Exception ex) { StingLog.Warn($"LegendUniform: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("Legend Uniform",
                 $"Set {changed} legend views to scale 1:{targetScale}.\n" +
@@ -6688,7 +6692,7 @@ namespace StingTools.UI
                     }
                     catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("Title Block", $"Reset {reset} title blocks to origin.");
         }
@@ -6775,7 +6779,7 @@ namespace StingTools.UI
                         StingLog.Warn($"TB rescue: place failed on {s.SheetNumber}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             StingLog.Info($"TB Rescue: placed {placed}, failed {failed}, of {missingSheets.Count} sheet(s).");
@@ -6849,7 +6853,7 @@ namespace StingTools.UI
             {
                 tx.Start();
                 doc.Delete(cloudIds);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("Delete Clouds", $"Deleted {cloudIds.Count} revision clouds.");
         }
@@ -6956,7 +6960,7 @@ namespace StingTools.UI
                     ogs.SetProjectionLinePatternId(patternId);
                 foreach (ElementId id in ids)
                     uidoc.ActiveView.SetElementOverrides(id, ogs);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
         }
 
@@ -6992,7 +6996,7 @@ namespace StingTools.UI
                 ogs.SetProjectionLineWeight(weight);
                 foreach (ElementId id in ids)
                     uidoc.ActiveView.SetElementOverrides(id, ogs);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
         }
 
@@ -7042,7 +7046,7 @@ namespace StingTools.UI
                     }
                     catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             StingLog.Info($"ViewportRenumber: delta={delta}, updated={updated}");
@@ -7109,7 +7113,7 @@ namespace StingTools.UI
                     {
                         tx.Start();
                         doc.Delete(orphaned);
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
                     TaskDialog.Show("Orphaned Tags", $"Deleted {orphaned.Count} orphaned tags.");
                     break;
@@ -7220,7 +7224,7 @@ namespace StingTools.UI
                     }
                     catch (Exception ex) { StingLog.Warn($"ApplyLayout {tag.Id}: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Apply Layout",
@@ -7303,7 +7307,7 @@ namespace StingTools.UI
                         StingLog.Warn($"MoveRoomTag {tagElem.Id}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Room Tags", $"Moved {moved} of {roomTags.Count} room tags to {position}.");
@@ -7367,7 +7371,7 @@ namespace StingTools.UI
                     resultMsg = $"Failed: {ex.Message}";
                     tx.RollBack();
                 }
-                if (success) tx.Commit();
+                if (success) StingTx.Commit(tx);
             }
             TaskDialog.Show("Sheet Renumber", resultMsg);
         }
@@ -7407,7 +7411,7 @@ namespace StingTools.UI
                 tx.Start();
                 try { sheet.Name = pfx + sheet.Name; }
                 catch (Exception ex) { StingLog.Warn($"SheetPrefix: {ex.Message}"); }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
         }
 
@@ -7446,7 +7450,7 @@ namespace StingTools.UI
                 tx.Start();
                 try { sheet.Name = sheet.Name + sfx; }
                 catch (Exception ex) { StingLog.Warn($"SheetSuffix: {ex.Message}"); }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
         }
 
@@ -7518,7 +7522,7 @@ namespace StingTools.UI
                         }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Sheet " + (isPrefix ? "Remove Prefix" : "Remove Suffix"),
@@ -7542,7 +7546,7 @@ namespace StingTools.UI
                 tx.Start();
                 int nudged = Organise.NudgeTagsCommand.NudgeInDirection(
                     uidoc.Document, uidoc.ActiveView, tags, direction);
-                tx.Commit();
+                StingTx.Commit(tx);
                 StingLog.Info($"Nudge {direction}: {nudged} tags");
             }
         }
@@ -8358,7 +8362,7 @@ namespace StingTools.UI
                         StingLog.Warn($"SnapElbowDirect on tag {tag.Id}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Snap Elbows", $"Snapped {snapped} leader elbows to {angleMode}°.");
@@ -8631,7 +8635,7 @@ namespace StingTools.UI
                     }
                     catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show($"VP {label}", $"Updated {updated} viewport numbers.");
         }
@@ -8756,7 +8760,7 @@ namespace StingTools.UI
                         try { cat.set_Visible(view, true); }
                         catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 TaskDialog.Show("Batch View", $"Unhid {hidden} categories.");
             }
@@ -8824,7 +8828,7 @@ namespace StingTools.UI
                     }
                     catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             string state = lockLeader ? "added leaders to" : "removed leaders from";
@@ -8966,7 +8970,7 @@ namespace StingTools.UI
                         catch (Exception ex) { StingLog.Warn($"Tag position switch failed: {ex.Message}"); }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             if (moved == 0)
@@ -9002,7 +9006,7 @@ namespace StingTools.UI
                     ParameterHelpers.SetString(el, "ASS_TIEIN_CONNECTED_BOOL", connectedBool.ToString(), overwrite: true);
                     count++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("STING Tie-In", $"Set {count} element(s) to Tie-In status: {status}");
@@ -9087,7 +9091,7 @@ namespace StingTools.UI
 
                     count++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("STING Tie-In", $"Placed {count} tie-in tag(s) for {discipline}.\nSequence: TI-{discCode}-{sysCode}-001 to TI-{discCode}-{sysCode}-{seqNum:D3}");
@@ -9195,7 +9199,7 @@ namespace StingTools.UI
 
                     count++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("STING LPS", $"Placed LPS {kind} tag on {count} element(s).\nContainer: {container}\nFUNC: {funcCode}  PROD: {prodCode}");
@@ -9227,7 +9231,7 @@ namespace StingTools.UI
                     StingTools.Core.Validation.LpsValidator.EvaluateAndWrite(doc, el, overwrite: true);
                     count++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("STING LPS", $"Set ELC_LPS_CLASS_TXT = {lpsClass} on {count} element(s).\nWarnings + compliance verdict refreshed (BS EN 62305-1 §8).");
         }
@@ -9252,7 +9256,7 @@ namespace StingTools.UI
                     StingTools.Core.Validation.LpsValidator.EvaluateAndWrite(doc, el, overwrite: true);
                     count++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("STING LPS", $"Set ELC_LPS_ZONE_TXT = {lpz} on {count} element(s) (BS EN 62305-4 §4.1).");
         }
@@ -9293,7 +9297,7 @@ namespace StingTools.UI
                     else if (verdict == "FAIL") fail++;
                     evaluated++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             string scopeLabel = scope == 0 ? "project-wide" : $"{scope} selected element(s)";
@@ -9620,7 +9624,7 @@ For live data, open BCC in Revit and re-export.</p></div>
                         typeEl.LookupParameter(custom) == null)
                         missing++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             string msg = $"Pattern mode set to {M}.\nElement types updated: {updated}";
@@ -9699,7 +9703,7 @@ For live data, open BCC in Revit and re-export.</p></div>
                             e, leadParam, valueToWrite, overwrite: true))
                         written++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             string action = clearMode ? "cleared" : "wrote";

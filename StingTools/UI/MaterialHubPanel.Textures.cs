@@ -372,7 +372,7 @@ namespace StingTools.UI
             {
                 t.Start();
                 var r = GenericToPrismConverter.Convert(doc, mat, mode);
-                if (r.Success) t.Commit(); else t.RollBack();
+                if (r.Success) StingTx.Commit(t); else t.RollBack(); // a rollback lands in HandlePbrTag's catch (toast)
                 Toast(r.Note, r.Success ? "ok" : "warn");
                 if (!r.Success) return;
 
@@ -489,7 +489,7 @@ namespace StingTools.UI
                         {
                             // ES write must happen inside the transaction.
                             PersistPackState(doc, target, m);
-                            t.Commit();
+                            StingTx.Commit(t);
                             committed = true;
                         }
                         else t.RollBack();
@@ -519,7 +519,7 @@ namespace StingTools.UI
                     if (r.Success)
                     {
                         PersistPackState(doc, mat, m);
-                        t.Commit();
+                        StingTx.Commit(t);
                         prismCommitted = true;
                     }
                     else t.RollBack();
@@ -738,7 +738,7 @@ namespace StingTools.UI
                 {
                     t.Start();
                     cr = PbrTextureApplier.ClearAllSlotsWithResult(doc, mat);
-                    if (cr.SlotsCleared > 0) { t.Commit(); committed = true; }
+                    if (cr.SlotsCleared > 0) { StingTx.Commit(t); committed = true; }
                     else t.RollBack();
                 }
                 Toast(cr?.SlotsCleared > 0

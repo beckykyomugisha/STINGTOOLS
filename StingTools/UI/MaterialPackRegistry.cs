@@ -162,7 +162,7 @@ namespace StingTools.UI
                     }
                     catch (Exception ex) { StingLog.Warn($"LoadPack create '{name}': {ex.Message}"); }
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
             // B3 — Surface the system suggestion AFTER materials commit.
             // Non-blocking — we only audit-log + emit info, the actual
