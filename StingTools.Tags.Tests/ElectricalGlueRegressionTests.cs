@@ -73,6 +73,7 @@ namespace StingTools.Tags.Tests
         /// </summary>
         [Theory]
         [InlineData("Commands/Panels/PanelComplianceAndBalanceCommands.cs", "STING Circuit Compliance Check")]
+        [InlineData("Commands/Panels/PanelComplianceAndBalanceCommands.cs", "STING Phase Balance")]
         [InlineData("Commands/Electrical/FaultCurrent/FaultCurrentCommand.cs", "STING Stamp Fault Levels")]
         [InlineData("Commands/Electrical/FaultCurrent/FaultCurrentCommand.cs", "STING Stamp AIC Tiers")]
         [InlineData("Commands/Electrical/ElectricalPanelCommands.cs", "STING Electrical Param Sync")]
@@ -91,9 +92,24 @@ namespace StingTools.Tags.Tests
             var decl = new Regex(@"var\s+(\w+)\s*=\s*new\s+Transaction\(\s*\w+\s*,\s*""" + Regex.Escape(transactionName) + @"""").Match(src);
             Assert.True(decl.Success, $"transaction '{transactionName}' not found in {file}");
             // This transaction's own Commit() (not a SubTransaction's) is the first after it.
-            var m = new Regex(@"(\w+\s*=\s*)?\b" + decl.Groups[1].Value + @"\.Commit\(\)\s*;").Match(src, decl.Index);
+            // "status = tx.Commit();" or "status = cond ? tx.RollBack() : tx.Commit();" — the
+            // statement assigns the result (an "==" comparison is not an assignment).
+            var m = new Regex(@"(\b\w+\s*=(?!=)[^;{}]*?)?\b" + decl.Groups[1].Value + @"\.Commit\(\)\s*;").Match(src, decl.Index);
             Assert.True(m.Success, "no Commit() after the transaction");
             Assert.True(m.Groups[1].Success, $"{file}: '{transactionName}' commits without reading the status: {m.Value}");
+        }
+
+        /// <summary>
+        /// Panel Audit printed "STING templates out of date: 0" when no template spec loaded —
+        /// nothing had been compared.
+        /// </summary>
+        [Fact]
+        public void Panel_audit_says_not_checked_when_no_template_spec_loaded()
+        {
+            string src = File.ReadAllText(Path.Combine(Root(), "StingTools", "Commands", "Panels", "PanelScheduleAuditCommand.cs"));
+            var m = new Regex(@"MetricWarn\(""STING templates out of date"",(?<args>[^;]*);", RegexOptions.Singleline).Match(src);
+            Assert.True(m.Success);
+            Assert.Contains("specCount == 0", m.Groups["args"].Value);
         }
 
         /// <summary>A TEXT conductor size read through GetDouble: "2,5" became 25 mm².</summary>

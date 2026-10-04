@@ -416,7 +416,15 @@ namespace StingTools.Commands.Panels
                          .Metric("Moves applied", $"{ok}/{bp.Plan.Moves.Count}");
                     foreach (var r in refusedHere) panel.Text("⚠ Revit refused: " + r);
                 }
-                if (applied == 0) tx.RollBack(); else tx.Commit();
+                TransactionStatus status = applied == 0 ? tx.RollBack() : tx.Commit();
+                if (applied > 0 && status != TransactionStatus.Committed)
+                {
+                    // The moves (and the "Actual now" loads read inside the transaction) were undone.
+                    panel.AddSection("NOT APPLIED")
+                         .Text(ElecWriteReport.Landed("move(s) applied", applied, false, status.ToString())
+                               + " The per-board figures above describe the undone state.");
+                    applied = 0;
+                }
             }
             foreach (var p in plans.Where(x => x.Skip != null))
                 panel.AddSection(p.Name.ToUpperInvariant()).Text("Skipped — " + p.Skip);
