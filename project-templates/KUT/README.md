@@ -50,7 +50,7 @@ that reads it — start there when building a pack for a different owner.
 | File | Effect |
 |---|---|
 | `_BIM_COORD/manifest.json` | Not deployed data — the index of this pack (what each file overlays, its merge key, its reader) |
-| `_BIM_COORD/owner_standards.json` | Enables the `KUT-ZZZ-XX-XX-M3-A-0001` sheet-number rule; narrows discipline codes to the temple team (A/S/M/E/P/FP/LV/G); enables the `ffe-fohlio-ref` FF&E link check at severity **WARN** (non-blocking — it reports FF&E not yet linked to Fohlio, it does not fail a gate) |
+| `_BIM_COORD/owner_standards.json` | Enables the KUT sheet-number rule (e.g. `KUT-SMB-01-GF-DR-A-1001`); narrows discipline codes to the temple team (A/S/M/E/P/FP/LV/G); enables the `ffe-fohlio-ref` FF&E link check at severity **WARN** (non-blocking — it reports FF&E not yet linked to Fohlio, it does not fail a gate) |
 | `_BIM_COORD/lod_matrix.json` | The confirmed 6-milestone matrix, plus the tiered asset data schedule at rung 500 across 17 pinned categories. **Generated** by `tools/build_kut_lod_overlay.py` — see below |
 | `_BIM_COORD/tag_schemes.json` | Enables the KUT element identifier (`KUT-…`) with the six-building volume map (BLD1 Temple→01 … BLD6 Guard→06, EXT→00) |
 | `_BIM_COORD/project_config.json` | Six-building `LOC_CODES` (`BLD1..BLD6` + `EXT`) + per-building sequence grouping. **The tag scheme's volume map depends on these codes existing** — this is why the file is in the same pack. Read from `_BIM_COORD/` on document open; a `project_config.json` **beside the .rvt** takes precedence and shadows it (Project Cfg names both). Delete a stale one beside the model rather than editing this copy |

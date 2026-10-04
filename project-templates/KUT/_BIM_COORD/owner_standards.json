@@ -8,7 +8,7 @@
       "severity": "WARN",
       "enabled": true,
       "pattern": "^KUT-[A-Z0-9]{3}-(?:00|01|02|03|04|05|06|ZZ)-(?:B1|GF|RF|XX|ZZ|\\d{2})-(?:CO|CP|CR|DR|IE|M2|M3|MI|PP|PR|RD|RI|RP|SH|SN|SP|SU|VS)-(?:A|C|E|I|M|P|Q|S|W|X|Y|Z)-\\d{4}$",
-      "description": "Sheet numbers follow the ISO 19650 container form KUT-ZZZ-XX-XX-M3-A-0001. The role field is a single BS EN ISO 19650-2 UK NA Table NA.3 code, Z included for federated and multi-discipline containers. Element discipline codes such as FP and LV are not container roles and are rejected here. Derived from tools/kut_naming.py.",
+      "description": "Sheet numbers follow the ISO 19650 container form, e.g. KUT-SMB-01-GF-DR-A-1001 (the example must satisfy the pattern: volume is 00-06 or ZZ, never XX). The role field is a single BS EN ISO 19650-2 UK NA Table NA.3 code, Z included for federated and multi-discipline containers. Element discipline codes such as FP and LV are not container roles and are rejected here. Derived from tools/kut_naming.py.",
       "source": "BEP 3.4 — ISO 19650-2 container naming (KUT-originator-volume-level-type-discipline-number)"
     },
     {
