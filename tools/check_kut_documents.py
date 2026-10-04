@@ -257,15 +257,23 @@ def check_naming_config(root: Path, bep_t, f: Findings, verbose: bool):
                 f.fail(str(path), "generated sheet pattern: %s" % bad)
             f.ok()
 
-    # Asset discipline codes are a SUBSET of container role codes: BEP 4.2.2
-    # keeps them distinct, and Z is deliberately a container role only.
+    # Element discipline codes are their own list (ASSET_DISCIPLINES), not the
+    # container roles: BEP 4.2.2 keeps the two apart. This used to require them to
+    # be a subset of the roles, which made the audit reject FP, LV and G -- the
+    # codes the tagging writes. Z stays a container role only.
     values = next((set(r.get("values", [])) for r in rules
                    if r.get("id") == "discipline-code-valid"), None)
-    if values is not None:
-        stray = sorted(values - roles)
-        if stray:
-            f.fail(str(path), "discipline-code-valid allows %s, which BEP 4.2 does not list"
-                              % ", ".join(stray))
+    if values is None:
+        f.fail(str(path), "has no discipline-code-valid rule")
+    else:
+        want = set(N.ASSET_DISCIPLINE_CODES)
+        if values != want:
+            f.fail(str(path), "discipline-code-valid allows %s; tools/kut_naming.py "
+                              "ASSET_DISCIPLINES defines %s"
+                   % (", ".join(sorted(values)), ", ".join(sorted(want))))
+        for code in sorted(values & {c for c, _ in N.CONTAINER_ONLY_ROLES}):
+            f.fail(str(path), "discipline-code-valid allows %s, which is a container "
+                              "role only -- there is no such thing as a %s element" % (code, code))
         f.ok()
 
     # The Document Control Standard states the same convention as a procedure.
@@ -545,7 +553,7 @@ def check_references(root: Path, f: Findings, verbose: bool):
         t = re.search(r"Document reference\s*(KUT-[A-Z0-9\-]+)", text)
         if not t:
             # The .docx tables put the label and value in separate cells.
-            t = re.search(r"(KUT-PLN-[A-Z0-9\-]+)", text)
+            t = re.search(r"(KUT-[A-Z0-9]{%d}-[A-Z0-9\-]+)" % N.ORIGINATOR_LENGTH, text)
         if t:
             claimed[name] = t.group(1)
         else:
@@ -568,9 +576,19 @@ def check_references(root: Path, f: Findings, verbose: bool):
                    % (ref, parts[5]))
         f.ok(2)   # type and role, per document -- counted so the headline moves
 
+    # References the delivery plan allocates to documents not yet in the pack
+    # (its notes read "Reference RP-Z-0005"). Citing one of those is a citation
+    # of a planned document, not a dangling reference.
+    allocated = set(re.findall(r"Reference ([A-Z]{2}-[A-Z]-\d{4})",
+                               read_text(K.issued_path(root, MIDP))))
+
     for name in K.ISSUED:
         text = read_text(K.issued_path(root, name))
-        for ref in set(re.findall(r"KUT-PLN-[A-Z0-9\-]{10,}", text)):
+        # Any originator, not one spelled-out code. This read KUT-PLN- until the
+        # PLN -> SMB rename, after which it matched nothing and the check passed
+        # over every document without examining a single reference.
+        for ref in set(re.findall(r"KUT-[A-Z0-9]{%d}-[A-Z0-9\-]{10,}"
+                                  % N.ORIGINATOR_LENGTH, text)):
             owners = [n for n, c in claimed.items() if c == ref]
             if ref == claimed.get(name):
                 continue
@@ -579,7 +597,7 @@ def check_references(root: Path, f: Findings, verbose: bool):
                 # playbook cites container names as worked examples. Only a
                 # reference in the report/schedule series is expected to
                 # resolve; the rest are illustrations.
-                if re.search(r"-(RP|SH)-", ref):
+                if re.search(r"-(RP|SH)-", ref) and ref.split("-", 4)[4] not in allocated:
                     f.fail(name, "cites %s, which no document in the pack "
                                  "claims as its own reference" % ref)
                 continue
@@ -587,6 +605,67 @@ def check_references(root: Path, f: Findings, verbose: bool):
     if verbose:
         print("  document references: %s"
               % ", ".join("%s=%s" % (n.split("_")[1], r) for n, r in claimed.items()))
+
+
+# Placeholder originators an example may use instead of a registered code.
+EXAMPLE_ORIGINATORS = {"XXX", "ZZZ"}
+
+_CONTAINER_RX = re.compile(
+    r"KUT\s*-\s*([A-Z0-9]+)\s*-\s*([A-Z0-9]{2})\s*-\s*([A-Z0-9]{2})\s*-\s*"
+    r"([A-Z0-9]{2})\s*-\s*([A-Z]{1,2})\s*-\s*(\d{4})\b")
+
+
+def check_container_examples(root: Path, f: Findings, verbose: bool):
+    """Every container name an issued document prints must be a valid one.
+
+    check_references only follows names that a document claims as its own, and
+    _check_withdrawn only reads the markdown sources. Neither saw the generated
+    playbook print `KUT - PLN - …` (the originator before the register moved to
+    SMB, in the spaced form no hyphen-only pattern matches) or a ground-floor
+    general arrangement SHEET typed SH, which is a schedule. A worked example is
+    what a drafter copies, so a wrong one is a wrong container name multiplied.
+    """
+    types = {c for c, _ in N.TYPES}
+    roles = {c for c, _ in N.ALL_ROLES}
+    originators = {N.EXAMPLE_ORIGINATOR} | EXAMPLE_ORIGINATORS
+    seen = 0
+    for name in K.ISSUED:
+        text = read_text(K.issued_path(root, name))
+        for m in _CONTAINER_RX.finditer(text):
+            orig, _vol, _lvl, typ, role, _num = m.groups()
+            shown = re.sub(r"\s+", "", m.group(0))
+            seen += 1
+            if orig not in originators:
+                f.fail(name, "prints %s, whose originator %r is neither the pack's example "
+                             "code %s nor a placeholder (%s)"
+                       % (shown, orig, N.EXAMPLE_ORIGINATOR, ", ".join(sorted(EXAMPLE_ORIGINATORS))))
+            if typ not in types:
+                f.fail(name, "prints %s, whose type code %r is not in the adopted set" % (shown, typ))
+            if role not in roles:
+                f.fail(name, "prints %s, whose role code %r is not in the adopted set" % (shown, role))
+            f.ok()
+        # The worked-example tables: a sheet or a drawing is DR, never SH.
+        if not name.endswith(".docx"):
+            continue
+        for t in K.docx_tables(K.issued_path(root, name)):
+            for row in t[1:]:
+                if len(row) < 2:
+                    continue
+                label, value = row[0].lower(), row[-1]
+                m = _CONTAINER_RX.search(value)
+                if not m:
+                    continue
+                if re.search(r"\b(sheet|drawing)\b", label) and "data sheet" not in label \
+                        and m.group(4) != "DR":
+                    f.fail(name, "gives %r the container %s; a sheet or drawing is type DR "
+                                 "(SH is a schedule)" % (row[0], value))
+                f.ok()
+    if seen == 0:
+        # An instrument that finds nothing is not evidence of anything.
+        f.fail("container examples", "no container name found in any issued document; "
+                                     "the pattern no longer matches the pack")
+    if verbose:
+        print("  container-name examples checked: %d" % seen)
 
 
 def check_roles(bep_t, pb_t, midp, f: Findings, verbose: bool):
@@ -954,6 +1033,86 @@ def _check_withdrawn(root: Path, f: Findings, verbose: bool):
             print("  no withdrawn codes / bad originators in %s" % Path(rel).name)
 
 
+HAND_EDITED_DIR = "KUT_DOCS_WORKING/source"
+# The migration map names the old codes on purpose -- it is the table that retires them.
+HAND_EDITED_EXEMPT = {"KUT_NAMING_MIGRATION_MAP.md"}
+_OLD_SITE_CODE = re.compile(r"\b(TE|MH|HS|GB|UB|GH)\b")
+_OLD_ORIGINATOR = re.compile(r"\bPLNS\b|KUT\s*-\s*[A-Z]{4}\s*-")
+INTERNAL_PLAYBOOK = "KUT_BIM_MANAGER_PLAYBOOK_INTERNAL_STINGTOOLS.docx"
+
+
+def _docx_paragraphs(path: Path):
+    """Paragraph texts of a .docx, stdlib only (the gate runs on a bare runner)."""
+    import zipfile
+    xml = zipfile.ZipFile(path).read("word/document.xml").decode("utf-8")
+    return ["".join(re.findall(r"<w:t[^>]*>([^<]*)</w:t>", p))
+            for p in re.findall(r"<w:p[ >].*?</w:p>", xml, re.S)]
+
+
+def check_hand_edited_sources(root: Path, f: Findings, verbose: bool):
+    """The hand-edited playbooks must not use codes the migration map retired.
+
+    These files are copied into the project folder and read by the team, but no
+    generator owns them and no gate read them. The README listed all four as
+    "corrected" while the modelling playbook still told people to put TE..GH into
+    project_config.json, and two others still named roles F and L. A line that
+    says the old codes are withdrawn, or a blockquote explaining them, is allowed.
+    """
+    d = root / HAND_EDITED_DIR
+    files = sorted(p for p in d.glob("*.md") if p.name not in HAND_EDITED_EXEMPT)
+    if not files:
+        f.fail(HAND_EDITED_DIR, "no hand-edited sources found -- the check reads nothing")
+        return
+    # The internal playbook .docx is hand-maintained too (ROADMAP MOB-7): nothing
+    # regenerates it, so it carried the four-character PLNS advice for weeks after
+    # the register question was settled. Read it paragraph by paragraph.
+    internal = root / K.ISSUED_DIR / INTERNAL_PLAYBOOK
+    if not internal.exists():
+        f.fail(INTERNAL_PLAYBOOK, "missing -- the retired-code check reads it")
+    sources = [(p.name, p.read_text(encoding="utf-8", errors="replace").splitlines()) for p in files]
+    if internal.exists():
+        sources.append((INTERNAL_PLAYBOOK, _docx_paragraphs(internal)))
+    for name, lines in sources:
+        p = Path(name)
+        for n, line in enumerate(lines, 1):
+            low = line.lower()
+            if line.lstrip().startswith(">") or "withdrawn" in low or "old site code" in low:
+                continue
+            for m in _OLD_SITE_CODE.finditer(line):
+                f.fail("%s:%d" % (p.name, n), "uses the retired building code %s; element tags "
+                       "use BLD1-BLD6 and container names 01-06 (KUT_NAMING_MIGRATION_MAP.md)"
+                       % m.group(1))
+            if _OLD_ORIGINATOR.search(line):
+                f.fail("%s:%d" % (p.name, n), "uses a four-character originator; the convention "
+                       "is %d characters" % N.ORIGINATOR_LENGTH)
+        f.ok()
+    if verbose:
+        print("  hand-edited sources free of retired codes: %d files" % len(files))
+
+    # Sheet-number bands: the generated pack and the two hand-edited tables once
+    # disagreed on which band holds 3D views (8 vs 9), so a 3D sheet numbered from
+    # one was misfiled under the other. Compare the one band that diverged, by
+    # content, in all three.
+    def band_of_3d(rows):
+        hits = sorted({d for d, text in rows if re.search(r"\b3D\b|three-dimensional", text, re.I)})
+        return hits
+
+    pack = band_of_3d((b[0], m) for b, m in N.SHEET_BANDS)
+    for name in ("KUT_NAMING_MIGRATION_MAP.md", "KUT_Drawing_and_Document_Numbering_Convention.md"):
+        p = d / name
+        if not p.exists():
+            f.fail(name, "missing -- the sheet-band check reads it")
+            continue
+        rows = re.findall(r"^\|\s*`?(\d)`?\s*\|\s*([^|]+)\|", p.read_text(encoding="utf-8"), re.M)
+        got = band_of_3d(rows)
+        if not got:
+            f.fail(name, "has no sheet-band row for 3D views -- the band table was not found")
+        elif got != pack:
+            f.fail(name, "puts 3D views in band %s; tools/kut_naming.py SHEET_BANDS puts them in %s"
+                   % (",".join(got), ",".join(pack)))
+        f.ok()
+
+
 def check_draft_on_every_sheet(root: Path, f: Findings, verbose: bool):
     """The workbook's status must appear on every sheet, not only the Cover.
 
@@ -1281,10 +1440,12 @@ def main() -> int:
     check_suitability(bep_t, pb_t, midp_path, f, args.verbose)
     check_volumes(bep_t, pb_t, f, args.verbose)
     check_references(root, f, args.verbose)
+    check_container_examples(root, f, args.verbose)
     check_roles(bep_t, pb_t, midp_path, f, args.verbose)
     check_tiers(root, bep_t, pb_t, f, args.verbose)
     check_draft_on_every_sheet(root, f, args.verbose)
     check_source_code_tables(root, f, args.verbose)
+    check_hand_edited_sources(root, f, args.verbose)
     check_no_leakage(root, f, args.verbose)
     counts = check_placeholders(root, f, args.verbose)
 

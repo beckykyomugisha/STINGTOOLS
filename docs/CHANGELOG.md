@@ -26678,3 +26678,133 @@ Reviewed `docs/StingTools_Complete_Guide.html` (Phase 174 baseline) against the 
 
 Not compiled here (the .NET SDK download is blocked in this sandbox); CI builds and runs the tests.
 Not yet run in Revit.
+
+#### Completed (KUT: the owner pack's project_config.json is read, branch `claude/kut-fix2-project-config-overlay`)
+
+- **The KUT pack's `project_config.json` was never read.** The pack deploys it to
+  `<project>/_BIM_COORD/` with the other overlays, but TagConfig only looked beside the `.rvt` and in
+  the plugin data folder. A deployed KUT project therefore tagged on the built-in defaults: building
+  codes `BLD1 BLD2 BLD3 EXT` (no Grounds, Utility or Guard House) and sequence numbers not grouped
+  per building. The smoke test passed, because it checked only that the file was present.
+- **New `Core/ProjectConfigLocator`** (Revit-free): beside the model first, then the project overlay
+  (`_BIM_COORD/project_config.json`, consolidated or legacy sibling, via
+  `ResolveProjectOverridePath`). Used on document open and by Project Cfg (ConfigEditor).
+- **A shadowed overlay is reported, not resolved.** When both exist and differ, the copy beside the
+  model wins and a warning names both. Project Cfg shows the source and the shadowed file. The copy
+  beside the model may be a deliberate edit, or the auto-tagger having persisted the defaults before
+  the overlay was read; only a person can tell which. Save still writes beside the model.
+- KUT smoke test step 2 now has an observable check: after reopening, Project Cfg must show the
+  overlay as the source and Locations `BLD1`–`BLD6`, `EXT`.
+- `ProjectConfigLocatorTests` (6), including that the shipped KUT overlay carries all six buildings.
+
+Build 0/0. Not run in Revit. Other readers of `project_config.json` keys the KUT pack does not set
+(SLD sync, handover mode, scale tiers, symbol auto-place) still read only beside the model.
+- **The KUT overlay now sets `LOC_CODES_EXTRA`** as well. Federation review and the building-aware CDE
+  folders read only that key (base BLD1–BLD3 + EXT + XX plus the extras), so they did not know
+  Grounds, Utility or Guard House. All three LOC keys now carry the same seven codes, as the
+  Modelling Playbook requires; the shipped-overlay test checks all three (red without the new key).
+
+#### Completed (KUT mobilisation: no second BEP, and no project reading another project's BEP, branch `claude/kut-fix4-mobilisation-bep`)
+
+- **`WORKFLOW_KUT_Mobilisation.json` no longer runs `GenerateBEP`.** That deprecated alias opens the
+  in-Revit BEP wizard, which registers a BEP spreadsheet at S3 in the CDE document register beside
+  the generated KUT BEP (`KUT-SMB-ZZ-ZZ-RP-Z-0001`). Four steps now. The description's "months 1-2"
+  is corrected to M0–M1, as the playbook states.
+- **Create BEP no longer writes `project_bep.json` into the plugin data folder.** That folder is
+  shared by every project on the machine, and the file there is the shipped sample, which the
+  wizard overwrote with the last project's codes.
+- **Three readers used that shared file as if it were this project's BEP.** The deliverable tracker
+  marked "BIM Execution Plan" Complete on every project (the sample always exists), and the BREEAM
+  assessor awarded Man 01 credits on every project from it. Both now read the project's own BEP.
+  Validate BEP no longer falls back to it; with no project BEP it says so and names the expected
+  path.
+- **Validate BEP reads the wizard's format.** It read the allowed-code lists only at the top level,
+  while Create BEP writes them under `allowed_codes`, so a wizard-made project BEP always reported
+  "no allowed code lists". This is why the shared copy existed. It now reads either.
+- `ProjectBepLocationTests` (5): a source guard that no plugin line locates `project_bep.json` in the
+  data folder (case-insensitive, since the wizard's write used a local `dataPath`), a theory pinning
+  the guard to the four removed shapes, and a check that the KUT mobilisation preset has no BEP
+  step. Red on the previous code (3 offending lines plus the step), green now.
+
+Build 0/0. Not run in Revit.
+
+#### Completed (KUT pack: stale container examples, and a gate check that had gone vacuous, branch `claude/kut-fix6-stale-pln-example`)
+
+- **Playbook section 4.1** printed `KUT - PLN - 01 - GF - M3 - A - 0001`, gave the originator example
+  as `PLN` and the role length as "1 to 2". It now renders the example originator (`SMB`) and both
+  lengths from `tools/kut_naming.py`. The open-item callout no longer offers to widen originators
+  to three to six characters, and names the Lead Appointed Party as the register's issuer.
+- **A sheet typed as a schedule.** Playbook 4.8 gave the ground-floor GA sheet `…-SH-A-0100` and BEP
+  table 4.x gave "Sheet" `KUT-…-SH-A-0100`. `SH` is a schedule; both are now `DR`.
+- **The BEP disagreed with the MIDP on the MIDP's own reference.** BEP 15.5 allocated the MIDP,
+  RACI and level register as `SC-Z-000n`, a withdrawn type; the MIDP calls itself `SH-Z-0001`.
+  Now `SH`.
+- **The gate's reference check had stopped checking.** `check_references` matched only
+  `KUT-PLN-…`, so after the PLN → SMB rename it found nothing and passed. It now matches any
+  originator of the convention's length, and accepts a reference the MIDP allocates to a planned
+  document (`RP-Z-0005`).
+- **New gate check `check_container_examples`.** Every container name a generated document prints,
+  hyphenated or spaced, must use a valid type and role and the example originator or a
+  placeholder; a table row describing a sheet or drawing must use `DR`. It fails if it finds no
+  container names at all. Run against the previous documents it reported seven findings: PLN, the SH
+  sheet, the three SC references, and two dangling-reference findings.
+- `GUIDES/KUT_PROJECT_DELIVERY_PLAYBOOK.md` examples and `docs/INDEX.md` (paths into
+  `KUT_DOCS_WORKING/issued/`, `SMB` references, all five documents, DRAFT status) corrected.
+
+Gate: 146 assertions, OK. Only the BEP and playbook regenerated; the others are byte-identical.
+
+#### Completed (KUT: element discipline codes are their own list, not the container roles, branch `claude/kut-fix3-asset-discipline-codes`)
+
+- **The KUT owner-standards audit rejected what the tagging writes.** `discipline-code-valid` checks
+  the element tag's discipline field, and its list was the ISO 19650 container role codes
+  (A C E I M P Q S W X Y). The tagger writes FP (sprinklers, fire alarm devices, fire-protection
+  pipework), LV (data, communications, security, audio-visual) and G (generic models, specialty
+  equipment, model groups), so every one of those elements failed the audit at Deliverable B, C and
+  every gate audit, and the asset tags handed over would carry codes the pack called withdrawn.
+- **Decision: separate lists, as the pack already does for volume `01` vs location `BLD1`.** ISO 19650
+  defines the container role (the discipline of the organisation that produced the file) and no
+  element code. `tools/kut_naming.py` gains `ASSET_DISCIPLINES` (A S M E P FP LV G), each with the role
+  it is normally issued under (FP and LV under Y; G under whichever model it is in), as guidance only.
+  The tagger is untouched, so no other project changes.
+- `tools/build_kut_owner_standards.py` derives the rule's list from `ASSET_DISCIPLINES`, and its
+  self-check now asserts FP, LV and G are rejected as container roles. Rule descriptions rewritten;
+  the sheet rule's stale "role is one or two characters (FP, LV)" note is gone.
+- BEP 4.2.2, playbook 4.7 and Document Control Standard 2.4 state the separation and carry the
+  element-discipline table. Two stale statements in the same passages were corrected: the BEP said an
+  element code is "one of the eight" roles (there are eleven), and the Document Control Standard said
+  interiors issue under A and cost under Z, while its own role table lists I and Q.
+- The document gate holds the rule to `ASSET_DISCIPLINES` and refuses a container-only role (Z) in it.
+- **Non-circular test.** `KutElementDisciplineTests` reads the tagger's category map from
+  `TagConfig.Defaults.cs` and calls `CategoryTokenDefaults.SystemAwareDisc`, and requires the KUT rule
+  to accept every code they can produce (healthcare-only H/MG/RP excluded) and to allow nothing they
+  cannot. All three failed on the previous overlay. `KutSheetPatternTests.EveryAuthorisedDisciplineCodeIsAValidRole`
+  encoded the withdrawn premise and is replaced by `ElementOnlyDisciplineCodesAreNotContainerRoles`.
+
+Gate OK (100 assertions); overlay `--check` current; 37 KUT tests pass. Not run in Revit.
+- **The hand-edited KUT sources were only half-migrated, though the README called them corrected.**
+  The Modelling Playbook used the old building codes `TE`…`GH` throughout, including the step that
+  puts them into `project_config.json` (contradicting the shipped `BLD1`–`BLD6` overlay). The
+  Manager Playbook used `KUT-PLNS-TE-…`. The Managing Playbook and Numbering Convention listed roles
+  `F` (Facilities Manager in the standard) and `L` (Landscape Architect), and types `DC`/`BQ`/`TR`.
+  All corrected per `KUT_NAMING_MIGRATION_MAP.md`: element tags `BLD1`–`BLD6`/`EXT`, container
+  volumes `01`–`06`/`00`/`ZZ`, NA.3 roles, NA.2 types, and the element-discipline split. The
+  migration map now says `FP`, `LV` and `G` stay valid as element codes, and records that it and
+  `kut_naming.SHEET_BANDS` disagree on number bands `8` and `9` (a kickoff decision, not changed).
+- **New gate check `check_hand_edited_sources`** reads `KUT_DOCS_WORKING/source/` (migration map
+  exempt) and fails on a retired building code or a four-character originator. 131 findings on the
+  previous sources, 0 now. Added to the gate's CI path filter.
+- **One sheet-banding proposal, not two.** `kut_naming.SHEET_BANDS` put 3D views in band `8` and
+  reserved `9`; the site convention (migration map, Numbering Convention) follows the US National
+  CAD Standard: `6` schedules and diagrams, `7`/`8` user-defined, `9` 3D. The pack now follows the
+  NCS order. Banding stays "proposed, confirm at kickoff" (BEP 15.2). The gate compares the 3D band
+  across the pack and both hand-edited tables; red on the previous `SHEET_BANDS`.
+- **Internal BIM Manager playbook (.docx) corrected and now checked (MOB-7, partial).** Part I item 5
+  still advised the four-character `PLNS` and widening the originator rule; the Week 1 decision and
+  the risk row still framed originator length as open; the overlay steps listed four of seven files
+  and omitted `project_config.json`. Eight paragraphs edited in place (formatting untouched; Word
+  opens it). `check_hand_edited_sources` now reads the .docx too; red on the previous file.
+- **The Numbering Convention is a superseded working note, and says so.** It claimed document
+  number `RP-Z-0004`, which the Mobilisation Information Request also carries, and the Managing
+  Playbook called it "the authoritative source" although the issued Document Control Standard
+  (`RP-Z-0003`) states that it supersedes it. Its header and both Managing Playbook references now
+  point at the Document Control Standard. In the project folder its June `.docx` was retired.

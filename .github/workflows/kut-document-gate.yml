@@ -38,6 +38,7 @@ on:
     paths:
       - 'KUT_DOCS_WORKING/issued/*.docx'
       - 'KUT_DOCS_WORKING/issued/*.xlsx'
+      - 'KUT_DOCS_WORKING/source/*.md'
       - 'tools/build_bep.py'
       - 'tools/build_team_playbook.py'
       - 'tools/build_midp.py'
@@ -61,6 +62,7 @@ on:
     paths:
       - 'KUT_DOCS_WORKING/issued/*.docx'
       - 'KUT_DOCS_WORKING/issued/*.xlsx'
+      - 'KUT_DOCS_WORKING/source/*.md'
       - 'tools/build_bep.py'
       - 'tools/build_team_playbook.py'
       - 'tools/build_midp.py'

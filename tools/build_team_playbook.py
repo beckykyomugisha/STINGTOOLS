@@ -240,24 +240,25 @@ para('Every model, drawing, document and modelled element on this project carrie
 
 h2('4.1  Container name')
 para('Applies to every file, model, drawing, sheet, schedule and document.')
-c.mono('KUT - PLN - 01 - GF - M3 - A - 0001', 13)
+c.mono('KUT - %s - 01 - GF - M3 - A - 0001' % N.EXAMPLE_ORIGINATOR, 13)
 table(['Field', 'Length', 'Meaning', 'Example'],
       [['Project', '3', 'Always KUT', 'KUT'],
-       ['Originator', '3', 'The organisation that produced the container (Section 4.2)', 'PLN'],
+       ['Originator', str(N.ORIGINATOR_LENGTH), 'The organisation that produced the container (Section 4.2)',
+        N.EXAMPLE_ORIGINATOR],
        ['Volume', '2', 'The volume numbering value (Section 2.3). ZZ for all volumes', '01'],
        ['Level', '2', 'The level code (Section 4.5). ZZ for all levels, XX not applicable', 'GF'],
        ['Type', '2', 'The information type (Section 4.4)', 'M3'],
-       ['Role', '1 to 2', 'The discipline (Section 4.3)', 'A'],
+       ['Role', ' or '.join(sorted({str(len(c)) for c, _m in N.ALL_ROLES})),
+        'The discipline of the originating organisation (Section 4.3)', 'A'],
        ['Number', '4', 'Sequential within the set', '0001']],
       widths=[2.8, 1.8, 8.4, 3.6])
 para('Fields are separated by a single hyphen. No spaces are permitted. All characters are upper case.')
 
-callout('**Decision required before any information is numbered.** The automated check enforces an originator '
-        'code of exactly three characters. Two options are available: issue three-character codes to every '
-        'organisation, or extend the permitted range to three to six characters, which is closer to general '
-        'ISO 19650 practice. The Appointing Party register determines which applies. No container may be '
-        'numbered until this is confirmed in writing, because renumbering after Deliverable A affects every '
-        'issued document.', 'Open item — Week 1')
+callout('**Decision required before any information is numbered.** Originator codes are exactly %d '
+        'characters, allocated to every organisation in the originator register issued by the Lead Appointed '
+        'Party. No container may be numbered until the register is issued, because renumbering after '
+        'Deliverable A affects every issued document. The examples in this section use %s.'
+        % (N.ORIGINATOR_LENGTH, N.EXAMPLE_ORIGINATOR), 'Open item — Week 1')
 
 h2('4.2  Originator codes')
 table(['Organisation', 'Code'],
@@ -330,7 +331,7 @@ h2('4.7  Asset identifier')
 para('Every modelled element carries an eight-field identifier assembled from the data held on the element.')
 c.mono('M - BLD1 - Z01 - L02 - HVAC - SUP - AHU - 0003', 12)
 table(['Field', 'Content', 'Source'],
-      [['Discipline', 'Role code (Section 4.3)', 'Element category and discipline'],
+      [['Discipline', 'Element discipline code (table below) — not the role code', 'Element category and system'],
        ['Location', 'Volume code (Section 2.3)', 'Room, workset or project information'],
        ['Zone', 'Zone code', 'Room or zone assignment'],
        ['Level', 'Level code (Section 4.5)', 'Element level'],
@@ -339,6 +340,14 @@ table(['Field', 'Content', 'Source'],
        ['Product', 'Product code', 'Family and type'],
        ['Sequence', 'Four digits', 'Assigned in sequence within the volume']],
       widths=[3.0, 6.0, 7.6])
+
+para('The discipline field is not the role field of a container name. The role (Section 4.3) is the '
+     'discipline of the organisation that produced the file; the element discipline says what the element '
+     'is. A sprinkler head in the mechanical engineer\'s model is an FP element in a container with role M.')
+table(['Element discipline', 'Meaning', 'Normally issued under role'],
+      [[code, meaning, role or 'The role of whichever model it is in']
+       for code, meaning, role in N.ASSET_DISCIPLINES],
+      widths=[3.2, 9.0, 4.4])
 
 h3('What the task team must do')
 para('The identifier is assembled from data already present in a correctly built model. It is not typed. '
@@ -360,7 +369,7 @@ h2('4.8  Worked examples')
 table(['Information', 'Container name'],
       [['Temple architectural model, all levels', 'KUT-XXX-01-ZZ-M3-A-0001'],
        ['Meetinghouse mechanical model', 'KUT-XXX-02-ZZ-M3-M-0001'],
-       ['Temple ground floor general arrangement sheet', 'KUT-XXX-01-GF-SH-A-0100'],
+       ['Temple ground floor general arrangement sheet', 'KUT-XXX-01-GF-DR-A-0100'],
        ['Site-wide drainage drawing', 'KUT-XXX-00-ZZ-DR-P-0050'],
        ['Federated coordination model', 'KUT-SMB-ZZ-ZZ-M3-Z-0001'],
        ['Coordination report, cycle 07', 'KUT-SMB-ZZ-ZZ-CR-Z-0007'],

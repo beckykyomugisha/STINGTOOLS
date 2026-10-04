@@ -248,7 +248,7 @@ The issued RACI matrix lives at `RACI and Roles/KUT_RACI_Responsibility_Matrix.x
 
 ## 5 — The numbering system
 
-This is the section people come back to. Print it. The authoritative source is the companion **KUT_Drawing_and_Document_Numbering_Convention.md**; this is the working summary.
+This is the section people come back to. Print it. The authoritative source is the **KUT Document Control Standard** (`KUT-[ORG]-ZZ-ZZ-RP-Z-0003`), which supersedes the earlier Numbering Convention; this is the working summary. `KUT_Drawing_and_Document_Numbering_Convention.md` is kept as a working note on the sheet bands.
 
 ### 5.1 The principle
 
@@ -257,12 +257,12 @@ The number does not try to carry everything. In ISO 19650 the container name alr
 ### 5.2 The container name — every file, model, drawing and document
 
 ```
-KUT - [ORG] - TE - GF - DR - A - 1001
+KUT - [ORG] - 01 - GF - DR - A - 1001
  │      │      │    │    │    │    └── Number     4 digits — type band + sequence (§5.5)
- │      │      │    │    │    └─────── Role        discipline (§5.4)
+ │      │      │    │    │    └─────── Role        discipline of the ORIGINATING organisation (§5.4)
  │      │      │    │    └──────────── Type        what kind of thing it is (§5.3)
  │      │      │    └───────────────── Level       GF, 01, B1, ZZ = all, XX = n/a
- │      │      └────────────────────── Volume      building code (§2) — ZZ = project-wide
+ │      │      └────────────────────── Volume      01–06 per building, 00 site-wide, ZZ all volumes
  │      └───────────────────────────── Originator  the authoring company — [ORG], assigned at mobilisation
  └──────────────────────────────────── Project     always KUT
 ```
@@ -282,13 +282,20 @@ Separator is a hyphen. No spaces. Upper case throughout. Because Volume and Role
 
 ### 5.4 Role (discipline) codes
 
-| Code | Discipline | Code | Discipline |
+BS EN ISO 19650-2 UK National Annex, Table NA.3. The role is the discipline of the organisation
+that produced the container — not of the elements in it.
+
+| Code | Role | Code | Role |
 |---|---|---|---|
-| `A` | Architecture | `Y` | Specialist Designer — fire protection, low voltage and communications|
-| `S` | Structural | `C` | Civil / site |
-| `M` | Mechanical | `I` | Interiors |
-| `E` | Electrical | `L` | Low voltage / communications |
-| `P` | Plumbing / Public Health | `Z` | Coordination / multi-discipline |
+| `A` | Architect | `Q` | Quantity Surveyor |
+| `C` | Civil Engineer | `S` | Structural Engineer |
+| `E` | Electrical Engineer | `W` | Contractor |
+| `I` | Interior Designer — incl. FF&E and finishes | `X` | Sub-contractor |
+| `M` | Mechanical Engineer | `Y` | Specialist Designer — fire protection, low voltage and communications |
+| `P` | Public Health Engineer | `Z` | General — federated and multi-discipline containers |
+
+`L` is Landscape Architect in the standard, not low voltage, and `F` is Facilities Manager, not
+fire. Low voltage and fire protection both issue under `Y`.
 
 ### 5.5 The Number field — type-banded (drawings, Type `DR`)
 
@@ -322,15 +329,15 @@ Sort any folder or register by number and the drawings fall into type groups aut
 Every element carries an eight-segment identifier, built automatically from the data on the element:
 
 ```
-M - TE - Z01 - L02 - HVAC - SUP - AHU - 0003
+M - BLD1 - Z01 - L02 - HVAC - SUP - AHU - 0003
 │    │     │     │     │      │     │      └── SEQ    sequence, 4 digits
 │    │     │     │     │      │     └───────── PROD   product code (AHU, DB, DR…)
 │    │     │     │     │      └─────────────── FUNC   function (SUP, HTG, PWR…)
 │    │     │     │     └────────────────────── SYS    system (HVAC, DCW, SAN, LV…)
 │    │     │     └──────────────────────────── LVL    level
 │    │     └────────────────────────────────── ZONE   zone
-│    └──────────────────────────────────────── LOC    location / volume
-└───────────────────────────────────────────── DISC   discipline
+│    └──────────────────────────────────────── LOC    location — BLD1–BLD6, EXT (not the container volume)
+└───────────────────────────────────────────── DISC   element discipline — A S M E P FP LV G (not the container role)
 ```
 
 Segment order: **DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ.**
@@ -494,7 +501,7 @@ Every author follows these. **The full modelling method — worksets, family rul
 | Purge | Purge unused before every share; report file size in the share note |
 | Warnings | Review Revit warnings before sharing; zero critical warnings at a gate |
 
-**The one rule that makes tagging trustworthy:** every element must be attributable to a volume. Choose **one** method per model and tell the BIM Manager which — **per-volume worksets** (`TE_Mechanical`, `HS_Architecture`…) *(preferred)*, or **one model per volume** (set the volume once on Project Information). Either way, **place rooms before the first coordination share.** Elements with no room, no workset and no volume are silently assigned to `TE` (Temple) and reported as low-confidence at every gate until fixed.
+**The one rule that makes tagging trustworthy:** every element must be attributable to a volume. Choose **one** method per model and tell the BIM Manager which — **per-volume worksets** (`BLD1_Mechanical`, `BLD3_Architecture`…) *(preferred)*, or **one model per volume** (set the volume once on Project Information). Either way, **place rooms before the first coordination share.** Elements with no room, no workset and no volume are silently assigned to `BLD1` (Temple) and reported as low-confidence at every gate until fixed.
 
 ---
 
@@ -874,7 +881,7 @@ If COBie is required in the EIR, it is produced from the model at close-out — 
 | This playbook | BIM Mgr | Mobilisation, updated as needed | `00 Project Standards and Control/` |
 | MIDP | BIM Mgr | Mobilisation, monthly & per drop | `MIDP/` |
 | TIDP (per discipline) | Task Team Manager | Mobilisation, re-baselined per stage | `TIDPs/` |
-| Numbering convention | BIM Mgr | Mobilisation | `KUT_Drawing_and_Document_Numbering_Convention.md` |
+| Numbering convention | BIM Mgr | Mobilisation | `KUT_Document_Control_Standard.docx` (`RP-Z-0003`); the Numbering Convention .md is a working note |
 | Document Control Standard | BIM Mgr | Mobilisation | `KUT_Document_Control_Standard.docx` |
 | Drawing register & transmittal | BIM Mgr | Every drop / every issue | `KUT_Drawing_Register_and_Transmittal_TEMPLATE.xlsx`, `Document Templates/` |
 | Standards overlay (STINGTOOLS) | BIM Mgr | Mobilisation | `_BIM_COORD/` (owner_standards, lod_matrix, tag_schemes, fohlio_map) |
