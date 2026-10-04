@@ -26616,3 +26616,27 @@ Build 0/0; Tags.Tests 5,530; `run_ci_gates.py --quick` 36/36; checksums OK. Not 
 
 Build 0/0; Tags.Tests 5,626; `run_ci_gates.py --quick` 36/36; checksums OK.
 
+
+#### Completed (KUT mobilisation: no second BEP, and no project reading another project's BEP, branch `claude/kut-fix4-mobilisation-bep`)
+
+- **`WORKFLOW_KUT_Mobilisation.json` no longer runs `GenerateBEP`.** That deprecated alias opens the
+  in-Revit BEP wizard, which registers a BEP spreadsheet at S3 in the CDE document register beside
+  the generated KUT BEP (`KUT-SMB-ZZ-ZZ-RP-Z-0001`). Four steps now. The description's "months 1-2"
+  is corrected to M0–M1, as the playbook states.
+- **Create BEP no longer writes `project_bep.json` into the plugin data folder.** That folder is
+  shared by every project on the machine, and the file there is the shipped sample, which the
+  wizard overwrote with the last project's codes.
+- **Three readers used that shared file as if it were this project's BEP.** The deliverable tracker
+  marked "BIM Execution Plan" Complete on every project (the sample always exists), and the BREEAM
+  assessor awarded Man 01 credits on every project from it. Both now read the project's own BEP.
+  Validate BEP no longer falls back to it; with no project BEP it says so and names the expected
+  path.
+- **Validate BEP reads the wizard's format.** It read the allowed-code lists only at the top level,
+  while Create BEP writes them under `allowed_codes`, so a wizard-made project BEP always reported
+  "no allowed code lists". This is why the shared copy existed. It now reads either.
+- `ProjectBepLocationTests` (5): a source guard that no plugin line locates `project_bep.json` in the
+  data folder (case-insensitive, since the wizard's write used a local `dataPath`), a theory pinning
+  the guard to the four removed shapes, and a check that the KUT mobilisation preset has no BEP
+  step. Red on the previous code (3 offending lines plus the step), green now.
+
+Build 0/0. Not run in Revit.
