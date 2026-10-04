@@ -203,9 +203,9 @@ def main(argv: list[str]) -> int:
             print(f"{path}: unknown root element {root.tag}", file=sys.stderr)
             return 1
     else:
-        for p_ in sorted(ENUMS_DIR.glob("*.xml")):
+        for p_ in sorted(ENUMS_DIR.glob("*.xml"), key=lambda p: p.name):
             files.append(("enum", p_))
-        for p_ in sorted(PSETS_DIR.glob("*.xml")):
+        for p_ in sorted(PSETS_DIR.glob("*.xml"), key=lambda p: p.name):
             files.append(("pset", p_))
 
     converted = 0

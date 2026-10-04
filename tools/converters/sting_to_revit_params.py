@@ -186,7 +186,7 @@ def main(argv: list[str]) -> int:
     if args.src:
         psets = [Path(args.src)]
     else:
-        psets = sorted(PSETS_DIR.glob("*.xml"))
+        psets = sorted(PSETS_DIR.glob("*.xml"), key=lambda p: p.name)  # by name: Path order is case-insensitive on Windows only
 
     if not psets:
         print(f"no Pset files found", file=sys.stderr)
