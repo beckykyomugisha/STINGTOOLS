@@ -450,7 +450,7 @@ One waiter, one menu, one kitchen — every plate looks the same.
 
 | ID | Paper | Scale | When you use it |
 |---|---|---|---|
-| `elec-riser-A2-1to100` | A2 | 1:100 | Electrical riser diagram — vertical distribution of electrical systems floor by floor |
+| `elec-riser-A3-1to200` | A3 | 1:200 | Electrical riser diagram — vertical distribution of electrical systems floor by floor |
 | `elec-power-A1-1to100` | A1 | 1:100 | Power layout plan — socket outlets, distribution boards, cable routes |
 | `elec-lighting-A1-1to100` | A1 | 1:100 | Lighting layout plan — luminaire positions, circuit references, switch locations |
 | `elec-fire-alarm-A1-1to100` | A1 | 1:100 | Fire alarm layout — detector, call point, and sounder positions |
@@ -1367,7 +1367,7 @@ These are accessed via the View Style Packs tab in the Drawing Type Editor (DOCS
 > - `StingTools/Data/DRAWING_TEMPLATE_GUIDE.md` — quick-start template guide
 >
 > **This guide is referenced by:**
-> - `docs/guides/ELECTRICAL_WORKFLOW_GUIDE.md` — references electrical drawing types (`elec-power-A1-1to100`, `elec-lighting-A1-1to100`, `elec-fire-alarm-A1-1to100`, `elec-riser-A2-1to100`)
+> - `docs/guides/ELECTRICAL_WORKFLOW_GUIDE.md` — references electrical drawing types (`elec-power-A1-1to100`, `elec-lighting-A1-1to100`, `elec-fire-alarm-A1-1to100`, `elec-riser-A3-1to200`)
 > - `docs/guides/PLUMBING_WORKFLOW_GUIDE.md` — references plumbing drawing type (`plumb-drainage-A1-1to100`)
 > - `docs/guides/HEALTHCARE_WORKFLOW_GUIDE.md` — references healthcare-specific drawing types and the managed template pattern for clinical facility drawings
 > - `docs/guides/MEP_FOUNDATION_GUIDE.md` — uses drawing types to annotate MEP views after production

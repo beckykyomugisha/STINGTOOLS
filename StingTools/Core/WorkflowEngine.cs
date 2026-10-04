@@ -663,6 +663,37 @@ namespace StingTools.Core
                     if (step.RequiresWorksharedModel && !doc.IsWorkshared)
                     { RecordSkip("not workshared"); continue; }
 
+                    // Element count, tagged count, open issues, project phase, weekday and
+                    // time of day. Rules in WorkflowStepGates (Revit-free, unit-tested);
+                    // this only supplies the facts, each computed on first use.
+                    {
+                        string gateSkip = null;
+                        try
+                        {
+                            gateSkip = WorkflowStepGates.SkipReason(step, new WorkflowStepGates.Facts
+                            {
+                                ElementCount = () => cachedElemCount ??= new FilteredElementCollector(doc)
+                                    .WhereElementIsNotElementType().GetElementCount(),
+                                TaggedCount = () =>
+                                {
+                                    var cs = ComplianceScan.Scan(doc);
+                                    return cs == null ? 0 : cs.TaggedComplete + cs.TaggedIncomplete;
+                                },
+                                OpenIssueCount = () => IssueStore.OpenCount(doc),
+                                ProjectPhase = () => doc.ProjectInformation == null ? ""
+                                    : ParameterHelpers.GetString(doc.ProjectInformation, ParamRegistry.ORG_PHASE),
+                                Now = DateTime.Now,
+                            });
+                        }
+                        catch (Exception gateEx)
+                        {
+                            // A gate that cannot be evaluated must not let the step run ungated.
+                            gateSkip = $"step gate could not be evaluated ({gateEx.Message})";
+                            StingLog.Warn($"WorkflowEngine gates for '{step.Label}': {gateEx.Message}");
+                        }
+                        if (gateSkip != null) { RecordSkip(gateSkip); continue; }
+                    }
+
                     if (!string.IsNullOrEmpty(step.Condition))
                     {
                         // Normalize condition to lowercase for case-insensitive matching
@@ -702,17 +733,9 @@ namespace StingTools.Core
                         // level switched off every whole-floor plan. Per-level production now
                         // skips only the (type, level) pairs a STING:: box produces
                         // (PerLevelBoxCoverage), so it runs whenever area boxes are absent.
-                        // Phase 39: Element count range condition (cached — count doesn't change between steps)
-                        if (step.MinElementCount.HasValue || step.MaxElementCount.HasValue)
-                        {
-                            cachedElemCount ??= new FilteredElementCollector(doc)
-                                .WhereElementIsNotElementType().GetElementCount();
-                            int elemCount = cachedElemCount.Value;
-                            if (step.MinElementCount.HasValue && elemCount < step.MinElementCount.Value)
-                            { RecordSkip($"{elemCount} elements < min {step.MinElementCount.Value}"); continue; }
-                            if (step.MaxElementCount.HasValue && elemCount > step.MaxElementCount.Value)
-                            { RecordSkip($"{elemCount} elements > max {step.MaxElementCount.Value}"); continue; }
-                        }
+                        // Phase 39's element count range was tested only here, so a step that
+                        // set minElementCount with no condition string ran ungated. It is now
+                        // evaluated for every step by WorkflowStepGates, above.
 
                         // Phase 47: Warning-aware workflow conditions
                         if (cond == "has_warnings")
