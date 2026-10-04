@@ -428,6 +428,42 @@ table(['Subject', 'Requirement'],
        ['Warnings', 'Reviewed before every share. No critical warnings at a gate']],
       widths=[4.0, 12.6])
 
+h2('6.1  Worksharing, model hosting and links')
+para('Each discipline of each volume is a separate model, named as a container under Section 4. A model edited '
+     'by more than one person at a time is workshared: one central model and a local copy for each person. '
+     'Where central models are hosted is confirmed at mobilisation and recorded in the BIM Execution Plan.')
+table(['Hosting option', 'When it is used', 'Condition'],
+      [['Office file server of the originating organisation', 'The default. Each organisation hosts its own '
+        'central models on its own network', 'None beyond the requirements below'],
+       ['Revit Server', 'Only where one organisation edits the same model from more than one office',
+        'Agreed with the Information Manager'],
+       ['Cloud worksharing in the Common Data Environment', 'Only after a pilot on one model agreed with the '
+        'Information Manager', 'Every author editing the model holds a licence that permits cloud worksharing, '
+        'and the office connection has been tested']],
+      widths=[5.0, 6.2, 5.4])
+para('The following apply whichever option is used.')
+bullet([
+    '**Organisations do not link each other\'s central models.** Information from another organisation is '
+    'linked from the Shared copy obtained from the CDE (Section 5), so every party coordinates against the '
+    'same issued state.',
+    '**A central model on a server is opened and linked by its network path**, never by a mapped drive letter, '
+    'so that central and link paths are identical on every workstation.',
+    '**Central models are never placed in a folder synchronised by a file-sync client** such as OneDrive, '
+    'Dropbox or Google Drive. Synchronisation clients corrupt central models.',
+    '**Local copies are held on the workstation**, never on the server, and a new local copy is created at '
+    'the start of each working day.',
+    '**Synchronise with the central model at least every two hours**, before any break and before closing, '
+    'with a short comment. At the end of each day relinquish all borrowed elements and worksets.',
+    '**Work by borrowing elements.** Ownership of a whole workset is taken only for the task that requires it.',
+    '**Each model has a named owner** who audits and compacts the central model at least weekly, outside '
+    'working hours. The hosting organisation backs up the server nightly.',
+    '**Levels, grids and shared coordinates have one owner per volume.** Other disciplines copy and monitor '
+    'them and review every change; they are never redrawn locally.',
+    '**Links** are positioned by shared coordinates, pinned, set to overlay, placed on a workset of their own '
+    'and never bound into the host model. A building model is linked once, directly, into the site model; '
+    'links are not nested.',
+])
+
 # ── 7 ────────────────────────────────────────────────────────────────────────
 h1('7  Information requirements by stage')
 
