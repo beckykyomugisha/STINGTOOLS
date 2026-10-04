@@ -8,10 +8,25 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# ── Per-Revit-year staging (ROADMAP ELEC-29) ─────────────────────
+# build.bat builds each installed Revit year and calls this once per year:
+#   STING_BUILD_DIR     the year's build output   (default: StingTools/bin/Release, the 2025 build)
+#   STING_STAGE_DIR     where it is staged         (default: CompiledPlugin)
+#   STING_INSTALL_YEARS Revit years whose Addins manifest points at THIS stage when
+#                       STING_DEPLOY=1             (default: 2025 2026 2027 — the old behaviour)
+# Unset, the script does exactly what it always did.
+to_posix() { if command -v cygpath &>/dev/null; then cygpath -u "$1"; else printf '%s' "$1"; fi; }
 BUILD_DIR="$SCRIPT_DIR/StingTools/bin/Release"
 DEPLOY_DIR="$SCRIPT_DIR/CompiledPlugin"
+[ -n "${STING_BUILD_DIR:-}" ] && BUILD_DIR="$(to_posix "$STING_BUILD_DIR")"
+[ -n "${STING_STAGE_DIR:-}" ] && DEPLOY_DIR="$(to_posix "$STING_STAGE_DIR")"
+INSTALL_YEARS="${STING_INSTALL_YEARS:-2025 2026 2027}"
+# build.bat passes "none" for a stage that is a compile check only (cmd cannot pass an
+# empty variable: set "X=" deletes it, which would fall back to every year above).
+[ "$INSTALL_YEARS" = "none" ] && INSTALL_YEARS=""
 
-echo "Creating STING Tools CompiledPlugin..."
+echo "Creating STING Tools stage: $DEPLOY_DIR (from $BUILD_DIR)..."
 
 # ── Verify build output exists ────────────────────────────────────
 if [ ! -f "$BUILD_DIR/StingTools.dll" ]; then
@@ -150,9 +165,11 @@ cat > "$DEPLOY_DIR/StingTools.addin" <<ADDIN_EOF
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   CRITICAL DEPLOYMENT NOTE:
-  This .addin file must exist in ONLY ONE of these locations:
-    - Per-user:    %AppData%\Autodesk\Revit\Addins\2025\
-    - Per-machine: %ProgramData%\Autodesk\Revit\Addins\2025\
+  For each Revit year this .addin file must exist in ONLY ONE of these locations:
+    - Per-user:    %AppData%\Autodesk\Revit\Addins\<year>\
+    - Per-machine: %ProgramData%\Autodesk\Revit\Addins\<year>\
+  Revit 2027 needs its own build (.NET 10): build.bat stages it in
+  CompiledPlugin-R2027 and points only Addins\2027 at it.
 
   If copies exist in BOTH locations, Revit loads the plugin TWICE, causing:
     - Double-registration of dockable panes, external events, and IUpdaters
@@ -222,7 +239,7 @@ if [ "${STING_DEPLOY:-0}" = "1" ]; then
         fi
         deployed=0
         install_failed=0
-        for ver in 2025 2026 2027; do
+        for ver in $INSTALL_YEARS; do
             target_dir="$REVIT_ADDINS_BASE/$ver"
             if [ -d "$target_dir" ]; then
                 # Clear any read-only lock a previous isolated deploy set.
@@ -242,7 +259,9 @@ if [ "${STING_DEPLOY:-0}" = "1" ]; then
             echo "DEPLOY INCOMPLETE: Revit still loads whatever its old manifest points at."
             exit 1
         fi
-        if [ "$deployed" = "0" ]; then
+        if [ -z "$INSTALL_YEARS" ]; then
+            echo "  (This stage is not installed into any Revit year — see build.bat.)"
+        elif [ "$deployed" = "0" ]; then
             echo "  (No Revit Addins folder found under \$APPDATA — manual copy still needed.)"
         fi
     fi

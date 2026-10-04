@@ -2643,8 +2643,8 @@ dotnet build StingTools/StingTools.csproj -p:RevitApiPath="C:\Program Files\Auto
 
 | Script | What it does |
 |---|---|
-| `build.bat` | Compile Release + stage to **this checkout's** `CompiledPlugin/`. Does **not** touch Revit — a parallel agent can verify a build without hijacking the add-in slot. |
-| `deploy.bat` | `STING_DEPLOY=1` + `build.bat` → also rewrites the manifest to point at **this checkout's** `CompiledPlugin/`. This is "make my checkout the live plugin". |
+| `build.bat` | Compile Release **once per installed Revit year** and stage each: 2025 → `CompiledPlugin/` (unchanged), 2026 → `CompiledPlugin-R2026/`, 2027 → `CompiledPlugin-R2027/` (.NET 10). `set STING_YEARS=2025` limits the years. Does **not** touch Revit — a parallel agent can verify a build without hijacking the add-in slot. |
+| `deploy.bat` | `STING_DEPLOY=1` + `build.bat` → also rewrites the manifests to point at **this checkout**: `Addins/2025` and `Addins/2026` → `CompiledPlugin/` (as before), `Addins/2027` → `CompiledPlugin-R2027/` (2027 removed APIs the 2025 build calls). This is "make my checkout the live plugin". |
 
 `deploy.bat` is the only script that repoints Revit. Run it from the checkout you
 want live, then restart Revit.

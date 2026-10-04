@@ -56,6 +56,8 @@ CompiledPlugin/
 #   CompiledPlugin_backup_YYYYMMDD_HHMMSS/ — what a manual pre-deploy copy produces
 CompiledPlugin.bak-*/
 CompiledPlugin_backup_*/
+# Per-Revit-year stages from build.bat (ROADMAP ELEC-29): CompiledPlugin-R2026/, -R2027/
+CompiledPlugin-R*/
 
 # Claude Code session worktrees + local settings.
 .claude/worktrees/

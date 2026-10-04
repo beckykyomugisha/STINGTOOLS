@@ -9,6 +9,10 @@
 ::
 ::  Run this in whichever checkout you want active, then restart Revit.
 ::
+::  Per Revit year (see build.bat): Addins\2025 and Addins\2026 point at
+::  CompiledPlugin\ as before; Addins\2027 points at CompiledPlugin-R2027\ (its
+::  own .NET 10 build). Limit the years with STING_YEARS, e.g. set STING_YEARS=2025
+::
 ::  Close Revit AND the Planscape Companion tray app first — both hold
 ::  StingTools.dll and its dependencies, and the copy half-fails silently.
 ::
