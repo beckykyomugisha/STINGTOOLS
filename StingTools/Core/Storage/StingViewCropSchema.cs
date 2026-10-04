@@ -51,8 +51,13 @@ namespace StingTools.Core.Storage
                 sb.SetWriteAccessLevel(AccessLevel.Vendor);
                 sb.AddSimpleField(FieldKind, typeof(string))
                     .SetDocumentation("DrawingType.Crop.Kind as of last apply (ScopeBox / TightBbox / RoomBoundary / ScopeBoxOrBbox / None)");
+                // A floating-point ES field needs a spec, and every Get/Set on it a
+                // unit, or Finish() throws "Units are required for field MarginMm"
+                // and no stamp is ever stored. Number + General keeps the value in
+                // millimetres as given (no mm->ft conversion). See StingEsUnits.
                 sb.AddSimpleField(FieldMarginMm, typeof(double))
-                    .SetDocumentation("DrawingType.Crop.MarginMm as of last apply");
+                    .SetSpec(StingEsUnits.Spec)
+                    .SetDocumentation("DrawingType.Crop.MarginMm as of last apply (mm, unitless Number spec)");
                 sb.AddSimpleField(FieldStampedTicks, typeof(long))
                     .SetDocumentation("DateTime.UtcNow.Ticks when the stamp was written");
                 return sb.Finish();
@@ -76,7 +81,7 @@ namespace StingTools.Core.Storage
                 return new CropStamp
                 {
                     Kind            = entity.Get<string>(FieldKind) ?? "",
-                    MarginMm        = entity.Get<double>(FieldMarginMm),
+                    MarginMm        = entity.Get<double>(FieldMarginMm, StingEsUnits.Unit),
                     StampedUtcTicks = entity.Get<long>(FieldStampedTicks),
                 };
             }
@@ -97,7 +102,7 @@ namespace StingTools.Core.Storage
                 if (schema == null) return false;
                 var entity = new Entity(schema);
                 entity.Set(FieldKind, kind ?? "");
-                entity.Set(FieldMarginMm, marginMm);
+                entity.Set(FieldMarginMm, marginMm, StingEsUnits.Unit);
                 entity.Set(FieldStampedTicks, DateTime.UtcNow.Ticks);
                 view.SetEntity(entity);
                 return true;

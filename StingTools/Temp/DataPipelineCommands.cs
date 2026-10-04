@@ -3430,9 +3430,10 @@ namespace StingTools.Temp
 
                     // Create the drafting view
                     var draftView = ViewDrafting.Create(doc, viewFamilyType.Id);
-                    string viewName = $"STING Excel — {fileName} [{selectedSheet}]";
+                    // DT-R11-G: Revit refuses [ ] in a view name — "STING Excel — f (Sheet1)".
+                    string viewName = StingTools.Core.Drawing.RevitNameRules.Sanitize($"STING Excel — {fileName} [{selectedSheet}]");
                     try { draftView.Name = viewName; }
-                    catch (Exception ex) { StingLog.Warn($"Name conflict: {ex.Message}"); draftView.Name = $"STING Excel — {fileName} {DateTime.Now:HHmmss}"; }
+                    catch (Exception ex) { StingLog.Warn($"Name conflict: {ex.Message}"); draftView.Name = StingTools.Core.Drawing.RevitNameRules.Sanitize($"STING Excel — {fileName} {DateTime.Now:HHmmss}"); }
                     draftView.Scale = 1; // 1:1 for data display
 
                     // Draw the table

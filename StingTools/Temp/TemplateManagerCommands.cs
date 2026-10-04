@@ -1767,7 +1767,7 @@ namespace StingTools.Temp
             }
 
             // Build filter + fill pattern lookups for VG re-application
-            var filterLookup = new Dictionary<string, ParameterFilterElement>();
+            var filterLookup = new Dictionary<string, ParameterFilterElement>(StingTools.Core.Drawing.RevitNameRules.LookupComparer);
             foreach (ParameterFilterElement pfe in new FilteredElementCollector(doc)
                 .OfClass(typeof(ParameterFilterElement)).Cast<ParameterFilterElement>())
                 filterLookup[pfe.Name] = pfe;
@@ -1891,7 +1891,7 @@ namespace StingTools.Temp
                 return Result.Succeeded;
             }
 
-            var filterLookup = new Dictionary<string, ParameterFilterElement>();
+            var filterLookup = new Dictionary<string, ParameterFilterElement>(StingTools.Core.Drawing.RevitNameRules.LookupComparer);
             foreach (ParameterFilterElement pfe in new FilteredElementCollector(doc)
                 .OfClass(typeof(ParameterFilterElement)).Cast<ParameterFilterElement>())
                 filterLookup[pfe.Name] = pfe;
@@ -4527,7 +4527,7 @@ namespace StingTools.Temp
             }
 
             // Create the clone
-            var filterLookup = new Dictionary<string, ParameterFilterElement>();
+            var filterLookup = new Dictionary<string, ParameterFilterElement>(StingTools.Core.Drawing.RevitNameRules.LookupComparer);
             foreach (ParameterFilterElement pfe in new FilteredElementCollector(doc)
                 .OfClass(typeof(ParameterFilterElement)).Cast<ParameterFilterElement>())
                 filterLookup[pfe.Name] = pfe;
@@ -4665,7 +4665,7 @@ namespace StingTools.Temp
             {
                 report.AppendLine("\nPhase 1: Standardise Templates");
 
-                var filterLookup = new Dictionary<string, ParameterFilterElement>();
+                var filterLookup = new Dictionary<string, ParameterFilterElement>(StingTools.Core.Drawing.RevitNameRules.LookupComparer);
                 foreach (ParameterFilterElement pfe in new FilteredElementCollector(doc)
                     .OfClass(typeof(ParameterFilterElement)).Cast<ParameterFilterElement>())
                     filterLookup[pfe.Name] = pfe;

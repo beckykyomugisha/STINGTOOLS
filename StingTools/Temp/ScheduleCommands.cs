@@ -121,7 +121,8 @@ namespace StingTools.Temp
                 new FilteredElementCollector(doc)
                     .OfClass(typeof(ParameterFilterElement))
                     .Cast<ParameterFilterElement>()
-                    .Select(f => f.Name));
+                    .Select(f => f.Name),
+                StingTools.Core.Drawing.RevitNameRules.LookupComparer);   // DT-R11-G
 
             // PERF-004: Pre-build category dictionary ONCE before the VIEW_FILTER loop.
             // The previous code called doc.Settings.Categories.Cast<Category>().FirstOrDefault(...)
@@ -173,7 +174,7 @@ namespace StingTools.Temp
 
                             if (catIds.Count > 0)
                             {
-                                ParameterFilterElement.Create(doc, filterName, catIds);
+                                ParameterFilterElement.Create(doc, StingTools.Core.Drawing.RevitNameRules.Sanitize(filterName), catIds);
                                 viewFiltersCreated++;
                                 existingFilterNames.Add(filterName);
                                 StingLog.Info($"Created view filter: {filterName} ({catIds.Count} categories)");

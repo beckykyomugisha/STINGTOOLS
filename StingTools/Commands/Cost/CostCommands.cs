@@ -510,7 +510,7 @@ namespace StingTools.Commands.Cost
                             if (entityV1 == null || !entityV1.IsValid()) continue;
 
                             // Read v1 fields directly.
-                            double rate = entityV1.Get<double>("RateGbp");
+                            double rate = entityV1.Get<double>("RateGbp", StingTools.Core.Storage.StingEsUnits.Unit);
                             string unit = entityV1.Get<string>("Unit") ?? "";
                             string note = entityV1.Get<string>("Note") ?? "";
                             // StampedUtcTicks and StampedBy are re-stamped

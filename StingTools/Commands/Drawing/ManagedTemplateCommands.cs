@@ -5,7 +5,7 @@
 //                                   flips templateMode = "managed".
 //   DetachFromManagedCommand        renames STING-managed templates to a
 //                                   plain name, flips templateMode = "external".
-//   RegeneratePackTemplatesCommand  force-resyncs every STING:* template
+//   RegeneratePackTemplatesCommand  force-resyncs every managed template
 //                                   for every managed pack across all
 //                                   common ViewTypes.
 //
@@ -237,7 +237,8 @@ namespace StingTools.Commands.Drawing
                     // DTW-9: replace, don't append — the pack may already carry a
                     // rule for this filter (inherited, or from an earlier convert),
                     // and two rules for one filter left the result order-dependent.
-                    pack.Filters.RemoveAll(f => string.Equals(f?.FilterName, pf.Name, StringComparison.OrdinalIgnoreCase));
+                    // DT-R11-C: the pack may spell it as the data does ("STING - Struct: Concrete").
+                    pack.Filters.RemoveAll(f => RevitNameRules.Matches(pf.Name, f?.FilterName));
                     pack.Filters.Add(rule);
                     filterRead++;
                 }
@@ -333,10 +334,11 @@ namespace StingTools.Commands.Drawing
                 // DTW-9: edit a copy, not the registry's memoised pack.
                 var pack = ConvertPackToManagedCommand.ClonePack(resolvedPack);
 
-                var prefix = $"STING:{pack.Id}:";
+                // DT-R11-F: the pack's managed templates, canonical or legacy name.
+                bool OfThisPack(View v) => v.IsTemplate && ManagedTemplateNames.BelongsToPack(v.Name, pack.Id, out _);
                 var managedTemplates = new FilteredElementCollector(doc)
                     .OfClass(typeof(View)).Cast<View>()
-                    .Where(v => v.IsTemplate && (v.Name ?? "").StartsWith(prefix, StringComparison.Ordinal))
+                    .Where(OfThisPack)
                     .ToList();
 
                 int renamed = 0;
@@ -352,7 +354,7 @@ namespace StingTools.Commands.Drawing
                         catch (Exception ex) { StingLog.Warn($"Detach: baseline FloorPlan template not minted — {ex.Message}"); }
                         managedTemplates = new FilteredElementCollector(doc)
                             .OfClass(typeof(View)).Cast<View>()
-                            .Where(v => v.IsTemplate && (v.Name ?? "").StartsWith(prefix, StringComparison.Ordinal))
+                            .Where(OfThisPack)
                             .ToList();
                     }
 
@@ -362,9 +364,9 @@ namespace StingTools.Commands.Drawing
                     {
                         try
                         {
-                            // Strip prefix; replace : with — for clarity
-                            var suffix = tpl.Name.Substring(prefix.Length);
-                            var candidate = $"{newBase} — {suffix}";
+                            // The view type out of the managed name, under the pack's own name.
+                            ManagedTemplateNames.TryParse(tpl.Name, out _, out var suffix);
+                            var candidate = RevitNameRules.Sanitize($"{newBase} — {suffix}");   // DT-R11-C: a pack name is free text
                             try { tpl.Name = candidate; }
                             catch { tpl.Name = candidate + "_" + Guid.NewGuid().ToString("N").Substring(0, 4); }
                             firstRenamed = firstRenamed ?? tpl.Name;

@@ -1637,16 +1637,6 @@
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
-    "STING_MATCH_LINE_GUID_TXT": {
-      "state": "read_only",
-      "role": "pipeline",
-      "reason": "Written by MatchLineEngine.PlaceCurve through its private TrySet(dc, ParamRegistry.MATCH_LINE_GUID, ...) helper, which this scan does not recognise as a write; read by BuildExistingPairIndex / PruneOrphans to find a previous run's curves and update them in place."
-    },
-    "STING_MATCH_REF_TXT": {
-      "state": "read_only",
-      "role": "pipeline",
-      "reason": "Written by MatchLineEngine.PlaceCurve through its private TrySet helper (not recognised as a write by this scan); read by the match-line sync / validate passes to re-resolve the paired sheet after a renumber."
-    },
     "STING_MAT_EPD_DATE_TXT": {
       "state": "read_only",
       "role": "input",

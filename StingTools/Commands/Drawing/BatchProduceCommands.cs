@@ -1444,7 +1444,7 @@ namespace StingTools.Commands.Drawing
                                 {
                                     var pr = new PackApplyResult();
                                     var id = ManagedTemplateSyncer.EnsureTemplate(doc, pack, vt, pr);
-                                    if (id != ElementId.InvalidElementId) packUpdated++;
+                                    if (ManagedTemplateSyncer.IsUsable(id)) packUpdated++;
                                     warnings.AddRange(pr.Warnings);
                                 }
                                 var status = t.Commit();

@@ -57,7 +57,7 @@ namespace StingTools.Core.Drawing
         /// <summary>"name — reason" for templates that cannot be created.</summary>
         public List<string> NotCreatable { get; } = new List<string>();
 
-        /// <summary>Managed "STING:{pack}:{ViewType}" names — ManagedTemplateSyncer owns these.</summary>
+        /// <summary>Managed "STING MANAGED - {pack} - {ViewType}" names (legacy "STING:…") — ManagedTemplateSyncer owns these.</summary>
         public List<string> Managed { get; } = new List<string>();
     }
 
@@ -73,7 +73,7 @@ namespace StingTools.Core.Drawing
 
         /// <summary>Managed templates are minted and kept in sync by ManagedTemplateSyncer.</summary>
         public static bool IsManagedName(string name)
-            => !string.IsNullOrEmpty(name) && name.StartsWith("STING:", StringComparison.Ordinal);
+            => ManagedTemplateNames.HasManagedPrefix(name);   // DT-R11-F: canonical or legacy form
 
         /// <summary>
         /// Group the drawing types' viewTemplateNames into creatable specs.

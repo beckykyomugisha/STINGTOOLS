@@ -907,13 +907,15 @@ namespace StingTools.Select
                 {
                     if (kvp.Key == "<No Value>") continue;
 
-                    string filterName = $"STING {paramName.Replace("ASS_", "").Replace("_TXT", "")} = {kvp.Key}";
+                    // DT-R11-G: the value is model data and may hold a character Revit refuses.
+                    string filterName = StingTools.Core.Drawing.RevitNameRules.Sanitize(
+                        $"STING {paramName.Replace("ASS_", "").Replace("_TXT", "")} = {kvp.Key}");
 
                     // Check if filter already exists
                     var existingFilter = new FilteredElementCollector(doc)
                         .OfClass(typeof(ParameterFilterElement))
                         .Cast<ParameterFilterElement>()
-                        .FirstOrDefault(f => f.Name == filterName);
+                        .FirstOrDefault(f => StingTools.Core.Drawing.RevitNameRules.LookupComparer.Equals(f.Name, filterName));
 
                     if (existingFilter != null)
                     {

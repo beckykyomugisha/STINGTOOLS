@@ -2,6 +2,37 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Drawing production round 11: what the first in-Revit Self-Test found, 2026-10-02)
+
+The first real Drawing Self-Test run (Revit 2025, `011026_detached`, 6 pass / 40 fail) was
+reviewed line by line. Most fails were a model that had never run Load Shared Parameters; the
+rest were real defects, fixed on `fix/dt-r11` (DTW-229..238; worklog has the detail):
+
+- **Illegal Revit names.** Revit refuses `\ : { } [ ] | ; < > ? ` ~` in element names. 263 of
+  the 287 corporate AEC filters, the managed view templates (`STING:{pack}:{ViewType}`), the
+  production schedules (`… 1:100`), the legacy template filters (`STING - Disc: …`) and the
+  Excel drafting-view names all used them, so none of those could be created. One Revit-free rule,
+  `Core/Drawing/RevitNameRules` (Sanitize / Candidates / Matches / LookupComparer), now names and
+  finds them; managed templates are `STING MANAGED - {pack} - {ViewType}` via
+  `Core/Drawing/ManagedTemplateNames`, with the old form still recognised.
+- **Extensible Storage units.** Six schemas declared double fields without `SetSpec`, so
+  `Schema.Finish()` threw and nothing behind them was ever stored (crop record, compliance
+  baseline, cost-rate override v1/v2, Fohlio snapshot v2, PBR state). Fixed in place via
+  `Core/Storage/StingEsUnits`; a source-scanning test fails on any new one.
+- **Null template id.** `ManagedTemplateSyncer.EnsureTemplate` passed a cache-miss null to
+  `GetElement`; `IsUsable` now guards it. Detail Level and Scale are left to a view template that
+  controls them.
+- **Match lines (DTW-56).** `Lines` does not allow bound parameters, so the keys moved to
+  Extensible Storage (`StingMatchLineSchema`, `MatchLineKeys`); the parameters stay as a read
+  fallback. Self-Test now round-trips the keys instead of failing on the binding.
+- **Sheet numbers.** A known token with no value prints `XX` instead of staying in braces; the
+  project code falls back to `PRJ_ORG_PROJECT_CODE_TXT`.
+- **Schedule slots.** Placement reads the schedule back and corrects the 2 mm offset.
+- **Self-Test section k** probes, in Revit, which names are refused — including the Scope Box
+  Planner's `::` names (DTW-239, open).
+
+Plugin build 0 / 0; StingTools.Tags.Tests and the quick CI gates pass. Not yet re-run in Revit.
+
 #### Completed (TAGFAM-9 measured in Revit 2025: 163 → 36 parameters per door tag, 2026-10-01)
 
 - `tools/pyrevit/headless/time_add_shared_params.py` on main `6710ad2c1` (TAGFAM-9 merged), headless Revit 2025:

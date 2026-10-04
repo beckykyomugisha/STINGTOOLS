@@ -48,6 +48,30 @@ namespace StingTools.Core.Drawing
                 { "orig", "originator" }, { "originator", "originator" },
             };
 
+        /// <summary>
+        /// The ISO 19650 tokens a drawing-type number takes from the token dictionary
+        /// (DrawingTokenContext) rather than from a named argument, by canonical name.
+        /// A KNOWN token is never left in braces: when the dictionary has no entry for
+        /// it, SheetNumberEngine prints the empty-value placeholder "XX". A supplied
+        /// empty string is the caller's and is kept. An UNKNOWN token ({bogus}) is left
+        /// literal so DrawingTokenContext.AuditPattern reports it and Revit refuses it,
+        /// rather than being guessed at.
+        /// </summary>
+        public static readonly IReadOnlyList<string> DictionaryTokens =
+            new[] { "project", "originator", "vol", "type", "role", "suit", "rev" };
+
+        /// <summary>Every accepted spelling of <see cref="DictionaryTokens"/>
+        /// ({proj}, {orig} included).</summary>
+        public static IEnumerable<string> DictionaryTokenSpellings()
+        {
+            foreach (var t in DictionaryTokens)
+            {
+                bool any = false;
+                foreach (var s in Spellings(t)) { any = true; yield return s; }
+                if (!any) yield return t;
+            }
+        }
+
         /// <summary>The canonical name for a token ("proj" → "project"), or the
         /// name unchanged when it has no alias.</summary>
         public static string CanonicalName(string name)

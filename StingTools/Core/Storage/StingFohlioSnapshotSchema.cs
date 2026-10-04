@@ -52,11 +52,11 @@ namespace StingTools.Core.Storage
                     .SetDocumentation("JSON of imported field→value pairs at the last Fohlio import");
                 sb.AddSimpleField(FieldCapturedTicks, typeof(long))
                     .SetDocumentation("DateTime.UtcNow.Ticks of the last Fohlio import. 0 = never");
-                sb.AddSimpleField(FieldUnitCost, typeof(double))
+                sb.AddSimpleField(FieldUnitCost, typeof(double)).SetSpec(StingEsUnits.Spec)
                     .SetDocumentation("Fohlio procurement unit cost in the quote currency");
                 sb.AddSimpleField(FieldCurrency, typeof(string))
                     .SetDocumentation("Fohlio quote currency (ISO 4217)");
-                sb.AddSimpleField(FieldQtyFromFohlio, typeof(double))
+                sb.AddSimpleField(FieldQtyFromFohlio, typeof(double)).SetSpec(StingEsUnits.Spec)
                     .SetDocumentation("Quantity Fohlio holds for this item (for variance, not bill qty)");
                 sb.AddSimpleField(FieldLeadTimeDays, typeof(int))
                     .SetDocumentation("Procurement lead time in days, from Fohlio");
@@ -99,9 +99,9 @@ namespace StingTools.Core.Storage
                             FohlioRef = e2.Get<string>(FieldFohlioRef) ?? "",
                             SnapshotJson = e2.Get<string>(FieldSnapshotJson) ?? "",
                             CapturedUtcTicks = e2.Get<long>(FieldCapturedTicks),
-                            UnitCost = e2.Get<double>(FieldUnitCost),
+                            UnitCost = e2.Get<double>(FieldUnitCost, StingEsUnits.Unit),
                             Currency = e2.Get<string>(FieldCurrency) ?? "",
-                            QtyFromFohlio = e2.Get<double>(FieldQtyFromFohlio),
+                            QtyFromFohlio = e2.Get<double>(FieldQtyFromFohlio, StingEsUnits.Unit),
                             LeadTimeDays = e2.Get<int>(FieldLeadTimeDays),
                         };
                 }
@@ -138,9 +138,9 @@ namespace StingTools.Core.Storage
                 entity.Set(FieldFohlioRef, fohlioRef ?? "");
                 entity.Set(FieldSnapshotJson, snapshotJson ?? "");
                 entity.Set(FieldCapturedTicks, capturedUtc.ToUniversalTime().Ticks);
-                entity.Set(FieldUnitCost, unitCost);
+                entity.Set(FieldUnitCost, unitCost, StingEsUnits.Unit);
                 entity.Set(FieldCurrency, currency ?? "");
-                entity.Set(FieldQtyFromFohlio, qtyFromFohlio);
+                entity.Set(FieldQtyFromFohlio, qtyFromFohlio, StingEsUnits.Unit);
                 entity.Set(FieldLeadTimeDays, leadTimeDays);
                 el.SetEntity(entity);
                 return true;

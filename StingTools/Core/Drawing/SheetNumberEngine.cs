@@ -87,6 +87,16 @@ namespace StingTools.Core.Drawing
                         p = p.Replace("{" + alias + "}", kv.Value ?? "");
                 }
             }
+
+            // DT-R11: a known dictionary token the caller did not supply is the visible
+            // "XX", never a literal brace. {project}/{originator} are omitted from the
+            // dictionary when Project Information has no value (K-13), and the number
+            // came out "{project}-{originator}-01-00-DR-A-0001". The audit
+            // (DrawingTokenContext.AuditPattern) still names the missing parameter.
+            // Unknown tokens are left literal for the audit to report.
+            if (p.IndexOf('{') >= 0)
+                foreach (var name in SheetNumberTokens.DictionaryTokenSpellings())
+                    p = p.Replace("{" + name + "}", SafeShort(null));
             return p;
         }
 
