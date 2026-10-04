@@ -26700,3 +26700,28 @@ Build 0/0. Not run in Revit. Other readers of `project_config.json` keys the KUT
   step. Red on the previous code (3 offending lines plus the step), green now.
 
 Build 0/0. Not run in Revit.
+
+#### Completed (KUT pack: stale container examples, and a gate check that had gone vacuous, branch `claude/kut-fix6-stale-pln-example`)
+
+- **Playbook section 4.1** printed `KUT - PLN - 01 - GF - M3 - A - 0001`, gave the originator example
+  as `PLN` and the role length as "1 to 2". It now renders the example originator (`SMB`) and both
+  lengths from `tools/kut_naming.py`. The open-item callout no longer offers to widen originators
+  to three to six characters, and names the Lead Appointed Party as the register's issuer.
+- **A sheet typed as a schedule.** Playbook 4.8 gave the ground-floor GA sheet `…-SH-A-0100` and BEP
+  table 4.x gave "Sheet" `KUT-…-SH-A-0100`. `SH` is a schedule; both are now `DR`.
+- **The BEP disagreed with the MIDP on the MIDP's own reference.** BEP 15.5 allocated the MIDP,
+  RACI and level register as `SC-Z-000n`, a withdrawn type; the MIDP calls itself `SH-Z-0001`.
+  Now `SH`.
+- **The gate's reference check had stopped checking.** `check_references` matched only
+  `KUT-PLN-…`, so after the PLN → SMB rename it found nothing and passed. It now matches any
+  originator of the convention's length, and accepts a reference the MIDP allocates to a planned
+  document (`RP-Z-0005`).
+- **New gate check `check_container_examples`.** Every container name a generated document prints,
+  hyphenated or spaced, must use a valid type and role and the example originator or a
+  placeholder; a table row describing a sheet or drawing must use `DR`. It fails if it finds no
+  container names at all. Run against the previous documents it reported seven findings: PLN, the SH
+  sheet, the three SC references, and two dangling-reference findings.
+- `GUIDES/KUT_PROJECT_DELIVERY_PLAYBOOK.md` examples and `docs/INDEX.md` (paths into
+  `KUT_DOCS_WORKING/issued/`, `SMB` references, all five documents, DRAFT status) corrected.
+
+Gate: 146 assertions, OK. Only the BEP and playbook regenerated; the others are byte-identical.

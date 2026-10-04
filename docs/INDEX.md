@@ -141,7 +141,7 @@ artefact and check its date before trusting a step:
 The pack the Kampala Uganda Temple project is being run from. Mobilisation began the week of
 25 August 2026 and these documents are relied on now.
 
-**Two rules govern every file in this section.** The three issued documents never name the
+**Two rules govern every file in this section.** The generated documents never name the
 tooling — no product name, command, parameter or file path — because they are read by the client
 and by every consultant, and the Appointing Party is entitled to require a check without being
 told the instrument. And no generated file is ever hand-edited: edit the generator and
@@ -150,15 +150,17 @@ CI rather than reaching an issue.
 
 | Document | Status |
 |---|---|
-| [`../KUT_BIM_Execution_Plan.docx`](../KUT_BIM_Execution_Plan.docx) | ✅ **Issued Rev P01 — GENERATED, do not edit.** `KUT-PLN-ZZ-ZZ-RP-Z-0001`. What the project requires. Built by `tools/build_bep.py`. |
-| [`../KUT_Project_Delivery_Playbook.docx`](../KUT_Project_Delivery_Playbook.docx) | ✅ **Issued Rev P01 — GENERATED, do not edit.** `KUT-PLN-ZZ-ZZ-RP-Z-0002`. How a task team satisfies the BEP; the document a consultant works from. Built by `tools/build_team_playbook.py`. |
-| [`../KUT_Master_Information_Delivery_Plan.xlsx`](../KUT_Master_Information_Delivery_Plan.xlsx) | ✅ **Issued Rev P01 — GENERATED, do not edit.** `KUT-PLN-ZZ-ZZ-SC-Z-0001`. 68 deliverables, when each lands, and the TIDP return template. Built by `tools/build_midp.py`. |
-| [`../KUT_BIM_MANAGER_PLAYBOOK_INTERNAL_STINGTOOLS.docx`](../KUT_BIM_MANAGER_PLAYBOOK_INTERNAL_STINGTOOLS.docx) | ✅ **Current — INTERNAL, hand-maintained.** The only document in the pack that may name the tooling, and the only one not generated. Never issued to the client or to a consultant. |
+| [`../KUT_DOCS_WORKING/issued/KUT_BIM_Execution_Plan.docx`](../KUT_DOCS_WORKING/issued/KUT_BIM_Execution_Plan.docx) | ✅ **Current — DRAFT P01 (S0), not yet issued. GENERATED, do not edit.** `KUT-SMB-ZZ-ZZ-RP-Z-0001`. What the project requires. Built by `tools/build_bep.py`. |
+| [`../KUT_DOCS_WORKING/issued/KUT_Project_Delivery_Playbook.docx`](../KUT_DOCS_WORKING/issued/KUT_Project_Delivery_Playbook.docx) | ✅ **Current — DRAFT P01 (S0), not yet issued. GENERATED, do not edit.** `KUT-SMB-ZZ-ZZ-RP-Z-0002`. How a task team satisfies the BEP; the document a consultant works from. Built by `tools/build_team_playbook.py`. |
+| [`../KUT_DOCS_WORKING/issued/KUT_Document_Control_Standard.docx`](../KUT_DOCS_WORKING/issued/KUT_Document_Control_Standard.docx) | ✅ **Current — DRAFT P01 (S0), not yet issued. GENERATED, do not edit.** `KUT-SMB-ZZ-ZZ-RP-Z-0003`. Numbering, revision, issue and retirement. Built by `tools/build_document_control.py`. |
+| [`../KUT_DOCS_WORKING/issued/KUT_Mobilisation_Information_Request.docx`](../KUT_DOCS_WORKING/issued/KUT_Mobilisation_Information_Request.docx) | ✅ **Current — DRAFT P01 (S0), not yet sent. GENERATED, do not edit.** `KUT-SMB-ZZ-ZZ-RP-Z-0004`. The items only the Lead Appointed Party and Appointing Party can supply. Built by `tools/build_symbion_request.py`. |
+| [`../KUT_DOCS_WORKING/issued/KUT_Master_Information_Delivery_Plan.xlsx`](../KUT_DOCS_WORKING/issued/KUT_Master_Information_Delivery_Plan.xlsx) | ✅ **Current — DRAFT P01 (S0), not yet issued. GENERATED, do not edit.** `KUT-SMB-ZZ-ZZ-SH-Z-0001`. Every deliverable, when it lands, and one delivery-plan sheet per appointed party. Built by `tools/build_midp.py` + `tools/midp_rows.py`. |
+| [`../KUT_DOCS_WORKING/issued/KUT_BIM_MANAGER_PLAYBOOK_INTERNAL_STINGTOOLS.docx`](../KUT_DOCS_WORKING/issued/KUT_BIM_MANAGER_PLAYBOOK_INTERNAL_STINGTOOLS.docx) | ✅ **Current — INTERNAL, hand-maintained.** The only document in the pack that may name the tooling, and the only one not generated. Never issued to the client or to a consultant. |
 | [`../project-templates/KUT/_BIM_COORD/lod_matrix.json`](../project-templates/KUT/_BIM_COORD/lod_matrix.json) | ✅ **Current — GENERATED, do not edit.** The tiered LOD overlay the close-out gate runs against. Built by `tools/build_kut_lod_overlay.py`; `--check` proves it still matches the corporate baseline. |
 
 | Generator / tool | What it does |
 |---|---|
-| `tools/build_bep.py` · `tools/build_team_playbook.py` · `tools/build_midp.py` | The three issued documents. Change content HERE, never in the `.docx` / `.xlsx`. |
+| `tools/build_bep.py` · `tools/build_team_playbook.py` · `tools/build_document_control.py` · `tools/build_midp.py` · `tools/build_symbion_request.py` | The five generated documents. Change content HERE, never in the `.docx` / `.xlsx`. |
 | `tools/build_kut_lod_overlay.py` | The LOD overlay, and the tier definitions (A serialised plant · B maintainable devices · C warranted fabric · FF&E · D everything else). `--check` is CI-gated. |
 | `tools/build_smoke_test.py` | The manual Revit smoke-test checklist, rendered from `examples/KUT/smoke_test.json`. |
 | `tools/corporate_docx.py` | ✅ **The shared house style.** One definition of page setup, palette, headings, tables and callouts, so the issued set looks like one set. A change here changes every document at its next build. Also owns the deterministic, stamped save. |
