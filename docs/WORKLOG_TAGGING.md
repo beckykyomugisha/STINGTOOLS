@@ -7,6 +7,8 @@ gates + CI; never weaken a test; never renumber/overwrite a real model.
 
 ## Resume here
 
+The next pass is scripted in [`TAGGING_LOOP_RUNNER.md`](TAGGING_LOOP_RUNNER.md).
+
 Session `tag-families-setup-976ed0` closed 2026-10-04 with nothing open: every branch it made is merged
 (through #1050) and the TAGACC-25 / TAGFAM-7 / -9 / -10 decisions are implemented. Start a new pass from
 `origin/main` with:
