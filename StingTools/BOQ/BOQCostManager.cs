@@ -697,9 +697,16 @@ namespace StingTools.BOQ
                             var el = doc.GetElement(new ElementId(item.RevitElementId));
                             if (el == null) continue;
                             var p = el.LookupParameter("ASS_CST_STALE_BOOL");
-                            if (p == null || p.IsReadOnly || p.StorageType != StorageType.String) continue;
-                            string cur = p.AsString();
-                            if (string.Equals(cur, "1", StringComparison.Ordinal))
+                            if (p == null || p.IsReadOnly) continue;
+                            // ASS_CST_STALE_BOOL is YESNO (Integer storage) in MR_PARAMETERS.
+                            // This used to require String storage, so it never cleared anything
+                            // (KUT deep review API-2). A legacy TEXT binding is still honoured.
+                            if (p.StorageType == StorageType.Integer && p.AsInteger() == 1)
+                            {
+                                p.Set(0);
+                                cleared++;
+                            }
+                            else if (p.StorageType == StorageType.String && string.Equals(p.AsString(), "1", StringComparison.Ordinal))
                             {
                                 p.Set("0");
                                 cleared++;

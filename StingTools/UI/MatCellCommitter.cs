@@ -178,9 +178,13 @@ namespace StingTools.UI
                             var conf = el.LookupParameter("CST_RATE_CONFIDENCE");
                             if (conf != null && !conf.IsReadOnly && conf.StorageType == StorageType.Integer)
                                 conf.Set(95);
-                            var stale = el.LookupParameter("ASS_CST_STALE_BOOL");
-                            if (stale != null && !stale.IsReadOnly && stale.StorageType == StorageType.String)
-                                stale.Set("1");
+                            // YESNO (Integer) per MR_PARAMETERS — KUT deep review API-2.
+                            var stale = el.LookupParameter(ParamRegistry.CST_STALE_BOOL);
+                            if (stale != null && !stale.IsReadOnly)
+                            {
+                                if (stale.StorageType == StorageType.Integer) stale.Set(1);
+                                else if (stale.StorageType == StorageType.String) stale.Set("1");
+                            }
                             touched++;
                         }
                         catch (Exception ex) { StingLog.WarnRateLimited("BumpRate.El", $"BumpRate {elId}: {ex.Message}"); }
