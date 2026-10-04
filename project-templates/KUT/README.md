@@ -67,7 +67,7 @@ checklist in §5 refers to presets by their picker name.
 
 | Preset | name | Proposal ref | Rhythm |
 |---|---|---|---|
-| `WORKFLOW_KUT_Mobilisation.json` | **KUT Mobilisation** | §4.1 | Once at kick-off — params, worksets, filters, BEP, CDE register |
+| `WORKFLOW_KUT_Mobilisation.json` | **KUT Mobilisation** | §4.1 | Once at kick-off — params, worksets, filters, CDE register (no BEP step: the BEP is the generated document) |
 | `WORKFLOW_KUT_CoordinationCycle.json` | **KUT Coordination Cycle** | §4.2 | Fortnightly — federate, clash, BCF→ACC Issues, model health, completeness |
 | `WORKFLOW_KUT_GateAudit.json` | **KUT Gate Audit** | A1 gates | **Read-only pre-gate check, any milestone** — run before declaring a deliverable ready. Writes nothing |
 | `WORKFLOW_KUT_DeliverableA.json` | **KUT Deliverable A** | A1 Phase 1 | Gate — LOD 200 schematic; tokens, tags, program audit |
