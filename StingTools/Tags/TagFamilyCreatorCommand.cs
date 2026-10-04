@@ -4185,16 +4185,32 @@ namespace StingTools.Tags
             report.AppendLine($"Missing:    {missing}");
             report.AppendLine($"Coverage:   {(stingLoaded + otherTag) * 100 / TagFamilyConfig.CategoryTemplateMap.Count}%");
 
-            // Check for .rfa files on disk
-            string outputDir = TagFamilyConfig.GetOutputDirectory();
-            int onDisk = Directory.Exists(outputDir)
-                ? Directory.GetFiles(outputDir, "STING - *.rfa").Length
-                : 0;
-            if (onDisk > 0 && stingLoaded < onDisk)
+            // Library families vs project families, family by family, across every root
+            // Load Tag Families reads. Comparing a file count with the category count
+            // above told a fully loaded project it was missing ~90 families.
+            var libraryNames = new List<string>();
+            foreach (var root in TagFamilyConfig.GetTagLibraryRoots())
+            {
+                try
+                {
+                    if (!Directory.Exists(root)) continue;
+                    foreach (var f in Directory.GetFiles(root, "STING - *.rfa"))
+                        if (!RevitBackupFiles.IsBackup(f)) libraryNames.Add(Path.GetFileNameWithoutExtension(f));
+                }
+                catch (Exception ex) { StingLog.Warn($"TagFamilyAudit: library root '{root}': {ex.Message}"); }
+            }
+            var libraryGap = TagFamilyAuditCounts.Compare(libraryNames, loadedFamilies.Keys);
+            if (libraryGap.LibraryCount > 0)
             {
                 report.AppendLine();
-                report.AppendLine($"NOTE: {onDisk} .rfa files exist on disk but only {stingLoaded} loaded.");
-                report.AppendLine("Run 'Load Tag Families' to load them.");
+                report.AppendLine($"Library families in this project: {libraryGap.LoadedCount} of {libraryGap.LibraryCount}");
+                if (libraryGap.NotLoaded.Count > 0)
+                {
+                    report.AppendLine($"Not loaded ({libraryGap.NotLoaded.Count}) — run 'Load Tag Families':");
+                    foreach (var n in libraryGap.NotLoaded.Take(15)) report.AppendLine($"  {n}");
+                    if (libraryGap.NotLoaded.Count > 15)
+                        report.AppendLine($"  ... and {libraryGap.NotLoaded.Count - 15} more");
+                }
             }
 
             // Check label param types
@@ -4341,16 +4357,41 @@ namespace StingTools.Tags
             }
             if (paraStringTypes + paraIntegerTypes + paraMixed > 0)
             {
+                // Judge storage against what MR_PARAMETERS.txt declares. It declares
+                // these YESNO, so the old "YESNO = legacy" warning fired on every
+                // correctly bound project.
+                string declared = null;
+                try
+                {
+                    string mrFile = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+                    if (!string.IsNullOrEmpty(mrFile) && paraStates.Length > 0)
+                        declared = TagFamilyAuditCounts.DeclaredType(File.ReadLines(mrFile), paraStates[0]);
+                }
+                catch (Exception ex) { StingLog.Warn($"TagFamilyAudit: reading MR_PARAMETERS.txt: {ex.Message}"); }
+                string expected = TagFamilyAuditCounts.StorageForDeclaredType(declared);
+
                 report.AppendLine();
                 report.AppendLine("── Paragraph BOOL storage (TAG_PARA_STATE_*_BOOL) ──");
-                report.AppendLine($"  TEXT-storage (v5.3+):  {paraStringTypes}");
-                report.AppendLine($"  YESNO-storage (legacy): {paraIntegerTypes}");
+                report.AppendLine($"  Declared in MR_PARAMETERS.txt: {declared ?? "(not found)"}");
+                report.AppendLine($"  Yes/No storage:         {paraIntegerTypes}");
+                report.AppendLine($"  Text storage:           {paraStringTypes}");
                 report.AppendLine($"  Mixed within one type:  {paraMixed}");
-                if (paraIntegerTypes > 0 || paraMixed > 0)
+                int offType = expected == "Integer" ? paraStringTypes
+                            : expected == "String" ? paraIntegerTypes
+                            : 0;
+                if (paraMixed > 0 || offType > 0)
                 {
-                    report.AppendLine("  ⚠ Mixed bindings make SetParagraphDepth half-silent.");
-                    report.AppendLine("    Calculated-Value `if(BOOL, …)` only resolves on TEXT params.");
-                    report.AppendLine("    Re-load MR_PARAMETERS.txt v5.3+ then re-bind from project.");
+                    report.AppendLine($"  ⚠ {paraMixed + offType} tag type(s) hold these parameters in a storage other than " +
+                                      $"the declared {declared}, so SetParagraphDepth updates only part of the project.");
+                    report.AppendLine("    Re-bind them from MR_PARAMETERS.txt (Load Params) and reload the tag families.");
+                }
+                else if (expected == null)
+                {
+                    report.AppendLine("  ⚠ MR_PARAMETERS.txt does not declare these parameters, so storage cannot be checked.");
+                }
+                else
+                {
+                    report.AppendLine("  ✓ Every tag type matches the declared storage.");
                 }
             }
 
