@@ -327,6 +327,9 @@ namespace StingTools.Core
                 // ElementId-based caches and Definition caches become invalid when a
                 // document closes. Using them against a new document causes native crashes.
                 application.ControlledApplication.DocumentClosing += OnDocumentClosing;
+                // ELEC-32: record Revit's error text per transaction (read-only) so a
+                // rolled-back StingTx.Commit can say WHY, not only that it failed.
+                application.ControlledApplication.FailuresProcessing += StingTx.RecordFailures;
                 // MEP-from-DWG P6-2.3: drop the per-import detection cache on ANY model
                 // change so a Preview→Convert cache hit always reflects the current model.
                 application.ControlledApplication.DocumentChanged += OnDocumentChangedMepCache;

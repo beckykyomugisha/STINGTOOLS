@@ -20,10 +20,7 @@ namespace StingTools.Core.Electrical
         /// values that are not there.
         /// </summary>
         /// <summary>The message of a step whose transaction Revit rolled back (ElecTx.Commit).</summary>
-        public static string RolledBack(string what, string status)
-            => $"ROLLED BACK ({(string.IsNullOrWhiteSpace(status) ? "not committed" : status.Trim())}): "
-             + $"{(string.IsNullOrWhiteSpace(what) ? "the change" : what.Trim())} — Revit undid it; nothing from this step was kept in the model. "
-             + "Any counts it would have reported are void. Revit's own warning (if shown) says why.";
+        public static string RolledBack(string what, string status) => StingTools.Core.TxReport.RolledBack(what, status);
 
         public static string Landed(string noun, int written, bool committed, string status = null)
         {
