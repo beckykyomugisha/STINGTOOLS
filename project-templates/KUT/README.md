@@ -98,7 +98,7 @@ Run from **STING panel → Workflows**, or `WorkflowPreset`.
 | Open clash count + fortnight burn-down by discipline | `ClashRun` + `ExportModelHealth` | Coordination Cycle |
 | Model-health score (warnings, duplicates, unplaced rooms, file-size trend) | `ExportModelHealth` / `ModelHealthDashboard` | Coordination Cycle, Monthly |
 | Naming + metadata compliance % | `CompletenessDashboard` / `ValidateTags` | every workflow |
-| Per-discipline compliance | `DiscComplianceReport` | Monthly |
+| Per-discipline compliance | `CompletenessDashboard` (its per-discipline breakdown — `DiscComplianceReport` is an alias of the same command) | Monthly |
 | Exchange punctuality / sheet register | `ExportSheetRegister` + `SheetComplianceCheck` | Monthly |
 | Review-comment close-out rate (Bluebeam) | `ReviewComments_Import` | as Owner sessions close |
 | As-built capture currency (construction) | `LOD_Verify` (deliverable-d) trend | Deliverable D / quarterly |

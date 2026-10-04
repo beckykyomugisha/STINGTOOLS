@@ -64,6 +64,8 @@ SELFTEST_GOOD = "Fohlio_Export"
 SELFTEST_BAD = "Fohlio_ExportZZZ_NOT_A_REAL_TAG"
 
 CASE_RE = re.compile(r'^\s*case\s+"([^"]+)"\s*:', re.MULTILINE)
+# One or more stacked case labels followed by the command they construct.
+CASE_CLASS_RE = re.compile(r'((?:case\s+"[^"]+"\s*:\s*)+)return\s+new\s+([\w.]+)\s*\(')
 SWITCH_RE = re.compile(r'\bswitch\s*\(')
 
 
@@ -191,6 +193,23 @@ def extract_case_labels(engine_path: Path) -> set[str]:
     return set(CASE_RE.findall(window))
 
 
+def extract_case_classes(engine_path: Path) -> dict[str, str]:
+    """tag -> the command class ResolveCommand constructs for it.
+
+    Two tags can construct the same class (aliases). A workflow that lists both runs the
+    same command twice under two names -- KUT MonthlyReport ran CompletenessDashboard twice,
+    once as "DiscComplianceReport", and its README counted them as two KPIs.
+    """
+    text = engine_path.read_text(encoding="utf-8", errors="replace")
+    lo, hi = locate_resolve_command(text)
+    out: dict[str, str] = {}
+    for m in CASE_CLASS_RE.finditer(text[lo:hi]):
+        cls = m.group(2).split(".")[-1]
+        for tag in re.findall(r'case\s+"([^"]+)"', m.group(1)):
+            out[tag] = cls
+    return out
+
+
 def selftest(labels: set[str]) -> None:
     good_ok = SELFTEST_GOOD in labels
     bad_ok = SELFTEST_BAD not in labels
@@ -216,6 +235,10 @@ def main() -> int:
     labels = extract_case_labels(engine)
     print(f"ResolveCommand case labels: {len(labels)}\n")
     selftest(labels)
+    classes = extract_case_classes(engine)
+    if len(classes) < len(labels) // 2:
+        fail(f"mapped only {len(classes)} of {len(labels)} case labels to a command class -- "
+             "the case/return shape has changed; re-read ResolveCommand")
 
     files = sorted((root / "StingTools" / "Data").glob("WORKFLOW_KUT_*.json"))
     if not files:
@@ -238,6 +261,11 @@ def main() -> int:
         if not isinstance(steps, list):
             problems.append(f"{path.name}: no 'steps' array")
             continue
+        if len(steps) == 0:
+            # An empty workflow runs nothing and reports success.
+            problems.append(f"{path.name}: 'steps' is empty -- the workflow would run nothing and succeed")
+            continue
+        seen_class: dict[str, str] = {}
 
         resolved = 0
         for i, step in enumerate(steps, start=1):
@@ -260,6 +288,15 @@ def main() -> int:
             # Check 4: the tag resolves.
             if tag in labels:
                 resolved += 1
+                # Check 5: no command runs twice under two names in one workflow.
+                cls = classes.get(tag)
+                if cls and cls in seen_class and seen_class[cls] != tag:
+                    problems.append(
+                        f"{path.name} step {i}: '{tag}' runs {cls}, the same command as step "
+                        f"'{seen_class[cls]}' -- an alias runs it twice, not a second check"
+                    )
+                elif cls:
+                    seen_class.setdefault(cls, tag)
             else:
                 problems.append(
                     f"{path.name} step {i}: commandTag '{tag}' is not a case label in "
