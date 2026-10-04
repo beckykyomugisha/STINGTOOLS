@@ -125,16 +125,5 @@ namespace StingTools.Core.Storage
             }
         }
 
-        /// <summary>
-        /// Lookup a single category's learned offset, or null when never
-        /// learned. Smart Tag Placement reads this during candidate scoring.
-        /// </summary>
-        public static CategoryOffset LookupOffset(Document doc, string categoryName)
-        {
-            if (string.IsNullOrEmpty(categoryName)) return null;
-            var all = Read(doc);
-            if (all?.ByCategory == null) return null;
-            return all.ByCategory.TryGetValue(categoryName, out var off) ? off : null;
-        }
     }
 }

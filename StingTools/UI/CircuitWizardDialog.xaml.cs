@@ -175,8 +175,15 @@ namespace StingTools.UI
 
             try
             {
-                var proposed = CircuitWizardEngine.ProposeCircuits(
-                    UnconnectedElements, panel, pct / 100.0, standard, _wireTables, _bsTables);
+                // Conductor material from the Electrical panel's CABLE tab when it is open;
+                // otherwise none, and each proposal says copper was assumed.
+                var opts = new CircuitWizardOptions
+                {
+                    MaxLoadPct = pct / 100.0, Standard = standard, Bs7671Tables = _bsTables,
+                    Material = StingTools.UI.StingElectricalCommandHandler.CurrentCableSizeInput?.Material,
+                };
+                CircuitWizardCommand.PendingOptions = opts;
+                var proposed = CircuitWizardEngine.ProposeCircuits(UnconnectedElements, panel, opts, _wireTables);
                 Proposals.Clear();
                 foreach (var p in proposed) Proposals.Add(new ProposedCircuitVm(p, standard, _wireTables, _bsTables));
             }
@@ -271,7 +278,29 @@ namespace StingTools.UI
                 MessageBoxAlt("Nothing to create.");
                 return;
             }
+            var refused = Proposals.Where(p => p.Source.RatingRefusal != null).ToList();
+            if (refused.Count > 0)
+            {
+                MessageBoxAlt($"{refused.Count} proposed circuit(s) have no standard protective device and cannot be created:\n" +
+                    string.Join("\n", refused.Take(10).Select(p => $"  {p.ProposedLabel}: {p.RatingRefusal}")) +
+                    "\n\nSplit or remove them first.");
+                return;
+            }
+            var assumedMat = Proposals.FirstOrDefault(p => p.Source.MaterialNote != null);
+            if (assumedMat != null)
+                MessageBoxAlt("Conductor material: " + assumedMat.Source.MaterialNote +
+                    " — the proposals were sized as copper. Set the material on the Electrical panel's CABLE tab and propose again if they are not.");
+            var toConfirm = Proposals.Where(p => p.Source.ConductorNote != null).ToList();
+            if (toConfirm.Count > 0)
+                MessageBoxAlt($"{toConfirm.Count} proposed circuit(s) need the NEC 240.4 conductor check confirmed:\n" +
+                    string.Join("\n", toConfirm.Take(10).Select(p => $"  {p.ProposedLabel}: {p.Source.ConductorNote}")) +
+                    (toConfirm.Count > 10 ? $"\n  …and {toConfirm.Count - 10} more" : ""));
             CircuitWizardCommand.PendingCircuits = Proposals.Select(p => p.Source).ToList();
+            // The post-create recalculation (a circuit with no cable size) reads
+            // PendingOptions.Standard, which defaulted to "BS": an NEC proposal was
+            // re-sized to BS 7671 at Create. Carry the standard the proposals were made on.
+            (CircuitWizardCommand.PendingOptions ??= CircuitWizardOptions.Default).Standard =
+                ((cmbWzStandard.SelectedItem as ComboBoxItem)?.Tag as string) ?? "BS7671";
             CircuitWizardCommand.PendingPanelName = panel;
             try { StingElectricalCommandHandler.Instance?.SetCommand("Circuit_CreateWizard"); }
             catch (Exception ex) { StingLog.Warn($"CreateWizard dispatch: {ex.Message}"); }
@@ -338,7 +367,8 @@ namespace StingTools.UI
         public int ElementsCount => Source.Elements.Count;
         public string TotalVADisplay => $"{Source.TotalLoadVA:0}";
         public string UtilDisplay => $"{Source.UtilisationPct:0}%";
-        public string ProposedRatingDisplay => $"{Source.ProposedRatingA:0}A";
+        public string ProposedRatingDisplay => Source.RatingRefusal != null ? "NO DEVICE" : $"{Source.ProposedRatingA:0}A";
+        public string RatingRefusal => Source.RatingRefusal;
         public string ProposedCsaDisplay => $"{Source.ProposedCsaMm2:0.#}mm²";
         public void Refresh()
         {
@@ -347,6 +377,7 @@ namespace StingTools.UI
             OnChanged(nameof(TotalVADisplay));
             OnChanged(nameof(UtilDisplay));
             OnChanged(nameof(ProposedRatingDisplay));
+            OnChanged(nameof(RatingRefusal));
             OnChanged(nameof(ProposedCsaDisplay));
         }
         public event PropertyChangedEventHandler PropertyChanged;

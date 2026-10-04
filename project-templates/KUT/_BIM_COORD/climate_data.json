@@ -1,7 +1,7 @@
 {
   "_comment": "KUT climate overlay. UNVERIFIED — do not present these values as confirmed design data. The record is LABELLED Kampala and carries the ENTEBBE station (HUEN / WMO 636800): latitude 0.042, longitude 32.444 and elevation 1155 m are Entebbe International Airport, roughly 35 km south of the site and about 40 m lower. Using the nearest long-record station as a proxy is normal practice, but it is stated here rather than hidden, because the elevation feeds the air-density correction and the site sits higher than the station. The values are an estimate pending confirmation by the engineer of record against ASHRAE 2021, and that confirmation is a row on the standards reconciliation schedule (BEP 4.1.3) — it is not closed. Replace both the values and this note when it is.",
   "_schema": "STING_CLIMATE_DATA",
-  "_version": "1.1",
+  "_version": "1.2",
   "sites": [
     {
       "id": "kampala",
@@ -17,6 +17,18 @@
       "cdd10": 3000,
       "utcOffsetHours": 3,
       "observesDstInSummer": false,
+      "heatingWindMs": 2.1,
+      "coolingWindMs": 4.0,
+      "windSource": {
+        "station": "Entebbe.Intl.AP CEN UGA",
+        "wmo": "637050",
+        "ashraeEdition": "2025 ASHRAE Handbook - Fundamentals - Chapter 14 Climatic Design Information",
+        "designConditionsPeriod": "2000-2023",
+        "grade": "B",
+        "url": "https://climate.onebuilding.org/WMO_Region_1_Africa/UGA_Uganda/UGA_CEN_Entebbe.Intl.AP.637050_TMYx.2009-2023.zip",
+        "verify": "Taken from the climate.onebuilding.org redistribution, not the printed handbook: the TMYx 2009-2023 .stat 'MCWS/PCWD to 99.6% DB' and 'MCWS/PCWD to 0.4% DB' columns were read and both equal the annual heating / cooling design-day wind speeds in the .ddy of the same download. Confirm against the licensed ASHRAE 2025 Fundamentals Ch. 14 table for this WMO station.",
+        "note": "Entebbe Intl AP (HUEN, WMO 637050) used as the proxy for Kampala, as the site's lat/lon/elevation already are. Design-condition grade B, period 2000-2023. Note: WMO 636800 (cited in this site's temperature source) is onebuilding.org's Kampala station, not Entebbe."
+      },
       "source": "UNVERIFIED ESTIMATE. Entebbe station geometry with estimated design temperatures. Replace with engineer-confirmed ASHRAE 2021 values, and correct the elevation to the site if the design is sensitive to air density."
     }
   ]

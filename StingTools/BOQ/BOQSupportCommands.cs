@@ -137,7 +137,7 @@ namespace StingTools.BOQ
                     long id = el.Id?.Value ?? 0;
                     if (!rowByEl.TryGetValue(id, out var row))
                         missing.Add("no row");
-                    else if (row.RateUGX <= 0)
+                    else if (!row.IsPriceDecided)   // DSCH-26: NIL / INCL are priced
                         missing.Add("rate");
 
                     if (missing.Count == 0) continue;
@@ -267,7 +267,7 @@ namespace StingTools.BOQ
                 var modelled = boq.AllItems.Where(i => i != null && i.Source == BOQRowSource.Model).ToList();
                 int total = modelled.Count;
 
-                var noRate    = modelled.Where(i => i.RateUGX <= 0).ToList();
+                var noRate    = modelled.Where(i => !i.IsPriceDecided).ToList();   // DSCH-26: NIL / INCL are priced
                 var lowConf   = modelled.Where(i => i.RateUGX > 0 && i.RateConfidence < floor).ToList();
                 var defaulted = modelled.Where(i => i.RateUGX > 0 && i.RateConfidence >= floor
                                     && string.Equals(i.RateSource, "Default", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -773,12 +773,21 @@ namespace StingTools.BOQ
                     RateConfidence = 70,
                     Note = $"Added via BOQ panel ({BoqSourceUtil.Label(source)})"
                 };
+                // DSCH-35 — a PS row carries its NRM2 2.9.1 declaration; blank or unreadable
+                // input stays Undeclared (shown NOT DECLARED and flagged), never a default.
+                if (source == BOQRowSource.ProvisionalSum)
+                {
+                    string psRaw = StingCommandHandler.GetExtraParam("ManualRowPsType");
+                    if (ProvisionalSumTypes.TryParse(psRaw, out var psType)) newRow.PsType = psType;
+                    else if (!string.IsNullOrWhiteSpace(psRaw)) newRow.Note += "; " + ProvisionalSumTypes.UnreadableNote(psRaw);
+                }
                 store.ManualRows.Add(newRow);
                 BOQCostManager.SaveManualRows(ctx.Doc, store.ManualRows, store.ProjectBudgetUGX);
                 UI.StingResultPanel.Create("Manual row added")
                     .AddSection("ROW")
                     .Metric("Item", newRow.ItemName)
-                    .Metric("Type", newRow.Category)
+                    .Metric("Type", newRow.Source == BOQRowSource.ProvisionalSum
+                        ? $"{newRow.Category} ({ProvisionalSumTypes.Marker(newRow.PsType)})" : newRow.Category)
                     .Metric("Quantity", $"{newRow.Quantity:N3} {newRow.Unit}")
                     .Metric("Rate", $"UGX {newRow.RateUGX:N0}")
                     .Show();
@@ -1077,7 +1086,7 @@ namespace StingTools.BOQ
                         try { el = ctx.Doc.GetElement(new ElementId(m.ModeledRow.RevitElementId)); }
                         catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                         if (el == null) continue;
-                        ParameterHelpers.SetInt(el, "CST_PROVISIONAL_SUM", 0, overwrite: true);
+                        ParameterHelpers.SetInt(el, ParamRegistry.CST_PROVISIONAL_SUM, 0, overwrite: true);
                         ParameterHelpers.SetString(el, "CST_RATE_SOURCE", "PromotedFromPS", overwrite: true);
                     }
                     tx.Commit();
@@ -1242,6 +1251,110 @@ namespace StingTools.BOQ
                 return Result.Succeeded;
             }
             catch (Exception ex) { StingLog.Error("BOQWriteItemParamsCommand", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  BOQSetRateOutcomeCommand — DSCH-43. The BOQ panel's row menu
+    //  "Rate: Nil" / "Rate: Included in…" / "Clear outcome" writes the
+    //  element rate override's v3 outcome (StingCostRateOverrideSchema).
+    //  ExtraParams: RateOutcomeElementIds (comma list), RateOutcomeEdit
+    //  (Nil / Included / Clear), RateOutcomeIncludedIn. What is refused, and
+    //  why, is always shown — inline in the panel, else a dialog.
+    // ══════════════════════════════════════════════════════════════════════
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class BOQSetRateOutcomeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            string rawIds = StingCommandHandler.GetExtraParam("RateOutcomeElementIds") ?? "";
+            string rawEdit = StingCommandHandler.GetExtraParam("RateOutcomeEdit") ?? "";
+            string includedIn = StingCommandHandler.GetExtraParam("RateOutcomeIncludedIn") ?? "";
+            bool inline = StingCommandHandler.GetExtraParam("InlineHost") == "1";
+            StingCommandHandler.ClearExtraParam("RateOutcomeElementIds");
+            StingCommandHandler.ClearExtraParam("RateOutcomeEdit");
+            StingCommandHandler.ClearExtraParam("RateOutcomeIncludedIn");
+            StingCommandHandler.ClearExtraParam("InlineHost");
+
+            var refusals = new List<string>();
+            int written = 0, cleared = 0;
+            string what = rawEdit;
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx?.Doc == null) return Result.Failed;
+
+                if (!StingTools.BOQ.Rates.RateOverrideOutcome.TryParseEdit(rawEdit, out var edit))
+                {
+                    refusals.Add($"'{rawEdit}' is not Nil / Included / Clear.");
+                }
+                else
+                {
+                    what = edit == StingTools.BOQ.Rates.OutcomeEdit.Nil ? "Nil"
+                         : edit == StingTools.BOQ.Rates.OutcomeEdit.Included ? $"Included in {includedIn.Trim()}"
+                         : "Clear outcome";
+                    var ids = new List<long>();
+                    foreach (var tok in rawIds.Split(','))
+                        if (long.TryParse(tok.Trim(), out long id) && id > 0 && !ids.Contains(id)) ids.Add(id);
+                    if (ids.Count == 0) refusals.Add("the row has no model element to carry a rate override.");
+
+                    using (var tx = new Transaction(ctx.Doc, "STING BOQ — rate outcome"))
+                    {
+                        tx.Start();
+                        foreach (long id in ids)
+                        {
+                            Element el = ctx.Doc.GetElement(new ElementId(id));
+                            if (el == null) { refusals.Add($"element {id}: not found in this model."); continue; }
+                            var ov = Core.Storage.StingCostRateOverrideSchema.Read(el);
+                            bool hasV3 = Core.Storage.StingCostRateOverrideSchema.HasV3(el);
+                            var plan = StingTools.BOQ.Rates.RateOverrideOutcome.PlanEdit(edit, includedIn,
+                                hasV3, ov?.Outcome ?? StingTools.BOQ.Rates.RateOutcome.Priced,
+                                !string.IsNullOrEmpty(ov?.UnreadableReason),
+                                ov?.IsLocked ?? false, ov?.LockedByUser);
+                            if (plan.Refusal != null) { refusals.Add($"element {id}: {plan.Refusal}."); continue; }
+
+                            string error;
+                            if (plan.DeleteV3)
+                            {
+                                if (Core.Storage.StingCostRateOverrideSchema.DeleteV3(el, out error)) cleared++;
+                                else refusals.Add($"element {id}: {error}.");
+                                continue;
+                            }
+                            // Keep what the existing override says about unit, currency,
+                            // note, waste and dayworks; a Nil / Included carries rate 0.
+                            if (Core.Storage.StingCostRateOverrideSchema.TryWrite(el, 0, plan.Outcome, plan.IncludedIn,
+                                    ov?.Unit ?? "each", ov?.Currency ?? "UGX", ov?.Note ?? "",
+                                    ov?.WastePercent ?? 0, ov?.OverheadPercent ?? 0, ov?.ProfitPercent ?? 0,
+                                    ov?.DayworksCode ?? "", ov?.LockedByUser ?? "", ov?.LockedUntilUtcTicks ?? 0,
+                                    out error))
+                                written++;
+                            else
+                                refusals.Add($"element {id}: {error}.");
+                        }
+                        if (written + cleared > 0) tx.Commit(); else tx.RollBack();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("BOQSetRateOutcome", ex);
+                refusals.Add(ex.Message);
+            }
+
+            StingLog.Info($"BOQSetRateOutcome '{what}': {written} written, {cleared} cleared, {refusals.Count} refused.");
+            var rp = StingResultPanel.Create("Rate outcome — " + what);
+            var sec = rp.AddSection("RESULT");
+            if (written > 0) sec.Metric("Written", $"{written} element(s)", "v3 rate override, rate 0");
+            if (cleared > 0) sec.Metric("Cleared", $"{cleared} element(s)", "an older priced override, if any, applies again");
+            if (refusals.Count > 0)
+            {
+                sec.MetricWarn("Refused", $"{refusals.Count}");
+                foreach (string r in refusals.Take(30)) sec.Text("• " + r);
+                if (refusals.Count > 30) sec.Text($"… and {refusals.Count - 30} more (see log).");
+            }
+            if (!inline || !BOQInlineResults.Post(rp)) rp.Show();
+            return written + cleared > 0 ? Result.Succeeded : Result.Cancelled;
         }
     }
 }

@@ -893,23 +893,6 @@ namespace StingTools.Tags
             }
         }
 
-        /// <summary>Load presentation mode definitions.</summary>
-        public static Dictionary<string, JObject> LoadPresentationModes()
-        {
-            var result = new Dictionary<string, JObject>();
-            var doc = LoadDocument();
-            if (doc == null) return result;
-
-            var modes = doc["presentation_modes"] as JObject;
-            if (modes == null) return result;
-
-            foreach (var prop in modes.Properties())
-            {
-                result[prop.Name] = prop.Value as JObject;
-            }
-            return result;
-        }
-
         /// <summary>Load category label definitions.</summary>
         public static Dictionary<string, JObject> LoadCategoryLabels()
         {
@@ -951,26 +934,6 @@ namespace StingTools.Tags
         {
             _cached = null;
             _cachedPath = null;
-        }
-
-        /// <summary>Load TAG7 heading style settings for a tier.</summary>
-        public static (bool bold, bool italic, bool underline) LoadHeadingStyle(string tier)
-        {
-            var doc = LoadDocument();
-            if (doc == null) return (false, false, true); // default: underline only
-
-            var styleSection = doc["tag7_heading_style"] as JObject;
-            if (styleSection == null) return (tier == "tier_3", false, true); // default: tier3=bold+underline
-
-            string key = tier == "tier_3" ? "tier_3_heading" : "tier_2_heading";
-            var heading = styleSection[key] as JObject;
-            if (heading == null) return (tier == "tier_3", false, true);
-
-            return (
-                heading["bold"]?.Value<bool>() ?? false,
-                heading["italic"]?.Value<bool>() ?? false,
-                heading["underline"]?.Value<bool>() ?? true
-            );
         }
 
         /// <summary>

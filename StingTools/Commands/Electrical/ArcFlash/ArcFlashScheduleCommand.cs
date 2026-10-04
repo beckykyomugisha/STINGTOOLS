@@ -60,7 +60,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 AddByName(def, doc, "ELC_PNL_SHORT_CIRCUIT_RATING_KA", "Available Fault (kA)");
                 AddByName(def, doc, "ELC_ARC_FLASH_IE_CAL_CM2", $"Incident Energy (cal/cm²) — {ArcFlashEngine.BasisShort}");
                 AddByName(def, doc, "ELC_ARC_FLASH_BOUNDARY_MM", $"Arc Flash Boundary (mm) — {ArcFlashEngine.BasisShort}");
-                AddByName(def, doc, "ELC_ARC_FLASH_PPE_CAT", "PPE Category (by energy, indicative)");
+                AddByName(def, doc, "ELC_ARC_FLASH_PPE_CAT", "Incident-energy band (not a PPE category)");
                 AddByName(def, doc, "ELC_ARC_FLASH_WORK_DIST_MM", "Working Distance (mm)");
                 AddByName(def, doc, "ELC_ARC_FLASH_LABEL_TXT", "Label / Basis");
 

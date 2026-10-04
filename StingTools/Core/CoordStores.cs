@@ -101,8 +101,12 @@ namespace StingTools.Core
         /// <summary>Model-health trend snapshots.</summary>
         public static string ModelHealth(Document doc) => Resolve(doc, CoordBucket, "model_health.json");
 
-        /// <summary>Project BIM Execution Plan document.</summary>
-        public static string Bep(Document doc) => Resolve(doc, CoordBucket, "project_bep.json");
+        /// <summary>
+        /// Project BIM Execution Plan document. A JSON OBJECT, like <see cref="Team"/>:
+        /// Resolve's legacy merge is array-shaped and would log a parse warning on
+        /// every access when a legacy BEP exists, so only the path is resolved here.
+        /// </summary>
+        public static string Bep(Document doc) => ResolvePathOnly(doc, CoordBucket, "project_bep.json");
 
         /// <summary>
         /// Project team registry (roles, companies, distribution groups). A JSON OBJECT, not an

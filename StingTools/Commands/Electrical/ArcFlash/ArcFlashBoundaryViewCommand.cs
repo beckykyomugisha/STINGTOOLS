@@ -13,8 +13,9 @@ namespace StingTools.Commands.Electrical.ArcFlash
     /// active plan view, sized to its arc-flash boundary distance
     /// (ELC_ARC_FLASH_BOUNDARY_MM parameter, populated by ArcFlashCommand
     /// — accessed via the ParamRegistry alias for canonical resolution).
-    /// Colour-codes red/orange/yellow/green by PPE category for instant
-    /// safety-zone awareness on installation drawings. Boundaries are
+    /// Colours each circle by its incident-energy band (STING_ARC_FLASH_PPE.json
+    /// energyBands — presentation, not a PPE category; DSCH-25). When that file does not
+    /// load, the circles are drawn uncoloured and the dialog says why. Boundaries are
     /// IEEE 1584-2018 values (<see cref="ArcFlashEngine.Basis"/>).
     /// </summary>
     [Transaction(TransactionMode.Manual)]
@@ -44,6 +45,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 return Result.Cancelled;
             }
 
+            var presentation = ArcFlashPresentation.Current;
             int drawn = 0, skipped = 0;
             using (var tx = new Transaction(doc, "STING Arc Flash Boundary Circles"))
             {
@@ -52,13 +54,13 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 {
                     try
                     {
-                        // Canonical via ParamRegistry: ELC_ARC_FLASH_BOUNDARY_MM
-                        // and ELC_ARC_FLASH_PPE_CAT. ParamRegistry.ELC_ARC_FLASH_BD /
-                        // _PPE alias these so the lookup matches whichever schema
-                        // version the project ships.
+                        // Canonical via ParamRegistry: ELC_ARC_FLASH_BOUNDARY_MM and
+                        // ELC_ARC_FLASH_IE_CAL_CM2. The band is taken from the incident
+                        // energy, not from ELC_ARC_FLASH_PPE_CAT (which holds the band's
+                        // label text since DSCH-25).
                         double bdMm = ParseDouble(panel.LookupParameter(ParamRegistry.ELC_ARC_FLASH_BD)?.AsString());
                         if (bdMm <= 0) { skipped++; continue; }   // "N/A" = not calculated -> no circle
-                        int ppe = (int)ParseDouble(panel.LookupParameter(ParamRegistry.ELC_ARC_FLASH_PPE)?.AsString());
+                        double ieCal = ParseDouble(panel.LookupParameter(ParamRegistry.ELC_ARC_FLASH_IE)?.AsString());
                         XYZ origin = (panel.Location as LocationPoint)?.Point;
                         if (origin == null) { skipped++; continue; }
                         double bdFt = bdMm / 304.8;
@@ -73,9 +75,11 @@ namespace StingTools.Commands.Electrical.ArcFlash
                         Plane plane = Plane.CreateByNormalAndOrigin(n, centre);
                         Arc arc = Arc.Create(plane, bdFt, 0, 2 * Math.PI);
                         var circle = doc.Create.NewDetailCurve(view, arc);
-                        // Colour the curve by PPE category via override
+                        // Colour the curve by incident-energy band via override.
+                        var band = ieCal > 0 ? presentation.BandFor(ieCal) : null;
                         var ogs = new OverrideGraphicSettings();
-                        ogs.SetProjectionLineColor(PpeColor(ppe));
+                        if (band != null)
+                            ogs.SetProjectionLineColor(new Color(band.ViewColour.R, band.ViewColour.G, band.ViewColour.B));
                         ogs.SetProjectionLineWeight(5);
                         view.SetElementOverrides(circle.Id, ogs);
                         drawn++;
@@ -88,23 +92,16 @@ namespace StingTools.Commands.Electrical.ArcFlash
             TaskDialog.Show("STING Arc Flash Boundary",
                 $"Drew {drawn} boundary circle(s) on {view.Name}.\n" +
                 $"Skipped {skipped} (not calculated, no boundary value or no location).\n" +
-                $"Boundaries are {ArcFlashEngine.BasisShort} - verify with a licensed study.\n\n" +
+                $"Boundaries are {ArcFlashEngine.BasisShort} - verify with a licensed study.\n" +
+                (presentation.Loaded
+                    ? "Colour = incident-energy band (presentation only, not a PPE category).\n\n"
+                    : $"CIRCLES NOT COLOURED: {presentation.LoadError}\n\n") +
                 "Run Elec_ClearOverrides on this view to remove the colour overrides; " +
                 "delete the detail curves manually if you want to clear the geometry.");
             return Result.Succeeded;
         }
 
-        private static Color PpeColor(int ppe) => ppe switch
-        {
-            < 0  => new Color(183, 28, 28),    // dark red - exceeds 40 cal/cm2 (was drawn green)
-            >= 4 => new Color(244, 67, 54),    // red
-            3    => new Color(255, 87, 34),    // deep orange
-            2    => new Color(255, 152, 0),    // orange
-            1    => new Color(255, 235, 59),   // yellow
-            _    => new Color(76, 175, 80)     // green
-        };
-
         private static double ParseDouble(string s) =>
-            double.TryParse(s, out double v) ? v : 0;
+            StingTools.Core.NumberText.ParseOr(s);
     }
 }

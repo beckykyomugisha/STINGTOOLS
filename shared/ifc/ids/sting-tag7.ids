@@ -39,7 +39,7 @@
         </property>
       </applicability>
       <requirements>
-        <property dataType="IFCLABEL" cardinality="optional">
+        <property dataType="IFCTEXT" cardinality="optional">
           <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
           <baseName><simpleValue>NarrativeFull</simpleValue></baseName>
           <value>
@@ -65,7 +65,7 @@
         </property>
       </applicability>
       <requirements>
-        <property dataType="IFCLABEL" cardinality="optional">
+        <property dataType="IFCTEXT" cardinality="optional">
           <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
           <baseName><simpleValue>IdentityHeader</simpleValue></baseName>
           <value>
@@ -91,7 +91,7 @@
         </property>
       </applicability>
       <requirements>
-        <property dataType="IFCLABEL" cardinality="optional">
+        <property dataType="IFCTEXT" cardinality="optional">
           <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
           <baseName><simpleValue>SystemFunction</simpleValue></baseName>
           <value>
@@ -117,7 +117,7 @@
         </property>
       </applicability>
       <requirements>
-        <property dataType="IFCLABEL" cardinality="optional">
+        <property dataType="IFCTEXT" cardinality="optional">
           <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
           <baseName><simpleValue>SpatialContext</simpleValue></baseName>
           <value>
@@ -143,7 +143,7 @@
         </property>
       </applicability>
       <requirements>
-        <property dataType="IFCLABEL" cardinality="optional">
+        <property dataType="IFCTEXT" cardinality="optional">
           <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
           <baseName><simpleValue>LifecycleStatus</simpleValue></baseName>
           <value>
@@ -169,7 +169,7 @@
         </property>
       </applicability>
       <requirements>
-        <property dataType="IFCLABEL" cardinality="optional">
+        <property dataType="IFCTEXT" cardinality="optional">
           <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
           <baseName><simpleValue>TechnicalSpecs</simpleValue></baseName>
           <value>
@@ -195,7 +195,7 @@
         </property>
       </applicability>
       <requirements>
-        <property dataType="IFCLABEL" cardinality="optional">
+        <property dataType="IFCTEXT" cardinality="optional">
           <propertySet><simpleValue>Pset_StingTag7</simpleValue></propertySet>
           <baseName><simpleValue>Classification</simpleValue></baseName>
           <value>

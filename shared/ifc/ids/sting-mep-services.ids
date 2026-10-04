@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS"
+     xmlns:xs="http://www.w3.org/2001/XMLSchema"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+
+  <info>
+    <title>STING — MEP service parameters (Pset_StingMEPServices)</title>
+    <copyright>Planscape Limited, 2026</copyright>
+    <version>1.0.0</version>
+    <description>IDS encoding of shared/ifc/psets/Pset_StingMEPServices.xml: every property, when present, carries the data type the template declares; the few properties whose values are fixed by a standard or by the code that writes them are also checked for value. One specification per property, in template order.</description>
+    <author>info@stingtools.io</author>
+    <date>2026-10-02</date>
+    <purpose>STING property-set contract validation (DSCH-38 follow-up)</purpose>
+    <milestone>Stage_4_TechnicalDesign</milestone>
+  </info>
+
+  <specifications>
+
+    <specification name="ProtectiveConductorSize_type"
+                   identifier="MEPS-001"
+                   description="When Pset_StingMEPServices.ProtectiveConductorSize is present it is an IfcLabel."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingMEPServices</simpleValue></propertySet>
+          <baseName><simpleValue>ProtectiveConductorSize</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingMEPServices</simpleValue></propertySet>
+          <baseName><simpleValue>ProtectiveConductorSize</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="InsulationThickness_type"
+                   identifier="MEPS-002"
+                   description="When Pset_StingMEPServices.InsulationThickness is present it is an IfcReal (in mm)."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingMEPServices</simpleValue></propertySet>
+          <baseName><simpleValue>InsulationThickness</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCREAL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingMEPServices</simpleValue></propertySet>
+          <baseName><simpleValue>InsulationThickness</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="Slope_type"
+                   identifier="MEPS-003"
+                   description="When Pset_StingMEPServices.Slope is present it is an IfcLabel."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingMEPServices</simpleValue></propertySet>
+          <baseName><simpleValue>Slope</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingMEPServices</simpleValue></propertySet>
+          <baseName><simpleValue>Slope</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+  </specifications>
+</ids>

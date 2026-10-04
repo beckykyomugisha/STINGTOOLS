@@ -63,6 +63,13 @@ namespace StingTools.Tags
 
             var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
 
+            // Project-type preset (STING_SPATIAL_CODES projectTypePresets): ADVISORY. A LVL/LOC
+            // code outside it is listed as a note below and never counted as a violation.
+            SpatialTypePreset spatialPreset = null;
+            try { spatialPreset = SpatialCodeRegistry.ActivePreset(doc); }
+            catch (Exception ex) { StingLog.Warn($"ValidateTags: spatial preset: {ex.Message}"); }
+            var presetNotes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
             // VT-01: Pre-cache phases to avoid per-element FilteredElementCollector in DetectStatus
             List<Phase> cachedPhases = null;
             ElementId lastPhaseId = ElementId.InvalidElementId;
@@ -272,6 +279,16 @@ namespace StingTools.Tags
                     tagCounts[tag1] = cnt + 1;
                 }
 
+                if (spatialPreset != null)
+                {
+                    foreach (var tok in new[] { ("LVL", ParamRegistry.LVL), ("LOC", ParamRegistry.LOC) })
+                    {
+                        string note = SpatialCodeRegistry.PresetAdvisory(spatialPreset, tok.Item1,
+                            ParameterHelpers.GetString(el, tok.Item2));
+                        if (note != null) IncrementDict(presetNotes, note);
+                    }
+                }
+
                 // Single-pass ISO validation via ValidateElement
                 var elementErrors = ISO19650Validator.ValidateElement(el);
                 int elementCrossErrors = elementErrors.Count(e => e.Type == ValidationErrorType.CrossValidation);
@@ -448,6 +465,15 @@ namespace StingTools.Tags
                     foreach (var kvp in isoIssueTypes.OrderByDescending(x => x.Value).Take(8))
                         report.AppendLine($"    {kvp.Key}: {kvp.Value}x");
                 }
+            }
+
+            if (presetNotes.Count > 0)
+            {
+                report.AppendLine();
+                report.AppendLine($"── Project-type preset {spatialPreset?.Name} (advisory, not counted) ──");
+                foreach (var kvp in presetNotes.OrderByDescending(x => x.Value).Take(8))
+                    report.AppendLine($"    NOTE {kvp.Key}: {kvp.Value}x");
+                StingLog.Warn($"ValidateTags: {presetNotes.Values.Sum()} LVL/LOC value(s) outside the {spatialPreset?.Name} project-type preset (advisory)");
             }
 
             // Duplicate tags detail

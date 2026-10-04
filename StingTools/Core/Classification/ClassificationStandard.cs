@@ -72,7 +72,13 @@ namespace StingTools.Core.Classification
             try
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return ClassStandard.Uniclass;
-                string path = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", FileRel);
+                // DSCH round 6: Set() writes through StingPaths (the consolidated
+                // _data/coord folder), but this only read the raw <rvtDir>/_BIM_COORD
+                // path - so a saved choice lasted one session and a consolidated
+                // project always fell back to Uniclass. Read where Set writes first.
+                string path = StingPaths.MetaFile(doc, "_BIM_COORD", "sting_classification.json");
+                if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                    path = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", FileRel);
                 if (!File.Exists(path)) return ClassStandard.Uniclass;
                 string raw = (string)JObject.Parse(File.ReadAllText(path))["standard"] ?? "";
                 if (Enum.TryParse<ClassStandard>(raw, true, out var s)) return s;

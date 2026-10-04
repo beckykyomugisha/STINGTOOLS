@@ -455,16 +455,16 @@ namespace StingTools.Commands.Cost
     }
 
     // ──────────────────────────────────────────────────────────────────
-    //  Cost_MigrateESEntities — Bulk-migrate v1 Extensible Storage cost
-    //  overrides to v2. Each v1 entity is read, re-written via the v2
-    //  schema (which auto-deletes the v1 entity), and counted. Idempotent
-    //  — elements that already have a v2 entity are skipped; elements
+    //  Cost_MigrateESEntities — copy v1 Extensible Storage cost overrides
+    //  forward to the current schema (v3, DSCH-33). Each v1 entity is read
+    //  and re-written through Write(), which emits v3 only. Idempotent —
+    //  elements that already carry a v2 or v3 entity are skipped; elements
     //  with no v1 entity are skipped.
     //
-    //  Currently the v1→v2 migration is lazy: Read() consults v2 first
-    //  and falls back to v1; Write() always emits v2. This command does
-    //  the same work eagerly so a project can be guaranteed v2-only,
-    //  enabling future cleanup of the v1 read path.
+    //  Non-destructive: the v1 entity is LEFT in place. Read() prefers v3,
+    //  then v2, then v1, so a copied v1 entity is shadowed, never consulted.
+    //  (Before DSCH-33, Write() deleted the v1 entity as a side effect.)
+    //  v2 entities are not copied — Read() serves them as they are.
     // ──────────────────────────────────────────────────────────────────
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -478,7 +478,7 @@ namespace StingTools.Commands.Cost
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 int migrated = 0, skipped = 0, errors = 0;
-                // B.1 — project currency, not a hardcoded "GBP", for the v2 stamp.
+                // B.1 — project currency, not a hardcoded "GBP", for the v3 stamp.
                 string ccy = BOQCostManager.BuildBOQDocument(doc)?.Currency ?? "UGX";
 
                 // Schema lookups. If v1 was never loaded into this Revit
@@ -487,10 +487,10 @@ namespace StingTools.Commands.Cost
                     StingCostRateOverrideSchema.SchemaGuid);
                 if (v1 == null)
                 {
-                    StingResultPanel.Create("Migrate ES v1 → v2")
+                    StingResultPanel.Create("Migrate ES v1 → v3")
                         .AddSection("NOTHING TO MIGRATE")
                         .Text("No v1 Extensible Storage schema present in this document. " +
-                              "Either no overrides exist, or all are already v2.")
+                              "Either no overrides exist, or all are already v2 / v3.")
                         .Show();
                     return Result.Succeeded;
                 }
@@ -517,26 +517,17 @@ namespace StingTools.Commands.Cost
                             // by Write() — we accept that as part of the
                             // migration audit trail.
 
-                            // Idempotent skip if v2 entity already exists
-                            // (shouldn't happen because Write() deletes v1,
-                            // but defensive).
-                            var v2 = Autodesk.Revit.DB.ExtensibleStorage.Schema.Lookup(
-                                StingCostRateOverrideSchema.SchemaGuidV2);
-                            if (v2 != null)
+                            // Idempotent: a v2 or v3 entity already shadows
+                            // the v1 one, so there is nothing to copy.
+                            if (HasEntity(el, StingCostRateOverrideSchema.SchemaGuidV3)
+                                || HasEntity(el, StingCostRateOverrideSchema.SchemaGuidV2))
                             {
-                                var existingV2 = el.GetEntity(v2);
-                                if (existingV2 != null && existingV2.IsValid())
-                                {
-                                    // Stale v1 alongside an existing v2 —
-                                    // delete the v1 orphan and skip the write.
-                                    el.DeleteEntity(v1);
-                                    skipped++;
-                                    continue;
-                                }
+                                skipped++;
+                                continue;
                             }
 
-                            // Re-write as v2. This deletes the v1 entity
-                            // as a side-effect of the Write() implementation.
+                            // Copy forward as v3 (Priced — v1 cannot declare
+                            // anything else). The v1 entity stays.
                             bool ok = StingCostRateOverrideSchema.Write(
                                 el, rate, unit, ccy, note,
                                 wastePercent: 0, overheadPercent: 0, profitPercent: 0,
@@ -553,11 +544,11 @@ namespace StingTools.Commands.Cost
                     t.Commit();
                 }
 
-                StingResultPanel.Create("Migrate ES v1 → v2")
-                    .SetSubtitle("v1 → v2 Extensible Storage migration complete")
+                StingResultPanel.Create("Migrate ES v1 → v3")
+                    .SetSubtitle("v1 overrides copied to v3 (v1 entities kept, shadowed)")
                     .AddSection("MIGRATION")
-                    .Metric("Migrated", migrated.ToString())
-                    .Metric("Already v2 (orphan v1 deleted)", skipped.ToString())
+                    .Metric("Copied to v3", migrated.ToString())
+                    .Metric("Already v2 / v3", skipped.ToString())
                     .Metric("Errors", errors.ToString())
                     .Show();
                 return Result.Succeeded;
@@ -568,6 +559,14 @@ namespace StingTools.Commands.Cost
                 message = ex.Message;
                 return Result.Failed;
             }
+        }
+
+        private static bool HasEntity(Element el, Guid schemaGuid)
+        {
+            var schema = Autodesk.Revit.DB.ExtensibleStorage.Schema.Lookup(schemaGuid);
+            if (schema == null) return false;
+            var e = el.GetEntity(schema);
+            return e != null && e.IsValid();
         }
     }
 
@@ -611,6 +610,7 @@ namespace StingTools.Commands.Cost
                   .Metric("Re-priced", outcome.Repriced.ToString(CultureInfo.InvariantCulture))
                   .Metric("Unchanged", outcome.Unchanged.ToString(CultureInfo.InvariantCulture))
                   .Metric("Override (protected)", outcome.SkippedOverride.ToString(CultureInfo.InvariantCulture))
+                  .Metric("Declared NIL / INCL (nothing to pin)", outcome.Declared.ToString(CultureInfo.InvariantCulture))
                   .Metric("No rate found", outcome.NoRate.ToString(CultureInfo.InvariantCulture));
                 if (outcome.Rows.Count > 0)
                     rp.AddSection("RATE MOVES")

@@ -27,8 +27,14 @@ namespace StingTools.Commands.Healthcare.Specialist
                 //   IncludeIr  → if false, IR rooms are skipped.
                 //   Room       → if non-empty, only that single room is audited.
                 double horMin = HcOptions.HorMinAreaM2;
-                double cathMin = horMin * (40.0 / 70.0);
-                double irMin   = horMin * (38.0 / 70.0);
+                // FGI ratios from STING_HC_HYBRID_OR.json minAreaM2 (70 / 40 / 38 m²),
+                // the constants as the fallback.
+                double horRef  = HcSpecialistData.Get("STING_HC_HYBRID_OR.json", "minAreaM2['OR-HYBRID']", 70.0);
+                double cathRef = HcSpecialistData.Get("STING_HC_HYBRID_OR.json", "minAreaM2.CATHLAB", 40.0);
+                double irRef   = HcSpecialistData.Get("STING_HC_HYBRID_OR.json", "minAreaM2.IR", 38.0);
+                if (horRef <= 0) horRef = 70.0;
+                double cathMin = horMin * (cathRef / horRef);
+                double irMin   = horMin * (irRef / horRef);
                 bool includeIr = HcOptions.HorIncludeIr;
                 string focusRoom = HcOptions.HorRoom?.Trim() ?? "";
 

@@ -142,7 +142,10 @@ namespace StingTools.Core.Plumbing
                 res.RecommendedDnMm = recommended;
                 res.UpsizeRequired  = recommended > currentDn;
 
-                double minSlopePct = BSen12056Standards.GetMinimumSlopePct(currentDn, res.IsStack, isMain: false);
+                // STING_PLUMBING_DRAINAGE_TABLES.json minSlopePct first (BS EN 12056-2
+                // gradients; DN150 is 0.67 % on a branch), the BS EN 12056 constant
+                // table as the fallback.
+                double minSlopePct = PlumbingTables.MinSlopePct(currentDn, isMain: false, isStack: res.IsStack);
                 res.SlopeAdequate  = res.IsStack || res.SlopePct >= minSlopePct;
 
                 if (!res.IsStack)
@@ -206,6 +209,15 @@ namespace StingTools.Core.Plumbing
                 if (string.IsNullOrEmpty(mat)) mat = pipe.PipeType?.Name ?? "";
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            // A material key from STING_PIPE_MATERIALS_HYDRAULIC.json (e.g.
+            // UPVC_DRAIN, VIT_CLAY) takes that file's Manning n; anything else
+            // keeps the name heuristic below.
+            try
+            {
+                var known = PlumbingTables.GetMaterial((mat ?? "").Trim());
+                if (known != null && known.ManningN > 0) return known.ManningN;
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("DrainageSizer.ManningN", $"Material lookup '{mat}': {ex.Message}"); }
             mat = (mat ?? "").ToUpperInvariant();
             if (mat.Contains("CLAY") || mat.Contains("CONCRETE")) return 0.013;
             if (mat.Contains("CAST") || mat.Contains("CI"))       return 0.011;

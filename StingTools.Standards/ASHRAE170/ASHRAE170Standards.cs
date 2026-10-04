@@ -56,16 +56,10 @@ namespace StingTools.Standards.ASHRAE170
                 ExhaustToOutside=false, AllRoomAirExhaustedToOutside=false,
                 RecirculationByMeansOfRoomUnitsAllowed=true,
                 DesignRhPct="max 60", DesignTempC="21-24" } },
-            { "PH-CSP-797", new SpaceParams { Space="Sterile compounding (USP <797>)",
-                PressureRelation="POS", MinOutsideAch=4, MinTotalAch=30,
-                ExhaustToOutside=false, AllRoomAirExhaustedToOutside=false,
-                RecirculationByMeansOfRoomUnitsAllowed=false,
-                DesignRhPct="max 60", DesignTempC="20-22" } },
-            { "PH-CSP-800", new SpaceParams { Space="Hazardous drug compounding (USP <800>)",
-                PressureRelation="NEG", MinOutsideAch=4, MinTotalAch=30,
-                ExhaustToOutside=true, AllRoomAirExhaustedToOutside=true,
-                RecirculationByMeansOfRoomUnitsAllowed=false,
-                DesignRhPct="max 60", DesignTempC="20-22" } },
+            // PH-CSP-* (USP pharmacy rooms): no row here. Polarity, ΔP, air changes and
+            // external exhaust have one owner, StingTools/Data/Healthcare/Specialist/
+            // STING_HC_PHARMACY_USP.json (UspCascade); PressureRegimeValidator routes these
+            // rooms there before this table is read (DSCH-36).
             { "RECOV-1", new SpaceParams { Space="Phase I recovery",
                 PressureRelation="NEUTRAL", MinOutsideAch=2, MinTotalAch=6,
                 ExhaustToOutside=false, AllRoomAirExhaustedToOutside=false,

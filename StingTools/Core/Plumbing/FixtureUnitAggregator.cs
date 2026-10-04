@@ -71,7 +71,7 @@ namespace StingTools.Core.Plumbing
                     }
                     else if (p.StorageType == StorageType.String)
                     {
-                        if (double.TryParse(p.AsString(), out var v) && v > 0) return v;
+                        if (StingTools.Core.NumberText.TryParse(p.AsString(), out var v) && v > 0) return v;
                     }
                 }
             }

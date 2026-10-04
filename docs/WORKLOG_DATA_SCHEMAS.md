@@ -1,0 +1,565 @@
+# Worklog — data-schema drift (DSCH)
+
+Branch `claude/data-schema-drift-validators-a30f10`, from `origin/main` @ `35e9ec7f9`
+(2026-10-01). Unattended run; entries are appended, never rewritten.
+
+## Coordination — files owned by open PRs (2026-10-01)
+
+| PR | Files |
+|---|---|
+| #1033 Tagging worklog: pass 2 | `docs/WORKLOG_TAGGING.md` |
+| #1032 TAGACC-21 proximity | `StingTools.Tags.Tests/ProximityRuleTests.cs`, `StingTools.Tags.Tests/StingTools.Tags.Tests.csproj`, `StingTools/Core/ParameterHelpers.cs`, `StingTools/Core/ProximityRule.cs`, `docs/CHANGELOG.md`, `docs/ROADMAP.md` |
+| #1017 Licence trial | `StingTools.LicenseIssuer/Program.cs`, `StingTools.Licensing.Tests/*`, `StingTools/Core/Licensing/*`, `StingTools/Core/StingToolsApp.cs`, `StingTools/UI/ActivationDialog.cs`, `deploy/*`, `docs/CHANGELOG.md`, `package.bat`, `tools/tester-kit/Install-STING.ps1`, `tools/tester-kit/licence-issuer/README.md` |
+| #1016 Tag-library smoke tests | `docs/CHANGELOG.md`, `docs/ROADMAP.md`, `docs/TAG_TEST_PROTOCOL.md`, `tools/tester-kit/TESTER_GUIDE.*` |
+
+None touches `cost_rates_5d.csv`, `tools/validate_data_schemas.py` or `.github/workflows/*`,
+so this branch is based on `main`. `CHANGELOG.md` / `ROADMAP.md` are shared log files:
+entries are appended only.
+
+## Decisions
+
+- **PROD in `cost_rates_5d.csv` — keep it, add it to the schema.** Options: (a) remove the
+  column; (b) declare it. PROD is real data read by code: `LoadCsvRates` registers
+  `DISC|PROD` keys that `CsvRateLookup` Pass 0 (confidence 97) resolves first (D6, #844).
+  Removing it would delete the most specific rate tier. Chosen: (b), schema v2.
+- **Where schemas live — one registry, `tools/data_schemas.json`.** Options: (a) keep
+  dicts inside the Python validator; (b) a JSON registry read by the validator *and* by
+  C# tests; (c) JSON-Schema files per data file. (a) cannot be read by the C# tests that
+  hold readers to the schema; (c) would duplicate the POCO-derived key sets the
+  validator already derives from C#. Chosen (b): one file, versioned
+  (`registryVersion`, per-file `schemaVersion`), docs derived on demand (`--describe`)
+  rather than a second copy in markdown.
+- **Coverage — register every file, with an honest level.** Writing a full schema for
+  ~400 files in one pass is not credible, and a glob that waves new files through
+  would defeat "a new file without a schema fails". Chosen: every file is listed
+  explicitly under `schemas` (full), `structural` (format checks + the reason there is
+  no deeper schema) or matched by a `nonData` glob (binaries, docs). An unlisted file
+  fails with the `--scaffold` command to run.
+- **CSV headers pinned from the shipped files.** 56 single-table CSVs got their current
+  header as their schema. That is a snapshot, not a reviewed contract (the registry
+  description says so); its value is that any future insert/rename/reorder fails until
+  the schema is changed with it. Hand-reviewed contracts: `cost_rates_5d.csv`,
+  `STING_DEFAULT_COST_RATES.csv`.
+- **Duplicate foundation row in `cost_rates_5d.csv`.** Options: delete the alias row;
+  re-key it. The plugin writes PROD `FDN` (TagConfig) *and* `FND`
+  (StructuralAdvancedDesignExt), and the alias row exists to register MAT_CODE `FDN`.
+  Chosen: alias row carries PROD `FND`, so both spellings price at the product tier and
+  the `S|FDN` key is no longer duplicated (it logged a warning on every load).
+- **Cost File Browser override is never read.** Options: wire `cost_rates_override.json`
+  into `LoadCsvRates` (which has no `Document` and ~8 document-less callers — a design
+  change); or stop claiming it works. Chosen: the message now says plainly that pricing
+  does not read it yet; wiring is ROADMAP DSCH-1.
+- **Mixed line endings** fixed to each file's majority ending (smallest diff).
+- **CI paths.** `stingtools-plugin.yml` and the `ci-gate.yml` plugin filter now include
+  `tools/**`, `project-templates/**` and `GUIDES/kibale-project-config/**`, so a PR that
+  only touches registered data outside `StingTools/` is still gated.
+
+## Round 1 — fix and gate
+
+Before: `python tools/validate_data_schemas.py` → exit 1 (`cost_rates_5d.csv: header
+mismatch`), and no workflow ran it.
+
+| # | Finding | Fix |
+|---|---|---|
+| R1-1 | Schema lacked `PROD` (inserted by D6, #844) | Schema v2 declares it (type, description, `unique` DISC+PROD) |
+| R1-2 | **5D Cost Trace** (`Scheduling4DEngine.LoadCostRates`) read `cols[3]` as USD — after PROD that is `MAT_DISCIPLINE`; every row failed to parse, command reported "No cost rates found" | All readers go through `BOQ/Rates/CostRateCsv` (by header name). Trace is now first-row-wins like the BOQ |
+| R1-3 | `LoadCsvRates` handled the shift with a second positional branch | Same parser; behaviour identical (keys DISC\|PROD, Category, MAT_CODE; UGX; first wins) |
+| R1-4 | Cost File Browser demanded `MAT_CODE, RATE, UNIT`; the shipped card has no `RATE`, so it rejected its own format | Uses `CostRateCsvLayout.MissingRequired()` |
+| R1-5 | Cost File Browser said "All 5D commands will use this file"; nothing reads the override | Message corrected; ROADMAP DSCH-1 |
+| R1-6 | Duplicate `S\|FDN` key in `cost_rates_5d.csv` | Alias row re-keyed to PROD `FND` |
+| R1-7 | Validator in no workflow | `--self-test` + validation steps in `stingtools-plugin.yml` *Validate data files* |
+| R1-8 | Validator knew 5 files | Registry covers all 631 files under 4 roots |
+| R1-9 | `WORKFLOW_PlumbingDesign.json`: 20 steps carried `label` twice (#630 renamed `description`→`label`); the long description won and the short step name was discarded | Second key renamed `_notes` (an allowed doc key) |
+| R1-10 | `COBIE_TYPE_MAP.csv` (153 CRLF / 11 LF), `TAG_GUIDE_V3.csv` (10 / 449) mixed line endings | Normalised |
+
+Tests: `StingTools.Boq.Tests/CostRateCsvTests` (9) — including the inserted-column
+replay that a positional reader fails, and the parser-vs-registry column check.
+After: validator OK, self-test 18/18, build 0/0.
+
+## NEEDS REVIT CHECK
+
+1. **5D Cost Trace prices again.** Open any model with walls → STING panel → BIM →
+   5D Cost Trace. Expected: rates listed (Walls 85 USD/m²), not "No cost rates found".
+2. **Cost File Browser accepts the shipped format.** BIM → Cost File Browser → Browse →
+   pick `data/cost_rates_5d.csv` from the deployed plugin folder. Expected: accepted, and
+   the confirmation says pricing does not read the override yet.
+3. **Plumbing design workflow labels.** Run *Workflow presets → Full Plumbing Design
+   Pipeline*. Expected: step names are the short labels ("Scan Fixture Units"), not the
+   long descriptions.
+
+## Round 2 — all data, from scratch
+
+Method: surveyed every CSV (header, field counts, encoding, line endings), ran the
+validator over the whole tree, ran every `tools/` check script not in a workflow,
+and compared generated / baseline files with their sources. A subagent mapped each
+ragged CSV to its readers and the consequence.
+
+| # | Finding | Fix |
+|---|---|---|
+| R2-1 | `FAMILY_PARAMETER_BINDINGS.csv`: two descriptions with an unquoted comma shifted every later column; **`MAT_COST_SUPPLY_NR` and `STING_EMB_CARBON_NR` were never bound to a family** (Batch Add Family Params found no category) | `,` → `;` (two Python gates split naively, so quoting alone would not do) |
+| R2-2 | `STING_MATERIAL_CLASS_NORMALISER.csv`: two regexes containing `[-,]` split in two → invalid regex, dropped; "Concrete C30" / "Steel, sections" never normalised | Quoted |
+| R2-3 | `FORMULAS_WITH_DEPENDENCIES.csv` `CST_CALC_BLOCKS_NR`: unquoted comma shifted Input_Parameters into Unit → **never evaluated**; formula also named `CST_S_MAS_WASTAGE_FCT_PCT_NUM`, which does not exist | Quoted; `_PCT` (its own Input_Parameters and MR_PARAMETERS) |
+| R2-4 | Unquoted commas / stray trailing commas: LUX_TARGETS (1), MATERIAL_LOOKUP (5), STING_COMMODITY_RATES (1, description truncated), COBIE_ATTRIBUTE_TEMPLATES (11) | Quoted / trimmed; quote-aware readers, no value moves except the commodity description |
+| R2-5 | `STING_CSI_MASTERFORMAT_MAP.csv`: 19 rows carry Material (col 9) / Phase (col 10) the header never named | Header extended; schema v2 with `minFields` 6 |
+| R2-6 | `STING_TAG_CONFIG_v5_0_HEALTH*.csv`, `STRUCTURAL_EXCEL_TEMPLATE.csv` are multi-section / headerless; the latter is read by nothing | `csv-sections`; dead file → ROADMAP DSCH-5 |
+| R2-7 | `SyncParameterSchemaCommand` read FORMULAS `cols[0]` (Discipline) as the target and every other column as a dependency — the report could never be clean | By header name |
+| R2-8 | Formulas name parameters that do not exist: `RGL_KCCA/NEMA/UMEME_APPROVAL_TXT` in three TAG7 Input_Parameters | Not fixed (TAG7 behaviour); declared in `alsoAllowed` with reason → ROADMAP DSCH-4 |
+| R2-9 | 32 TAG7 paragraph formula rows carry 4 of 12 fields: FormulaEngine drops them (G-6), family-formula authoring uses them | Declared `minFields` 4 with reason → ROADMAP DSCH-3 |
+| R2-10 | Validator bug: a doc comment "…class this fixture…" read as a class and hid PlacementRule's later properties → false UNKNOWN KEY on 81 rules | Comments and strings blanked before scanning; self-test guards it |
+| R2-11 | `Data/Schemas/*.schema.json` (3 hand-written JSON Schemas) are read by nothing and have drifted — 303 / 2 / ~600 errors against their own files | Not deleted (the placement guide points at one); POCO-derived checks replace them in the gate → ROADMAP DSCH-8 |
+| R2-12 | 11 check scripts under `tools/` in no workflow | Gated (see Gates). Not gated, with reason: `validate_dual_owner.py` (fails on main: (c) 6 > 5 → DSCH-6), `check_qs_nrm2_review.py` (3 checks fail on main → DSCH-7), `validate_declared_but_uncalled.py` (8 min 17 s, and fails: 16 new → DSCH-12). Not checks: `run_ci_gates.py` (local CI mirror), the `fix_*` / `gen_*` / `build_*` / `mint_*` / `expand_*` / `polish_*` / `transform_*` / `dedupe_*` generators (write files on purpose; their outputs are gated where a drift check exists) |
+| R2-13 | `binding_simulator_baseline.txt` stale: 3604/3444/160 recorded vs 3668/3509/159 actual | Baseline refreshed; `--check` ratchet added and gated |
+| R2-14 | The registry itself was not registered (only git-tracked after commit) — CI would have failed | Registered; coverage check proven |
+
+Gates added this round: `minFields`, `refersTo`, comment-safe POCO scan; CI steps for
+check_binding_scope, check_shared_param_types, check_tag_vocabulary,
+check_title_block_surfaces, check_unattended_cycle, validate_param_readership
+(+ self-test), register_count, binding_simulator, restamp_content_manifest --check,
+check_command_app_acquisition, check_dispatch_parity. `run_ci_gates.py --quick`:
+50 passed, 0 failed. Boq.Tests 1,373 / Tags.Tests 5,104 passing. Build 0/0.
+
+## Round 3 — deeper: locale, POCO-derived keys for ~110 JSON files, duplicate names
+
+| # | Finding | Fix |
+|---|---|---|
+| R3-1 | **`MepSymbolEngine`** read the MEP symbol index by position in the ISO index's layout: every MEP entry's ViewTypes came from the colour-scheme column ("Corporate") and matched no view; colour scheme from the paper size; paper size always 6 mm. `AppliesToViewType` also split on `,` while data and the ISO default use `\|` | By header name; split on `,` and `\|`; invariant culture |
+| R3-2 | **`ARCHICAD_IFC_MAPPING.json`**: all 191 property mappings use `pset_name` / `property_name`; the class bound only `archicad_pset` / `archicad_prop` → no ArchiCAD property mapping ever wrote a value | Private `[JsonProperty]` aliases for both spellings |
+| R3-3 | Culture-sensitive parses of shipped numbers (`MepSymbolEngine` paper size, BOQ_TEMPLATE rates) | Invariant culture. Other culture-default parses read user input or plugin-written text; listed in ROADMAP DSCH-9 |
+| R3-4 | Two files named `STING_PUMP_CATALOGUE.json`; FindDataFile returns the root (empty by MEPG-2) so the 20-pump Plumbing copy was never read | Renamed `*.indicative-example.json` with a `_status` line; gate now fails on duplicate names under Data |
+| R3-5 | `projectTypePresets` (STING_SPATIAL_CODES, populated in the Kibale overlay) is designed (F9) but has no reader | Declared docKey with reason → ROADMAP DSCH-11 |
+| R3-6 | Validator: POCO scan missed `[JsonProperty]` names, private alias setters, fields, inherited members, partial classes; nested `Dictionary<string,T>` nodes had no kind | All handled; `dict-of-object`; `docKeys` (declared, reasoned); self-test 27 cases |
+| R3-7 | Per-symbol `standard` / `description` keys (≈350 symbols) and root metadata keys (`description`, `version`, `note`, `$comment`…) are bound by nothing | Declared `docKeys` (documentation) per schema |
+
+110 more JSON files now carry key schemas derived from their classes (seeds, symbol
+catalogues, AEC filters, view style packs, title blocks, tag schemes, LOD matrix,
+owner standards, material schedule tables, KUT / Kibale overlays). Registry:
+193 full schemas, 214 structural-only, 225 non-data.
+
+Note: commit `5cade5b5f` (MEP symbol engine) also carries the pump-catalogue rename,
+which was already staged; history was not rewritten to split it.
+
+### NEEDS REVIT CHECK (rounds 2–3)
+
+4. **MEP symbol placement.** Open a floor plan with MEP fixtures → run the MEP symbol
+   placement command (button tag `Symbols_PlaceMepDetail`). Expected: symbols place on plan views (they did not
+   match any view before), with sizes from the catalogue (4/5/8 mm) rather than all 6 mm.
+5. **ArchiCAD IFC import maps properties.** Import an ArchiCAD IFC with `Pset_WallCommon.Reference`
+   set → STING Interop → ArchiCAD IFC import. Expected: `ASS_PRODCT_COD_TXT` on the walls
+   carries the Reference value; before this fix no property mapping wrote anything.
+6. **Batch Add Family Params binds MAT_COST_SUPPLY_NR and STING_EMB_CARBON_NR** to
+   Materials-category families.
+7. **Block-count formula evaluates.** On a masonry wall with `CST_S_MAS_NET_AREA_SQ_M`,
+   `BLE_BLOCK_SIZE_TXT` and `CST_S_MAS_WASTAGE_FCT_PCT` set, run the formula pass;
+   `CST_CALC_BLOCKS_NR` should be written (it never was).
+8. **Material class normaliser.** A material named "Concrete C30" normalises to
+   "Concrete".
+
+## Round 4 — JObject readers vs the keys their files carry (45 files)
+
+A subagent listed every key each JObject reader asks for and every key each file
+holds, and each hit was checked by hand. No case mismatches.
+
+| # | Finding | Fix |
+|---|---|---|
+| R4-1 | **Electrical snapshot** (`ElectricalSnapshotBuilder.BuildTemplateRules`) read `rule["match"]["namePatterns"]` / `rule["template"]`, which STING_PANEL_SCHEDULE_TEMPLATES.json never had: empty pattern and template on every row, priority from a loop counter, the fallback row printed a JSON object as a template name | Reads `namePatterns` / `templateName` / `priority`, like `PanelScheduleTemplateRegistry` |
+| R4-2 | **Demand factor report**: BS7671_2018 classes carry `notes`, the reader asked for `description` — blank column | Falls back to `notes` |
+| R4-3 | **Family swap registry**: `BuildSeedFamiliesCommand` writes flat `entries[]`; the only consumer (`SwapToManufacturerCommand`) reads `seeds[].candidates`. Auto-registered candidates are never read | Design decision — ROADMAP DSCH-13 |
+| R4-4 | **Data shadowed by code constants**: STING_WIRE_TABLES (`aluminiumFactor`, `breakerSizes`, `correctionFactors`… vs `WireTableSet.AluminiumFactor`, `VoltageDropEngine.BreakerSizes*`), STING_AIC_TIERS `safetyMarginPct` (engine default 10.0), plumbing supply/drainage limits (`minSlopePct` vs `BSen12056Standards`) — editing the data changes nothing | ROADMAP DSCH-14 |
+| R4-5 | Smaller: `designWindMs` absent from all 42 climate sites (always 3.0 m/s); `iaMultipliers.BS88 = "table"` dropped by a numeric-only guard; demand-factor `classificationPatterns.Data` has no load class (falls to 100 %); `GeneralPressureRegimeValidator` reads `_standard`, a key under the `_` comment convention | ROADMAP DSCH-14 |
+| R4-6 | **15 files with no plugin reader**: HEALTHCARE_ALERT_ROUTING, LEGIONELLA_REPORT_TEMPLATE, STING_TMV_STANDARDS, STING_ARC_FLASH_PPE, STING_EXTERNAL_FORMATS, STING_US_PRESET_OVERLAY, Healthcare/Specialist/*.json (9); STING_MEDGAS_FAB_RULES read only by a test | Marked in the registry; ROADMAP DSCH-15 |
+
+### NEEDS REVIT CHECK (round 4)
+
+9. **Electrical snapshot template rules.** STING Electrical panel → the snapshot that
+   lists panel-schedule template rules. Expected: each rule shows its name patterns
+   (MSB, Main Switchboard…) and template name; the last row reads
+   "(first template in the project)".
+10. **Demand factor report (BS 7671).** Run it with the BS 7671 standard selected;
+    the description column carries each class's notes.
+
+## Round 5 — the remaining ~40 JObject / custom-parsed files
+
+Three batches (A: legends, manifests, healthcare, IFC, presets, schemas, BEP; B: LPS,
+carbon, keywords, tiers, vocabulary, symbols, brand; C: sustainability, sector packs,
+HVAC loads, MEP design, routing, pipe materials).
+
+| # | Finding | Fix |
+|---|---|---|
+| R5-1 | **Routing rules**: `SeparationRule` / `CorridorBand` had no `[JsonProperty]` for the files' snake_case keys → every separation rule required 0 mm (SeparationChecker never reported), every corridor band admitted every service at FFL+0 | `[JsonProperty]` on 8 members; registry checks both files against the classes (83 failures against the pre-fix class) |
+| R5-2 | **Sector packs**: `OVERHEAD_PROFIT_PCT` written as `BOQ_TENDER_OVERHEAD_PROFIT_PCT`; readers ask for `BOQ_TENDER_OHP_PCT`. Values written with the current culture | Mapped; invariant culture |
+| R5-3 | **BOQ client vocabulary** never loaded: the `_comment` string made the dictionary deserialisation throw | Object-valued entries only |
+| R5-4 | **Material schema checks** read `columns` / `fields`, which MATERIAL_SCHEMA.json never had → "0 columns" failure, Schema Validate checked nothing | Reads `required_columns` / `optional_columns`; it now reports `MAT_COST_UNIT_OF_MEASURE` missing from both libraries → DSCH-16 |
+| R5-5 | **Electrical carbon**: hours keyed `Lifts`, category is `Lifts / Elevators` → lifts at 3000 h not 1500 h | Key renamed |
+| R5-6 | `project_bep.json`: shipped file used as a fallback with keys it lacks; `BIMManagerCommands` writes a project's BEP over the corporate file in `DataPath`; BREEAM Man 01 and the "BIM Execution Plan" readiness check pass because the shipped file exists | ROADMAP DSCH-17 (behaviour change needs an owner) |
+| R5-7 | `TAG_PLACEMENT_PRESETS_DEFAULT.json` never loaded (loader reads a different name and shape); `family-library/manifest.json` never read (URL/SHA are constants; the dialog points at a config key nothing reads); `IFC/STING_IFC_PSET_MAPPING.json` 75 of 132 rows use keys `IfcPsetMapping` does not bind, and the class has no callers; `STING_CLIMATE_MONTHLY` sites carry no latitude (southern-hemisphere orientation backwards) | ROADMAP DSCH-18 |
+| R5-8 | Data shadowed by constants (LPS tolerable risk, `locationCd`, SPD coordination rules, pipe `manningN`, hanger spacing; brand `fonts` / page layout reach nothing) | Added to DSCH-14 |
+| R5-9 | Validator ran 1 m 51 s (class scan per array element) | Memoised: 5 s |
+
+### NEEDS REVIT CHECK (round 5)
+
+11. **Service separation is enforced.** Model a power tray and a data tray running in
+    parallel 100 mm apart → run the separation check (routing validation). Expected: a
+    violation (rule PWR_DATA_PARALLEL_ENCLOSED, 200 mm). Before: none, ever.
+12. **Auto-drop corridor bands.** Run Routing → Auto drop on a hot-water pipe; the drop
+    should target the HWS band (2800-2900 mm), not FFL+0.
+13. **Sector pack OH&P.** Apply the Healthcare sector pack → BOQ tender dialog shows its OH&P %.
+14. **BOQ client vocabulary.** Set the employer to "NHS England" and export a BOQ;
+    paragraphs use that client's terms.
+
+## Round 6 — the project overlays (KUT, Kibale) against their readers
+
+Rebased on `origin/main` first (24 new commits, clean; gate green).
+
+| # | Finding | Fix |
+|---|---|---|
+| R6-1 | **Kibale `rate_card.json` never priced anything**: compiled priority 87 is below the CSV (90) and material library (95), chain highest-first; the registry comment claimed the opposite | `GUIDES/kibale-project-config/boq_rate_policy.json` (rate card 93, as KUT); comment corrected; README row |
+| R6-2 | Kibale `AUTO_TAGGER_DISC_FILTER: ["A","S"]` → JSON text split on `,` → filter matching nothing → auto-tagger skips every element | Reader tolerates arrays; overlay uses `"A,S"` |
+| R6-3 | Kibale `SEQ_SCHEME: "DISC_SYS_LVL"` is not a scheme; dropped silently | Overlay → `Numeric` with a note; TagConfig now warns on an unknown value |
+| R6-4 | `ClassificationStandard.Load` read only raw `<rvtDir>/_BIM_COORD`, `Set` writes the consolidated `_data/coord` → choice lasted one session | Load reads `StingPaths.MetaFile` first, raw path as fallback |
+| R6-5 | KUT `project_config.json` ships inside `_BIM_COORD/`, but every reader looks beside the `.rvt` (then `data/`) → the six-building LOC codes and SEQ grouping are never applied | Template layout decision → ROADMAP DSCH-19 |
+| R6-6 | Kibale `boq_custom_templates.json`: templates sharing a category carry no variant matcher, so four are never selected; the deliberately zero "Generic Models" rate-card row is dropped (`UnitRate <= 0`) | Authoring / design → ROADMAP DSCH-19 |
+
+Gates after round 6: validator OK (633 files), self-test 27/27, `run_ci_gates.py --quick`
+50/50, all 16 unit-test projects green (Revit.SmokeTests needs a running Revit and is not
+a CI job: 8 of 13 fail without one, as on main).
+
+### NEEDS REVIT CHECK (round 6)
+
+15. **Classification standard persists.** BIM → set classification standard to CSI, close
+    and reopen the model; it is still CSI.
+16. **Kibale pricing.** With the Kibale overlay copied into `_data/coord` (incl. the new
+    `boq_rate_policy.json`), run a BOQ; wall/floor rates come from `rate_card.json`.
+
+## Round 7 — verification of rounds 1-6, and what the fixes woke up
+
+An independent review re-derived every fix (CostRateCsv gives the same 115 keys and
+rates as the old loader for the shipped file, plus the deliberate `S|FND`). No
+regressions. New defects, three of them live only because earlier fixes made data load:
+
+| # | Finding | Fix |
+|---|---|---|
+| R7-1 | ArchiCAD mappings now load: six target `PER_U_VALUE_W_M` (real: `PER_U_VALUE_W_M2K`); five target parameters defined nowhere; IFC booleans (`TRUE`, `.T.`) dropped for every YES/NO target; an unbound target wrote nothing silently | Name fixed; booleans parsed; unbound target logged once; `valueRefersTo` gate on `sting_param` (5 undefined listed → DSCH-21) |
+| R7-2 | Separation rules now load: max-over-all-rules held a crossing (50 mm) to the parallel open-tray 300 mm | `RulesFor(.., crossing)`; checker detects perpendicular straight runs |
+| R7-3 | Material schema check now reads the schema: counted thousands of empty cells as violations | `required_columns` = column presence only |
+| R7-4 | `ConfigureCostFileCommand` described a model-folder file and a layout no reader understands; Cost File Browser judged the first physical line as the header | Text corrected; browser uses `CostRateCsv.Parse` |
+| R7-5 | `STING_ELECTRICAL_CARBON` has no hours for Cooking / Water Heating / Space Heating / Process (3000 h default); `Lighting_24x7` is a category nothing produces | Not invented: → DSCH-14 |
+
+Gate: self-test 28/28. `run_ci_gates.py --quick` 50/50; Tags 5,158, Boq 1,373, Routing 80,
+Sustainability 438.
+
+### NEEDS REVIT CHECK (round 7)
+
+17. **Crossing vs parallel separation.** Repeat check 11 with the data tray crossing the
+    power tray at 90° and 100 mm apart: no violation (crossing rule, 50 mm). Parallel at
+    100 mm: violation at 300 mm (enclosure is not known from the model).
+18. **ArchiCAD IFC booleans.** Import an IFC whose `Pset_WallCommon.IsExternal` is `.T.`;
+    the mapped YES/NO parameter is set.
+
+## Round 8 — verification of round 7
+
+| # | Finding | Fix |
+|---|---|---|
+| R8-1 | **Regression from R7-2**: with `crossing`, only crossing/any rules applied, so pairs with only parallel / vertical rules (gas–power, hot–cold water, drainage over water) required 0 mm at a crossing; and the drop curve is vertical, so every horizontal neighbour read as "crossing" (power/data relaxed 300 → 50 mm) | **Reverted** (690b157a1). Conservative max restored; geometry/enclosure-aware selection → ROADMAP DSCH-22. NEEDS REVIT CHECK 17 is withdrawn |
+| R8-2 | ArchiCAD "target not found" warning fired even when the built-in fallback wrote the value | Warns only when nothing wrote |
+| R8-3 | `STING_IFC_PSET_MAPPING.json` names `ASS_TAG_1` (real: `ASS_TAG_1_TXT`); its reader has no callers | Fixed |
+| R8-4 | Registry exceptions (`alsoAllowed`) were never checked for staleness | Gate fails when an allowed name now exists; self-test 29 |
+| R8-5 | Parameter-name scan of all Data JSON (`sting_param` / `param` / `parameter` / `target` …, ~12,000 refs): no other misses (AEC filter `BIM_LOD` is a documented external name) | — |
+
+Decision recorded: when a fix's refinement cannot be made safe from the model alone
+(enclosure, true crossings), keep the conservative check and record the gap, rather
+than relax a safety check on a heuristic.
+
+## Round 9 — verification of round 8: CLEAN
+
+No defects. The revert restores `RoutingRules.cs` / `SeparationChecker.cs` byte-for-byte
+(empty diff against 3e089c39d~1) and nothing referenced the removed members;
+`missingTarget` is correct on every path; `ASS_TAG_1_TXT` exists and no other value in
+the pset map is missing; the stale-allowance walk handles refs without `alsoAllowed` and
+unreadable targets. One hardening taken from it: `STING_IFC_PSET_MAPPING.json`
+`sting_param` is now under `valueRefersTo` (reintroducing `ASS_TAG_1` fails the gate).
+
+Stopping here: a full round found nothing new.
+
+## Totals
+
+| Round | Real defects found | Fixed on this branch | Recorded (ROADMAP) |
+|---|---|---|---|
+| 1 | 10 | 10 | DSCH-1 |
+| 2 | 14 | 11 | DSCH-3..8, DSCH-12 |
+| 3 | 7 | 6 | DSCH-9, DSCH-11 |
+| 4 | 6 | 3 | DSCH-13..15 |
+| 5 | 9 | 6 | DSCH-14, DSCH-16..18 |
+| 6 | 6 | 4 | DSCH-19, DSCH-20 |
+| 7 | 5 | 4 | DSCH-14, DSCH-21 |
+| 8 | 5 (1 a regression of round 7) | 4 (incl. the revert) | DSCH-22 |
+| 9 | 0 | — | — |
+
+## Follow-up — Kibale is a closed project
+
+At the owner's direction (2026-10-01), the Kibale overlay edits from round 6
+(`GUIDES/kibale-project-config/project_config.json`, the added `boq_rate_policy.json`,
+the README row) were **reverted**: the folder stays a record of what was delivered, and
+data-only edits there change no future project. Kept, because they protect every future
+project: the auto-tagger accepting a disc filter written as a JSON array, the warning for
+an unknown `SEQ_SCHEME`, and the corrected rate-priority comment. The rate-card ranking
+lesson is ROADMAP DSCH-23. NEEDS REVIT CHECK 16 (Kibale pricing) is withdrawn.
+
+## Implementing the open DSCH items (2026-10-01)
+
+At the owner's request ("fix/implement everything still open"), the items this PR had
+recorded in ROADMAP were worked rather than left open. Three parallel worktree batches
+(electrical, plumbing/MEP, BIM/config) were merged into this branch; the rest was done here.
+
+### Closed
+
+| Item | What changed |
+|---|---|
+| DSCH-1 | `BOQCostManager.ResolveCostRatesPath(doc)`: the Cost File Browser's per-project override prices, else `TagConfig.CostRatesFileName`. Every pricing caller with a `Document` passes it. |
+| DSCH-2 | `Core/CsvTable` — one header-name reader; the positional readers of pinned single-table CSVs were converted (see below). |
+| DSCH-3 | 4-field TAG7 rows are family-only by design: one Info line, no G-6 warning. A comment line in the CSV says so. |
+| DSCH-4 | The three non-existent `RGL_*_APPROVAL_TXT` inputs removed; registry `alsoAllowed` removed. |
+| DSCH-5 | `STRUCTURAL_EXCEL_TEMPLATE.csv` and `STING_EXTERNAL_FORMATS.json` deleted. |
+| DSCH-6 | Five formula rows whose result C# computes were deleted (C# is the owner); dual-owner baseline `0 34 5` → `0 34 1`; check gated. |
+| DSCH-7 | QS NRM2 harness runs on a blanked working copy; gated. |
+| DSCH-8 | `Data/Schemas/*.schema.json` removed; `tools/data_schemas.json` is the schema. |
+| DSCH-9 | `Core/NumberText` — invariant first, then current culture, `NumberStyles.Float` — at ~96 machine-text sites; `InvariantNumber` folded into it. |
+| DSCH-10 | `PersistPresetName` merges and writes atomically. |
+| DSCH-11 | `projectTypePresets` read as an advisory. |
+| DSCH-12 | Declared-but-uncalled gate: one tokenised pass (8 min → 2 s), no prefix false hits, named baseline (53); gated. |
+| DSCH-13 | Seed candidates are written as `seeds[].candidates`, where the swapper reads. |
+| DSCH-14 | Wire tables, AIC margin, BS 88 Zs, demand "Other" rule, carbon hours, supply limits, drainage gradient, Manning n, pressure-regime `standard`, design-wind flag — read from data (residue below). |
+| DSCH-15 | Dead files deleted or moved to `docs/reference/`; specialist healthcare, TMV and arc-flash PPE data wired. |
+| DSCH-16 | `MAT_COST_UNIT_OF_MEASURE` added to both material libraries (723/815, 343/464 filled); a library rate in a different unit is refused, not priced. |
+| DSCH-17 | One BEP path (`CoordStores.Bep`); the corporate file is never overwritten; Man 01 and the readiness item read the project's BEP. |
+| DSCH-18 | Tag placement default read; family library source configurable; IFC pset reader binds both spellings; monthly climate latitude from the design-day site. |
+| DSCH-19 | KUT's `project_config.json` ships beside the model; `*/_BIM_COORD/project_config.json` is now a registry-forbidden path. |
+| DSCH-20 | Brand fonts read. |
+| DSCH-21 | ArchiCAD mappings target existing parameters; the GUID row removed. |
+| DSCH-22 | `Core/Routing/SeparationGeometry` (Revit-free, 9 tests): a crossing is two horizontal runs, perpendicular in plan, whose plan segments intersect; only then do crossing rules govern. Drops are never crossings, so the reverted attempt's failure cannot recur. |
+| DSCH-23 | `ProjectRateCardProvider` priority 93 — a project card outranks the corporate CSV without a policy file. |
+
+### Decisions
+
+- **Where data and a code constant disagreed on an engineering value, the code value was
+  kept and the disagreement logged**, not silently resolved: NEC breaker sizes above 400 A,
+  arc-flash PPE colours, TMV bath limit (code 46 °C, data 44 °C), USP 797/800 pressure
+  differential (code 2.5 Pa, data 5 Pa). Each needs an engineer's call — ROADMAP DSCH-25.
+- **Deliberate value changes**, each traceable to the data file the standard is quoted from:
+  DN150 minimum gradient 0.5 % → 0.67 %; Manning n per material; Nairobi monthly latitude
+  sign; projects without a BEP now fail BREEAM Man 01 (they used to pass on the corporate file).
+- **Zero rates** (old DSCH-19 second half) were NOT changed: `UnitRate <= 0` means "no rate"
+  in the registry chain, `BOQCostManager` and `CostStamp`. A deliberate zero needs a chain-wide
+  "priced at nil" outcome — ROADMAP DSCH-26.
+- **DSCH-2 scope**: multi-section files (TAG_CONFIG packs, BOQ_TEMPLATE) and the two
+  deliberately naive readers (`CsiMasterFormat`, `MaterialProdOverrideRules`) stay positional.
+
+### NEEDS REVIT CHECK (open-items batch)
+
+1. A project with no BEP: BREEAM Man 01 and the readiness item now fail; a project BEP passes.
+2. Cost File Browser: pick a file, run BOQ Export — prices come from the picked file.
+3. BOQ Export with library rates: a material whose unit disagrees with the item is refused
+   (listed as a miss), not priced.
+4. Drainage sizing on a DN150 run at 0.5 %: now flagged; Manning n per material changes velocities.
+5. Separation check: a power tray crossing a data tray at 60 mm passes (crossing rule 50 mm);
+   the same pair running parallel at 60 mm still fails.
+6. Arc-flash labels: PPE category text from data; colours unchanged.
+7. Load shared parameters on a clean project after the DSCH-2 conversion: still 3,018 / 374 / 0.
+
+### DSCH-2 — positional CSV readers converted (four parallel batches)
+
+`Core/CsvTable` (Revit-free, tested over every pinned csv-table) is the one header-name reader.
+Converted: default cost rates (Scheduling, Site cut/fill), COBie cost codes, NRM1 benchmarks,
+COMcheck space map, Uniclass map, ISO symbol index, FUNC/SYS matrix, room classifier and lux
+targets, plumbing fitting lengths, PROD codes, the three STING_MATERIAL_* rule files,
+CATEGORY_BINDINGS / PARAMETER_CATEGORIES (SharedParamGuids, SyncParameterSchema), MR_PARAMETERS.csv,
+SCHEDULE_FIELD_REMAP, TITLE_BLOCK.csv (three readers), COBie type map (FamilyParamCreator), labour rates.
+The Temp/ and schedule batch also converted the eight COBie data loaders, FormulaEngine (all 12
+FORMULAS columns; 4-field family rows still skipped), MR_SCHEDULES (Batch Create, enhancements,
+template manager, scheduler) and the 95 TPL_SCHEDULE_METADATA mappings, each checked against the header.
+
+**Four latent mis-reads found and fixed** (every other index matched the shipped header):
+1. Material duplicate check read `SOURCE_SHEET` as the material code — 801 false duplicates in
+   BLE_MATERIALS, 439 in MEP_MATERIALS; by `MAT_CODE` there are 0.
+2. Binding-coverage empty-row check included `Parameter_Name`, so no row could ever count as empty.
+3. CATEGORY_BINDINGS cross-check `Skip(1)` skipped one of ~30 leading `#` lines; comments and the
+   header were counted as parameter names.
+4. FAMILY_PARAMETER_BINDINGS validator: same `Skip(1)`; a comment's "1,3,5" read as a name and GUID.
+
+Noted, not changed: `TemplateManager.LoadCategoryBindings` has no callers and treats only "True" as
+shared while 444 shipped rows say "Yes" — dead code, under DSCH-27.
+
+Decisions:
+- A missing required column logs one Warn naming file and column, and keeps the old safe outcome.
+- **Headerless override files are no longer read** (`_BIM_COORD/uniclass_map.csv` used to load
+  without a header). The documented layout has one; the refusal is logged. COMcheck keeps its
+  headerless overlay path because it was deliberately supported there.
+- **The schema gate itself had pinned data rows as headers** for STING_LABOUR_RATES and
+  RESOLVED_BINDINGS (their headers were `#` comments). Labour rates now carry a real header row;
+  RESOLVED_BINDINGS is generated and every reader skips `#`, so it declares `headerInComment`.
+  The gate now fails an empty or numeric column name, and names the commented header line.
+- Left positional: RESOLVED_BINDINGS readers (no header row to read), multi-section TAG_CONFIG
+  packs and BOQ_TEMPLATE, `CsiMasterFormat` / `MaterialProdOverrideRules` (deliberately naive), writers.
+- Found and recorded, not changed: DSCH-28 (COBie cost-code key), DSCH-29 (BCC demo rates).
+
+## Specialist decisions on DSCH-24..29, implemented (2026-10-01)
+
+At the owner's request, four specialist reviews decided the remaining items with evidence: code
+and data quoted side by side, standards cited, unconfirmed figures marked VERIFY. The reviewers were
+an electrical engineer, a public-health / healthcare MEP engineer, a quantity surveyor and a
+software architect. The owner approved implementing all of it. Seven branches, each cut from
+21ffff7d0 in its own worktree, were merged here: dsch-impl-elec, -water, -wind, -rates, -bcc,
+-ifcmap and -uncalled.
+
+### Decisions
+
+| Item | Decision | Basis |
+|---|---|---|
+| NEC breaker ratings | Full Table 240.6(A), 15-6000 A, held only in data; the three code copies (one in StingTools.Standards) deleted | NEC 2023 240.6(A) |
+| Breaker selection beyond the list | **Bug fixed**: `NextStandardBreakerSize*` returned the largest rating for a larger load (500 A NEC got 400 A; a 200 A wizard circuit got a 125 A MCB). It now returns 0 (no standard device) and the Circuit Wizard refuses | none needed |
+| Arc-flash presentation | Colour by incident-energy band (no green); Z535 signal-word header (WARNING, or DANGER above a configurable 40 cal/cm2); "PPE Category" removed from labels; Category 0 and clothing text removed from data; label sheet marked DRAFT | NFPA 70E 130.5(H); ANSI Z535.4; Category 0 removed in 2015 |
+| TMV outlet limits | By outlet, scheme and assisted bathing: TMV3 bath 44, assisted bath 46, shower 41, bidet 38, basin 41; healthcare requires TMV3; unknown outlet = NOT CHECKED. `PLM_TMV_ASSISTED_BOOL` added through the generators | HTM 04-01 Pt A Table 2 |
+| USP pharmacy pressure | Per room: USP <797> buffer at least 4.98 Pa; USP <800> C-SEC negative 2.49-7.47 Pa (maximum now checked); overrides may only tighten; missing dP = NOT CHECKED | USP <797>/<800> (VERIFY) |
+| Dead legs | Healthcare spur 3 m, blended pipe after a TMV 2 m, otherwise BS 8558 by OD (VERIFY); the unsourced figures 0.45 / 0.30 / 1.0 / 5 m deleted; the detector now starts at outlet branches | HTM 04-01 12.5 and 10.48; HSG274 gives no length |
+| Design wind | Heating and cooling wind per site; default 4.0 m/s, flagged; never the structural wind | ASHRAE Fundamentals Ch. 14; BS EN ISO 6946 Rse at 4 m/s |
+| Nil rates | `RateOutcome` Nil / Included, declared in the rate cell (`NIL`, `INCL:<ref>`); the bill shows "Nil" / "Incl." with a dash. A bare 0 warns and falls through; it used to discard the whole CSV answer, category rate included | NRM2; QS practice |
+| COBie cost codes | Provider deleted, not re-keyed: it never decided a price with shipped data, and re-keying would price CCTV at the distribution-board rate (x33) | measured on shipped data |
+| BCC 5D grids | Read-only views of the resolved rate file (Walls 315,000, not the demo 850,000); dead Contingency / Overhead sliders removed | CLAUDE.md: never invent fallback data |
+| IFC pset map | One file in `shared/ifc/mappings/`, linked into both builds. **Server bug fixed**: its only live lookup asked for `ASS_TAG_1`, which does not exist. Wrong-meaning rows (Layer to LOC, element ID to SEQ) removed | Pset_StingTags contract |
+| Uncalled members | 35 deleted (including four unused classes and client-side approval code), 10 wired, 9 verified test oracles. `IsProvisioned` was deleted rather than wired, because its callers need three states. Baseline 53 to 0 | none needed |
+
+Values the reviewers could not confirm from a primary source ship with a `verify` note in the
+data (ROADMAP DSCH-41). Older claims that `TemplateManager.LoadCategoryBindings` is "done / used"
+(ROADMAP ~1744 and ~1794, CHANGELOG ~19321) are superseded: the method had no caller and was deleted.
+
+### Sign-off list (outside the code)
+
+- NEC-qualified engineer: the 240.6(A) list, the 240.4(C) conductor check (DSCH-30), the DANGER threshold.
+- Authorising Engineer (Water) / Water Safety Group: assisted-bath policy and dead-leg limits.
+- Holder of BS 8558: its dead-leg table. Pharmacy cleanroom certifier: the USP rows.
+- Holder of the licensed ASHRAE data: per-site wind (DSCH-37). IFC contract owner: map rows (DSCH-38).
+- QS: "Incl." wording for KUT bills, and the 31 zero benchmark rows (DSCH-34).
+
+### NEEDS REVIT CHECK (specialist batch)
+
+1. Breaker sizer: a 500 A NEC load gets 500 A. Circuit Wizard: an over-range circuit shows NO DEVICE and Create refuses.
+2. Arc Flash Calc, boundary view and label sheet: band colours; `ELC_ARC_FLASH_PPE_CAT` holds the band; the header strip is drawn over the white body; labels do not overlap.
+3. TMV register and Water Safety Plan with outlet types set; Dead-Leg Scan on a real network (outlet branches, the walk stops at a TMV); USP audit; slider defaults.
+4. Block load shows "heating/cooling design wind 4.0 m/s assumed".
+5. BOQ Export: NIL / INCL rows show "Nil" / "Incl." and are not at risk; a bare 0 on a PROD row prices at the category rate.
+6. BCC 5D tab and Element Cost Trace show the real file; Choose then Refresh follows the Cost File Browser; a missing file shows the red empty state.
+7. Ceiling-referenced placement rules drop by the finish thickness. Confirm the ceiling datum is the core, not already the finish face, or this double-counts.
+8. SEQ range: an out-of-range SEQ is flagged by Validate Tags.
+9. Smart Tag Placement with category multipliers other than 1.0: offsets scale.
+10. IFC ingest on the server: the tag is read from `Pset_StingTags.FullTag`.
+
+## Code-only follow-ups DSCH-30..42 (2026-10-01)
+
+At the owner's request ("continue"), every open item that needs only code was implemented on
+parallel branches cut from 8f9ec0fa6 and merged here: dsch-impl-elec2, -params, -hc2, -pssum,
+-esrate, -ifcstatus, -seqrange, -gatewide. DSCH-34, 37, 41 and the 65 IFC verify rows stay with
+the sign-off list. While working, the agents found and fixed further defects:
+
+- **NEC sizing could undersize the breaker**: `CalculateNec` capped the device at a table
+  labelled 240.4(D) after selection, so a 17 A continuous load got 12 AWG with a 20 A breaker,
+  and the table also capped 8 AWG to 4/0 with unsourced values. It now upsizes the conductor
+  (`NecConductorSelection.Pick`); an invariant sweep over 1-300 A proves the device is never
+  below the sizing current.
+- **The Circuit Wizard re-sized NEC circuits to BS 7671 at Create** (`PendingOptions.Standard`
+  defaulted to "BS"). Every exact `"NEC"` compare now goes through `ElectricalStandardId.IsNec`;
+  the busbar sizer gave 1050 A where 1400 A was expected for "NEC2023".
+- **Queued workflow presets never ran**: the document-open drain dequeued a preset but never
+  raised it. The queue is now drained on Idling.
+- **Fix Duplicates could write a duplicate tag** after a SEQ pad overflow.
+- **`BoqSourceUtil.Parse("PS")` made a manual row**, though the add-row prompt suggests "PS".
+- **`Plumb_TMVRegister` and the Water Safety Plan** now carry jurisdiction notes; a Scottish
+  bath fails above 43 C (SHTM 04-01 Table 4, read from the primary PDF).
+- **`HTM_04_01_HOT_DELIVERY_C` cited a commissioning clause** (Section 15.16 is about who witnesses
+  commissioning); it had no callers and was deleted.
+- **DSCH-42** (new, closed): 56 parameter lookups silently read and wrote nothing, including the
+  Batch Tag token-lock check, COBie type fields and the COBie Attribute sheet (GetString on
+  NUMBER / CURRENCY). Fixed and gated by `tools/check_ext_keys.py`. Thirty descriptions damaged
+  by an old ASCII sanitiser now read "s.6.3" / "um/s" (the file is not proven to round-trip
+  non-ASCII through Revit).
+
+Binding simulator after the merge: 3,684 declared / 3,525 bound / 159 skipped / 0 conflicts.
+
+### NEEDS REVIT CHECK (code-only batch)
+
+1. NEC cable / feeder sizer: 17 A continuous gives 10 AWG / 25 A, derivation says "upsized past
+   12 AWG"; Circuit Wizard on NEC keeps NEC sizing after Create; Breaker Sizer blocks a 12 AWG
+   circuit above 20 A and lists next-size-up circuits for confirmation.
+2. Arc-flash label sheet: the Z535 triangle draws left of the header in the signal-word colours.
+3. USP audit on PH-CSP-*-ANTE / -CSCA rooms; overrides apply to the primary room only.
+4. TMV register with `PRJ_ORG_HEALTH_HTM_REGION_TXT` = SHTM: a 44 C TMV3 bath fails; blank
+   region shows the England-assumed note; the new TMV parameters bind and reach the check.
+5. Provisional sums: `CST_PS_TYPE_TXT` binds; Defined / Undefined / blank show in the panel and
+   both exports; the health check lists undeclared sums.
+6. Element rate override v3: an old v2 override still prices; a Nil override shows "Nil";
+   save / reopen keeps v3; `Cost_MigrateESEntities` copies v1 forward without deleting.
+7. SEQ range: with `"E": [10000, 19999]` the first E element is 10000; a full group refuses with
+   a stats warning.
+8. Workflow triggers run on idle, never twice within 30 s, never while a preset runs.
+9. Batch Tag no longer overwrites a locked token; the COBie type push and Attribute sheet carry
+   the newly mapped fields.
+10. Server IFC ingest: `Status = NOTKNOWN` logs an unmapped-value warning.
+
+## Open items implemented: DSCH-34..47 (2026-10-02)
+
+At the owner's request ("fix/implement all the open items") the remaining items were worked by
+specialist agents on seventeen branches, each in its own worktree, merged here in turn. Values that
+were waiting on sign-off were taken as far as primary or official sources allow: a `verify` note was
+removed only on primary confirmation, and what is left is DSCH-48.
+
+### Defects found and fixed along the way (each was silent)
+
+- **NEC Table 240.6(A) lacked 10 A** and the fuse-only extras were wrong (1, 3, 6, 601 A per the
+  2023 text); 10 A is proposed only for lighting branch circuits (210.23(A)).
+- **Seven cells of NEC Table 310.16 were wrong**, the **310.15(B)(1)(1) ambient correction was not
+  the NEC table** (46-50 C at 75 C gave 0.71-0.67 instead of 0.75; above 50 C flattened to 0.67) and
+  **250.66 was wrong from 300 kcmil**. All checked against NFPA's own committee-report base text.
+- **Cable sync sized "ALUMINIUM" as copper**; every conductor material now goes through one reader
+  and an unrecorded material says "copper assumed" instead of being silent.
+- **Every Material Hub action button had done nothing since 2026-05-23** (handler cases lost in a
+  merge); restored, with a test that fails on any Hub button without a case.
+- **The Sustainability gate reported "All clear" against zero materials** (it read a cache only the
+  removed MAT tab filled).
+- **The water estimate credited savings on fixture kinds nobody modelled** (unrated kinds took a
+  built-in low-flow figure instead of the baseline).
+- **The spare-ways and pipe-gradient warnings had not run since April** (a lost `return`).
+- **A BOQ push of new lines failed with a 500 on Postgres** (no classification code was sent); the
+  plugin now sends the NRM2 section and the server resolves it or refuses with a 400.
+- **Bonsai's MEP operators invented inputs** (0.5 L/s, 25 mm conduit...); they now refuse.
+- **Three IDS files were not valid IDS 1.0**; all 13 now validate in CI.
+
+### Decisions
+
+- DSCH-34: categories that are never bill items are declared NOT MEASURED in the benchmark file
+  (the file drives the exclusion; the hard-coded list is gone); Site stays unpriced as a tender query.
+- DSCH-37: the onebuilding.org redistribution of the ASHRAE design conditions is the source; it is a
+  redistribution, so each site keeps a verify note naming its station and edition.
+- DSCH-38: properties buildingSMART does not define live in STING-owned property sets (the Pset_
+  prefix is reserved, IfcPropertySet, IFC 4.3).
+- DSCH-46: Material Hub entry points were restored, not deleted, once the lost dispatch was found.
+- DSCH-47: MR_PARAMETERS.txt owns every description; printed warning text is a separate field.
+- ifctester was not installed: downloading a package needs the owner's approval (DSCH-51).
+
+### NEEDS REVIT CHECK (open-items batch)
+
+1. NEC Circuit Wizard: a lighting group gets 10 A, a receptacle group 15 A; with the Electrical panel
+   closed, Create says the proposals were sized as copper.
+2. NEC Cable Sizer: CCA gives a 12 / 10 AWG size and "VD not calculated"; BS 7671 refuses CCA by name;
+   72 C ambient is refused citing 310.15(B)(1)(1).
+3. Voltage Drop on a circuit with no recorded material: ELC_CKT_VD_BASIS_TXT ends "copper assumed".
+4. Every Material Hub button runs (Apply, Detach, Repoint, Import CSV, Load Pack, What-If, Sync COBie,
+   the three new buttons); the Sustainability gate reports findings on a model with materials.
+5. BOQ refresh: NOT MEASURED categories absent and counted; Site at risk; row menu Nil / Included /
+   Clear; Fohlio pcSum lines appear as PC sums; "Apply Star Rate to VO" prices a Draft variation.
+6. Server: a BOQ push to a tenant with and without NRM2 codes (200 vs Pending with the missing codes).
+7. Sustainability water estimate on a partly rated model: the saving falls and the note lists the
+   kinds left on the baseline.
+8. TMV: PLM_TMV_PAEDIATRIC_BOOL binds; SHTM paediatric bath at 42 C fails; Import TMV Tests writes a
+   register CSV back.
+9. Retag boards and drainage pipes: WARN_ELC_PNL_SPARE_WAYS and WARN_PLM_PIPE_GRADIENT fire again.
+10. ArchiCAD import: the log names which ordered source filled each parameter.
+11. Block Load: the design-wind assumption line shows the station and "unconfirmed".
+12. 4D Auto-Schedule with a dated DD4; BCC deliverable rows show WORKING / REF badges.

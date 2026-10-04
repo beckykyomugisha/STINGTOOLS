@@ -2,7 +2,7 @@
 # unit: EA (each), LF (linear feet), SF (square feet), CF (cubic feet)
 # rate_gbp_per_hour: typical UK all-in rate (NAECI 2025 / BESA 2025 indicative)
 # source: BESA Labour Rates 2025, CIBSE TM65, RICS Construction Handbook 2025
-# category_name,family_filter,unit,hours_per_unit,crew,rate_gbp_per_hour
+category_name,family_filter,unit,hours_per_unit,crew,rate_gbp_per_hour
 Electrical Fixtures,,EA,0.50,Sparks,48.00
 Lighting Fixtures,,EA,0.75,Sparks,48.00
 Electrical Equipment,Distribution Board,EA,4.00,Sparks,52.00

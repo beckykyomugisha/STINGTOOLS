@@ -779,11 +779,18 @@ Drop a file at `<project>/_BIM_COORD/climate_data.json`:
       "cooling04DbC": 30.5,
       "cooling04MCWBC": 21.4,
       "heating996DbC": 12.8,
-      "designWindMs": 3.5
+      "heatingWindMs": 3.5,
+      "coolingWindMs": 3.5
     }
   ]
 }
 ```
+
+`heatingWindMs` / `coolingWindMs` are the ASHRAE mean coincident wind speeds at
+10 m ("MCWS to 99.6 % DB" / "MCWS to 0.4 % DB") — copy them from the ASHRAE
+tables for the station; the 3.5 above is only an example. Leave them out and the
+block load assumes 4.0 m/s and says so. Never enter a structural design wind
+(BS EN 1991-1-4 basic wind velocity) here.
 
 Click `Hvac_ClimateReload` to flush the cache, then `Hvac_ClimateInspect`
 to verify.

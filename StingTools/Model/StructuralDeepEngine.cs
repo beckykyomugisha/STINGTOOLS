@@ -3,12 +3,11 @@
 //
 // Provides advanced structural engineering calculations:
 //   1. AutoTorsionDetector        — Automatic torsion case detection
-//   2. LateralTorsionalBuckling   — EC3 LTB checks for unbraced beams
-//   3. ConnectionDetailingEngine   — Bolt layout, weld specs, edge distances
-//   4. CreepDeflectionAnalysis     — Time-dependent creep per EC2
-//   5. SeismicSiteAmplification    — Soil-structure interaction per EC8
-//   6. FabricationToleranceChecker — BS 5950/EC3 tolerance validation
-//   7. ErectionSequenceValidator   — Temporary works and propping analysis
+//   2. ConnectionDetailingEngine   — Bolt layout, weld specs, edge distances
+//   3. CreepDeflectionAnalysis     — Time-dependent creep per EC2
+//   4. SeismicSiteAmplification    — Soil-structure interaction per EC8
+//   5. FabricationToleranceChecker — BS 5950/EC3 tolerance validation
+//   6. ErectionSequenceValidator   — Temporary works and propping analysis
 //
 // Standards: EC2/EC3/EC7/EC8 with UK National Annex, SCI P358,
 //            BS 5950, BS 4604, BS EN 1090
@@ -199,109 +198,6 @@ namespace StingTools.Model
                 }
             }
             return written;
-        }
-    }
-
-    // ════════════════════════════════════════════════════════════════
-    //  LATERAL-TORSIONAL BUCKLING — EC3 §6.3.2
-    // ════════════════════════════════════════════════════════════════
-
-    internal class LTBResult
-    {
-        public double SlendernessLambdaLT { get; set; }
-        public double ReductionChiLT { get; set; }
-        public double BucklingResistanceMomentKNm { get; set; }
-        public double AppliedMomentKNm { get; set; }
-        public double UtilisationRatio { get; set; }
-        public bool Pass { get; set; }
-        public string Recommendation { get; set; }
-    }
-
-    internal static class LateralTorsionalBuckling
-    {
-        /// <summary>Check LTB per EC3 §6.3.2 for an I/H-section beam.</summary>
-        public static LTBResult CheckLTB(
-            double unbracedLengthMm, double spanMm,
-            double sectionDepthMm, double flangeWidthMm, double flangeThickMm, double webThickMm,
-            double fyMPa, double appliedMomentKNm, double momentGradientCm = 1.0)
-        {
-            var result = new LTBResult { AppliedMomentKNm = appliedMomentKNm };
-
-            try
-            {
-                // Section properties
-                double d = sectionDepthMm;
-                double b = flangeWidthMm;
-                double tf = flangeThickMm;
-                double tw = webThickMm;
-
-                // Elastic section modulus (I-section approximation)
-                double Iy = 2.0 * (b * tf * tf * tf / 12.0 + b * tf * Math.Pow(d / 2 - tf / 2, 2));
-                double Iz = 2.0 * (tf * b * b * b / 12.0) + (d - 2 * tf) * tw * tw * tw / 12.0;
-                double Iw = Iz * Math.Pow(d - tf, 2) / 4.0; // warping constant
-                double It = (2 * b * tf * tf * tf + (d - 2 * tf) * tw * tw * tw) / 3.0; // torsional constant
-                double Wel_y = Iy / (d / 2); // elastic modulus
-
-                double Mcr = CalculateMcr(unbracedLengthMm, Iz, Iw, It, momentGradientCm);
-
-                // Plastic section modulus (approximate)
-                double Wpl_y = b * tf * (d - tf) + tw * Math.Pow(d - 2 * tf, 2) / 4.0;
-                double Mpl = Wpl_y * fyMPa / 1e6; // kNm
-
-                // Slenderness — EC3 §6.3.2.2: λ̄LT = √(Wpl×fy / Mcr)
-                // C1 moment gradient factor applied to Mcr (correct per EC3 6.3.2.3)
-                // NOT applied as post-divisor to χLT (which was incorrect)
-                double lambdaLT = Mpl > 0 && Mcr > 0 ? Math.Sqrt(Mpl / Mcr) : 0;
-                result.SlendernessLambdaLT = lambdaLT;
-
-                // Reduction factor (EC3 §6.3.2.3 — General case)
-                double alphaLT = 0.49; // buckling curve c for rolled I/H sections
-                double lambdaLT0 = 0.4; // plateau length per UK NA
-                double beta = 0.75;     // per UK NA to EC3
-
-                double phiLT = 0.5 * (1 + alphaLT * (lambdaLT - lambdaLT0) +
-                    beta * lambdaLT * lambdaLT);
-                double chiLT = phiLT > 0
-                    ? Math.Min(1.0 / (phiLT + Math.Sqrt(Math.Max(phiLT * phiLT -
-                        beta * lambdaLT * lambdaLT, 0))), 1.0)
-                    : 1.0;
-
-                // C1 moment gradient is already applied in Mcr calculation (CalculateMcr)
-                // Do NOT divide χLT by C1 again — that double-counts the effect
-
-                result.ReductionChiLT = chiLT;
-                result.BucklingResistanceMomentKNm = chiLT * Mpl;
-                result.UtilisationRatio = result.BucklingResistanceMomentKNm > 0
-                    ? appliedMomentKNm / result.BucklingResistanceMomentKNm
-                    : 999;
-                result.Pass = result.UtilisationRatio <= 1.0;
-
-                result.Recommendation = result.Pass
-                    ? $"LTB OK — χLT={chiLT:F3}, utilisation={result.UtilisationRatio:F2}"
-                    : $"FAILS LTB — reduce unbraced length to {unbracedLengthMm * result.UtilisationRatio * 0.8:F0}mm or increase section";
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("LTB.CheckLTB", ex);
-                result.Recommendation = $"LTB calculation error: {ex.Message}";
-            }
-
-            return result;
-        }
-
-        /// <summary>Calculate elastic critical moment Mcr per NCCI SN003.</summary>
-        private static double CalculateMcr(double Lcr, double Iz, double Iw, double It, double C1)
-        {
-            double E = 210000.0; // MPa
-            double G = 80770.0;  // MPa
-            double pi2 = Math.PI * Math.PI;
-
-            // Mcr = C1 × (π²EIz/L²) × √(Iw/Iz + L²GIt/(π²EIz))
-            double term1 = pi2 * E * Iz / (Lcr * Lcr);
-            double term2 = Iw / Math.Max(Iz, 1) + Lcr * Lcr * G * It / (pi2 * E * Math.Max(Iz, 1));
-            if (term2 < 0) term2 = 0;
-
-            return C1 * term1 * Math.Sqrt(term2) / 1e6; // convert to kNm
         }
     }
 

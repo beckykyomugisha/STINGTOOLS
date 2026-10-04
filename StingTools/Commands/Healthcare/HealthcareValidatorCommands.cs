@@ -148,9 +148,9 @@ namespace StingTools.Commands.Healthcare
     {
         public Result Execute(ExternalCommandData cd, ref string m, ElementSet e) {
             try {
-                var v = new WaterSafetyValidator { DeadLegMaxM = HcOptions.DeadLegMaxM };
+                var v = new WaterSafetyValidator { DeadLegOverrideM = HcOptions.DeadLegMaxM };
                 return HealthcareValidatorReporter.Report(
-                    $"Healthcare — Water Safety (HTM 04-01, dead-leg ≤ {v.DeadLegMaxM:F1} m)",
+                    $"Healthcare — Water Safety (HTM 04-01, sentinel spur ≤ {(v.DeadLegMaxM.HasValue ? v.DeadLegMaxM.Value.ToString("F1") + " m" : "NOT CHECKED")})",
                     v.Validate(cd.Application.ActiveUIDocument.Document));
             }
             catch (Exception ex) { StingLog.Error("Healthcare_WaterSafety failed", ex); m = ex.Message; return Result.Failed; }

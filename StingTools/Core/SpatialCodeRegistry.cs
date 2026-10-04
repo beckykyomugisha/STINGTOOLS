@@ -64,11 +64,29 @@ namespace StingTools.Core
         [JsonProperty("note")]    public string Note { get; set; }
     }
 
+    /// <summary>
+    /// A project-type preset: the level and location codes a project of this type normally
+    /// uses. ADVISORY ONLY — a code outside the active preset is reported as a note, never
+    /// rejected, and level matching is never filtered by it.
+    /// </summary>
+    public class SpatialTypePreset
+    {
+        [JsonProperty("levels")]    public List<string> Levels { get; set; } = new List<string>();
+        [JsonProperty("locations")] public List<string> Locations { get; set; } = new List<string>();
+        [JsonProperty("note")]      public string Note { get; set; }
+        /// <summary>The preset's key in projectTypePresets (set when resolved).</summary>
+        [JsonIgnore] public string Name { get; set; }
+    }
+
     public class SpatialCodeLibrary
     {
         [JsonProperty("schemaVersion")] public string SchemaVersion { get; set; } = "1.0";
         [JsonProperty("levels")]        public List<SpatialLevelCode> Levels { get; set; } = new List<SpatialLevelCode>();
         [JsonProperty("locations")]     public List<SpatialLocCode> Locations { get; set; } = new List<SpatialLocCode>();
+        /// <summary>Project-type presets keyed by type (HEALTHCARE, RESIDENTIAL …). Advisory.</summary>
+        [JsonProperty("projectTypePresets")]
+        public Dictionary<string, SpatialTypePreset> ProjectTypePresets { get; set; }
+            = new Dictionary<string, SpatialTypePreset>(StringComparer.OrdinalIgnoreCase);
     }
 
     public static class SpatialCodeRegistry
@@ -173,6 +191,45 @@ namespace StingTools.Core
                         ContainsToken(upper, a.ToUpperInvariant(), l.WordBoundary))
                         return l;
             return null;
+        }
+
+        /// <summary>
+        /// The project-type preset in force: project_config.json PROJECT_TYPE when it names a
+        /// preset (case-insensitive), else ACTIVE_SECTOR_PACK upper-cased, else null.
+        /// </summary>
+        public static SpatialTypePreset ActivePreset(Document doc)
+        {
+            var presets = GetLibrary(doc).ProjectTypePresets;
+            if (presets == null || presets.Count == 0) return null;
+            foreach (string candidate in new[]
+            {
+                TagConfig.GetConfigValue("PROJECT_TYPE"),
+                TagConfig.GetConfigValue("ACTIVE_SECTOR_PACK")?.ToUpperInvariant(),
+            })
+            {
+                string k = (candidate ?? "").Trim();
+                if (k.Length == 0) continue;
+                var hit = presets.FirstOrDefault(p => string.Equals(p.Key, k, StringComparison.OrdinalIgnoreCase));
+                if (hit.Value != null) { hit.Value.Name = hit.Key; return hit.Value; }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Advisory note when a LVL / LOC code is not in the active preset, else null. Never a
+        /// validation failure: presets describe what a project type usually has, not what is
+        /// legal. Placeholders (XX, ZZ) and empty values are never noted.
+        /// </summary>
+        public static string PresetAdvisory(SpatialTypePreset preset, string token, string value)
+        {
+            if (preset == null || string.IsNullOrWhiteSpace(value)) return null;
+            string v = value.Trim();
+            if (string.Equals(v, "XX", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(v, "ZZ", StringComparison.OrdinalIgnoreCase)) return null;
+            List<string> list = token == "LVL" ? preset.Levels : token == "LOC" ? preset.Locations : null;
+            if (list == null || list.Count == 0) return null;
+            if (list.Any(c => string.Equals((c ?? "").Trim(), v, StringComparison.OrdinalIgnoreCase))) return null;
+            return $"{token} '{v}' is not in the {preset.Name ?? "active"} project-type preset";
         }
 
         public static void Reload(Document doc)
@@ -337,6 +394,17 @@ namespace StingTools.Core
             {
                 bas.Locations.RemoveAll(x => string.Equals(x.Code, l.Code, StringComparison.OrdinalIgnoreCase));
                 bas.Locations.Add(l);
+            }
+            // Presets: project wins by key (whole preset replaced), new keys extend.
+            if (bas.ProjectTypePresets == null)
+                bas.ProjectTypePresets = new Dictionary<string, SpatialTypePreset>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in over.ProjectTypePresets ?? new Dictionary<string, SpatialTypePreset>())
+            {
+                if (string.IsNullOrWhiteSpace(kv.Key) || kv.Value == null) continue;
+                var existing = bas.ProjectTypePresets.Keys
+                    .FirstOrDefault(k => string.Equals(k, kv.Key, StringComparison.OrdinalIgnoreCase));
+                if (existing != null) bas.ProjectTypePresets.Remove(existing);
+                bas.ProjectTypePresets[kv.Key] = kv.Value;
             }
         }
     }

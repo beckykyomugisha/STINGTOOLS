@@ -89,3 +89,29 @@ if "-v" in sys.argv:
     print("\n-- skipped --")
     for n in skipped_names:
         print("   ", n)
+
+# --check (DSCH round 2): a ratchet on the two numbers that mean something. The
+# baseline sat at 3604/3444/160 while the tree moved to 3668/3509/159 — nobody saw,
+# because nothing ran this. "declared" and "bound" move with every new parameter
+# and are recorded, not gated; "skipped" and "conflict" may only fall.
+if "--check" in sys.argv:
+    base = {}
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "binding_simulator_baseline.txt"), encoding="utf-8") as fh:
+        for ln in fh:
+            parts = ln.split()
+            if len(parts) == 2 and not ln.startswith("#") and parts[1].isdigit():
+                base[parts[0]] = int(parts[1])
+    bad = []
+    if skipped > base.get("skipped", -1):
+        bad.append(f"skipped {skipped} > baseline {base.get('skipped')} - a parameter is "
+                   f"declared and bound to nothing (see -v)")
+    if len(conflicts) > base.get("conflict", -1):
+        bad.append(f"conflicts {len(conflicts)} > baseline {base.get('conflict')}")
+    if bad:
+        print("\nFAIL: " + "; ".join(bad))
+        sys.exit(1)
+    if skipped < base.get("skipped", 0):
+        print(f"\nPASS - skipped fell to {skipped}; lower tools/binding_simulator_baseline.txt.")
+    else:
+        print("\nPASS - no new unbound parameter, no conflict.")

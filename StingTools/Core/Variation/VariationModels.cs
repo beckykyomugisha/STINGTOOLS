@@ -261,6 +261,52 @@ namespace StingTools.Core.Variation
         public double FinalRate => Math.Round(Subtotal + OverheadAmount + ProfitAmount, 2);
     }
 
+    /// <summary>
+    /// DSCH-46b - the one place a star rate becomes a priced variation item.
+    /// A star rate is the rate agreed for varied work the BOQ has no rate for;
+    /// it was built and saved, but nothing ever set RateSource "StarRate" /
+    /// StarRateId, so it priced nothing. Revit-free (tested in Cost.Tests).
+    /// </summary>
+    public static class StarRatePricing
+    {
+        /// <summary>A variation still being valued. Approved / Rejected /
+        /// Incorporated values are settled and are not re-priced.</summary>
+        public static bool AcceptsNewItems(VariationStatus s)
+            => s == VariationStatus.Draft || s == VariationStatus.Submitted || s == VariationStatus.Reviewed;
+
+        /// <summary>
+        /// A new item on <paramref name="vo"/>: the star rate's description and
+        /// unit, the measured <paramref name="quantity"/>, priced at FinalRate and
+        /// linked by StarRateId. Null with <paramref name="why"/> set when it
+        /// cannot be priced honestly - never a guessed or converted value.
+        /// Does not add the item; the caller does, then saves.
+        /// </summary>
+        public static VariationItem NewItem(VariationInstruction vo, StarRate rate, double quantity, out string why)
+        {
+            why = null;
+            if (vo == null || rate == null) { why = "No variation or star rate."; return null; }
+            if (!AcceptsNewItems(vo.Status))
+            { why = $"Variation {vo.Number} is {vo.Status}; its value is settled and is not re-priced."; return null; }
+            string rc = string.IsNullOrWhiteSpace(rate.Currency) ? "UGX" : rate.Currency.Trim();
+            string vc = string.IsNullOrWhiteSpace(vo.Currency) ? "UGX" : vo.Currency.Trim();
+            if (!string.Equals(rc, vc, StringComparison.OrdinalIgnoreCase))
+            { why = $"The star rate is in {rc} and variation {vo.Number} in {vc}; no conversion is applied."; return null; }
+            if (!(rate.FinalRate > 0))
+            { why = $"Star rate '{rate.Description}' has no build-up (final rate {rate.FinalRate:N2})."; return null; }
+            if (double.IsNaN(quantity) || double.IsInfinity(quantity) || quantity <= 0)
+            { why = "A measured quantity greater than zero is required."; return null; }
+            return new VariationItem
+            {
+                Description = rate.Description ?? "",
+                Unit = string.IsNullOrWhiteSpace(rate.Unit) ? "each" : rate.Unit,
+                Quantity = quantity,
+                UnitRate = rate.FinalRate,
+                RateSource = "StarRate",
+                StarRateId = rate.Id ?? "",
+            };
+        }
+    }
+
     public class StarRateLine
     {
         public string Resource { get; set; } = "";   // "Skilled labourer", "JCB excavator", "Concrete C30/37"

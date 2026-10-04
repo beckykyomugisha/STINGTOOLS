@@ -953,6 +953,46 @@ namespace StingTools.UI
                     case "OneClickLegendPipeline": RunCommand<Tags.OneClickLegendPipelineCommand>(app); break;
                     case "MepSystemLegend": RunCommand<Tags.MepSystemLegendCommand>(app); break;
                     case "MaterialLegend": RunCommand<Tags.MaterialLegendCommand>(app); break;
+
+                    // ── Material Hub (MAT_*) ──
+                    // The Hub builds these buttons in code and passes the selected
+                    // material's id as p1. The cases were lost in a -X ours merge on
+                    // 2026-05-23, leaving every Hub action logging "Unrecognised
+                    // command tag"; MaterialHubDispatchTests now holds button and case
+                    // together (DSCH-46b).
+                    case "MAT_WhereUsed":          MatActions.WhereUsed(app, p1); break;
+                    case "MAT_Apply":              MatActions.ApplyToSelection(app, p1); break;
+                    case "MAT_Eyedropper":         MatActions.Eyedropper(app); break;
+                    case "MAT_EditIdentity":       MatActions.EditIdentity(app, p1); break;
+                    case "MAT_DetachAsset":        MatActions.DetachAsset(app, p1); break;
+                    case "MAT_RepointAsset":       MatActions.RepointAsset(app, p1); break;
+                    case "MAT_ExportCsv":          MatActions.ExportCsv(app); break;
+                    case "MAT_ImportCsv":          MatActions.ImportCsv(app); break;
+                    case "MAT_TemplateCsv":        MatActions.OpenTemplate(app); break;
+                    case "MAT_FamilyAudit":        MatActions.FamilyFolderAudit(app); break;
+                    case "MAT_FamilyMaterials":    MatActions.ShowFamilyMaterials(app); break;
+                    case "MAT_GenerateRfq":        MatActions.GenerateRfq(app); break;
+                    case "MAT_EditOverrides":      MatActions.EditProjectOverrides(app); break;
+                    case "MAT_ReloadLib":          MatActions.ReloadLibrary(app); break;
+                    case "MAT_PushCorp":           MatActions.PushToCorporate(app, p1); break;
+                    case "MAT_LoadPack":           MatActions.LoadMaterialPack(app); break;
+                    case "MAT_NormaliseClasses":   MatActions.NormaliseMaterialClasses(app); break;
+                    case "MAT_ToggleAutoApply":    MatActions.ToggleAutoApply(app); break;
+                    case "MAT_ToggleAutoFill":     MatActions.ToggleAutoFill(app); break;
+                    case "MAT_EditRules":          MatActions.EditRules(app); break;
+                    case "MAT_CoverageCheck":      MatActions.RunCoverageCheck(app); break;
+                    case "MAT_SustainabilityGate": MatActions.RunSustainabilityGate(app); break;
+                    case "MAT_SustainabilityEdit": MatActions.EditSustainabilityGate(app); break;
+                    case "MAT_HealthcareGate":     MatActions.RunHealthcareGate(app); break;
+                    case "MAT_HealthcareEdit":     MatActions.EditHealthcareGate(app); break;
+                    case "MAT_FireWallGate":       MatActions.RunFireWallGate(app); break;
+                    case "MAT_EpdFormatCheck":     MatActions.RunEpdFormatCheck(app); break;
+                    case "MAT_BoqByMaterial":      MatActions.BoqByMaterial(app); break;
+                    case "MAT_WhatIfSwap":         MatActions.WhatIfSwap(app); break;
+                    case "MAT_CarbonPivot":        MatActions.CarbonByPhaseLevel(app); break;
+                    case "MAT_SyncCobie":          MatActions.SyncCobie(app); break;
+                    case "MAT_LinkedScan":         MatActions.ScanLinkedMaterials(app); break;
+                    case "MAT_EnrichSchedules":    MatActions.EnrichMaterialSchedules(app); break;
                     case "CompoundTypeLegend": RunCommand<Tags.CompoundTypeLegendCommand>(app); break;
                     case "EquipmentLegend": RunCommand<Tags.EquipmentLegendCommand>(app); break;
                     case "FireRatingLegend": RunCommand<Tags.FireRatingLegendCommand>(app); break;
@@ -2747,6 +2787,20 @@ namespace StingTools.UI
                         break;
                     }
 
+                    // DSCH-40: a preset queued by a WorkflowScheduler trigger, handed over
+                    // by the Idling drain (WorkflowTriggerDrainJob); the name is p1.
+                    case "Workflow_RunQueued":
+                    {
+                        if (string.IsNullOrEmpty(p1))
+                        {
+                            StingTools.Core.StingLog.Warn("Workflow_RunQueued: no preset name");
+                            break;
+                        }
+                        SetExtraParam("WorkflowPresetName", p1);
+                        RunCommand<Core.WorkflowPresetCommand>(app);
+                        break;
+                    }
+
                     // Phase 48: Enhanced workflow dispatch
                     case "RepeatLastWorkflow":
                     {
@@ -3482,17 +3536,21 @@ namespace StingTools.UI
                             string csvPath = Core.StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
                             if (!string.IsNullOrEmpty(csvPath) && System.IO.File.Exists(csvPath))
                             {
-                                foreach (string line in System.IO.File.ReadAllLines(csvPath))
-                                {
-                                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-                                    string[] parts = Core.StingToolsApp.ParseCsvLine(line);
-                                    if (parts.Length > 3 && parts[0].Trim().Equals("SCHEDULE", StringComparison.OrdinalIgnoreCase))
+                                // DSCH-2: Record_Type / Schedule_Name by header name, not position
+                                var schedTable = Core.CsvTable.Parse(System.IO.File.ReadAllLines(csvPath), Core.StingToolsApp.ParseCsvLine);
+                                var schedMissing = schedTable.Missing("Record_Type", "Schedule_Name");
+                                if (schedMissing.Count > 0)
+                                    Core.StingLog.Warn($"ScheduleWizard: MR_SCHEDULES.csv header lacks column(s) {string.Join(", ", schedMissing)}");
+                                else
+                                    foreach (var schedRow in schedTable.Rows)
                                     {
-                                        string schedName = parts[3].Trim();
-                                        if (!string.IsNullOrEmpty(schedName))
-                                            csvDefs.Add(schedName);
+                                        if (schedRow["Record_Type"].Equals("SCHEDULE", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string schedName = schedRow["Schedule_Name"];
+                                            if (!string.IsNullOrEmpty(schedName))
+                                                csvDefs.Add(schedName);
+                                        }
                                     }
-                                }
                             }
                             if (doc != null)
                             {
@@ -3774,6 +3832,7 @@ namespace StingTools.UI
                     case "BOQ_LabourRollup":        RunCommand<BOQ.BOQLabourRollupCommand>(app); break;
                     case "BOQ_CarbonGapReport":     RunCommand<BOQ.BOQCarbonGapReportCommand>(app); break;
                     case "BOQWriteItemParams":      RunCommand<BOQ.BOQWriteItemParamsCommand>(app); break;
+                    case "BOQSetRateOutcome":       RunCommand<BOQ.BOQSetRateOutcomeCommand>(app); break;   // DSCH-43
                     case "BOQExportProfessional":   RunCommand<BOQ.BOQProfessionalExportCommand>(app); break;
                     case "BOQBccRefresh":           RunCommand<BOQ.BOQBccRefreshCommand>(app); break;
 
@@ -3810,6 +3869,7 @@ namespace StingTools.UI
                     case "Cost_AnticipatedFinalCost":   RunCommand<Commands.Cost.CostAnticipatedFinalCostCommand>(app); break;
                     case "Variation_FromDiff":          RunCommand<Commands.Cost.VariationFromDiffCommand>(app); break;
                     case "Variation_BuildStarRate":     RunCommand<Commands.Cost.VariationBuildStarRateCommand>(app); break;
+                    case "Variation_ApplyStarRate":     RunCommand<Commands.Cost.VariationApplyStarRateCommand>(app); break;
                     case "Variation_ExportRegister":    RunCommand<Commands.Cost.VariationExportRegisterCommand>(app); break;
                     case "Variation_ReclassifyLegacy":  RunCommand<Commands.Cost.VariationReclassifyLegacyCommand>(app); break;
                     // WP4a — variation approval workflow + final-account reconciliation.

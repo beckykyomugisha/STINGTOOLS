@@ -62,7 +62,10 @@ namespace StingTools.BIMManager
             // Project context (read-only)
             "Phase", "Workset", "DesignOption",
             // Classification (editable)
-            "AssemblyCode", "Keynote", "URL", "Image"
+            // URL and Image were listed here, but no STING parameter carries them and
+            // Ext("URL") / Ext("IMAGE") had no mapping: the columns were always blank
+            // and an edit to them was dropped on import (DSCH-42).
+            "AssemblyCode", "Keynote"
         };
 
         // Parameter names mapped to column headers (for tag/param columns)
@@ -88,11 +91,12 @@ namespace StingTools.BIMManager
                 ["REV"]          = () => ParamRegistry.REV,
                 ["Description"]  = () => ParamRegistry.DESC,
                 ["Mark"]         = () => ParamRegistry.Ext("TYPE_MARK"),
-                ["Comments"]     = () => ParamRegistry.Ext("COMMENTS"),
-                ["AssemblyCode"] = () => ParamRegistry.Ext("ASSEMBLY_CODE"),
+                // DSCH-42: both keys had no mapping. These are the parameters
+                // NativeParamMapper fills from Revit's instance Comments and the type's
+                // Assembly Code (UNIFORMAT_CODE).
+                ["Comments"]     = () => ParamRegistry.PRJ_COMMENTS,
+                ["AssemblyCode"] = () => ParamRegistry.UNIFORMAT,
                 ["Keynote"]      = () => ParamRegistry.Ext("KEYNOTE"),
-                ["URL"]          = () => ParamRegistry.Ext("URL"),
-                ["Image"]        = () => ParamRegistry.Ext("IMAGE"),
             };
 
         // Columns that are read-only (derived from model, not editable)

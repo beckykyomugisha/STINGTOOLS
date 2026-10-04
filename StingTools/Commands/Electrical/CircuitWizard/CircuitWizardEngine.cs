@@ -42,7 +42,19 @@ namespace StingTools.Commands.Electrical.CircuitWizard
         public double UtilisationPct  { get; set; }
         public double VoltageV        { get; set; } = 230.0;
         public int    Poles           { get; set; } = 1;
+        /// <summary>Standard device rating, A; 0 when <see cref="RatingRefusal"/> is set.</summary>
         public double ProposedRatingA { get; set; }
+        /// <summary>
+        /// Why no standard device was proposed (the load exceeds the largest rating, or the
+        /// rating list did not load); null when <see cref="ProposedRatingA"/> is a real rating.
+        /// A circuit carrying this must not be created.
+        /// </summary>
+        public string RatingRefusal   { get; set; }
+        /// <summary>NEC: the device relies on the 240.4(B) next-size-up allowance over the
+        /// proposed conductor's ampacity — shown to the user to confirm (DSCH-30); null otherwise.</summary>
+        public string ConductorNote   { get; set; }
+        /// <summary>"copper assumed …" when no material was given; null otherwise.</summary>
+        public string MaterialNote    { get; set; }
         public double ProposedCsaMm2  { get; set; }
         public List<UnconnectedElement> Elements { get; set; } = new List<UnconnectedElement>();
         public bool   UserModified    { get; set; }
@@ -63,14 +75,16 @@ namespace StingTools.Commands.Electrical.CircuitWizard
         /// <summary>Maximum load utilisation percentage (0–1). Default 0.8 = 80 %.</summary>
         public double MaxLoadPct        { get; set; } = 0.80;
 
-        /// <summary>Wiring standard: "BS" or "NEC". Default "BS".</summary>
+        /// <summary>Wiring standard, any ElectricalStandardId spelling ("BS7671", "NEC",
+        /// "NEC2023" …); NEC is decided by ElectricalStandardId.IsNec. Default "BS" (= BS 7671).</summary>
         public string Standard          { get; set; } = "BS";
 
         /// <summary>Installation method for cable sizer: A1/A2/B1/B2/C/E/F. Default "C".</summary>
         public string InstallMethod     { get; set; } = "C";
 
-        /// <summary>Conductor material: "Cu" or "Al". Default "Cu".</summary>
-        public string Material          { get; set; } = "Cu";
+        /// <summary>Conductor material: "Cu", "Al" or "CCA" — the Electrical panel's CABLE tab
+        /// when the dialog passes it. Null: copper, assumed, and every proposal says so.</summary>
+        public string Material          { get; set; }
 
         /// <summary>Insulation type: "PVC70" or "XLPE90". Default "PVC70".</summary>
         public string Insulation        { get; set; } = "PVC70";
@@ -230,12 +244,28 @@ namespace StingTools.Commands.Electrical.CircuitWizard
         {
             double prospectiveVA = cur.TotalLoadVA + el.LoadVA;
             double iA = prospectiveVA / Math.Max(1.0, cur.VoltageV);
-            int trial = string.Equals(opts.Standard, "NEC", StringComparison.OrdinalIgnoreCase)
-                ? VoltageDropEngine.NextStandardBreakerSizeNEC(iA)
+            int trial = StingTools.Standards.ElectricalStandardId.IsNec(opts.Standard)
+                ? VoltageDropEngine.NextRating(NecBranchRatings(cur.LoadClass), iA)
                 : VoltageDropEngine.NextStandardBreakerSizeBS(iA);
+            // 0 = no standard device for the combined load: start a new circuit. A single
+            // element that no device carries ends up alone, with RatingRefusal set.
+            if (trial <= 0) return true;
             double allowed = trial * maxLoadPct * cur.VoltageV;
             return prospectiveVA > allowed;
         }
+
+        /// <summary>
+        /// The NEC Table 240.6(A) ratings a branch circuit of this load class may use. NEC 2023
+        /// 210.23(A) permits a 10 A branch circuit for lighting outlets only (plus dwelling
+        /// exhaust fans on lighting circuits and an individual gas fireplace) and forbids it for
+        /// receptacle outlets, fixed appliances, garage door openers and laundry equipment, so
+        /// every class except Lighting starts at 15 A. Emergency lighting is held to 15 A too —
+        /// its classification here is by name, not by what the circuit supplies.
+        /// </summary>
+        private static int[] NecBranchRatings(string loadClass)
+            => string.Equals(loadClass, "Lighting", StringComparison.Ordinal)
+                ? VoltageDropEngine.BreakerSizesNEC
+                : StingTools.Core.Electrical.ProtectiveDeviceSelection.NecRatingsAboveTenAmpBranch(VoltageDropEngine.BreakerSizesNEC);
 
         private static ProposedCircuit NewCircuit(string panelName, string loadClass,
             double voltageV, int poles, int seq)
@@ -258,9 +288,16 @@ namespace StingTools.Commands.Electrical.CircuitWizard
             var opts = options ?? CircuitWizardOptions.Default;
             circuit.TotalLoadVA = circuit.Elements.Sum(e => e.LoadVA);
             double iA = circuit.TotalLoadVA / Math.Max(1.0, circuit.VoltageV);
-            circuit.ProposedRatingA = string.Equals(opts.Standard, "NEC", StringComparison.OrdinalIgnoreCase)
-                ? VoltageDropEngine.NextStandardBreakerSizeNEC(iA)
+            bool nec = StingTools.Standards.ElectricalStandardId.IsNec(opts.Standard);
+            int[] necRatings = nec ? NecBranchRatings(circuit.LoadClass) : null;
+            circuit.ProposedRatingA = nec
+                ? VoltageDropEngine.NextRating(necRatings, iA)
                 : VoltageDropEngine.NextStandardBreakerSizeBS(iA);
+            circuit.RatingRefusal = circuit.ProposedRatingA > 0 ? null
+                : $"No standard {(nec ? "NEC 240.6(A)" : "BS EN 60898 MCB")} rating ≥ {iA:0.0} A" +
+                  (VoltageDropEngine.BreakerSizesLoadError != null
+                      ? " — " + VoltageDropEngine.BreakerSizesLoadError
+                      : " — split the load or specify the device manually.");
             circuit.UtilisationPct = circuit.ProposedRatingA > 0
                 ? (iA / circuit.ProposedRatingA) * 100.0
                 : 0;
@@ -280,6 +317,27 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                 Standard     = opts.Standard
             }, opts.Bs7671Tables);
             circuit.ProposedCsaMm2 = sized.RecommendedCsaMm2;
+            var matUsed = StingTools.Standards.NEC2023.ConductorMaterialText.Resolve(null, opts.Material);
+            circuit.MaterialNote = matUsed.Ok && matUsed.Assumed ? matUsed.Basis : null;
+
+            // NEC 240.4 (DSCH-30): check the device against the proposed conductor. No
+            // conductor (not sized) = not checked, said so; a forbidden device = refused.
+            circuit.ConductorNote = null;
+            if (nec && circuit.ProposedRatingA > 0)
+            {
+                var sel = StingTools.Core.Electrical.ProtectiveDeviceSelection.Select(iA, isNec: true, continuous: false,
+                    necRatings,
+                    sized.Sized && sized.ConductorAmpacityA > 0 ? sized.ConductorAmpacityA : (double?)null,
+                    sized.Sized ? sized.CsaLabel : "conductor not sized: " + sized.Warning);
+                if (sel.Blocked)
+                {
+                    circuit.ProposedRatingA = 0;
+                    circuit.UtilisationPct = 0;
+                    circuit.RatingRefusal = "NEC 240.4: " + sel.Note;
+                }
+                else if (sel.NeedsConfirmation || !sel.ConductorChecked)
+                    circuit.ConductorNote = sel.Note;
+            }
         }
 
         /// <summary>Backwards-compatibility shim — delegates to the options overload.</summary>

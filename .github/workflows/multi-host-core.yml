@@ -10,6 +10,8 @@ name: Multi-Host Core
 on:
   push:
     paths:
+      - 'shared/ifc/ids/**'
+      - 'shared/ifc/psets/**'
       - 'stingtools-core/**'
       - 'stingtools-bonsai/**'
       - 'StingBridge/**'
@@ -17,6 +19,8 @@ on:
       - '.github/workflows/multi-host-core.yml'
   pull_request:
     paths:
+      - 'shared/ifc/ids/**'
+      - 'shared/ifc/psets/**'
       - 'stingtools-core/**'
       - 'stingtools-bonsai/**'
       - 'StingBridge/**'
@@ -40,7 +44,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install test deps
-        run: python -m pip install --upgrade pip pytest
+        run: python -m pip install --upgrade pip pytest lxml   # lxml: IDS 1.0 schema check (test_ids_contract.py)
 
       - name: stingtools-core unit tests
         working-directory: stingtools-core/python
@@ -58,6 +62,12 @@ jobs:
 
       - name: StingBridge unit tests (SB-5a wiring + GlobalId fixture)
         run: python -m pytest StingBridge/tests/ -q
+
+      # Bonsai add-on unit tests: Pset-write arity, the Pset contract (every
+      # Pset_Sting* set and property the add-on uses is declared in shared/ifc/psets,
+      # numbers written as numbers), token lock, URL sanitising. bpy is stubbed.
+      - name: Bonsai add-on unit tests
+        run: python -m pytest stingtools-bonsai/tests -q
 
       - name: Adapter-boundary lint (A6)
         run: python tools/ci/check_adapter_boundary.py

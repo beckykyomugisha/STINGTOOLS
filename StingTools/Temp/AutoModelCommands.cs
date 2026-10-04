@@ -1339,15 +1339,15 @@ namespace StingTools.Temp
 
             // Pure numbers or numbers with units
             text = text.Trim();
-            if (double.TryParse(text, out _)) return true;
+            if (NumberText.TryParse(text, out _)) return true;
             if (text.EndsWith("mm") || text.EndsWith("m") || text.EndsWith("\"") || text.EndsWith("'"))
             {
                 string num = text.TrimEnd('m', '"', '\'', ' ');
-                if (double.TryParse(num, out _)) return true;
+                if (NumberText.TryParse(num, out _)) return true;
             }
 
             // Coordinate-like text
-            if (text.Contains(",") && text.Split(',').All(p => double.TryParse(p.Trim(), out _)))
+            if (text.Contains(",") && text.Split(',').All(p => NumberText.TryParse(p.Trim(), out _)))
                 return true;
 
             // Grid labels (single letters/numbers)

@@ -29,7 +29,7 @@ namespace StingTools.Commands.Electrical.Reports
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
-            string standardId = (StingElectricalCommandHandler.ActivePanel?.SelectedStandard ?? "BS7671") == "NEC2023"
+            string standardId = StingTools.Standards.ElectricalStandardId.IsNec(StingElectricalCommandHandler.ActivePanel?.SelectedStandard)
                 ? "NEC_2023" : "BS7671_2018";
             var rules = LoadRules(standardId);
             if (rules.Count == 0)
@@ -86,12 +86,25 @@ namespace StingTools.Commands.Electrical.Reports
                     {
                         var rule = rules.FirstOrDefault(r =>
                             string.Equals(r.LoadClass, clsKv.Key, StringComparison.OrdinalIgnoreCase));
+                        // A class the standard has no rule for (e.g. "Data") takes the
+                        // standard's "Other" rule, and the row says so — it used to apply
+                        // an unlabelled 100 % with "—" as the source.
+                        bool viaOther = false;
+                        if (rule == null)
+                        {
+                            rule = rules.FirstOrDefault(r =>
+                                string.Equals(r.LoadClass, "Other", StringComparison.OrdinalIgnoreCase));
+                            viaOther = rule != null;
+                        }
                         double demand = ApplyFactor(clsKv.Value, rule);
                         ws.Cell(row, 1).Value = clsKv.Key;
                         ws.Cell(row, 2).Value = clsKv.Value;
-                        ws.Cell(row, 3).Value = rule?.Description ?? "100% of connected";
+                        ws.Cell(row, 3).Value = rule == null ? "100% of connected"
+                            : viaOther ? $"{rule.Description} (no {clsKv.Key} rule — Other applied)"
+                            : rule.Description;
                         ws.Cell(row, 4).Value = demand;
-                        ws.Cell(row, 5).Value = rule?.Rule ?? "—";
+                        ws.Cell(row, 5).Value = rule == null ? "—"
+                            : viaOther ? $"{rule.Rule} (Other)" : rule.Rule;
                         row++;
                     }
                     ws.Columns().AdjustToContents();
@@ -154,7 +167,9 @@ namespace StingTools.Commands.Electrical.Reports
                     {
                         LoadClass   = lc["class"]?.ToString() ?? "Other",
                         Rule        = lc["rule"]?.ToString() ?? "",
-                        Description = lc["description"]?.ToString() ?? "",
+                        // The BS7671_2018 classes carry "notes", not "description"
+                        // (DSCH round 4) - the BS 7671 report's column was blank.
+                        Description = (lc["description"] ?? lc["notes"])?.ToString() ?? "",
                         Continuous  = lc["continuousLoad"]?.Value<bool>() ?? false
                     };
                     if (lc["factors"] is JArray fac)

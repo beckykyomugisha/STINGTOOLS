@@ -235,8 +235,8 @@ namespace StingTools.Core.Materials
             {
                 var parts = blk.Split('x', 'X', '*');
                 if (parts.Length >= 2
-                    && double.TryParse(parts[0].Trim(), out double a)
-                    && double.TryParse(parts[1].Trim(), out double b))
+                    && StingTools.Core.NumberText.TryParse(parts[0].Trim(), out double a)
+                    && StingTools.Core.NumberText.TryParse(parts[1].Trim(), out double b))
                 { potL = a; potW = b; }
             }
             return new SlabCalcInput

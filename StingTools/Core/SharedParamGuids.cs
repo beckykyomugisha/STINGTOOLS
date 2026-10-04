@@ -198,13 +198,19 @@ namespace StingTools.Core
             int unresolvedRows = 0;
             var seen = new Dictionary<string, HashSet<BuiltInCategory>>(StringComparer.Ordinal);
 
-            foreach (string raw in File.ReadAllLines(path))
+            // DSCH-2: by column name, so an inserted or reordered column cannot misbind.
+            var table = CsvTable.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+            var missingCols = table.Missing("Parameter_Name", "Revit_Category");
+            if (missingCols.Count > 0)
             {
-                if (string.IsNullOrWhiteSpace(raw) || raw.StartsWith("#")) continue;
-                string[] cols = StingToolsApp.ParseCsvLine(raw);
-                if (cols.Length < 2) continue;
-                string param = cols[0].Trim();
-                string catName = cols[1].Trim();
+                StingLog.Warn($"CATEGORY_BINDINGS.csv: header lacks {string.Join(", ", missingCols)} — per-param bindings empty");
+                return result;
+            }
+
+            foreach (var row in table.Rows)
+            {
+                string param = row["Parameter_Name"];
+                string catName = row["Revit_Category"];
                 if (param.Length == 0 || param.Equals("Parameter_Name", StringComparison.OrdinalIgnoreCase))
                     continue;
                 if (catName.Length == 0 || catName.Equals("Materials", StringComparison.OrdinalIgnoreCase))
@@ -473,17 +479,18 @@ namespace StingTools.Core
 
                 // Parse CSV bindings
                 var csvBindings = new HashSet<string>(StringComparer.Ordinal);
-                var lines = File.ReadAllLines(path)
-                    .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
-                    .Skip(1);
-
-                foreach (string line in lines)
+                var table = CsvTable.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                var missingCols = table.Missing("Parameter_Name", "Revit_Category");
+                if (missingCols.Count > 0)
                 {
-                    string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 2) continue;
+                    StingLog.Warn($"CATEGORY_BINDINGS.csv: header lacks {string.Join(", ", missingCols)} — skipping binding validation");
+                    return -1;
+                }
 
-                    string paramName = cols[0].Trim();
-                    string catName = cols[1].Trim();
+                foreach (var row in table.Rows)
+                {
+                    string paramName = row["Parameter_Name"];
+                    string catName = row["Revit_Category"];
 
                     if (!DisciplineBindings.ContainsKey(paramName)) continue;
                     if (!catNameToEnum.TryGetValue(catName, out BuiltInCategory bic)) continue;
@@ -554,15 +561,21 @@ namespace StingTools.Core
             string pcPath = StingToolsApp.FindDataFile("PARAMETER_CATEGORIES.csv");
             if (pcPath == null) return 0;
             int mismatches = 0;
-            foreach (string raw in File.ReadAllLines(pcPath))
+            var table = CsvTable.Parse(File.ReadAllLines(pcPath), StingToolsApp.ParseCsvLine);
+            var missingCols = table.Missing("Parameter Name", "Categories");
+            if (missingCols.Count > 0)
             {
-                if (string.IsNullOrWhiteSpace(raw) || raw.StartsWith("#")) continue;
-                string[] cols = StingToolsApp.ParseCsvLine(raw);
-                if (cols.Length < 5) continue;
-                string param = cols[0].Trim();
+                StingLog.Warn($"PARAMETER_CATEGORIES.csv: header lacks {string.Join(", ", missingCols)} — cross-file check skipped");
+                return 0;
+            }
+            int catCol = table.Col("Categories");
+            foreach (var row in table.Rows)
+            {
+                if (row.Count <= catCol) continue;
+                string param = row["Parameter Name"];
                 if (param.Length == 0 || param.Equals("Parameter Name", StringComparison.OrdinalIgnoreCase))
                     continue;
-                var pcNames = cols[4].Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).ToArray();
+                var pcNames = row["Categories"].Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).ToArray();
                 bool pcUniversal = pcNames.Contains("<ALL>");
                 bool specUniversal = universal.Contains(param);
                 checkedParams++;

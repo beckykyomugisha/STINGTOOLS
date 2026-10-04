@@ -3,7 +3,7 @@
 //
 //  Single entry point that BOQCostManager.ResolveRate calls. Maintains a
 //  priority-ordered list, walks it on each request and returns the first
-//  non-null lookup. Cached per Document so the CSV + COBie tables are
+//  non-null lookup. Cached per Document so the CSV rate table is
 //  loaded once per BuildBOQDocument run.
 //
 //  Currency adapter: providers may return rates in any currency
@@ -26,7 +26,7 @@ namespace StingTools.BOQ.Rates
     internal sealed class RateProviderRegistry
     {
         // Per-document cache. Each Document gets its own registry so the
-        // CSV/COBie tables are loaded once per run and providers don't
+        // CSV rate table is loaded once per run and providers don't
         // leak between projects.
         private static readonly ConcurrentDictionary<string, RateProviderRegistry> _cache
             = new ConcurrentDictionary<string, RateProviderRegistry>(StringComparer.OrdinalIgnoreCase);
@@ -69,6 +69,10 @@ namespace StingTools.BOQ.Rates
                 var policy = RatePolicy.Parse(File.ReadAllText(path));
                 if (policy?.Providers != null && policy.Providers.Count > 0)
                     StingLog.Info($"RateProviderRegistry: applied boq_rate_policy.json ({policy.Providers.Count} provider override(s)).");
+                // DSCH-28 - the COBie type-map provider was removed. A policy that still
+                // names it ranks nothing; say so instead of ignoring the entry silently.
+                if (policy?.Providers != null && policy.Providers.ContainsKey("cobie-typemap"))
+                    StingLog.Warn("RateProviderRegistry: boq_rate_policy.json names 'cobie-typemap', which was removed (DSCH-28) - the entry has no effect. Rates come from the cost-rate file's PROD / material / category rows.");
                 return policy ?? RatePolicy.Empty;
             }
             catch (Exception ex)
@@ -80,18 +84,18 @@ namespace StingTools.BOQ.Rates
 
         /// <summary>
         /// Acquire the registry for this document. Builds it lazily from
-        /// the CSV + COBie tables on first call; subsequent calls hit the
+        /// the CSV rate table on first call; subsequent calls hit the
         /// cache.
         /// </summary>
         public static RateProviderRegistry Get(
             Document doc,
             Dictionary<string, (double rate, string unit)> csvRates,
-            Dictionary<string, string> cobieCostCodes,
             double ugxPerUsd,
-            double ugxPerGbp = 0)
+            double ugxPerGbp = 0,
+            IReadOnlyDictionary<string, DeclaredRate> csvDeclared = null)
         {
             string key = doc?.PathName ?? "default";
-            return _cache.GetOrAdd(key, _ => Build(doc, csvRates, cobieCostCodes, LoadPolicy(doc), ugxPerUsd, ugxPerGbp));
+            return _cache.GetOrAdd(key, _ => Build(doc, csvRates, csvDeclared, LoadPolicy(doc), ugxPerUsd, ugxPerGbp));
         }
 
         /// <summary>
@@ -103,7 +107,7 @@ namespace StingTools.BOQ.Rates
         private static RateProviderRegistry Build(
             Document doc,
             Dictionary<string, (double rate, string unit)> csvRates,
-            Dictionary<string, string> cobieCostCodes,
+            IReadOnlyDictionary<string, DeclaredRate> csvDeclared,
             RatePolicy policy,
             double ugxPerUsd, double ugxPerGbp)
         {
@@ -116,8 +120,10 @@ namespace StingTools.BOQ.Rates
                 new FohlioRateProvider(),
                 new ExtensibleStorageRateProvider(),
                 // P3.4 — project rate card (incl. QS-Bill-imported rates at
-                // <project>/_BIM_COORD/rate_card.json). Priority 87 sits above
-                // CSV so a QS-priced category beats the corporate default.
+                // <project>/_BIM_COORD/rate_card.json). Priority 93 (DSCH-23): above
+                // the corporate CSV category rate (90), below the per-material
+                // library (95); the chain is highest-first. boq_rate_policy.json
+                // can re-rank it per project.
                 // Returns null when the file is absent, so legacy projects are
                 // unaffected.
                 Providers.ProjectRateCardProvider.Load(doc),
@@ -131,8 +137,7 @@ namespace StingTools.BOQ.Rates
                 // are added lazily by RegisterExternalProviders so the
                 // registry doesn't fail when a project hasn't configured
                 // them yet. See Get(doc, ...) below.
-                new CsvRateProvider(csvRates),
-                new CobieRateProvider(cobieCostCodes, csvRates),
+                new CsvRateProvider(csvRates, null, csvDeclared),   // DSCH-26: + the NIL / INCL keys
                 new DefaultRateProvider()
             };
 
@@ -239,7 +244,20 @@ namespace StingTools.BOQ.Rates
                 try
                 {
                     var lookup = provider.Resolve(req);
-                    if (lookup == null || lookup.UnitRate <= 0) continue;
+                    // DSCH-26 — one rule (RateChainRule): a declared Nil / Included is an
+                    // answer and stops the chain; a 0 without a declaration is not.
+                    switch (RateChainRule.Decide(lookup != null, lookup?.Outcome ?? RateOutcome.Priced, lookup?.UnitRate ?? 0))
+                    {
+                        case RateChainStep.Continue:
+                            continue;
+                        case RateChainStep.ContinueUndeclaredZero:
+                            StingLog.WarnRateLimited("RateChain.UndeclaredZero",
+                                $"RateProviderRegistry {provider.Id}: rate 0 for '{lookup.MatchedKey}' without a NIL / INCL " +
+                                "declaration - treated as not priced; the next provider is asked.");
+                            continue;
+                    }
+                    // A declared outcome carries no money, so there is nothing to convert.
+                    if (lookup.Outcome != RateOutcome.Priced) return lookup;
                     return ConvertCurrency(lookup, req.CurrencyCode);
                 }
                 catch (Exception ex)

@@ -5,6 +5,11 @@
 # DefaultRateProvider labels them USD and the rate registry rebases to the
 # project base currency (UGX) via the one doc-scoped FX (UGX_PER_USD). For
 # UGX-native defaults, edit the higher-priority project cost_rates_5d.csv (UGX).
+# DSCH-34: RatePerUnit_USD is a number > 0, or NOT MEASURED for a category that
+# is never a bill item (the BOQ takeoff leaves its elements out; reader:
+# BOQ/Rates/DefaultCostRatesCsv.cs). A bare 0 is refused. A measurable
+# category with no benchmark has NO row (e.g. Site - site furniture, bollards)
+# so it stays unpriced and is flagged at risk: a tender query, not a silent nil.
 # Columns: Category,RatePerUnit_USD,Unit,Description
 Category,RatePerUnit_USD,Unit,Description
 Structural Foundations,250,m³,RC foundations
@@ -35,7 +40,7 @@ Roof Soffits,45,m²,Roof soffits
 Fascia,30,m,Fascia boards
 Gutter,25,m,Rainwater gutters
 Pads,200,m²,Foundation pads
-Rooms,0,each,Room objects (no direct cost)
+Rooms,NOT MEASURED,n/a,"Room objects - measured through their bounding walls, floors and finishes"
 Furniture,300,each,General furniture
 Furniture Systems,500,each,Workstation systems
 Casework,200,m,Fitted joinery/casework
@@ -54,11 +59,10 @@ Parking,25000,each,Parking spaces
 Planting,50,each,Planting/landscaping
 Hardscape,80,m²,Hard landscaping
 Roads,120,m²,Roadways/paths
-Site,0,each,Site elements
-Entourage,0,each,Entourage/people (no cost)
+Entourage,NOT MEASURED,n/a,"Entourage/people/cars - presentation context, not part of the works"
 Temporary Structures,500,each,Temporary works
-Areas,0,each,Area objects (no direct cost)
-Spaces,0,each,Space objects (no direct cost)
+Areas,NOT MEASURED,n/a,"Area objects - a plan measure (GIA/NIA), not work"
+Spaces,NOT MEASURED,n/a,"MEP space objects - analysis volumes, not work"
 Ducts,55,m,Ductwork
 Duct Accessories,75,each,Dampers/valves/accessories
 Duct Fittings,45,each,Duct bends/tees/reducers
@@ -103,31 +107,32 @@ MEP Ancillary,30,each,MEP ancillary items
 Generic Models,200,each,Generic model elements
 Specialty Equipment,1500,each,Specialist equipment
 Medical Equipment,5000,each,Medical equipment
-Parts,0,each,Model parts (no direct cost)
-Assemblies,0,each,Assembly containers (no direct cost)
-Mass,0,each,Massing elements (no direct cost)
-Detail Items,0,each,"Detail items (annotation, no cost)"
-Model Groups,0,each,"Model groups (container, no cost)"
-Materials,0,each,Material definitions (no direct cost)
-Profiles,0,each,Profile definitions (no direct cost)
-RVT Links,0,each,Linked models (no direct cost)
-Zones,0,each,Zone objects (no direct cost)
+Parts,NOT MEASURED,n/a,Model parts - subdivisions of a host already measured; billing both double-counts
+Assemblies,NOT MEASURED,n/a,Assembly containers - members are measured individually
+Mass,NOT MEASURED,n/a,Conceptual massing - not construction
+Detail Items,NOT MEASURED,n/a,Detail items - 2D annotation
+Model Groups,NOT MEASURED,n/a,Model groups - members are measured individually
+Materials,NOT MEASURED,n/a,Material definitions - not elements
+Profiles,NOT MEASURED,n/a,Profile definitions - not elements
+RVT Links,NOT MEASURED,n/a,Linked models - quantified from the linked model itself
+Zones,NOT MEASURED,n/a,"Zone objects - analysis groupings, not work"
+HVAC Zones,NOT MEASURED,n/a,"HVAC zone objects - analysis groupings, not work"
 Toposolid,60,m²,Topographic solid surfaces
-Toposolid Links,0,each,Linked topo surfaces (no direct cost)
+Toposolid Links,NOT MEASURED,n/a,Linked topo surfaces - quantified in the source model
 Wash,15,m²,Wash/drainage surfaces
-Property Lines,0,each,Property boundary lines (no cost)
-Property Line Segments,0,each,Property boundary segments (no cost)
-Analytical Duct Segments,0,each,Analytical duct segments (no direct cost)
-Analytical Pipe Segments,0,each,Analytical pipe segments (no direct cost)
-Analytical Members,0,each,Analytical members (no direct cost)
-Analytical Nodes,0,each,Analytical nodes (no direct cost)
-Analytical Links,0,each,Analytical links (no direct cost)
-Analytical Openings,0,each,Analytical openings (no direct cost)
-Analytical Panels,0,each,Analytical panels (no direct cost)
-Area Based Loads,0,each,"Area-based loads (analytical, no cost)"
-Area Loads,0,each,"Area loads (analytical, no cost)"
-Line Loads,0,each,"Line loads (analytical, no cost)"
-Point Loads,0,each,"Point loads (analytical, no cost)"
-Internal Area Loads,0,each,"Internal area loads (analytical, no cost)"
-Internal Line Loads,0,each,"Internal line loads (analytical, no cost)"
-Internal Point Loads,0,each,"Internal point loads (analytical, no cost)"
+Property Lines,NOT MEASURED,n/a,"Property boundary lines - legal boundary, not work"
+Property Line Segments,NOT MEASURED,n/a,"Property boundary segments - legal boundary, not work"
+Analytical Duct Segments,NOT MEASURED,n/a,"Analytical Duct Segments - structural/MEP analytical model, not work"
+Analytical Pipe Segments,NOT MEASURED,n/a,"Analytical Pipe Segments - structural/MEP analytical model, not work"
+Analytical Members,NOT MEASURED,n/a,"Analytical Members - structural/MEP analytical model, not work"
+Analytical Nodes,NOT MEASURED,n/a,"Analytical Nodes - structural/MEP analytical model, not work"
+Analytical Links,NOT MEASURED,n/a,"Analytical Links - structural/MEP analytical model, not work"
+Analytical Openings,NOT MEASURED,n/a,"Analytical Openings - structural/MEP analytical model, not work"
+Analytical Panels,NOT MEASURED,n/a,"Analytical Panels - structural/MEP analytical model, not work"
+Area Based Loads,NOT MEASURED,n/a,"Area Based Loads - structural analysis loads, not work"
+Area Loads,NOT MEASURED,n/a,"Area Loads - structural analysis loads, not work"
+Line Loads,NOT MEASURED,n/a,"Line Loads - structural analysis loads, not work"
+Point Loads,NOT MEASURED,n/a,"Point Loads - structural analysis loads, not work"
+Internal Area Loads,NOT MEASURED,n/a,"Internal Area Loads - structural analysis loads, not work"
+Internal Line Loads,NOT MEASURED,n/a,"Internal Line Loads - structural analysis loads, not work"
+Internal Point Loads,NOT MEASURED,n/a,"Internal Point Loads - structural analysis loads, not work"

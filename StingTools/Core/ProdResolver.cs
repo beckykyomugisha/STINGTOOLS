@@ -44,6 +44,7 @@ namespace StingTools.Core
             || source == Sources.Corporate
             || source == Sources.Lps || source == Sources.Sleeve;
 
+        // D1: test-oracle - StingTools.Tags.Tests/ProdResolverSourceTotalityTests.cs
         /// <summary>
         /// True when a source tier is the GENERIC last resort — the category default, or
         /// the GEN fallback when even that is missing.

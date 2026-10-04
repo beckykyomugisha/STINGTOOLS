@@ -167,6 +167,15 @@ namespace StingTools.Commands.Hvac
                      .Metric("Infiltration Cp",       $"{la.InfiltrationWindwardCp:F2}")
                      .Text("Corporate baseline: Data/STING_LOAD_ASSUMPTIONS.json · " +
                            "project override: _BIM_COORD/load_assumptions.json.");
+                // Inputs the engine assumed rather than read (e.g. a site with no
+                // recorded design wind speed) — listed so the figure is not taken
+                // for site data.
+                var assumed = results.SelectMany(r => r.Assumptions).Distinct().ToList();
+                if (assumed.Count > 0)
+                {
+                    var asec = panel.AddSection("ASSUMED INPUTS");
+                    foreach (var a in assumed) asec.Text(a);
+                }
 
                 // Tier-2 2.1 — how much of the fabric came from model thermal
                 // data vs the construction-profile fallback.

@@ -886,6 +886,7 @@ CST_PROC_SPARE_01_TXT,<ALL>
 CST_PROC_SPARE_02_TXT,<ALL>
 CST_PROVISIONAL_SUM,<ALL>
 CST_PS_DESCRIPTION,<ALL>
+CST_PS_TYPE_TXT,<ALL>
 CST_QTY_MEASURED,<ALL>
 CST_QUOTE_REF_TXT,<ALL>
 CST_RATE_CONFIDENCE,<ALL>
@@ -1939,6 +1940,7 @@ PLM_DRN_BODY_MAT_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insula
 PLM_DRN_CLEANOUT_LOCS_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_DRN_COVER_DS_M,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_DRN_COVER_US_M,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_DRN_DU_NR,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_DRN_FILL_RATIO_NR,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_DRN_FITTING_ACCESS_PROVISION_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_DRN_FITTING_CONNECTION_TYPE_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
@@ -1973,6 +1975,7 @@ PLM_EXJ_END_CONNECTION_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe 
 PLM_EXJ_LATERAL_MOVEMENT_MM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_EXJ_MOVEMENT_CAPABILITY_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_EXJ_TEMP_RANGE_C,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_EXPVSL_SZ_L,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Mechanical Equipment|Plumbing Equipment
 PLM_EXP_JOINT_END_CONNECTION_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_EXP_JOINT_MAT_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_EXP_JOINT_PRESSURE_RATING_BAR,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
@@ -1986,6 +1989,7 @@ PLM_FLUSH_LOG_REF_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insul
 PLM_FRICTION_LOSS_PA_M,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_GASKET_THICKNESS_MM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_GSK_SZ_DIMENSION_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_HAS_TRAP_BOOL,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_HED_M,Flex Pipes|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Equipment|Plumbing Fixtures
 PLM_HOTWTR_FUEL_TYPE_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_HOTWTR_HEATER_EFF_PCT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
@@ -2001,6 +2005,7 @@ PLM_MAT_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plum
 PLM_NOMINAL_DIA_MM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_PIPE_GRADIENT_PCT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_PIPE_INS_THK_MM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_PIPE_REAL_SIZE_BOOL,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_PIPE_SERVICE_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_POU_FILTER_BOOL,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_PPE_COLOR_BS1710_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
@@ -2043,6 +2048,8 @@ PLM_PRV_INLET_PRESSURE_KPA,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe 
 PLM_PRV_SET_PRESSURE_KPA,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_PSR_KPA,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_PSR_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_PUMP_DUTY_FLOW_LPS,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Mechanical Equipment|Plumbing Equipment
+PLM_PUMP_MODEL_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Mechanical Equipment|Plumbing Equipment
 PLM_PWR_KW,Flex Pipes|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Equipment|Plumbing Fixtures
 PLM_RECIRC_DELTA_T_K,Project Information
 PLM_RECIRC_DRV_KV,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment
@@ -2071,8 +2078,11 @@ PLM_STR_STYLE_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulatio
 PLM_SUDS_ATTEN_VOL_M3,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_SUP_DN_REQ_MM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment
 PLM_SUP_DP_PAM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment
+PLM_SUP_LU_CW_NR,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_SUP_LU_HW_NR,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_SUP_QD_LPS,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment
 PLM_SUP_VEL_MPS,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment
+PLM_SUP_WSFU_NR,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_SYS_TXT,Flex Pipes|MEP Fabrication Pipework|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Fixtures
 PLM_TAG_7_PARA_ANAL_PIPES_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TAG_7_PARA_DRAIN_TXT,<ALL>
@@ -2085,9 +2095,16 @@ PLM_TAG_7_PARA_PIPE_INSULATION_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pip
 PLM_TAG_7_PARA_PIPE_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TAG_7_PARA_PLM_EQUIP_TXT,<ALL>
 PLM_TAG_7_PARA_TIEIN_TXT,<ALL>
+PLM_TMV_ASSISTED_BOOL,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TMV_BLEND_TEMP_C,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TMV_CLASS_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_TMV_INLET_COLD_C,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_TMV_INLET_HOT_C,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TMV_KVS,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_TMV_MEASURED_C,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_TMV_NEXT_TEST_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_TMV_PAEDIATRIC_BOOL,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_TMV_TEST_DATE_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TMV_TYPE_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TRAP_SEAL_DEPTH_MM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TRAP_SEAL_MM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
@@ -2309,6 +2326,7 @@ PV_SYSTEM_TYPE_TXT,<ALL>
 Pset_StingCost.Currency,<ALL>
 Pset_StingCost.NRM2Section,<ALL>
 Pset_StingCost.ProvisionalSum,<ALL>
+Pset_StingCost.ProvisionalSumType,<ALL>
 Pset_StingCost.RateSource,<ALL>
 Pset_StingCost.TotalCost,<ALL>
 Pset_StingCost.UnitRate,<ALL>

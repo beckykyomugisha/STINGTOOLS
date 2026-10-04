@@ -166,7 +166,7 @@ namespace StingTools.Core.Validation
                 if (p == null || !p.HasValue) return fallback;
                 if (p.StorageType == StorageType.Double)  return p.AsDouble();
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
-                if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out var d)) return d;
+                if (p.StorageType == StorageType.String && StingTools.Core.NumberText.TryParse(p.AsString(), out var d)) return d;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return fallback;

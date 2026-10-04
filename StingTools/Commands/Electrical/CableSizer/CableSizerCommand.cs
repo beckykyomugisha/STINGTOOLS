@@ -51,7 +51,7 @@ namespace StingTools.Commands.Electrical.CableSizer
                     PowerFactor = snap.PowerFactor <= 0 ? 0.85 : snap.PowerFactor,
                     LengthM = snap.LengthM,
                     InstallMethod = snap.InstallMethod ?? "C",
-                    Material = snap.Material ?? "Cu",
+                    Material = snap.Material,
                     Insulation = snap.Insulation ?? "PVC70",
                     CableType = snap.CableType ?? "Multicore",
                     VDLimitPct = snap.VDLimitPct <= 0 ? 3.0 : snap.VDLimitPct,
@@ -73,7 +73,9 @@ namespace StingTools.Commands.Electrical.CableSizer
                     }
                     PresetDialog.Show("STING Cable Sizing",
                         $"{result.CsaLabel} · Ib {result.DesignCurrentA:0.#} A · {result.ProposedBreakerA} A {result.ProtectiveDevice} · " +
-                        $"VD {result.ActualVoltDropPct:0.##} % ({(result.VDCompliant ? "within" : "OVER")} limit)\n" +
+                        (result.VoltDropCalculated
+                            ? $"VD {result.ActualVoltDropPct:0.##} % ({(result.VDCompliant ? "within" : "OVER")} limit)\n"
+                            : "VD NOT calculated\n") +
                         $"Inputs: {inputs}" +
                         (string.IsNullOrEmpty(result.Warning) ? "" : $"\nWarning: {result.Warning}") +
                         (string.IsNullOrEmpty(result.Basis) ? "" : $"\nBasis: {result.Basis}"), ref message);

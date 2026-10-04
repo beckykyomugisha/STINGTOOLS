@@ -797,7 +797,7 @@ namespace StingTools.Tags
                         if (paramName != null)
                         {
                             // Respect token lock: skip overwrite if this token is locked
-                            string lockStr = ParameterHelpers.GetString(el, ParamRegistry.Ext("TOKEN_LOCK"));
+                            string lockStr = ParameterHelpers.GetString(el, ParamRegistry.ASS_TOKEN_LOCK_TXT);
                             bool isLocked = !string.IsNullOrEmpty(lockStr) &&
                                 lockStr.Split(',').Any(lk => lk.Trim().Equals(token, StringComparison.OrdinalIgnoreCase));
                             if (!isLocked)

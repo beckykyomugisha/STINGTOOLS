@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertySetTemplate xmlns="https://stingtools.io/schema/ifc/psets/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>Pset_StingMEPServices</Name>
+    <Definition>STING MEP service parameters with no buildingSMART property - circuit protective conductor size, pipe insulation thickness and drainage slope (DSCH-38).</Definition>
+    <IfdGuid>uuid:a1d15c11-000a-4001-9000-00000000000a</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.8.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>BS 7671 (circuit protective conductors); BS 5422 (pipe insulation); BS EN 12056-2 (drainage gradients)</StandardsBasis>
+  </Governance>
+
+  <TemplateType>PSET_TYPEDRIVENOVERRIDE</TemplateType>
+
+  <Applicability>
+    <ApplicableEntity>IfcDistributionElement</ApplicableEntity>
+  </Applicability>
+
+  <Properties>
+
+    <Property name="ProtectiveConductorSize" cardinality="optional">
+      <Definition>Circuit protective conductor size in mm2 per BS 7671. STING parameter ELC_CPC_SZ_MM. DSCH-38: moved here from Pset_ElectricApplianceTypeCommon.ProtectiveConductorSize, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="InsulationThickness" cardinality="optional">
+      <Definition>Pipe insulation thickness in millimetres. STING parameter PLM_PPE_INSULATION_THK_MM. DSCH-38: moved here from Pset_PipeSegmentTypeInsulation.InsulationThickness, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>mm</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="Slope" cardinality="optional">
+      <Definition>Drainage pipe slope percentage per BS EN 12056 (1:80 default for sanitary). STING parameter PLM_SLOPE_PCT. DSCH-38: moved here from Pset_PipeSegmentTypeCommon.Slope, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+  </Properties>
+
+  <CorporateLock>
+    <Sha256>d2c106e7987c281dabcfd8396da1e404c9e04d3bca22f8f62b18175a2b94e3c4</Sha256>
+    <LockedAtVersion>5.8.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(properties_with_metadata_plus_validation_rules))</Algorithm>
+  </CorporateLock>
+
+</StingPropertySetTemplate>

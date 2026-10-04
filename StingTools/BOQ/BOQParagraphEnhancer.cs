@@ -454,8 +454,16 @@ namespace StingTools.BOQ
                 if (File.Exists(path))
                 {
                     string raw = File.ReadAllText(path);
-                    var all = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string>>>(raw);
-                    if (all != null)
+                    // DSCH round 5: the file opens with "_comment": "<text>". Deserialising
+                    // straight to Dictionary<string, Dictionary<string,string>> threw on
+                    // that string, the catch below logged it, and NO vocabulary - not
+                    // even _default - was ever applied. Take only the object-valued
+                    // entries; a string is a comment.
+                    var all = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+                    foreach (var prop in Newtonsoft.Json.Linq.JObject.Parse(raw).Properties())
+                        if (prop.Value is Newtonsoft.Json.Linq.JObject block)
+                            all[prop.Name] = block.ToObject<Dictionary<string, string>>();
+                    if (all.Count > 0)
                     {
                         if (all.TryGetValue("_default", out var def) && def != null)
                             foreach (var kv in def) merged[kv.Key] = kv.Value;

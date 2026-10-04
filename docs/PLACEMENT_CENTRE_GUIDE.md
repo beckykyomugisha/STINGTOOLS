@@ -829,7 +829,7 @@ If all else fails, click `Undo last run`, edit the rule, and try again.
 | Anchor-point generation | `StingTools/Core/Placement/PlacementScorer.cs` |
 | Loader / disk layers | `StingTools/Core/Placement/PlacementRuleLoader.cs` |
 | The shipped baseline + packs | `StingTools/Data/Placement/STING_PLACEMENT_RULES*.json` |
-| The schema | `StingTools/Data/Schemas/STING_PLACEMENT_RULES.schema.json` |
+| The schema | `tools/data_schemas.json` — keys derived from `PlacementRuleSet` / `PlacementRule`, checked in CI (`python tools/validate_data_schemas.py --describe StingTools/Data/Placement/STING_PLACEMENT_RULES.json`). The hand-written `Data/Schemas/*.schema.json` had drifted and were removed (DSCH-8). |
 | Learn pass | `StingTools/Commands/Placement/LearnPlacementV4Command.cs` |
 | Generative-design bridge | `StingTools/Core/Placement/GenerativeDesignBridge.cs` |
 

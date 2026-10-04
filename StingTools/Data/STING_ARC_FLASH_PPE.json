@@ -1,26 +1,30 @@
 {
-  "_comment": "NFPA 70E Table 130.5(G) PPE categories + default IEEE 1584-2018 calculation parameters.",
-  "_standard": "NFPA 70E-2021 / IEEE 1584-2018",
-  "defaultClearingMs": 100,
-  "defaultBusGapMm": 32,
-  "ppeCategories": [
-    { "cat": 0, "maxCalCm2": 1.2,  "description": "PPE Category 0 — Arc-rated face shield, safety glasses",  "colour": "#00C850" },
-    { "cat": 1, "maxCalCm2": 4.0,  "description": "PPE Category 1 — Arc-rated jacket, balaclava",           "colour": "#C8C800" },
-    { "cat": 2, "maxCalCm2": 8.0,  "description": "PPE Category 2 — Arc-rated suit 8 cal/cm² minimum",      "colour": "#C88000" },
-    { "cat": 3, "maxCalCm2": 25.0, "description": "PPE Category 3 — Arc-rated suit 25 cal/cm² minimum",     "colour": "#C84000" },
-    { "cat": 4, "maxCalCm2": 40.0, "description": "PPE Category 4 — Arc-rated suit 40 cal/cm² minimum",     "colour": "#C80000" },
-    { "cat": -1,"maxCalCm2": 9999, "description": "DANGER — Exceeds Category 4. Engineering controls required.", "colour": "#800000" }
+  "_comment": "Arc-flash PRESENTATION only (DSCH-25): the on-model colour of each incident-energy band and the printed label's ANSI Z535.4 signal-word header. Nothing in this file selects PPE: StingTools is not for specifying PPE without a licensed arc-flash study.",
+  "_owner": "The ONLY copy of these values. Read by ArcFlashPresentation (ArcFlashEngine.FormatLabel, ArcFlashCommand, ArcFlashBoundaryViewCommand, ArcFlashLabelSheetCommand). A missing or invalid file is reported to the user and nothing is coloured; there is no built-in fallback.",
+  "_bands": "Incident-energy bands, ascending; the last has maxCalCm2 null (unbounded). The edges are 1.2 cal/cm2 (5 J/cm2, the arc-flash boundary energy, IEEE 1584 / NFPA 70E) and 4 / 8 / 25 / 40 cal/cm2 (the arc ratings of the NFPA 70E PPE categories). Using them as incident-energy bands is industry practice for colouring, NOT the NFPA 70E PPE category method (130.7(C)(15)), which is table-based and may not be combined with incident energy on a label (130.5(H)). No standard assigns colours to these bands: viewColour is a STING presentation choice. The lowest band is grey, never green - energised equipment is not 'safe'.",
+  "_labelHeader": "Printed label header per ANSI Z535.4 signal words: WARNING (black on safety orange) by default; DANGER (white on safety red) when incident energy is ABOVE dangerAboveCalCm2. Set dangerAboveCalCm2 to null for WARNING on every label - practice is split on whether arc-flash labels should ever use DANGER.",
+  "energyBands": [
+    { "maxCalCm2": 1.2,  "label": "≤ 1.2 cal/cm²",  "viewColour": "#9E9E9E" },
+    { "maxCalCm2": 4.0,  "label": "1.2–4 cal/cm²",  "viewColour": "#FFEB3B" },
+    { "maxCalCm2": 8.0,  "label": "4–8 cal/cm²",    "viewColour": "#FF9800" },
+    { "maxCalCm2": 25.0, "label": "8–25 cal/cm²",   "viewColour": "#FF5722" },
+    { "maxCalCm2": 40.0, "label": "25–40 cal/cm²",  "viewColour": "#F44336" },
+    { "maxCalCm2": null, "label": "> 40 cal/cm²",   "viewColour": "#B71C1C" }
   ],
-  "workingDistances": [
-    { "maxVoltageV": 240,   "distMm": 455 },
-    { "maxVoltageV": 600,   "distMm": 455 },
-    { "maxVoltageV": 15000, "distMm": 910 },
-    { "maxVoltageV": 99999, "distMm": 1830 }
-  ],
-  "busGapByVoltage": [
-    { "maxVoltageV": 250,   "gapMm": 25 },
-    { "maxVoltageV": 600,   "gapMm": 32 },
-    { "maxVoltageV": 5000,  "gapMm": 102 },
-    { "maxVoltageV": 15000, "gapMm": 152 }
-  ]
+  "labelHeader": {
+    "dangerAboveCalCm2": 40,
+    "verify": "STILL UNCONFIRMED (checked 2026-10-02): the NFPA 70E-2024 text could not be read - NFPA's free-access reader (https://link.nfpa.org/free-access/publications/70E/2024) needs an NFPA account login, which was not available, and no NFPA committee report reproducing 130.7 was found at docinfofiles.nfpa.org. Only secondary summaries were seen. Confirm against the printed NFPA 70E-2024 that an informational note says greater emphasis on de-energising is warranted above 40 cal/cm2, and its clause number. Whether to use DANGER at all is a licensed professional's call.",
+    "warning": {
+      "signalWord": "WARNING",
+      "background": "#FF8200",
+      "text": "#000000",
+      "verify": "STILL UNCONFIRMED (checked 2026-10-02): ANSI Z535.1-2022 is sold by NEMA and no free publisher text was found. As a cross-check only, the Munsell central colour 5.0YR 6.0/15 (CIE Y 30.05, x 0.5510, y 0.4214, illuminant C) published for 'Orange' in 49 CFR Part 172 Appendix A (DOT hazmat placards, https://www.law.cornell.edu/cfr/text/49/appendix-A_to_part_172) is the value secondary sources (e.g. Wikipedia, 'Safety orange') attribute to Z535.1-1998; it converts to about sRGB #E57800 (just outside sRGB), Delta E76 about 12 from this #FF8200. Confirm the Z535.1 safety-orange specification and choose the print colour from it."
+    },
+    "danger": {
+      "signalWord": "DANGER",
+      "background": "#C8102E",
+      "text": "#FFFFFF",
+      "verify": "STILL UNCONFIRMED (checked 2026-10-02): no free ANSI Z535.1 text found. Cross-check only: the 'Red' central colour 7.5R 4.0/14 (CIE Y 12.00, x 0.5959, y 0.3269, illuminant C) in 49 CFR Part 172 Appendix A converts to about sRGB #BC2221, Delta E76 about 9 from this #C8102E (Pantone 186C). Confirm the Z535.1 safety-red specification and choose the print colour from it."
+    }
+  }
 }

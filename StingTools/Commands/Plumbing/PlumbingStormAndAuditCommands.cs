@@ -160,7 +160,7 @@ namespace StingTools.Commands.Plumbing
                 {
                     var p = pi.LookupParameter("STR_RAIN_INTENSITY_MMH");
                     if (p != null && p.HasValue && p.StorageType == StorageType.String
-                        && double.TryParse(p.AsString(), out double v)) mmh = v;
+                        && StingTools.Core.NumberText.TryParse(p.AsString(), out double v)) mmh = v;
                 }
                 catch (Exception ex) { StingLog.Warn($"Read STR_RAIN_INTENSITY_MMH: {ex.Message}"); }
 

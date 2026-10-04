@@ -1,5 +1,12 @@
 # Missing Parameters Audit — Code vs Shared-Parameter Files
 
+> **Descriptions (2026-10-02, DSCH-47):** a parameter's description is written once, in
+> `MR_PARAMETERS.txt` (the Revit tooltip). The `description` of its `PARAMETER_REGISTRY.json`
+> entry is generated from it — run `tools/sync_registry_from_txt.py` after the `.txt` row,
+> alongside `tools/sync_csv_from_txt.py`; `param-csv-drift.yml` fails on drift. A WARN_
+> parameter's printed text is its registry `message`, and its comparison its `direction`
+> (`min` / `max`); a superseded parameter carries `deprecated: true` + `replaced_by`.
+
 > **Status (2026-09-28):** PARAM-10. Thirteen parameters the code read but no file
 > defined are now aligned across `MR_PARAMETERS.txt`, `MR_PARAMETERS.csv`,
 > `PARAMETER_REGISTRY.json`, `Core/ParamRegistry.cs` (a `const` and `_GUID` each, used

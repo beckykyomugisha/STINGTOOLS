@@ -230,10 +230,10 @@ namespace StingTools.Core.Routing
                 if (host != null)
                 {
                     string s = ParameterHelpers.GetString(host, "STING_ACOUSTIC_RW_DB");
-                    if (!double.TryParse(s, out rw) || rw <= 0)
+                    if (!StingTools.Core.NumberText.TryParse(s, out rw) || rw <= 0)
                     {
                         var t = doc.GetElement(host.GetTypeId());
-                        if (t != null) double.TryParse(ParameterHelpers.GetString(t, "STING_ACOUSTIC_RW_DB"), out rw);
+                        if (t != null) StingTools.Core.NumberText.TryParse(ParameterHelpers.GetString(t, "STING_ACOUSTIC_RW_DB"), out rw);
                     }
                 }
             }
@@ -260,11 +260,11 @@ namespace StingTools.Core.Routing
                 var host = doc.GetElement(hostId);
                 if (host == null) return false;
                 string s = ParameterHelpers.GetString(host, "STING_ACOUSTIC_RW_DB");
-                if (!string.IsNullOrEmpty(s) && double.TryParse(s, out double rw) && rw > 0) return true;
+                if (!string.IsNullOrEmpty(s) && StingTools.Core.NumberText.TryParse(s, out double rw) && rw > 0) return true;
                 var t = doc.GetElement(host.GetTypeId());
                 if (t == null) return false;
                 s = ParameterHelpers.GetString(t, "STING_ACOUSTIC_RW_DB");
-                return !string.IsNullOrEmpty(s) && double.TryParse(s, out rw) && rw > 0;
+                return !string.IsNullOrEmpty(s) && StingTools.Core.NumberText.TryParse(s, out rw) && rw > 0;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }

@@ -485,6 +485,10 @@ internal static class PlatformSchemaPatcher
         @"ALTER TABLE ""TaggedElements"" ADD COLUMN IF NOT EXISTS ""EpdRef"" text",
         @"ALTER TABLE ""TaggedElements"" ADD COLUMN IF NOT EXISTS ""EmbodiedCarbonKg"" double precision",
         @"ALTER TABLE ""TaggedElements"" ADD COLUMN IF NOT EXISTS ""MaterialName"" text",
+
+        // DSCH-44 — the NRM2 2.9.1 provisional-sum type the plugin now syncs
+        // (Defined / Undefined / NotDeclared; null on non-PS lines).
+        @"ALTER TABLE ""QuantityLines"" ADD COLUMN IF NOT EXISTS ""ProvisionalSumType"" character varying(12)",
     };
 
     public static async Task ApplyAsync(DbConnection conn)

@@ -1552,36 +1552,34 @@ namespace StingTools.Temp
 
             try
             {
-                var lines = File.ReadAllLines(csvPath)
-                    .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
-                    .Skip(1);
+                // DSCH-2: by column name, not position ("" when absent or short).
+                var table = CsvTable.Parse(File.ReadAllLines(csvPath), StingToolsApp.ParseCsvLine);
+                if (!table.Has("Schedule_Name"))
+                    StingLog.Warn($"MR_SCHEDULES.csv: header lacks column Schedule_Name — no definitions loaded ({csvPath})");
 
-                foreach (string line in lines)
+                foreach (var row in table.Has("Schedule_Name") ? table.Rows : new List<CsvRow>())
                 {
-                    string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 4) continue;
-
-                    string name = cols.Length > 3 ? cols[3].Trim() : "";
+                    string name = row["Schedule_Name"];
                     if (string.IsNullOrEmpty(name)) continue;
 
                     var def = new ScheduleDefinition
                     {
-                        RecordType = cols.Length > 0 ? cols[0].Trim() : "",
-                        SourceFile = cols.Length > 1 ? cols[1].Trim() : "",
-                        Discipline = cols.Length > 2 ? cols[2].Trim() : "",
+                        RecordType = row["Record_Type"],
+                        SourceFile = row["Source_File"],
+                        Discipline = row["Discipline"],
                         ScheduleName = name,
-                        Category = cols.Length > 4 ? cols[4].Trim() : "",
-                        ScheduleType = cols.Length > 5 ? cols[5].Trim() : "",
-                        MultiCategories = cols.Length > 6 ? cols[6].Trim() : "",
-                        Fields = cols.Length > 7 ? cols[7].Trim() : "",
-                        Filters = cols.Length > 8 ? cols[8].Trim() : "",
-                        Sorting = cols.Length > 9 ? cols[9].Trim() : "",
-                        Grouping = cols.Length > 10 ? cols[10].Trim() : "",
-                        Totals = cols.Length > 11 ? cols[11].Trim() : "",
-                        Formulas = cols.Length > 12 ? cols[12].Trim() : "",
-                        HeaderColor = cols.Length > 13 ? cols[13].Trim() : "",
-                        TextColor = cols.Length > 14 ? cols[14].Trim() : "",
-                        BackgroundColor = cols.Length > 15 ? cols[15].Trim() : "",
+                        Category = row["Category"],
+                        ScheduleType = row["Schedule_Type"],
+                        MultiCategories = row["Multi_Categories"],
+                        Fields = row["Fields"],
+                        Filters = row["Filters"],
+                        Sorting = row["Sorting"],
+                        Grouping = row["Grouping"],
+                        Totals = row["Totals"],
+                        Formulas = row["Formulas"],
+                        HeaderColor = row["Header_Color"],
+                        TextColor = row["Text_Color"],
+                        BackgroundColor = row["Background_Color"],
                     };
 
                     // Use schedule name as key (last one wins for duplicates)
@@ -1782,17 +1780,23 @@ namespace StingTools.Temp
 
             try
             {
-                var lines = File.ReadAllLines(path)
-                    .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
-                    .Skip(1);
-
-                foreach (string line in lines)
+                // DSCH-2: by column name, not position.
+                var table = CsvTable.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                var missingCols = table.Missing("Old_Schedule_Field", "Action");
+                if (missingCols.Count > 0)
                 {
-                    string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 3) continue;
+                    StingLog.Warn($"SCHEDULE_FIELD_REMAP.csv: header lacks column(s) {string.Join(", ", missingCols)} — no REMOVED fields loaded ({path})");
+                    return result;
+                }
+                // Rows must reach the third column, as before (Action today).
+                int minFields = Math.Max(table.Col("Action"), table.Col("Old_Schedule_Field")) + 1;
 
-                    string oldField = cols[0].Trim();
-                    string action = cols[2].Trim();
+                foreach (var row in table.Rows)
+                {
+                    if (row.Count < minFields) continue;
+
+                    string oldField = row["Old_Schedule_Field"];
+                    string action = row["Action"];
 
                     if (action.StartsWith("REMOVED", StringComparison.OrdinalIgnoreCase)
                         && !string.IsNullOrEmpty(oldField))

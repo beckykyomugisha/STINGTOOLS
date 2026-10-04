@@ -1,10 +1,12 @@
 // ══════════════════════════════════════════════════════════════════════════
 //  RateProviders.cs — Concrete IRateProvider implementations.
 //
-//  Five providers preserve the exact priority order of the legacy
-//  BOQCostManager.ResolveRate fallback chain so behaviour is byte-for-byte
-//  identical after the P0 refactor. New providers (BCIS, Spon's, project
-//  rate card) slot in alongside without editing existing code.
+//  These providers preserve the priority order of the legacy
+//  BOQCostManager.ResolveRate fallback chain (less the COBie type-map
+//  provider, removed by DSCH-28: it keyed a COBie category list by Revit
+//  category name and never priced anything the CSV had not already priced).
+//  New providers (BCIS, Spon's, project rate card) slot in alongside
+//  without editing existing code.
 //
 //  P0 of the Cost Management Implementation Plan.
 // ══════════════════════════════════════════════════════════════════════════
@@ -22,7 +24,7 @@ namespace StingTools.BOQ.Rates
     //  1. Parameter override (priority 100)
     //  Replaces ResolveRate Pass 0 — user wrote CST_UNIT_RATE_UGX directly
     //  via the BOQ panel edit flow, marking CST_RATE_SOURCE = "Override".
-    //  Must win over all CSV/COBie/default matches so inline edits persist.
+    //  Must win over all CSV/default matches so inline edits persist.
     // ──────────────────────────────────────────────────────────────────────
     internal sealed class ParameterOverrideRateProvider : IRateProvider
     {
@@ -39,6 +41,20 @@ namespace StingTools.BOQ.Rates
                 if (!string.Equals(stored, "Override", StringComparison.OrdinalIgnoreCase)) return null;
 
                 string rateStr = ParameterHelpers.GetString(req.Element, "CST_UNIT_RATE_UGX");
+                // DSCH-26 — an override may declare the item NIL or INCL rather than price it.
+                if (RateOutcomeToken.TryParse(rateStr, out RateOutcome declared, out string includedIn))
+                    return new RateLookup
+                    {
+                        UnitRate = 0,
+                        Outcome = declared,
+                        IncludedIn = includedIn,
+                        CurrencyCode = "UGX",
+                        Unit = string.IsNullOrEmpty(req.Unit) ? "each" : req.Unit,
+                        SourceId = Id,
+                        Confidence = 100,
+                        Provenance = "User override via CST_UNIT_RATE_UGX: " + RateOutcomeToken.ToToken(declared, includedIn),
+                        MatchedKey = req.CategoryName
+                    };
                 if (!double.TryParse(rateStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double ovr) || ovr <= 0)
                     return null;
 
@@ -172,19 +188,25 @@ namespace StingTools.BOQ.Rates
             try
             {
                 var ovr = StingCostRateOverrideSchema.Read(req.Element);
-                if (ovr == null || ovr.Rate <= 0) return null;
+                if (ovr == null) return null;
+                if (!string.IsNullOrEmpty(ovr.UnreadableReason))
+                {
+                    // A v3 entity whose outcome cannot be decoded may be a Nil: never
+                    // price from its stored rate. Said out loud; the next provider prices.
+                    StingLog.WarnRateLimited("EsOverride.Unreadable",
+                        $"ExtensibleStorageRateProvider {req.Element.Id}: {ovr.UnreadableReason} - override ignored.");
+                    return null;
+                }
 
-                // v2 schema honoured. Z-21b — single-surface waste convention:
+                // DSCH-33 - the override's outcome and loading are decided Revit-free
+                // (RateOverrideOutcome.Resolve). Z-21b - single-surface waste convention:
                 // WASTE is applied on the QUANTITY only (DeriveQuantity reads
-                // ovr.WastePercent via WasteFactor), NEVER baked into the rate
-                // here — otherwise an element would waste twice (rate × qty,
-                // compounding ~10.25% for a 5%+5% case). The rate still carries
-                // OVERHEAD + PROFIT, which are rate-side markups, not material waste.
-                double loadedRate = ovr.Rate;
-                if (ovr.OverheadPercent > 0)
-                    loadedRate *= 1.0 + ovr.OverheadPercent / 100.0;
-                if (ovr.ProfitPercent > 0)
-                    loadedRate *= 1.0 + ovr.ProfitPercent / 100.0;
+                // ovr.WastePercent via WasteFactor), NEVER baked into the rate, or an
+                // element would waste twice. The rate carries OVERHEAD + PROFIT, which
+                // are rate-side markups. A declared Nil / Included carries neither.
+                var answer = RateOverrideOutcome.Resolve(ovr.Rate, ovr.Outcome, ovr.IncludedIn,
+                    ovr.OverheadPercent, ovr.ProfitPercent);
+                double loadedRate = answer.UnitRate;
 
                 string provenance = string.IsNullOrEmpty(ovr.Note)
                     ? $"ES override by {ovr.StampedBy}"
@@ -195,10 +217,14 @@ namespace StingTools.BOQ.Rates
                     provenance += $" (+{ovr.WastePercent:0.#}% waste on qty)";
                 if (ovr.IsLocked)
                     provenance += $" [LOCKED by {ovr.LockedByUser}]";
+                if (answer.Outcome != RateOutcome.Priced)
+                    provenance = answer.OutcomeText + " - " + provenance;
 
                 return new RateLookup
                 {
                     UnitRate = loadedRate,
+                    Outcome = answer.Outcome,
+                    IncludedIn = answer.IncludedIn,
                     // CA-1 — an ES override that doesn't declare its currency is the
                     // project base (UGX), not GBP. Defaulting to GBP would FX-scale a
                     // UGX-intended override by ~4,700. Explicit ovr.Currency still wins.
@@ -227,15 +253,18 @@ namespace StingTools.BOQ.Rates
     internal sealed class CsvRateProvider : IRateProvider
     {
         private readonly Dictionary<string, (double rate, string unit)> _rates;
+        private readonly IReadOnlyDictionary<string, DeclaredRate> _declared;
         private readonly string _sourceFile;
 
         public string Id => "csv-default";
         public int Priority => 90;
         public bool RequiresNetwork => false;
 
-        public CsvRateProvider(Dictionary<string, (double rate, string unit)> rates, string sourceFile = null)
+        public CsvRateProvider(Dictionary<string, (double rate, string unit)> rates, string sourceFile = null,
+                               IReadOnlyDictionary<string, DeclaredRate> declared = null)
         {
             _rates = rates ?? new Dictionary<string, (double, string)>(StringComparer.OrdinalIgnoreCase);
+            _declared = declared;
             _sourceFile = sourceFile ?? "cost_rates_5d.csv";
         }
 
@@ -249,7 +278,7 @@ namespace StingTools.BOQ.Rates
             // answer. No decision is taken here.
             var m = CsvRateLookup.Resolve(_rates, _sourceFile,
                         req.CategoryName, req.Discipline, req.ProdCode,
-                        req.SystemType, req.MatCode);
+                        req.SystemType, req.MatCode, _declared);
             if (m == null) return null;
 
             return new RateLookup
@@ -262,57 +291,14 @@ namespace StingTools.BOQ.Rates
                 ResolutionLevel = m.Level,
                 Provenance = m.Provenance,
                 MatchedKey = m.MatchedKey,
+                Outcome = m.Outcome,           // DSCH-26
+                IncludedIn = m.IncludedIn ?? "",
             };
         }
     }
 
     // ──────────────────────────────────────────────────────────────────────
-    //  4. COBie type-map provider (priority 75)
-    //  Wraps COBIE_TYPE_MAP.csv — maps Revit category → cost-rate code,
-    //  then looks up the code in the CSV rate table. Needs both tables so
-    //  it takes the CSV dictionary as a dependency.
-    // ──────────────────────────────────────────────────────────────────────
-    internal sealed class CobieRateProvider : IRateProvider
-    {
-        private readonly Dictionary<string, string> _cobieCodes;
-        private readonly Dictionary<string, (double rate, string unit)> _csvRates;
-
-        public string Id => "cobie-typemap";
-        public int Priority => 75;
-        public bool RequiresNetwork => false;
-
-        public CobieRateProvider(Dictionary<string, string> cobieCodes,
-                                 Dictionary<string, (double rate, string unit)> csvRates)
-        {
-            _cobieCodes = cobieCodes ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            _csvRates = csvRates ?? new Dictionary<string, (double, string)>(StringComparer.OrdinalIgnoreCase);
-        }
-
-        public RateLookup Resolve(RateRequest req)
-        {
-            if (req == null || _cobieCodes.Count == 0 || _csvRates.Count == 0) return null;
-            if (string.IsNullOrEmpty(req.CategoryName)) return null;
-
-            if (!_cobieCodes.TryGetValue(req.CategoryName, out string cobieCode) || string.IsNullOrEmpty(cobieCode))
-                return null;
-            if (!_csvRates.TryGetValue(cobieCode, out var byCobie))
-                return null;
-
-            return new RateLookup
-            {
-                UnitRate = byCobie.rate,
-                CurrencyCode = "UGX",
-                Unit = byCobie.unit ?? "each",
-                SourceId = Id,
-                Confidence = 75,
-                Provenance = $"COBie type-map → {cobieCode}",
-                MatchedKey = cobieCode
-            };
-        }
-    }
-
-    // ──────────────────────────────────────────────────────────────────────
-    //  5. Scheduling4DEngine default provider (priority 60)
+    //  4. Scheduling4DEngine default provider (priority 60)
     //  Last resort — uses the hard-coded default rates inside the 4D
     //  scheduling engine. Phase P3 of the plan removes this dictionary in
     //  favour of routing 4D through the registry, but until then this
@@ -331,6 +317,11 @@ namespace StingTools.BOQ.Rates
             {
                 if (!Scheduling4DEngine.DefaultCostRates.TryGetValue(req.CategoryName, out var dcr))
                     return null;
+                // DSCH-26 / DSCH-34 — the parser (DefaultCostRatesCsv) refuses a bare 0
+                // and keeps NOT MEASURED categories out of this table, so a non-positive
+                // rate cannot normally arrive; if one does it is "no benchmark", never a
+                // declared nil — the line stays unpriced and visible as such.
+                if (dcr.ratePerUnit <= 0) return null;
 
                 return new RateLookup
                 {

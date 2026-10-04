@@ -84,9 +84,8 @@ namespace StingTools.BOQ.Takeoff
         /// null to fall back to the composite line.</summary>
         internal static List<BOQLineItem> TryBuild(Document doc, Element el,
             Dictionary<string, (double rate, string unit)> csvRates,
-            Dictionary<string, string> cobieCostCodes,
             StingTools.BOQ.MeasurementStandard.IMeasurementStandard measStd)
-            => TryBuild(doc, el, csvRates, cobieCostCodes, measStd, out _);
+            => TryBuild(doc, el, csvRates, measStd, out _);
 
         /// <summary>
         /// As above, and says whether the decomposition MEASURED the host.
@@ -99,11 +98,10 @@ namespace StingTools.BOQ.Takeoff
         /// </summary>
         internal static List<BOQLineItem> TryBuild(Document doc, Element el,
             Dictionary<string, (double rate, string unit)> csvRates,
-            Dictionary<string, string> cobieCostCodes,
             StingTools.BOQ.MeasurementStandard.IMeasurementStandard measStd,
             out bool hostMeasured)
         {
-            var lines = TryBuildCore(doc, el, csvRates, cobieCostCodes, measStd);
+            var lines = TryBuildCore(doc, el, csvRates, measStd);
             hostMeasured = lines != null && lines.Count > 0
                 && CompoundTakeoff.MeasuresHost(lines.Select(l => l.ConstituentKind));
             return lines;
@@ -111,7 +109,6 @@ namespace StingTools.BOQ.Takeoff
 
         private static List<BOQLineItem> TryBuildCore(Document doc, Element el,
             Dictionary<string, (double rate, string unit)> csvRates,
-            Dictionary<string, string> cobieCostCodes,
             StingTools.BOQ.MeasurementStandard.IMeasurementStandard measStd)
         {
             if (doc == null || el == null) return null;

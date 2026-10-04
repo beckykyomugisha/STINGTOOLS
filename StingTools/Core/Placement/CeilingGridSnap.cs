@@ -87,7 +87,7 @@ namespace StingTools.Core.Placement
         /// Find the Ceiling element directly above the room centroid.
         /// Uses BoundingBoxIntersectsFilter per N-G1 perf guidance.
         /// </summary>
-        private static Ceiling FindCeilingOverRoom(Document doc, SpatialElement room)
+        internal static Ceiling FindCeilingOverRoom(Document doc, SpatialElement room)
         {
             var bb = room.get_BoundingBox(null);
             if (bb == null) return null;

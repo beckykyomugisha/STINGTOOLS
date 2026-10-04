@@ -24,11 +24,6 @@ namespace StingTools.Core
     {
         public const string DefaultMode = "Handover";
 
-        /// <summary>Handover (built-in universal CSV) + DC sibling. Custom is user-edited,
-        /// gated by <c>HANDOVER_MODE_CUSTOM_BOOL</c>; its label rows only live inside
-        /// dual-wired families if a Custom CSV variant ships on disk.</summary>
-        public static readonly string[] BuiltInModes = { "Handover", "DesignConstruction", "Custom" };
-
         /// <summary>
         /// Maps a built-in mode to the project-level YESNO selector BOOL that
         /// gates its T4-T10 label rows inside dual-wired tag families. Exactly
@@ -143,59 +138,11 @@ namespace StingTools.Core
             return outNames;
         }
 
-        /// <summary>
-        /// Enumerate CSV filenames for EVERY built-in mode whose variant actually
-        /// ships on disk. Unlike <see cref="GetAllTagConfigCsvs"/>, this does NOT
-        /// fall back to the Handover CSV when a variant is missing — it just
-        /// omits that mode. Used by the dual-wire authoring path so families get
-        /// stamped with both pattern row sets in one pass.
-        /// </summary>
-        /// <returns>Dictionary keyed by mode name (e.g. "Handover",
-        /// "DesignConstruction"), each value the 4-discipline CSV name array.</returns>
-        public static Dictionary<string, string[]> GetAllTagConfigCsvsForAllModes(Document doc)
-        {
-            var result = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-            foreach (string mode in BuiltInModes)
-            {
-                var names = new List<string>(Disciplines.Length);
-                for (int i = 0; i < Disciplines.Length; i++)
-                {
-                    string csv = TryGetTagConfigCsvStrict(Disciplines[i], mode);
-                    if (!string.IsNullOrEmpty(csv)) names.Add(csv);
-                }
-                if (names.Count > 0) result[mode] = names.ToArray();
-            }
-            return result;
-        }
-
         /// <summary>Resolves <paramref name="mode"/> to its selector BOOL name, or null if unmapped.</summary>
         public static string GetSelectorBool(string mode)
         {
             if (string.IsNullOrEmpty(mode)) return null;
             return ModeSelectorBool.TryGetValue(mode, out string b) ? b : null;
-        }
-
-        /// <summary>
-        /// Strict variant of <see cref="GetTagConfigCsv(string,string)"/>:
-        /// returns null if the variant CSV is missing instead of falling back
-        /// to the default Handover CSV. The Handover mode itself still resolves
-        /// to the non-suffixed base CSV.
-        /// </summary>
-        private static string TryGetTagConfigCsvStrict(string discipline, string mode)
-        {
-            string baseName = $"STING_TAG_CONFIG_v5_0_{discipline}";
-            if (string.Equals(mode, DefaultMode, StringComparison.OrdinalIgnoreCase))
-            {
-                string defaultCsv = baseName + ".csv";
-                string resolvedDefault = StingToolsApp.FindDataFile(defaultCsv);
-                return string.IsNullOrEmpty(resolvedDefault) || !File.Exists(resolvedDefault)
-                    ? null
-                    : defaultCsv;
-            }
-
-            string variantCsv = $"{baseName}_{mode}.csv";
-            string resolved = StingToolsApp.FindDataFile(variantCsv);
-            return string.IsNullOrEmpty(resolved) || !File.Exists(resolved) ? null : variantCsv;
         }
 
         private static string ProjectConfigPath(Document doc)

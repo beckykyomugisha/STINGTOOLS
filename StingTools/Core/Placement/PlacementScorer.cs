@@ -381,7 +381,33 @@ namespace StingTools.Core.Placement
             var roomPt = new XYZ(0.0, 0.0, baseZ);
             return ResolveMountingDatumZ(room, rule, roomPt)
                  + MountingHeightSign(rule) * (rule.MountingHeightMm * MmToFt)
-                 + (rule.OffsetZMm * MmToFt);
+                 + (rule.OffsetZMm * MmToFt)
+                 - CeilingFinishOffsetFt(room, rule);
+        }
+
+        /// <summary>
+        /// DSCH-27: a ceiling-referenced rule with PlasterOffsetMode Auto / Fixed sits on
+        /// the room-side finish face, so the anchor drops by the ceiling's finish layers
+        /// (Auto) or the fixed dimension. PlasterOffsetResolver.ResolveForCeiling had no
+        /// caller, so the shipped BESA/pendant rules' "Auto" did nothing. 0 for any other
+        /// datum, for "None", and (Auto) when no ceiling is found over the room.
+        /// </summary>
+        private double CeilingFinishOffsetFt(SpatialElement room, PlacementRule rule)
+        {
+            string r = (rule?.MountingReference ?? "FFL").ToUpperInvariant();
+            if (r != "CEILING" && r != "SOFFIT") return 0.0;
+            string mode = (rule.PlasterOffsetMode ?? "").Trim();
+            if (mode.Length == 0 || mode.Equals("None", StringComparison.OrdinalIgnoreCase)) return 0.0;
+            try
+            {
+                Ceiling ceiling = _doc != null ? CeilingGridSnap.FindCeilingOverRoom(_doc, room) : null;
+                return PlasterOffsetResolver.ResolveForCeiling(ceiling, rule);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CeilingFinishOffset {room?.Id}: {ex.Message}");
+                return 0.0;
+            }
         }
 
         private double ResolveMountingDatumZ(SpatialElement room, PlacementRule rule, XYZ roomPt)

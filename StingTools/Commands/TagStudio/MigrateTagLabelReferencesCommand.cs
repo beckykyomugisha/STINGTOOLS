@@ -540,17 +540,25 @@ namespace StingTools.Commands.TagStudio
             }
             int total = 0, mapped = 0, selfRef = 0, skipped = 0;
             var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (string line in File.ReadAllLines(path))
+            // DSCH-2: columns by header name, not position.
+            var table = CsvTable.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+            var missingCols = table.Missing("Old_Schedule_Field", "Consolidated_Parameter", "Action");
+            if (missingCols.Count > 0)
             {
-                string t = (line ?? "").Trim();
-                if (t.Length == 0 || t.StartsWith("#") || t.StartsWith("Old_Schedule_Field"))
-                    continue;
+                StingLog.Warn($"SCHEDULE_FIELD_REMAP.csv: header lacks {string.Join(", ", missingCols)} — no remap rows loaded");
+                sb.AppendLine($"SCHEDULE_FIELD_REMAP.csv header lacks {string.Join(", ", missingCols)}.");
+                report = sb.ToString();
+                return rows;
+            }
+            int minCols = Math.Max(table.Col("Old_Schedule_Field"),
+                Math.Max(table.Col("Consolidated_Parameter"), table.Col("Action"))) + 1;
+            foreach (var r in table.Rows)
+            {
                 total++;
-                string[] parts = StingToolsApp.ParseCsvLine(t);
-                if (parts.Length < 3) { skipped++; continue; }
-                string oldName = parts[0]?.Trim() ?? "";
-                string newName = parts[1]?.Trim() ?? "";
-                string action  = parts[2]?.Trim() ?? "";
+                if (r.Count < minCols) { skipped++; continue; }
+                string oldName = r["Old_Schedule_Field"];
+                string newName = r["Consolidated_Parameter"];
+                string action  = r["Action"];
                 if (oldName.Length == 0 || newName.Length == 0) { skipped++; continue; }
                 if (!string.Equals(action, "REMAPPED", StringComparison.OrdinalIgnoreCase)) { skipped++; continue; }
                 if (oldName == newName) { selfRef++; continue; }
@@ -561,10 +569,10 @@ namespace StingTools.Commands.TagStudio
                 {
                     OldName          = oldName,
                     NewName          = newName,
-                    DeprecatedDate   = parts.Length > 3 ? parts[3]?.Trim() : "",
-                    DeprecationOwner = parts.Length > 4 ? parts[4]?.Trim() : "",
-                    SunsetDate       = parts.Length > 5 ? parts[5]?.Trim() : "",
-                    MigrationNotes   = parts.Length > 6 ? parts[6]?.Trim() : "",
+                    DeprecatedDate   = r["Deprecated_Date"],
+                    DeprecationOwner = r["Deprecation_Owner"],
+                    SunsetDate       = r["Sunset_Date"],
+                    MigrationNotes   = r["Migration_Notes"],
                 });
                 mapped++;
             }

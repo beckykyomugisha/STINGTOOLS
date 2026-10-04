@@ -194,11 +194,24 @@ namespace StingTools.Core.Variation
             return path;
         }
 
-        public static StarRate LoadStarRate(string path)
+        /// <summary>Saved star rates, newest first. Read by Variation_ApplyStarRate,
+        /// which prices a variation item with one (DSCH-46b).</summary>
+        public static List<StarRate> ListStarRates(Document doc)
         {
-            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
-            try { return JsonConvert.DeserializeObject<StarRate>(File.ReadAllText(path), _json); }
-            catch (Exception ex) { StingLog.Warn($"VariationEngine.LoadStarRate: {ex.Message}"); return null; }
+            var list = new List<StarRate>();
+            string dir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "star_rates");
+            if (!Directory.Exists(dir)) return list;
+            foreach (var path in Directory.EnumerateFiles(dir, "*.json"))
+            {
+                try
+                {
+                    var r = JsonConvert.DeserializeObject<StarRate>(File.ReadAllText(path), _json);
+                    if (r != null) list.Add(r);
+                    else StingLog.Warn($"VariationEngine.ListStarRates: '{Path.GetFileName(path)}' is empty");
+                }
+                catch (Exception ex) { StingLog.Warn($"VariationEngine.ListStarRates: '{Path.GetFileName(path)}' unreadable - {ex.Message}"); }
+            }
+            return list.OrderByDescending(r => r.CreatedUtc).ToList();
         }
 
         private static string SafeName(string s)

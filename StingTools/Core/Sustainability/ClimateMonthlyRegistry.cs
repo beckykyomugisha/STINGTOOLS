@@ -34,6 +34,10 @@ namespace StingTools.Core.Sustainability
         /// vertical-solar transposition (equator-facing façade is south in the N hemisphere,
         /// north in the S hemisphere). Carried from the design-day site / JSON; 0 if unknown.</summary>
         public double   LatitudeDeg { get; set; }
+        /// <summary>True when the monthly JSON record itself carried "lat" / "latitude".
+        /// False means <see cref="LatitudeDeg"/> is the 0 default, not the equator,
+        /// and the caller should take the latitude from the design-day site.</summary>
+        public bool     LatitudeRecorded { get; set; }
         public double[] RainfallMm   { get; set; } = new double[12];
         public double   GridCarbonKgco2eKwh { get; set; } = 0.45;
         public string   Source      { get; set; } = "";
@@ -102,6 +106,7 @@ namespace StingTools.Core.Sustainability
                 RainfallMm   = Arr12(s["rainfallMm"]),
                 GridCarbonKgco2eKwh = (double?)s["gridCarbonKgco2eKwh"] ?? 0.45,
                 LatitudeDeg  = (double?)(s["lat"] ?? s["latitude"]) ?? 0,   // SUS-3
+                LatitudeRecorded = ((double?)(s["lat"] ?? s["latitude"])).HasValue,
                 Source       = (string)s["source"] ?? ""
             };
         }

@@ -3,7 +3,7 @@
 // Plumb_GenerateSpools  — groups drainage + supply pipes into assembly spools by system+level,
 //                         creates AssemblyInstance per group, optionally generates spool sheets.
 // Plumb_SpoolSchedule   — creates/refreshes a "STING - Plumbing Spool Schedule" view listing
-//                         all PLM_SPOOL_NR_TXT, pipe DN, length, system, and level.
+//                         all ASS_SPOOL_NR_TXT, pipe DN, length, system, and level.
 
 using System;
 using System.Collections.Generic;
@@ -229,7 +229,8 @@ namespace StingTools.Commands.Plumbing
                     if (sf != null) { try { schedule.Definition.AddField(sf); } catch { } }
                 }
 
-                // Try to add PLM_SPOOL_NR shared param field by shared-parameter element name
+                // Add the spool-number field (ASS_SPOOL_NR_TXT) by its exact shared-parameter
+                // name. A "contains SPOOL" match could pick ASS_SPOOL_DRAWING_REF_TXT instead.
                 try
                 {
                     var spoolField = fields.FirstOrDefault(f =>
@@ -237,7 +238,7 @@ namespace StingTools.Commands.Plumbing
                         try
                         {
                             var elem = ctx.Doc.GetElement(f.ParameterId);
-                            return elem?.Name?.IndexOf("SPOOL", StringComparison.OrdinalIgnoreCase) >= 0;
+                            return string.Equals(elem?.Name, ParamRegistry.PLM_SPOOL_NR, StringComparison.Ordinal);
                         }
                         catch { return false; }
                     });
@@ -258,7 +259,7 @@ namespace StingTools.Commands.Plumbing
 
             TaskDialog.Show("STING Plumbing — Spool Schedule",
                 $"'{ScheduleName}' has been created/refreshed and is now the active view.\n\n" +
-                "Run 'Plumb_GenerateSpools' first to stamp PLM_SPOOL_NR_TXT on pipe elements.");
+                "Run 'Plumb_GenerateSpools' first to stamp ASS_SPOOL_NR_TXT on pipe elements.");
             return Result.Succeeded;
         }
     }

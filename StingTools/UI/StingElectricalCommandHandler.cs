@@ -693,7 +693,7 @@ namespace StingTools.UI
                             // from the circuit's own Ib / length / voltage, for the size and cable
                             // just applied (ELEC-22) — NONE with the reason when those are missing.
                             var vdIn = StingTools.Core.Electrical.CircuitVoltageDropModel.Read(sys,
-                                input?.Standard ?? "BS7671", input?.Material ?? "Cu");
+                                input?.Standard ?? "BS7671", input?.Material);
                             vdIn.CsaMm2 = r.RecommendedCsaMm2;
                             if (input != null)
                             { vdIn.InstallMethod = input.InstallMethod; vdIn.Insulation = input.Insulation; vdIn.CableType = input.CableType; }

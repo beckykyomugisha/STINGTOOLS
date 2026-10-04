@@ -1,15 +1,14 @@
-// TMVEngine — Thermostatic Mixing Valve register, validation, and
-// parameter management per BS 8680:2022 and HTM 04-01. Phase 179c.
+// TMVEngine — Thermostatic Mixing Valve register and validation.
 //
 // Scans OST_PipeAccessory + OST_PlumbingFixtures for elements whose
-// PLM_TMV_CLASS_TXT is populated, reads temperature/test-date parameters,
-// validates outlet temperature against BS 8680 / HTM 04-01 limits,
-// detects annual test overdue status, and can write calibration data back.
-//
-// TMV classes per BS 8680:2022 §4.3:
-//   A — outlet within 38–43°C for ablution, ≤ 10°C drop from set-point
-//   B — outlet within ±2°C of set-point  (general use)
-//   C — outlet within ±1°C of set-point  (healthcare / high-risk)
+// PLM_TMV_CLASS_TXT is populated, and checks the design set point
+// (PLM_TMV_BLEND_TEMP_C) and the commissioning reading (PLM_TMV_MEASURED_C)
+// against the limit for the outlet the valve serves, the TMV scheme and,
+// for a TMV3 bath, whether bathing is assisted. The limits come only from
+// Data/Plumbing/STING_TMV_STANDARDS.json via WaterSafetyLimits (DSCH-25):
+// TMV3 per HTM 04-01 Part A Table 2 / NHS D08, TMV2 per the TMV2 scheme.
+// Where any of the three is unknown, or the data file is unusable, the TMV
+// is NOT CHECKED — never passed on a guessed limit.
 
 using System;
 using System.Collections.Generic;
@@ -18,6 +17,7 @@ using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Plumbing;
 using StingTools.Core;
+using StingTools.Standards.HTM;
 using Autodesk.Revit.DB.Architecture;
 
 namespace StingTools.Core.Plumbing
@@ -26,27 +26,31 @@ namespace StingTools.Core.Plumbing
     // Data model
     // ──────────────────────────────────────────────────────────────────────
 
-    public enum TMVClass
-    {
-        ClassA,  // ≤10°C drop; outlet 38–43°C for ablution
-        ClassB,  // ±2°C of set-point
-        ClassC   // ±1°C of set-point (healthcare — HTM 04-01 mandate)
-    }
-
     public class TMVRecord
     {
         public ElementId Id              { get; set; }
         public string    FamilyName      { get; set; } = "";
         public string    Location        { get; set; } = "";
         public string    RoomName        { get; set; } = "";
-        public TMVClass  Class           { get; set; } = TMVClass.ClassB;
+        /// <summary>TMV2 / TMV3 from PLM_TMV_CLASS_TXT (or PLM_TMV_TYPE_TXT); "" when unknown.</summary>
+        public string    Scheme          { get; set; } = "";
+        /// <summary>BATH / SHOWER / BASIN / BIDET from PLM_FIX_TYPE_TXT; "" when unknown.</summary>
+        public string    Outlet          { get; set; } = "";
+        /// <summary>PLM_TMV_ASSISTED_BOOL; null when not recorded.</summary>
+        public bool?     Assisted        { get; set; }
+        /// <summary>PLM_TMV_PAEDIATRIC_BOOL; null when not recorded (DSCH-45).</summary>
+        public bool?     Paediatric      { get; set; }
+        public WaterCheckStatus Status   { get; set; } = WaterCheckStatus.NotChecked;
+        public string    StatusText      => Status == WaterCheckStatus.Pass ? "PASS"
+                                          : Status == WaterCheckStatus.Fail ? "FAIL" : "NOT CHECKED";
         public double    InletHotC       { get; set; }
         public double    InletColdC      { get; set; }
         public double    SetOutletC      { get; set; }
         public double    ActualOutletC   { get; set; }
         public string    LastTestDate    { get; set; } = "";
         public string    AnnualTestDueDate { get; set; } = "";
-        public bool      WithinTolerance { get; set; }
+        /// <summary>True only when the check ran and passed.</summary>
+        public bool      WithinTolerance => Status == WaterCheckStatus.Pass;
         public bool      TestOverdue     { get; set; }
         public string    FailReason      { get; set; } = "";
         /// <summary>Kv coefficient from PLM_TMV_KVS param if populated.</summary>
@@ -54,6 +58,8 @@ namespace StingTools.Core.Plumbing
         /// <summary>Normative reference applied during validation.</summary>
         public string    StandardRef     { get; set; } = "";
         public bool      IsHealthcare    { get; set; }
+        /// <summary>What the check assumed or could not establish (see TmvCheck.Notes).</summary>
+        public List<string> Notes        { get; } = new List<string>();
     }
 
     public class TMVRegisterResult
@@ -61,6 +67,7 @@ namespace StingTools.Core.Plumbing
         public int              TotalTMVs  { get; set; }
         public int              PassCount  { get; set; }
         public int              FailCount  { get; set; }
+        public int              NotCheckedCount { get; set; }
         public int              OverdueCount { get; set; }
         public List<TMVRecord>  Records    { get; } = new List<TMVRecord>();
         public List<string>     Warnings   { get; } = new List<string>();
@@ -72,14 +79,6 @@ namespace StingTools.Core.Plumbing
 
     public static class TMVEngine
     {
-        // BS 8680:2022 §5 temperature limits
-        private const double BsMaxAblutionC  = 43.0;
-        private const double BsMinAblutionC  = 38.0;
-        private const double BsMaxShowerC    = 38.0;
-        private const double BsMaxBathC      = 46.0;
-        // HTM 04-01 Table 4: healthcare ablution ≤ 41°C; showers Class C mandatory
-        private const double HtmMaxAblutionC = 41.0;
-
         // Param name for Kv (optional — doesn't exist in base registry; looked up by name)
         private const string KvsParamName = "PLM_TMV_KVS";
 
@@ -92,7 +91,13 @@ namespace StingTools.Core.Plumbing
             if (doc == null) return result;
 
             var elements = CollectTMVElements(doc);
+            var limits = PlumbingTables.WaterSafety;
+            if (limits == null)
+                result.Warnings.Add("STING_TMV_STANDARDS.json unusable — every TMV is NOT CHECKED: "
+                                    + string.Join("; ", PlumbingTables.WaterSafetyErrors));
             bool isHealthcareProject = IsHealthcareProject(doc);
+            var region = ProjectHtmRegion(doc);
+            var noteCounts = new Dictionary<string, int>(StringComparer.Ordinal);
 
             foreach (var el in elements)
             {
@@ -101,18 +106,18 @@ namespace StingTools.Core.Plumbing
                     var rec = BuildRecord(doc, el, isHealthcareProject);
                     if (rec == null) continue;
 
-                    // Validate temperatures
-                    var (pass, reason) = ValidateTemperatures(rec);
-                    rec.WithinTolerance = pass;
-                    rec.FailReason      = pass ? "" : reason;
+                    ApplyCheck(rec, limits, region);
+                    foreach (var n in rec.Notes)
+                        noteCounts[n] = noteCounts.TryGetValue(n, out var k) ? k + 1 : 1;
 
                     // Check test overdue
                     rec.TestOverdue = IsTestOverdue(rec.AnnualTestDueDate);
 
                     result.Records.Add(rec);
                     result.TotalTMVs++;
-                    if (pass) result.PassCount++;
-                    else      result.FailCount++;
+                    if (rec.Status == WaterCheckStatus.Pass) result.PassCount++;
+                    else if (rec.Status == WaterCheckStatus.Fail) result.FailCount++;
+                    else result.NotCheckedCount++;
                     if (rec.TestOverdue) result.OverdueCount++;
                 }
                 catch (Exception ex)
@@ -121,87 +126,49 @@ namespace StingTools.Core.Plumbing
                 }
             }
 
+            // Notes go to the register warnings once each, with how many TMVs they cover,
+            // so a passing row still shows what was assumed (e.g. jurisdiction, paediatric).
+            foreach (var kv in noteCounts.OrderByDescending(k => k.Value))
+                result.Warnings.Add($"{kv.Key} ({kv.Value} TMV{(kv.Value == 1 ? "" : "s")})");
+
             StingLog.Info($"TMVEngine.ScanAll: {result.TotalTMVs} TMVs, " +
-                          $"{result.PassCount} pass, {result.FailCount} fail, " +
+                          $"{result.PassCount} pass, {result.FailCount} fail, {result.NotCheckedCount} not checked, " +
                           $"{result.OverdueCount} overdue");
             return result;
         }
 
-        /// <summary>
-        /// Validate outlet temperature for a TMVRecord per BS 8680 / HTM 04-01.
-        /// Returns (pass, failReason).
-        /// </summary>
-        public static (bool pass, string reason) ValidateTemperatures(TMVRecord rec)
+        /// <summary>Checks one record against the limits (null = data unusable) for the
+        /// project's HTM region (null = not recorded) and sets Status, FailReason,
+        /// StandardRef and Notes.</summary>
+        public static void ApplyCheck(TMVRecord rec, WaterSafetyLimitsFile limits, HtmRegion? region)
         {
-            if (rec == null) return (false, "Null record");
-            if (rec.ActualOutletC <= 0) return (true, ""); // No measurement yet — not a fail
+            if (rec == null) return;
+            var c = WaterSafetyLimits.CheckTmv(limits,
+                string.IsNullOrEmpty(rec.Outlet) ? null : rec.Outlet,
+                string.IsNullOrEmpty(rec.Scheme) ? null : rec.Scheme,
+                rec.Assisted, rec.Paediatric, rec.IsHealthcare, rec.SetOutletC, rec.ActualOutletC, region);
+            rec.Status      = c.Status;
+            rec.FailReason  = c.Reason;
+            rec.StandardRef = c.StandardRef;
+            rec.Notes.Clear();
+            rec.Notes.AddRange(c.Notes);
+        }
 
-            double outlet  = rec.ActualOutletC;
-            double setPoint = rec.SetOutletC > 0 ? rec.SetOutletC : 41.0;
-
-            // Class-based tolerance check
-            double tolerance = rec.Class switch
+        /// <summary>The project's HTM region from PRJ_ORG_HEALTH_HTM_REGION_TXT; null when
+        /// blank or unrecognised (the TMV check then says England rows were assumed).</summary>
+        public static HtmRegion? ProjectHtmRegion(Document doc)
+        {
+            try
             {
-                TMVClass.ClassA => 10.0,
-                TMVClass.ClassB => 2.0,
-                TMVClass.ClassC => 1.0,
-                _               => 2.0
-            };
-
-            string stdRef;
-            bool pass;
-            string reason = "";
-
-            if (rec.IsHealthcare)
-            {
-                // HTM 04-01 §4.3 / Table 4
-                stdRef = "HTM 04-01 Table 4";
-                if (outlet > HtmMaxAblutionC)
-                {
-                    pass   = false;
-                    reason = $"Outlet {outlet:F1}°C exceeds HTM 04-01 max {HtmMaxAblutionC}°C (ablution)";
-                }
-                else if (rec.Class == TMVClass.ClassC && Math.Abs(outlet - setPoint) > 1.0)
-                {
-                    pass   = false;
-                    reason = $"Class C: outlet {outlet:F1}°C outside ±1°C of set-point {setPoint:F1}°C";
-                }
-                else if (rec.Class == TMVClass.ClassB && Math.Abs(outlet - setPoint) > 2.0)
-                {
-                    pass   = false;
-                    reason = $"Class B: outlet {outlet:F1}°C outside ±2°C of set-point {setPoint:F1}°C";
-                }
-                else
-                {
-                    pass = true;
-                }
+                var pi = doc?.ProjectInformation;
+                if (pi == null) return null;
+                string raw = ReadString(pi, ParamRegistry.PRJ_ORG_HEALTH_HTM_REGION_TXT);
+                if (HtmRegionalVariants.TryParseRegion(raw, out var r)) return r;
+                if (!string.IsNullOrWhiteSpace(raw))
+                    StingLog.Warn($"TMVEngine: PRJ_ORG_HEALTH_HTM_REGION_TXT '{raw}' names no region — treated as not recorded");
             }
-            else
-            {
-                // BS 8680:2022 §5 — ablution default range
-                stdRef = "BS 8680:2022 §5.3";
-                if (rec.Class == TMVClass.ClassA)
-                {
-                    pass = outlet >= BsMinAblutionC && outlet <= BsMaxAblutionC;
-                    if (!pass)
-                        reason = $"Class A: outlet {outlet:F1}°C outside ablution range {BsMinAblutionC}–{BsMaxAblutionC}°C";
-                }
-                else if (rec.Class == TMVClass.ClassB)
-                {
-                    pass = Math.Abs(outlet - setPoint) <= 2.0;
-                    if (!pass)
-                        reason = $"Class B: outlet {outlet:F1}°C outside ±2°C of set-point {setPoint:F1}°C";
-                }
-                else // ClassC
-                {
-                    pass = Math.Abs(outlet - setPoint) <= 1.0;
-                    if (!pass)
-                        reason = $"Class C: outlet {outlet:F1}°C outside ±1°C of set-point {setPoint:F1}°C";
-                }
-            }
-
-            rec.StandardRef = stdRef;
-            return (pass, reason);
+            catch (Exception ex) { StingLog.Warn("TMVEngine.ProjectHtmRegion: " + ex.Message); }
+            return null;
         }
 
         /// <summary>
@@ -211,15 +178,15 @@ namespace StingTools.Core.Plumbing
         {
             if (r == null) return "";
             var sb = new StringBuilder();
-            sb.AppendLine("ElementId,FamilyName,Location,RoomName,Class,InletHotC,InletColdC," +
-                          "SetOutletC,ActualOutletC,WithinTolerance,TestOverdue," +
+            sb.AppendLine("ElementId,FamilyName,Location,RoomName,Scheme,Outlet,Assisted,Paediatric,InletHotC,InletColdC," +
+                          "SetOutletC,ActualOutletC,Status,TestOverdue," +
                           "LastTestDate,AnnualDueDate,FailReason,StandardRef,KvsCoeff");
             foreach (var rec in r.Records)
             {
                 sb.AppendLine($"{rec.Id?.Value},{EscCsv(rec.FamilyName)},{EscCsv(rec.Location)}," +
-                              $"{EscCsv(rec.RoomName)},{rec.Class},{rec.InletHotC:F1}," +
+                              $"{EscCsv(rec.RoomName)},{rec.Scheme},{rec.Outlet},{YesNoText(rec.Assisted)},{YesNoText(rec.Paediatric)},{rec.InletHotC:F1}," +
                               $"{rec.InletColdC:F1},{rec.SetOutletC:F1},{rec.ActualOutletC:F1}," +
-                              $"{rec.WithinTolerance},{rec.TestOverdue}," +
+                              $"{rec.StatusText},{rec.TestOverdue}," +
                               $"{EscCsv(rec.LastTestDate)},{EscCsv(rec.AnnualTestDueDate)}," +
                               $"{EscCsv(rec.FailReason)},{EscCsv(rec.StandardRef)},{rec.FlowRateKvs:F3}");
             }
@@ -227,40 +194,43 @@ namespace StingTools.Core.Plumbing
         }
 
         /// <summary>
-        /// Write calibration data to a TMV element's parameters.
+        /// Writes one TMV test result (HTM 04-01 Supplement D 08 §11: commissioning or
+        /// in-service test) to the TMV's parameters: the outlet reading to
+        /// PLM_TMV_MEASURED_C, the inlet temperatures when recorded (null = left as they
+        /// are), the test date, and the next test due at test date + 12 months.
+        /// Called by Plumb_TMVImportTests (DSCH-46) for each row of a filled TMV register.
         /// MUST be called within a started Transaction — does not create its own.
-        /// Returns true if all writes succeeded.
+        /// Returns false, with the parameters that could not be written in
+        /// <paramref name="failed"/>, when any write did not take (typically a parameter
+        /// not bound to the element's category).
         /// </summary>
-        public static bool WriteTMVData(Document doc, ElementId id,
-            double inletHotC, double inletColdC, double outletC, string testDate)
+        public static bool WriteTMVData(Document doc, ElementId id, double outletC,
+            double? inletHotC, double? inletColdC, string testDate, out List<string> failed)
         {
-            if (doc == null || id == null) return false;
-            bool ok = true;
+            failed = new List<string>();
+            if (doc == null || id == null) { failed.Add("no element"); return false; }
             try
             {
                 var el = doc.GetElement(id);
-                if (el == null) return false;
-                ok &= TryWriteDouble(el, ParamRegistry.PLM_TMV_INLET_HOT_C,  inletHotC);
-                ok &= TryWriteDouble(el, ParamRegistry.PLM_TMV_INLET_COLD_C, inletColdC);
-                // Write the commissioning reading to PLM_TMV_MEASURED_C; the
-                // design set-point in PLM_TMV_BLEND is set during design and
-                // left untouched here.
-                ok &= TryWriteDouble(el, ParamRegistry.PLM_TMV_MEASURED_C,    outletC);
-                ok &= TryWriteString(el, ParamRegistry.PLM_TMV_TEST_DATE,    testDate);
-
-                // Compute annual test due: test date + 12 months
-                if (DateTime.TryParse(testDate, out var testDt))
-                {
-                    string dueTxt = testDt.AddMonths(12).ToString("yyyy-MM-dd");
-                    TryWriteString(el, ParamRegistry.PLM_TMV_NEXT_TEST, dueTxt);
-                }
+                if (el == null) { failed.Add("element not found"); return false; }
+                // The design set point (PLM_TMV_BLEND_TEMP_C) is set during design and left untouched.
+                if (!ParameterHelpers.SetDoubleInNamedUnit(el, ParamRegistry.PLM_TMV_MEASURED_C, outletC)) failed.Add(ParamRegistry.PLM_TMV_MEASURED_C);
+                if (inletHotC.HasValue && !ParameterHelpers.SetDoubleInNamedUnit(el, ParamRegistry.PLM_TMV_INLET_HOT_C, inletHotC.Value))
+                    failed.Add(ParamRegistry.PLM_TMV_INLET_HOT_C);
+                if (inletColdC.HasValue && !ParameterHelpers.SetDoubleInNamedUnit(el, ParamRegistry.PLM_TMV_INLET_COLD_C, inletColdC.Value))
+                    failed.Add(ParamRegistry.PLM_TMV_INLET_COLD_C);
+                if (!TryWriteString(el, ParamRegistry.PLM_TMV_TEST_DATE_TXT, testDate)) failed.Add(ParamRegistry.PLM_TMV_TEST_DATE_TXT);
+                if (DateTime.TryParseExact(testDate, TmvTestImport.DateFormat, System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out var testDt)
+                    && !TryWriteString(el, ParamRegistry.PLM_TMV_NEXT_TEST_TXT, testDt.AddMonths(12).ToString(TmvTestImport.DateFormat)))
+                    failed.Add(ParamRegistry.PLM_TMV_NEXT_TEST_TXT);
             }
             catch (Exception ex)
             {
                 StingLog.Error($"WriteTMVData {id.Value}", ex);
-                return false;
+                failed.Add(ex.Message);
             }
-            return ok;
+            return failed.Count == 0;
         }
 
         // ──────────────────────────────────────────────────────────────────
@@ -303,8 +273,14 @@ namespace StingTools.Core.Plumbing
                 IsHealthcare = isHealthcareProject
             };
 
-            // Read class
-            rec.Class = ParseClass(ReadString(el, ParamRegistry.PLM_TMV_CLASS));
+            // Scheme (TMV2 / TMV3): PLM_TMV_CLASS_TXT, else PLM_TMV_TYPE_TXT.
+            rec.Scheme = WaterSafetyLimits.NormaliseScheme(ReadString(el, ParamRegistry.PLM_TMV_CLASS))
+                      ?? WaterSafetyLimits.NormaliseScheme(ReadString(el, ParamRegistry.PLM_TMV_TYPE_TXT)) ?? "";
+            // Outlet the valve serves: PLM_FIX_TYPE_TXT (bound on Plumbing Fixtures).
+            // A valve modelled as a pipe accessory carries none, so it is NOT CHECKED.
+            rec.Outlet = WaterSafetyLimits.NormaliseOutlet(ReadString(el, ParamRegistry.PLM_FIX_TYPE_TXT)) ?? "";
+            rec.Assisted = ReadYesNo(el, ParamRegistry.PLM_TMV_ASSISTED_BOOL);
+            rec.Paediatric = ReadYesNo(el, ParamRegistry.PLM_TMV_PAEDIATRIC_BOOL);
 
             // Temperatures: SetOutletC is the design set-point (PLM_TMV_BLEND),
             // ActualOutletC is the commissioning reading (PLM_TMV_MEASURED_C).
@@ -318,8 +294,8 @@ namespace StingTools.Core.Plumbing
             rec.InletColdC    = ReadDouble(el, ParamRegistry.PLM_TMV_INLET_COLD_C);
 
             // Test dates
-            rec.LastTestDate      = ReadString(el, ParamRegistry.PLM_TMV_TEST_DATE);
-            rec.AnnualTestDueDate = ReadString(el, ParamRegistry.PLM_TMV_NEXT_TEST);
+            rec.LastTestDate      = ReadString(el, ParamRegistry.PLM_TMV_TEST_DATE_TXT);
+            rec.AnnualTestDueDate = ReadString(el, ParamRegistry.PLM_TMV_NEXT_TEST_TXT);
 
             // If annual due not stored, compute from test date
             if (string.IsNullOrWhiteSpace(rec.AnnualTestDueDate)
@@ -341,7 +317,8 @@ namespace StingTools.Core.Plumbing
             return dueDate < DateTime.Today;
         }
 
-        private static bool IsHealthcareProject(Document doc)
+        /// <summary>HTM project: PRJ_PLUMBING_CODE mentions HTM, or the org class is healthcare. Shared by the TMV and dead-leg checks.</summary>
+        public static bool IsHealthcareProject(Document doc)
         {
             try
             {
@@ -358,13 +335,15 @@ namespace StingTools.Core.Plumbing
             catch { return false; }
         }
 
-        private static TMVClass ParseClass(string s)
+        private static bool? ReadYesNo(Element el, string paramName)
         {
-            if (string.IsNullOrWhiteSpace(s)) return TMVClass.ClassB;
-            s = s.Trim().ToUpperInvariant();
-            if (s.Contains("CLASS_C") || s == "C" || s == "CLASSC") return TMVClass.ClassC;
-            if (s.Contains("CLASS_A") || s == "A" || s == "CLASSA") return TMVClass.ClassA;
-            return TMVClass.ClassB;
+            try
+            {
+                var p = el.LookupParameter(paramName);
+                if (p != null && p.HasValue && p.StorageType == StorageType.Integer) return p.AsInteger() != 0;
+            }
+            catch (Exception ex) { StingLog.Warn($"TMVEngine.ReadYesNo {paramName}: {ex.Message}"); }
+            return null;
         }
 
         private static string GetFamilyName(Element el)
@@ -421,24 +400,11 @@ namespace StingTools.Core.Plumbing
                     if (p.StorageType == StorageType.Double)  return p.AsDouble();
                     if (p.StorageType == StorageType.Integer) return p.AsInteger();
                     if (p.StorageType == StorageType.String)
-                        if (double.TryParse(p.AsString(), out var v)) return v;
+                        if (StingTools.Core.NumberText.TryParse(p.AsString(), out var v)) return v;
                 }
             }
             catch { }
             return 0;
-        }
-
-        private static bool TryWriteDouble(Element el, string paramName, double value)
-        {
-            try
-            {
-                var p = el.LookupParameter(paramName);
-                if (p == null || p.IsReadOnly) return false;
-                if (p.StorageType == StorageType.Double) { p.Set(value); return true; }
-                if (p.StorageType == StorageType.String) { p.Set(value.ToString("F2")); return true; }
-            }
-            catch { }
-            return false;
         }
 
         private static bool TryWriteString(Element el, string paramName, string value)
@@ -452,6 +418,8 @@ namespace StingTools.Core.Plumbing
             catch { }
             return false;
         }
+
+        private static string YesNoText(bool? b) => b.HasValue ? (b.Value ? "Yes" : "No") : "";
 
         private static string EscCsv(string s)
         {

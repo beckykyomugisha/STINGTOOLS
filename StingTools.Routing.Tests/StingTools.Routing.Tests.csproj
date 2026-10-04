@@ -37,6 +37,13 @@
          Revit-bound adapter, CableCircuitResolver, is deliberately NOT linked. -->
     <Compile Include="..\StingTools\Core\Electrical\CableCircuitIdentity.cs"
              Link="Electrical\CableCircuitIdentity.cs" />
+    <!-- DSCH-22: which separation rule governs a pair of runs (Revit-free). -->
+    <Compile Include="..\StingTools\Core\Routing\SeparationGeometry.cs"
+             Link="Routing\SeparationGeometry.cs" />
+    <None Include="..\StingTools\Data\Routing\STING_SEPARATION_RULES.json"
+          Link="Data\STING_SEPARATION_RULES.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
 
     <!-- StingCable lives in Core.Electrical and is referenced by
          ConduitRouteEngine.SelectConduitDiameterMm. The full

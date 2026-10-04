@@ -483,7 +483,8 @@ namespace StingTools.Commands.Electrical
 
             return new WireAnnotationData(
                 phase, cores, csa,
-                string.IsNullOrEmpty(mat) ? "Cu" : mat,
+                // Printed only when recorded — never "Cu" on an assumption.
+                string.IsNullOrWhiteSpace(mat) ? "" : (StingTools.Standards.NEC2023.ConductorMaterialText.TryParse(mat, out var cm) ? StingTools.Standards.NEC2023.ConductorMaterialText.Label(cm) : mat.Trim()),
                 circ, panel, vd, diaMm, fill,
                 ampacity, maxDemand, circType, instMeth,
                 armoured, fireRated, shielded, bendCount) { VdUpperBound = vdUpperBound };
@@ -535,13 +536,14 @@ namespace StingTools.Commands.Electrical
         public static string BuildAnnotationText(WireAnnotationData d, WireAnnotationStyle style,
             bool suppressContainmentFields = false)
         {
-            string mat = string.IsNullOrEmpty(d.ConductorMat) ? "Cu" : d.ConductorMat;
+            // Blank when no material is recorded: the spec is printed without one rather than as copper.
+            string mat = string.IsNullOrWhiteSpace(d.ConductorMat) ? "" : " " + d.ConductorMat;
             string baseSpec;
 
             if (d.CoreCount > 0 && d.CsaMm2 > 0)
-                baseSpec = $"{d.CoreCount} × {d.CsaMm2:0.##} mm² {mat}";
+                baseSpec = $"{d.CoreCount} × {d.CsaMm2:0.##} mm²{mat}";
             else if (d.CsaMm2 > 0)
-                baseSpec = $"{d.CsaMm2:0.##} mm² {mat}";
+                baseSpec = $"{d.CsaMm2:0.##} mm²{mat}";
             else
                 baseSpec = "? Wire";
 
@@ -1377,13 +1379,6 @@ namespace StingTools.Commands.Electrical
             public List<long> TraversedIds { get; set; } = new List<long>();
         }
 
-        // Back-compat: returns first path with default StopAtAnyDevice walk.
-        public static WirePathResult BuildWirePath(Element conduit)
-        {
-            var all = BuildWirePaths(conduit);
-            return all.Count > 0 ? all[0] : null;
-        }
-
         public static List<WirePathResult> BuildWirePaths(Element conduit) =>
             BuildWirePaths(conduit, WalkMode.StopAtAnyDevice);
 
@@ -1613,27 +1608,6 @@ namespace StingTools.Commands.Electrical
             var initialAcc = new List<XYZ> { startPt };
             Recurse(startElement, startPt, initialAcc, new HashSet<long>(seedVisited), 0);
             return results;
-        }
-
-        public static WireType ResolveWireType(Document doc)
-        {
-            if (doc == null) return null;
-            try
-            {
-                var all = new FilteredElementCollector(doc)
-                    .OfClass(typeof(WireType))
-                    .Cast<WireType>()
-                    .ToList();
-                if (all.Count == 0) return null;
-                var preferred = all.FirstOrDefault(w =>
-                    (w.Name ?? "").IndexOf("STING", StringComparison.OrdinalIgnoreCase) >= 0);
-                return preferred ?? all[0];
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn("ResolveWireType: " + ex.Message);
-                return null;
-            }
         }
     }
 

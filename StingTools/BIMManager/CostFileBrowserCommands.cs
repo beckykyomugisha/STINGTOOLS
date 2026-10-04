@@ -43,7 +43,7 @@ namespace StingTools.BIMManager
                 var dlg = new TaskDialog("STING — Cost File Browser")
                 {
                     MainContent       = currentInfo + "Choose a CSV file to use as your cost rate source.\n" +
-                                        "Required columns (case-insensitive): MAT_CODE, RATE, UNIT",
+                                        "Required columns (case-insensitive): Category, Unit_Rate_UGX or Unit_Rate_USD, Unit",
                     AllowCancellation = true,
                 };
                 dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Browse for CSV file…");
@@ -81,7 +81,8 @@ namespace StingTools.BIMManager
                 {
                     TaskDialog.Show("STING — Cost File Browser",
                         $"The selected file is missing required columns:\n{validationError}\n\n" +
-                        "Required columns: MAT_CODE, RATE, UNIT (case-insensitive).\n" +
+                        "Required columns (case-insensitive): Category, Unit_Rate_UGX\n" +
+                        "(or Unit_Rate_USD), Unit - the layout of data/cost_rates_5d.csv.\n" +
                         "Please check the file and try again.");
                     return Result.Failed;
                 }
@@ -91,7 +92,12 @@ namespace StingTools.BIMManager
                 StingLog.Info($"CostFileBrowser: override set to '{chosenPath}'");
                 TaskDialog.Show("STING — Cost File Browser",
                     $"Cost rate file override saved.\n\nFile: {chosenPath}\n\n" +
-                    "All 5D commands will use this file instead of the built-in rates.\n" +
+                    // DSCH-1: BOQCostManager.ResolveCostRatesPath(doc) reads this
+                    // override, so the BOQ, the cost stamp, the 5D Cost Trace, COBie
+                    // replacement cost and the plumbing BOQ all price from it.
+                    "The BOQ, cost stamps and the 5D Cost Trace for this project now price\n" +
+                    "from this file instead of data/cost_rates_5d.csv. If the file is moved\n" +
+                    "or deleted, pricing falls back to the corporate card.\n" +
                     "Use 'Clear override' to revert.");
 
                 return Result.Succeeded;
@@ -110,19 +116,16 @@ namespace StingTools.BIMManager
         {
             try
             {
-                using var sr = new StreamReader(path);
-                string? headerLine = sr.ReadLine();
-                if (string.IsNullOrWhiteSpace(headerLine))
+                // The SAME parser the loaders use (BOQ/Rates/CostRateCsv), so a file
+                // with a leading # comment is judged by its real header, as the
+                // loaders judge it. This used to demand MAT_CODE, RATE and UNIT —
+                // and the shipped cost_rates_5d.csv has no RATE column, so the
+                // browser rejected the very file format it was meant to accept.
+                var parsed = StingTools.BOQ.Rates.CostRateCsv.Parse(
+                    File.ReadLines(path).Take(200), StingToolsApp.ParseCsvLine);
+                if (parsed.Problems.Contains("file has no header row"))
                     return "File is empty.";
-
-                var headers = headerLine.Split(',')
-                    .Select(h => h.Trim().Trim('"').ToLowerInvariant())
-                    .ToHashSet();
-
-                var missing = new System.Collections.Generic.List<string>();
-                if (!headers.Contains("mat_code")) missing.Add("MAT_CODE");
-                if (!headers.Contains("rate"))     missing.Add("RATE");
-                if (!headers.Contains("unit"))     missing.Add("UNIT");
+                var missing = parsed.Layout.MissingRequired();
 
                 return missing.Count == 0 ? null : string.Join(", ", missing);
             }

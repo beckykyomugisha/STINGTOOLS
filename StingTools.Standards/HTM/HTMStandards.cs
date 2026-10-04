@@ -51,8 +51,9 @@ namespace StingTools.Standards.HTM
             { "RECOV-2",      6 },
             { "WARD-INPT",    6 },
             { "ENDOSCOPY",   15 },
-            { "PH-CSP-797",  30 },
-            { "PH-CSP-800",  30 },
+            // PH-CSP-* (USP pharmacy rooms): no row here. Their air changes, polarity and ΔP have
+            // one owner, StingTools/Data/Healthcare/Specialist/STING_HC_PHARMACY_USP.json (UspCascade);
+            // PressureRegimeValidator routes them there before this table is read (DSCH-36).
             { "MORT",         6 },
             { "POST",        15 },
             { "DECON-D",     10 },
@@ -72,8 +73,8 @@ namespace StingTools.Standards.HTM
             { "AIIR",       "NEG" },
             { "PE-PROT",    "POS" },
             { "ANTERM",     "POS" },  // generally positive between AIIR and corridor (PE flips)
-            { "PH-CSP-797", "POS" },
-            { "PH-CSP-800", "NEG" },
+            // PH-CSP-797 / PH-CSP-800 (USP pharmacy rooms): polarity, ΔP and ACH are owned by
+            // StingTools/Data/Healthcare/Specialist/STING_HC_PHARMACY_USP.json (UspCascade, DSCH-25).
             { "MORT",       "NEG" },
             { "POST",       "NEG" },
             { "DECON-D",    "NEG" },
@@ -92,19 +93,16 @@ namespace StingTools.Standards.HTM
             { "AIIR",       15 },  // ≥ 2.5 Pa CDC; HTM/ASHRAE recommends ≥ 15 Pa
             { "PE-PROT",    12 },
             { "ANTERM",     10 },
-            { "PH-CSP-797",  5 },
-            { "PH-CSP-800",  3 },
+            // PH-CSP-797 / PH-CSP-800: see STING_HC_PHARMACY_USP.json (UspCascade) — not HTM values.
             { "MORT",       15 },
             { "DECON-D",    10 },
             { "HSDU-W",     10 }
         };
 
-        // HTM 04-01 — sentinel-point dead-leg ≤ 1 m for sentinel temperature monitoring.
-        public const double DeadLegSentinelMaxM = 1.0;
-
-        // HTM 04-01 — augmented-care temperature window for hot-water at outlet.
-        public const double TmvOutletMinC = 38.0;
-        public const double TmvOutletMaxC = 41.0;
+        // HTM 04-01 TMV outlet limits and dead-leg (spur) limits are not here: their one
+        // owner is StingTools/Data/Plumbing/STING_TMV_STANDARDS.json, read through
+        // StingTools.Core.Plumbing.WaterSafetyLimits (DSCH-25). The 1 m sentinel dead-leg
+        // and the 38–41 °C window that used to sit here had no source.
 
         // HTM 05-02 — BS 9999 progressive horizontal evacuation refuge sizing
         // baseline (m² per non-ambulant occupant in the receiving compartment).

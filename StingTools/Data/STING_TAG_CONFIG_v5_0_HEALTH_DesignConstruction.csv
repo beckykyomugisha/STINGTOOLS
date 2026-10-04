@@ -117,7 +117,7 @@ TAG_FAMILY,STING - Dosimetry Post Tag,RP,Generic Models,0,RAD_DOSE_DESIGN_GOAL_T
 21,CRITICAL,WARN_ELC_EES_BRANCH_INVALID,EES branch designation not LIFE-SAF / CRIT / EQP-BR / NORMAL,NFPA 99,MG,Text,⚠ Warning: Invalid EES Branch,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_EES_BRANCH_INVALID, """")"
 22,CRITICAL,WARN_ELC_ATS_TIME_EXCEEDED,ATS transfer time >10 s for LS/CR branch,NFPA 99 §6.4,MG,Text,⚠ Warning: ATS Transfer Timeout,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_ATS_TIME_EXCEEDED, """")"
 # Water safety (WaterSafetyValidator — HTM 04-01)
-23,HIGH,WARN_PLM_DEAD_LEG_EXCEEDED,Sentinel point dead-leg exceeds 1 m,HTM 04-01,MG,Text,⚠ Warning: Dead Leg >1 m,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_DEAD_LEG_EXCEEDED, """")"
+23,HIGH,WARN_PLM_DEAD_LEG_EXCEEDED,Sentinel point spur exceeds 3 m,HTM 04-01 Pt A 12.5,MG,Text,⚠ Warning: Spur >3 m,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_DEAD_LEG_EXCEEDED, """")"
 24,HIGH,WARN_PLM_AUG_CARE_NO_FILTER,Augmented-care outlet missing point-of-use filter,HTM 04-01 Pt C,MG,Text,⚠ Warning: POU Filter Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_AUG_CARE_NO_FILTER, """")"
 
 # ─── RP: Radiation Protection warnings ───────────────────────────────────────

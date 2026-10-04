@@ -26,6 +26,11 @@
     <Compile Include="..\StingTools\BOQ\WasteTable.cs" Link="WasteTable.cs" />
     <Compile Include="..\StingTools\BOQ\ErpFormats.cs" Link="ErpFormats.cs" />
     <Compile Include="..\StingTools\BOQ\MeasuredAddition.cs" Link="MeasuredAddition.cs" />
+    <Compile Include="..\StingTools\BOQ\ProvisionalSumType.cs" Link="ProvisionalSumType.cs" />
+    <!-- DSCH-44 - row source vocabulary: labels, sync LineKind, PS / PC bill prefixes. -->
+    <Compile Include="..\StingTools\BOQ\BoqRowSource.cs" Link="BoqRowSource.cs" />
+    <!-- DSCH-44 follow-up - how a synced line is classified on the server. -->
+    <Compile Include="..\StingTools\BOQ\Sync\BoqLineClassification.cs" Link="Sync\BoqLineClassification.cs" />
     <Compile Include="..\StingTools\UI\MaterialLookupParser.cs" Link="UI\MaterialLookupParser.cs" />
     <Compile Include="..\StingTools\BOQ\BiogenicCarbon.cs" Link="BiogenicCarbon.cs" />
     <Compile Include="..\StingTools\BOQ\CarbonQuantity.cs" Link="CarbonQuantity.cs" />
@@ -46,6 +51,17 @@
     <Compile Include="..\StingTools\Core\Materials\MaterialCodeResolution.cs" Link="Core\Materials\MaterialCodeResolution.cs" />
     <Compile Include="..\StingTools\BOQ\Rates\RateResolutionLevel.cs" Link="BOQ\Rates\RateResolutionLevel.cs" />
     <Compile Include="..\StingTools\BOQ\Rates\CsvRateLookup.cs" Link="BOQ\Rates\CsvRateLookup.cs" />
+    <!-- DSCH-26 - Nil / Included rate outcomes, the rate-cell token grammar and the chain rule. -->
+    <Compile Include="..\StingTools\BOQ\Rates\RateOutcome.cs" Link="BOQ\Rates\RateOutcome.cs" />
+    <Compile Include="..\StingTools\BOQ\Rates\RateOverrideOutcome.cs" Link="BOQ\Rates\RateOverrideOutcome.cs" />
+    <!-- DSCH-1 - the one cost-rate CSV parser (by header name, never by position). -->
+    <Compile Include="..\StingTools\BOQ\Rates\CostRateCsv.cs" Link="BOQ\Rates\CostRateCsv.cs" />
+    <!-- DSCH-34 - the parser of STING_DEFAULT_COST_RATES.csv (rates + NOT MEASURED categories). -->
+    <Compile Include="..\StingTools\BOQ\Rates\DefaultCostRatesCsv.cs" Link="BOQ\Rates\DefaultCostRatesCsv.cs" />
+    <!-- DSCH-2 - read a single-table CSV by column name. -->
+    <Compile Include="..\StingTools\Core\CsvTable.cs" Link="Core\CsvTable.cs" />
+    <!-- DSCH-16 - the unit a material library rate is quoted in. -->
+    <Compile Include="..\StingTools\BOQ\Rates\MaterialCostUnits.cs" Link="BOQ\Rates\MaterialCostUnits.cs" />
     <!-- RC-2 — Document-free unit canonicalisation (tonne↔kg). -->
     <!-- ROADMAP LIFE-3: the markup waterfall. Revit-free, but not previously
          compiled here, so the OH&amp;P base had no test. -->
@@ -155,6 +171,17 @@
     <!-- MAT-SCHED — the shipped commodity price list; the seam test proves every
          measurable commodity is also priceable. -->
     <None Include="..\StingTools\Data\STING_COMMODITY_RATES.csv" Link="Data\STING_COMMODITY_RATES.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- DSCH-1 - the shipped cost card, and the schema registry that declares its
+         columns; CostRateCsvTests holds the parser's vocabulary to the registry. -->
+    <None Include="..\StingTools\Data\STING_DEFAULT_COST_RATES.csv" Link="Data\STING_DEFAULT_COST_RATES.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\cost_rates_5d.csv" Link="Data\cost_rates_5d.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\tools\data_schemas.json" Link="Data\data_schemas.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <!-- MAT-SCHED — the shipped stage library; unique orders and single-routing

@@ -137,7 +137,7 @@ namespace StingTools.V6
                         else { ClearValue(el, ParamRegistry.CBN_A4_KG_CO2E); res.A4NotCalculated++; }
 
                         // A5 install from CST_INSTALL_HRS.
-                        double hrs = ReadDouble(el, ParamRegistry.CST_INSTALL_HRS);
+                        double hrs = InstallHours.ReadDouble(el);
                         if (hrs > 0)
                         {
                             double a5 = hrs * A5InstallFactorKgPerHr;

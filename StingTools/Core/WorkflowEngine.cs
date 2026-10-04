@@ -1906,6 +1906,7 @@ namespace StingTools.Core
                 case "Plumb_NetworkPressure": return new Commands.Plumbing.PlumbNetworkPressureCommand();
                 case "Plumb_PumpSelect": return new Commands.Plumbing.PlumbPumpSelectCommand();
                 case "Plumb_TMVEngine": return new Commands.Plumbing.PlumbTMVEngineCommand();
+                case "Plumb_TMVImportTests": return new Commands.Plumbing.PlumbTMVImportTestsCommand();
                 case "Plumb_LegionellaReport": return new Commands.Plumbing.PlumbLegionellaReportCommand();
                 case "Plumb_DrainageSchematic": return new Commands.Plumbing.PlumbDrainageSchematicCommand();
                 case "Plumb_SupplySchematic": return new Commands.Plumbing.PlumbSupplySchematicCommand();
@@ -1990,6 +1991,7 @@ namespace StingTools.Core
                 case "PaymentCert_Register":       return new Commands.Cost.PaymentCertRegisterCommand();
                 case "Variation_FromDiff":         return new Commands.Cost.VariationFromDiffCommand();
                 case "Variation_BuildStarRate":    return new Commands.Cost.VariationBuildStarRateCommand();
+                case "Variation_ApplyStarRate":    return new Commands.Cost.VariationApplyStarRateCommand();
                 case "Variation_ExportRegister":   return new Commands.Cost.VariationExportRegisterCommand();
                 // Phase 184p — reclassify legacy default-Other variations
                 case "Variation_ReclassifyLegacy": return new Commands.Cost.VariationReclassifyLegacyCommand();
@@ -2009,6 +2011,8 @@ namespace StingTools.Core
                 // Phase 184h — P6 multi-standard take-off
                 case "Cost_SetMeasurementStandard": return new Commands.Cost.CostSetMeasurementStandardCommand();
                 case "Cost_StandardInspect":        return new Commands.Cost.CostStandardInspectCommand();
+                // DSCH-29 - the BCC 5D rate-file view picks the project rate file through this.
+                case "Cost_FileBrowser":            return new BIMManager.CostFileBrowserCommand();
 
                 // Phase 184j — P8 IFC Qto + ICMS3
                 case "Cost_StampIfcQuantities":     return new Commands.Cost.CostStampIfcQuantitiesCommand();
@@ -2798,19 +2802,6 @@ namespace StingTools.Core
             if (compliancePct >= 60) return 2; // DD2: Concept Design
             if (compliancePct >= 30) return 1; // DD1: Brief
             return 0; // Pre-DD1
-        }
-
-        /// <summary>Get data drop compliance thresholds (configurable per project).</summary>
-        public static (int shared, int published) GetDataDropGates(int dataDrop)
-        {
-            return dataDrop switch
-            {
-                1 => (30, 50),
-                2 => (60, 75),
-                3 => (80, 90),
-                4 => (95, 98),
-                _ => (70, 90),
-            };
         }
 
         /// <summary>
@@ -3665,42 +3656,6 @@ namespace StingTools.Core
                     StingLog.Warn($"WorkflowEngine: Unknown built-in preset '{name}'");
                     return new WorkflowPreset { Name = name, Description = $"Unknown preset: {name}", Steps = new List<WorkflowStep>() };
             }
-        }
-
-        /// <summary>WF-GAP-01: Get workflow preset appropriate for the project type.
-        /// Reads PROJECT_TYPE from project_config.json. Returns discipline-specific preset
-        /// or falls back to DailyQA for unknown types.</summary>
-        public static WorkflowPreset GetWorkflowForProjectType(string projectType)
-        {
-            if (string.IsNullOrEmpty(projectType)) return GetBuiltInPreset("DailyQA");
-            string pt = projectType.Trim();
-
-            // Map project types to discipline-specific presets
-            if (pt.IndexOf("Health", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                pt.IndexOf("NHS", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                pt.IndexOf("Hospital", StringComparison.OrdinalIgnoreCase) >= 0)
-                return GetBuiltInPreset("Healthcare_NHS");
-
-            if (pt.IndexOf("Data Cent", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                pt.IndexOf("DataCent", StringComparison.OrdinalIgnoreCase) >= 0)
-                return GetBuiltInPreset("DataCentre");
-
-            if (pt.IndexOf("Office", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                pt.IndexOf("Commercial", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                pt.IndexOf("Retail", StringComparison.OrdinalIgnoreCase) >= 0)
-                return GetBuiltInPreset("CommercialOffice");
-
-            if (pt.IndexOf("Residen", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                pt.IndexOf("Housing", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                pt.IndexOf("Dwelling", StringComparison.OrdinalIgnoreCase) >= 0)
-                return GetBuiltInPreset("Residential");
-
-            if (pt.IndexOf("Educat", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                pt.IndexOf("School", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                pt.IndexOf("University", StringComparison.OrdinalIgnoreCase) >= 0)
-                return GetBuiltInPreset("Education");
-
-            return GetBuiltInPreset("DailyQA"); // fallback
         }
 
         // ── LOG-13: JSONL run record persistence with rotation ────────────

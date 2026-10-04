@@ -48,6 +48,11 @@ namespace StingTools.Core.Electrical
         public bool RecordComplete =>
             !string.IsNullOrWhiteSpace(Insulation) && !string.IsNullOrWhiteSpace(InstallMethod)
             && !string.IsNullOrWhiteSpace(CableType);
+        /// <summary>Set when the material was not recorded and copper was assumed
+        /// (ConductorMaterialText.Resolve); carried into the result's Detail.</summary>
+        public string MaterialNote { get; set; }
+        /// <summary>Set when the recorded material text was not recognised: no drop.</summary>
+        public string MaterialRefusal { get; set; }
     }
 
     public sealed class CircuitVdResult
@@ -135,6 +140,17 @@ namespace StingTools.Core.Electrical
         public static CircuitVdResult Resolve(CircuitVdInput i, Bs7671Data data,
             Func<CircuitVdInput, double> resistancePct = null)
         {
+            if (i != null && !string.IsNullOrWhiteSpace(i.MaterialRefusal)) return None(i.MaterialRefusal);
+            var r = ResolveCore(i, data, resistancePct);
+            // An assumed material is part of the basis, whatever the outcome.
+            if (r != null && i != null && !string.IsNullOrWhiteSpace(i.MaterialNote))
+                r.Detail = string.IsNullOrEmpty(r.Detail) ? i.MaterialNote : r.Detail + "; " + i.MaterialNote;
+            return r;
+        }
+
+        private static CircuitVdResult ResolveCore(CircuitVdInput i, Bs7671Data data,
+            Func<CircuitVdInput, double> resistancePct)
+        {
             if (i == null) return None("no input");
             var missing = new List<string>();
             if (i.CurrentA <= 0) missing.Add("current");
@@ -143,6 +159,11 @@ namespace StingTools.Core.Electrical
             if (i.CsaMm2 <= 0) missing.Add("conductor size");
             if (missing.Count > 0) return None("missing " + string.Join(", ", missing));
             int ph = i.Phases >= 3 ? 3 : 1;
+
+            // CCA: no Appendix 4 table and no shipped resistance, under either standard — the
+            // resistance method would otherwise price it as copper.
+            if (StingTools.Standards.NEC2023.ConductorMaterialText.IsCopperClad(i.Material))
+                return None("no copper-clad aluminium (CCA) voltage-drop or resistance data is shipped");
 
             string std = StingTools.Standards.ElectricalStandardId.Normalise(i.Standard);
             // A standard with no shipped tables gets no figure, never BS 7671's under its name.
@@ -159,7 +180,7 @@ namespace StingTools.Core.Electrical
             }
 
             string material = string.IsNullOrWhiteSpace(i.Material) ? "Cu" : i.Material.Trim();
-            if (material.StartsWith("AL", StringComparison.OrdinalIgnoreCase))
+            if (StingTools.Standards.NEC2023.ConductorMaterialText.IsAluminium(material))
                 return None("no BS 7671 Appendix 4 aluminium voltage-drop table is shipped");
             if (data == null || data.Tables.Count == 0)
                 return None(!string.IsNullOrEmpty(data?.LoadError) ? data.LoadError : "no BS 7671 Appendix 4 tables loaded");

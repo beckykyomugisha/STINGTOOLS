@@ -1,10 +1,10 @@
 RawPattern,Canonical
 # A-1 — MaterialClass canonical-name mapping. First-match-wins regex.
 # Project override at <project>/_BIM_COORD/material_class_normaliser.csv.
-(?i)^concrete(\s*[-,]?\s*c\s*\d+)?$,Concrete
+"(?i)^concrete(\s*[-,]?\s*c\s*\d+)?$",Concrete
 (?i)^reinforced.?concrete$,Concrete
 (?i)^cement(\s|$),Concrete
-(?i)^steel($|\s*[-,]|\s*sections?$),Steel
+"(?i)^steel($|\s*[-,]|\s*sections?$)",Steel
 (?i)^stainless.?steel$,Steel
 (?i)^galv.*steel$,Steel
 (?i)^carbon.?steel$,Steel

@@ -42,13 +42,53 @@ namespace StingTools.BOQ.Rates
         /// </summary>
         private static bool UnitIsKnown(RateRequest req, string matName, out string unit)
         {
-            unit = req?.Unit;
-            if (!string.IsNullOrWhiteSpace(unit)) return true;
-            StingLog.WarnRateLimited("MatLibRate.NoUnit",
-                $"Material '{matName}' has a rate but NO unit of measure. Refusing to price it "
-              + "rather than defaulting to 'each' — a per-m2 rate billed per item is the "
-              + "UGX 2,220 vs 96,200 defect. Populate MAT_COST_UNIT_OF_MEASURE.");
+            // DSCH-16: the material's OWN unit (MAT_COST_UNIT_OF_MEASURE in the
+            // library) now takes part. Before, only the bill line's unit was checked,
+            // so a per-litre rate could price square metres.
+            string matUnit = LibraryUnits().TryGetValue(matName ?? "", out var u) ? u : null;
+            if (MaterialCostUnits.TryAgree(req?.Unit, matUnit, out unit, out string why)) return true;
+            MaterialRateMissLog.RecordMiss(matName, req?.Element?.Category?.Name);
+            StingLog.WarnRateLimited("MatLibRate.Unit." + (matUnit == null ? "None" : "Mismatch"),
+                $"Material '{matName}': {why}. Refusing to price it from the library rather than "
+              + "guessing - the next provider prices it. Correct MAT_COST_UNIT_OF_MEASURE in "
+              + "BLE_MATERIALS.csv / MEP_MATERIALS.csv if the material's unit is wrong.");
             return false;
+        }
+
+        private static System.Collections.Generic.Dictionary<string, string> _units;
+        private static long _unitsTicks = -1;
+        private static readonly object _unitsLock = new object();
+
+        /// <summary>MAT_NAME -> declared cost unit across both libraries, re-read
+        /// when either file changes.</summary>
+        private static System.Collections.Generic.Dictionary<string, string> LibraryUnits()
+        {
+            string ble = StingToolsApp.FindDataFile("BLE_MATERIALS.csv");
+            string mep = StingToolsApp.FindDataFile("MEP_MATERIALS.csv");
+            long ticks = Ticks(ble) ^ (Ticks(mep) << 1);
+            lock (_unitsLock)
+            {
+                if (_units != null && ticks == _unitsTicks) return _units;
+                var map = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (string path in new[] { ble, mep })
+                {
+                    if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path)) continue;
+                    try
+                    {
+                        foreach (var kv in MaterialCostUnits.Parse(System.IO.File.ReadAllText(path), StingToolsApp.ParseCsvLine))
+                            if (!map.ContainsKey(kv.Key)) map[kv.Key] = kv.Value;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"MatLibRate units: {System.IO.Path.GetFileName(path)}: {ex.Message}"); }
+                }
+                _units = map; _unitsTicks = ticks;
+                return map;
+            }
+        }
+
+        private static long Ticks(string path)
+        {
+            try { return !string.IsNullOrEmpty(path) && System.IO.File.Exists(path) ? System.IO.File.GetLastWriteTimeUtc(path).Ticks : 0; }
+            catch { return 0; }
         }
 
         public RateLookup Resolve(RateRequest req)

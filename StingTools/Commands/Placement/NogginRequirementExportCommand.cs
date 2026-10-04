@@ -99,9 +99,9 @@ namespace StingTools.Commands.Placement
                 string catalogueRef = fi.LookupParameter("MK_CATALOGUE_REF")?.AsString() ?? "";
                 rows.Add(new[] {
                     room, level,
-                    (pt.X * FtToMm).ToString("F1"),
-                    (pt.Y * FtToMm).ToString("F1"),
-                    (pt.Z * FtToMm).ToString("F1"),
+                    (pt.X * FtToMm).ToString("F1", System.Globalization.CultureInfo.InvariantCulture),
+                    (pt.Y * FtToMm).ToString("F1", System.Globalization.CultureInfo.InvariantCulture),
+                    (pt.Z * FtToMm).ToString("F1", System.Globalization.CultureInfo.InvariantCulture),
                     typeName, catalogueRef,
                     DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
                 });
@@ -126,9 +126,9 @@ namespace StingTools.Commands.Placement
                         if (!marker.IsActive) { marker.Activate(); doc.Regenerate(); }
                         foreach (var row in rows)
                         {
-                            if (!double.TryParse(row[2], out double x)) continue;
-                            if (!double.TryParse(row[3], out double y)) continue;
-                            if (!double.TryParse(row[4], out double z)) continue;
+                            if (!StingTools.Core.NumberText.TryParseInvariant(row[2], out double x)) continue;
+                            if (!StingTools.Core.NumberText.TryParseInvariant(row[3], out double y)) continue;
+                            if (!StingTools.Core.NumberText.TryParseInvariant(row[4], out double z)) continue;
                             try
                             {
                                 doc.Create.NewFamilyInstance(

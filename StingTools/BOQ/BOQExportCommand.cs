@@ -47,6 +47,7 @@ namespace StingTools.BOQ
         private static readonly XLColor EleDisc = XLColor.FromArgb(252, 235, 235);
         private static readonly XLColor PlmDisc = XLColor.FromArgb(225, 245, 238);
         private static readonly XLColor PsDisc  = XLColor.FromArgb(237, 231, 246);
+        private static readonly XLColor PcSumRow = XLColor.FromArgb(245, 240, 230);   // DSCH-44 — the panel's PC colour
         private static readonly XLColor ManualRow = BoqXlsxStyle.ManualRow;
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
@@ -175,6 +176,9 @@ namespace StingTools.BOQ
                     // NOT "Material Schedule" — see BuildMaterialScheduleSheet.
                     BuildMaterialScheduleSheet(wb.Worksheets.Add("Measured by Material"), boq);
                     BuildProvisionalSumsSheet(wb.Worksheets.Add("Provisional Sums"), boq);
+                    // DSCH-44 — PC sums are not provisional sums; they get their own sheet.
+                    if (boq.AllItems.Any(i => i.Source == BOQRowSource.PCSum))
+                        BuildPcSumsSheet(wb.Worksheets.Add("PC Sums"), boq);
                     // G3 — itemised preliminaries get their own section when active.
                     if (boq.PrelimsItemised && boq.PrelimLines != null && boq.PrelimLines.Count > 0)
                         BuildPreliminariesScheduleSheet(wb.Worksheets.Add("Preliminaries"), boq);
@@ -310,10 +314,23 @@ namespace StingTools.BOQ
                     ws.Cell(row, 3).Style.Alignment.WrapText = true;
                     ws.Cell(row, 4).Value = item.Unit ?? "";
                     ws.Cell(row, 5).Value = item.Quantity; ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.000";
-                    ws.Cell(row, 6).Value = item.RateUGX; ws.Cell(row, 6).Style.NumberFormat.Format = "#,##0";
-                    ws.Cell(row, 7).FormulaA1 = $"E{row}*F{row}"; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0";
-                    ws.Cell(row, 8).Value = item.RateUSD; ws.Cell(row, 8).Style.NumberFormat.Format = "#,##0.00";
-                    ws.Cell(row, 9).FormulaA1 = $"E{row}*H{row}"; ws.Cell(row, 9).Style.NumberFormat.Format = "#,##0.00";
+                    // DSCH-26 — a declared Nil / Included rate is written as the bill shows it
+                    // ("Nil", "Incl. in E10/2") with "–" for the amount, never as a 0 that reads
+                    // like an unpriced line (and never into an E*F formula over text).
+                    string declaredRate = StingTools.BOQ.Rates.RateOutcomeToken.BillRateText(item.RateOutcome, item.IncludedIn);
+                    if (declaredRate != null)
+                    {
+                        ws.Cell(row, 6).Value = declaredRate; ws.Cell(row, 7).Value = "–";
+                        ws.Cell(row, 8).Value = declaredRate; ws.Cell(row, 9).Value = "–";
+                        ws.Range(row, 6, row, 9).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+                    }
+                    else
+                    {
+                        ws.Cell(row, 6).Value = item.RateUGX; ws.Cell(row, 6).Style.NumberFormat.Format = "#,##0";
+                        ws.Cell(row, 7).FormulaA1 = $"E{row}*F{row}"; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0";
+                        ws.Cell(row, 8).Value = item.RateUSD; ws.Cell(row, 8).Style.NumberFormat.Format = "#,##0.00";
+                        ws.Cell(row, 9).FormulaA1 = $"E{row}*H{row}"; ws.Cell(row, 9).Style.NumberFormat.Format = "#,##0.00";
+                    }
                     ws.Cell(row, 10).Value = SourceLabel(item.Source);
                     ws.Cell(row, 11).Value = item.Discipline ?? "";
                     ws.Cell(row, 12).Value = JoinLevelLocation(item);
@@ -501,8 +518,9 @@ namespace StingTools.BOQ
 
         private void BuildProvisionalSumsSheet(IXLWorksheet ws, BOQDocument boq)
         {
-            BannerRow(ws, "Provisional Sums — open PCs awaiting instruction");
-            string[] cols = { "PS Ref", "NRM2 §", "Category", "Description", "Unit", "Quantity",
+            BannerRow(ws, "Provisional Sums — awaiting instruction (PC sums are on their own sheet)");
+            // DSCH-35 — "Type" is the NRM2 2.9.1 declaration: Defined / Undefined / NOT DECLARED.
+            string[] cols = { "PS Ref", "NRM2 §", "Category", "Description", "Type", "Unit", "Quantity",
                 "Rate UGX", "Rate USD", "Total UGX", "Status", "Note" };
             WriteHeader(ws, 3, cols);
             int row = 4;
@@ -514,23 +532,73 @@ namespace StingTools.BOQ
                 ws.Cell(row, 3).Value = it.Category;
                 ws.Cell(row, 4).Value = it.ResolvedNRM2Paragraph;
                 ws.Cell(row, 4).Style.Alignment.WrapText = true;
-                ws.Cell(row, 5).Value = it.Unit;
-                ws.Cell(row, 6).Value = it.Quantity;
-                ws.Cell(row, 7).Value = it.RateUGX;
-                ws.Cell(row, 8).Value = it.RateUSD;
-                ws.Cell(row, 9).Value = it.TotalUGX;
-                ws.Cell(row, 10).Value = ExtractStatus(it.Note);
-                ws.Cell(row, 11).Value = it.Note;
+                ws.Cell(row, 5).Value = ProvisionalSumTypes.Marker(it.PsType);
+                if (it.PsType == ProvisionalSumType.Undeclared)
+                    ws.Cell(row, 5).Style.Font.SetBold().Font.SetFontColor(XLColor.Red);
+                ws.Cell(row, 6).Value = it.Unit;
+                ws.Cell(row, 7).Value = it.Quantity;
+                ws.Cell(row, 8).Value = it.RateUGX;
+                ws.Cell(row, 9).Value = it.RateUSD;
+                ws.Cell(row, 10).Value = it.TotalUGX;
+                ws.Cell(row, 11).Value = ExtractStatus(it.Note);
+                ws.Cell(row, 12).Value = it.Note;
                 row++;
             }
             if (psRows.Count == 0)
                 ws.Cell(4, 1).Value = "No provisional sums registered on this project.";
             else
             {
-                ws.Cell(row + 1, 8).Value = "PS total";
-                ws.Cell(row + 1, 9).FormulaA1 = $"SUM(I4:I{row - 1})";
-                ws.Range(row + 1, 8, row + 1, 9).Style.Font.SetBold();
+                ws.Cell(row + 1, 9).Value = "PS total";
+                ws.Cell(row + 1, 10).FormulaA1 = $"SUM(J4:J{row - 1})";
+                ws.Range(row + 1, 9, row + 1, 10).Style.Font.SetBold();
+
+                // DSCH-35 — the preamble note: what Defined / Undefined mean for preliminaries.
+                int undeclared = psRows.Count(i => i.PsType == ProvisionalSumType.Undeclared);
+                int noteRow = row + 3;
+                foreach (string clause in ProvisionalSumTypes.PreambleClauses(undeclared))
+                {
+                    ws.Cell(noteRow, 1).Value = clause;
+                    ws.Range(noteRow, 1, noteRow, cols.Length).Merge().Style.Alignment.WrapText = true;
+                    ws.Row(noteRow).Height = 30;
+                    noteRow++;
+                }
             }
+            ws.Range(3, 1, 3, cols.Length).SetAutoFilter();
+            ws.SheetView.FreezeRows(3);
+        }
+
+        /// <summary>
+        /// DSCH-44 — prime cost sums: priced allowances for goods from a named
+        /// supplier or register (e.g. the Fohlio FF&amp;E "pcSum" treatment). Listed
+        /// apart from provisional sums; no Defined / Undefined declaration applies.
+        /// </summary>
+        private void BuildPcSumsSheet(IXLWorksheet ws, BOQDocument boq)
+        {
+            BannerRow(ws, "Prime Cost (PC) Sums — named-supplier allowances");
+            string[] cols = { "PC Ref", "NRM2 §", "Category", "Description", "Unit", "Quantity",
+                "Rate UGX", "Rate USD", "Total UGX", "Note" };
+            WriteHeader(ws, 3, cols);
+            int row = 4;
+            var pcRows = boq.AllItems.Where(i => i.Source == BOQRowSource.PCSum).ToList();
+            foreach (var it in pcRows)
+            {
+                ws.Cell(row, 1).Value = it.BOQLineRef;
+                ws.Cell(row, 2).Value = it.NRM2Section;
+                ws.Cell(row, 3).Value = it.Category;
+                ws.Cell(row, 4).Value = BoqSourceUtil.BillPrefix(it.Source, it.PsType)
+                    + (string.IsNullOrEmpty(it.ResolvedNRM2Paragraph) ? it.ItemName : it.ResolvedNRM2Paragraph);
+                ws.Cell(row, 4).Style.Alignment.WrapText = true;
+                ws.Cell(row, 5).Value = it.Unit;
+                ws.Cell(row, 6).Value = it.Quantity;
+                ws.Cell(row, 7).Value = it.RateUGX;
+                ws.Cell(row, 8).Value = it.RateUSD;
+                ws.Cell(row, 9).Value = it.TotalUGX;
+                ws.Cell(row, 10).Value = it.Note;
+                row++;
+            }
+            ws.Cell(row + 1, 8).Value = "PC total";
+            ws.Cell(row + 1, 9).FormulaA1 = $"SUM(I4:I{row - 1})";
+            ws.Range(row + 1, 8, row + 1, 9).Style.Font.SetBold();
             ws.Range(3, 1, 3, cols.Length).SetAutoFilter();
             ws.SheetView.FreezeRows(3);
         }
@@ -796,19 +864,13 @@ namespace StingTools.BOQ
             {
                 case BOQRowSource.Manual: return ManualRow;
                 case BOQRowSource.ProvisionalSum: return PsDisc;
+                case BOQRowSource.PCSum: return PcSumRow;
                 default: return XLColor.White;
             }
         }
 
-        private string SourceLabel(BOQRowSource s) => s switch
-        {
-            BOQRowSource.Model => "Model",
-            BOQRowSource.Manual => "Manual",
-            BOQRowSource.ProvisionalSum => "Provisional Sum",
-            BOQRowSource.Dayworks => "Dayworks",
-            BOQRowSource.PCSum => "PC Sum",
-            _ => ""
-        };
+        // One spelling per source (BoqSourceUtil) — the import parser reads it back.
+        private string SourceLabel(BOQRowSource s) => BoqSourceUtil.Label(s);
 
         private string JoinLevelLocation(BOQLineItem it)
         {

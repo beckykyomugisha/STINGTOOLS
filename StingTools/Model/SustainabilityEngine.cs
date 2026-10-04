@@ -156,9 +156,9 @@ namespace StingTools.Model
 
         private static void AssessManagement(Document doc, BREEAMResult result)
         {
-            // Man 01: Project brief and design — check if BEP exists
-            bool hasBep = System.IO.File.Exists(
-                System.IO.Path.Combine(StingToolsApp.DataPath ?? "", "project_bep.json"));
+            // Man 01: Project brief and design — check if THIS project's BEP exists (the
+            // shipped Data/project_bep.json is a corporate sample present in every install).
+            bool hasBep = System.IO.File.Exists(StingTools.Core.CoordStores.Bep(doc) ?? "");
             result.Credits.Add(new BREEAMCredit
             {
                 Category = "Management", CreditId = "Man 01", Title = "Project brief and design",

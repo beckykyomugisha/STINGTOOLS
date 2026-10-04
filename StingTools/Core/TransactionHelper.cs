@@ -64,26 +64,6 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Non-throwing variant. Returns true if the batch committed,
-        /// false if it rolled back. Exception written to <see cref="StingLog"/>.
-        /// Use when the caller wants to report the failure via
-        /// WarningsManager rather than propagate up.
-        /// </summary>
-        public static bool TryRunInScope(Document doc, string name, Action<Transaction> action)
-        {
-            try
-            {
-                RunInScope(doc, name, action);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error($"TransactionHelper.TryRunInScope failed: {name}", ex);
-                return false;
-            }
-        }
-
-        /// <summary>
         /// Run an already-open transaction-free action that needs to be
         /// wrapped in a single Transaction (no group). Prefer
         /// <see cref="RunInScope"/> when the batch modifies more than

@@ -84,27 +84,5 @@ namespace StingTools.UI
                 default: return "";
             }
         }
-
-        /// <summary>
-        /// Sanity-check a free-text value parsed in the active locale
-        /// before it's stored as SI. Returns true if the value looks
-        /// plausible. Used as a guard against the "typed 150 thinking
-        /// lb/ft³ but locale is metric" class of bug.
-        ///
-        /// Density: 10 ≤ kg/m³ ≤ 25000.
-        /// Thermal conductivity: 0.005 ≤ W/m·K ≤ 500.
-        /// Outside the range → caller surfaces a warning.
-        /// </summary>
-        public static bool IsPlausibleSI(double siValue, Quantity q)
-        {
-            switch (q)
-            {
-                case Quantity.Density:
-                    return siValue >= 10 && siValue <= 25000;
-                case Quantity.ThermalConductivity:
-                    return siValue >= 0.005 && siValue <= 500;
-                default: return true;
-            }
-        }
     }
 }

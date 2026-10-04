@@ -35,7 +35,7 @@ namespace StingTools.Tags.Tests
         //    4.184 × 1.5 = 6.276 ; × 3.41943 = 21.46034 ; × (0.1/0.2) = 10.73017
         //    (610/455)^1.641 = 1.3406593^1.641 = e^(0.293162 × 1.641) = e^0.481079 = 1.617819
         //    E = 10.73017 × 1.617819 = 17.3595 J/cm² = 17.3595 / 4.184 = 4.1490 cal/cm²
-        //    → PPE category 2 (4 < 4.149 ≤ 8)
+        //    → incident-energy band "4–8 cal/cm²" (4 < 4.149 ≤ 8)
         //
         // 4) DB = [4.184 Cf En (t/0.2) (610^x / EB)]^(1/x), EB = 5.0 J/cm²
         //       = D × (E / EB)^(1/x) = 455 × (17.3595/5)^(1/1.641)
@@ -80,7 +80,7 @@ namespace StingTools.Tags.Tests
             Within1Pct(HandIaKa, r.ArcingCurrentKa);
             Within1Pct(HandECal, r.IncidentEnergyCalCm2);
             Within1Pct(HandDbMm, r.BoundaryMm);
-            Assert.Equal(2, r.PpeCategory);
+            Assert.Equal("4–8 cal/cm²", ArcFlashPresentationTests.Shipped().BandFor(r.IncidentEnergyCalCm2).Label);
             Assert.False(r.ReducedCaseGoverns);   // same t at 0.85·Ia → lower energy
             Assert.Equal(1.641, r.DistanceExponent);
         }
@@ -220,8 +220,10 @@ namespace StingTools.Tags.Tests
             Assert.False(r.Calculated);
         }
 
-        // ── PPE + labels ────────────────────────────────────────────────────
+        // ── Energy bands + labels ───────────────────────────────────────────
 
+        /// <summary>Band edges are inclusive at the top (the old category thresholds
+        /// behaved the same way); above 40 cal/cm² is the unbounded sixth band.</summary>
         [Theory]
         [InlineData(1.0, 0)]
         [InlineData(1.2, 0)]
@@ -230,17 +232,18 @@ namespace StingTools.Tags.Tests
         [InlineData(8.0, 2)]
         [InlineData(24.9, 3)]
         [InlineData(40.0, 4)]
-        [InlineData(40.1, -1)]
-        public void Ppe_category_by_energy_threshold(double cal, int cat)
-            => Assert.Equal(cat, ArcFlashEngine.PpeCategory(cal));
+        [InlineData(40.1, 5)]
+        public void Energy_band_by_incident_energy(double cal, int band)
+            => Assert.Equal(band, ArcFlashPresentationTests.Shipped().BandFor(cal).Index);
 
         [Fact]
         public void Every_label_carries_the_2002_indicative_basis()
         {
             var ok = ArcFlashEngine.Calculate(new ArcFlashInput { Method = ArcFlashMethod.Ieee1584_2002, BoltedFaultKa = 25, VoltageV = 400, ClearingTimeS = 0.1 });
             var bad = ArcFlashEngine.Calculate(new ArcFlashInput { Method = ArcFlashMethod.Ieee1584_2002, BoltedFaultKa = 25, VoltageV = 0, ClearingTimeS = 0.1 });
-            string a = ArcFlashEngine.FormatLabel("DB-1", 400, ArcEquipmentClass.PanelMcc, ok, "fixed");
-            string b = ArcFlashEngine.FormatLabel("DB-2", 0, ArcEquipmentClass.PanelMcc, bad, "");
+            var p = ArcFlashPresentationTests.Shipped();
+            string a = ArcFlashEngine.FormatLabel("DB-1", 400, ArcEquipmentClass.PanelMcc, ok, "fixed", p);
+            string b = ArcFlashEngine.FormatLabel("DB-2", 0, ArcEquipmentClass.PanelMcc, bad, "", p);
             foreach (var s in new[] { a, b })
             {
                 Assert.Contains("IEEE 1584-2002", s);

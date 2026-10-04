@@ -2,12 +2,11 @@
 // WorkflowMaturityEngine.cs — Phase 73: Workflow Maturity Enhancements
 //
 // Extends WorkflowEngine with:
-//   1. StepDependencyResolver   — DAG-based step dependency ordering
-//   2. PartialRollbackManager   — Per-step transaction isolation with rollback
-//   3. CommissioningWorkflows    — MEP commissioning T&B workflow presets
-//   4. WorkflowScheduler        — Time-based / event-driven workflow triggers
-//   5. WorkflowValidator        — Pre-flight validation of workflow definitions
-//   6. WorkflowMetrics          — Detailed step-level performance analytics
+//   1. PartialRollbackManager   — Per-step transaction isolation with rollback
+//   2. CommissioningWorkflows    — MEP commissioning T&B workflow presets
+//   3. WorkflowScheduler        — Time-based / event-driven workflow triggers
+//   4. WorkflowValidator        — Pre-flight validation of workflow definitions
+//   5. WorkflowMetrics          — Detailed step-level performance analytics
 //
 // Integrates with existing WorkflowEngine via static extension methods.
 // ============================================================================
@@ -25,109 +24,6 @@ using Newtonsoft.Json;
 
 namespace StingTools.Core
 {
-    // ════════════════════════════════════════════════════════════════
-    //  STEP DEPENDENCY RESOLVER — DAG-based Ordering
-    // ════════════════════════════════════════════════════════════════
-
-    internal class StepDependency
-    {
-        public string StepTag { get; set; }
-        public List<string> DependsOn { get; set; } = new List<string>();
-        public bool IsOptional { get; set; }
-    }
-
-    internal static class StepDependencyResolver
-    {
-        /// <summary>Resolve step execution order using topological sort (Kahn's algorithm).</summary>
-        public static List<string> ResolveOrder(List<StepDependency> steps)
-        {
-            var ordered = new List<string>();
-            if (steps == null || steps.Count == 0) return ordered;
-
-            try
-            {
-                var inDegree = new Dictionary<string, int>();
-                var adjacency = new Dictionary<string, List<string>>();
-
-                // Initialize
-                foreach (var step in steps)
-                {
-                    if (!inDegree.ContainsKey(step.StepTag))
-                        inDegree[step.StepTag] = 0;
-                    if (!adjacency.TryGetValue(step.StepTag, out _))
-                        adjacency[step.StepTag] = new List<string>();
-                }
-
-                // Build graph
-                foreach (var step in steps)
-                {
-                    foreach (var dep in step.DependsOn)
-                    {
-                        if (!adjacency.TryGetValue(dep, out var depList))
-                            adjacency[dep] = depList = new List<string>();
-                        depList.Add(step.StepTag);
-
-                        inDegree.TryGetValue(step.StepTag, out int cur);
-                        inDegree[step.StepTag] = cur + 1;
-                    }
-                }
-
-                // Kahn's algorithm
-                var queue = new Queue<string>(inDegree.Where(kv => kv.Value == 0).Select(kv => kv.Key));
-
-                while (queue.Count > 0)
-                {
-                    string current = queue.Dequeue();
-                    ordered.Add(current);
-
-                    if (adjacency.TryGetValue(current, out var neighbors))
-                    {
-                        foreach (var neighbor in neighbors)
-                        {
-                            inDegree[neighbor]--;
-                            if (inDegree[neighbor] == 0)
-                                queue.Enqueue(neighbor);
-                        }
-                    }
-                }
-
-                // Check for cycles
-                if (ordered.Count < steps.Count)
-                {
-                    var missing = steps.Select(s => s.StepTag).Except(ordered).ToList();
-                    StingLog.Warn($"StepDependencyResolver: cycle detected — appending {missing.Count} steps involved in dependency cycle: {string.Join(", ", missing)}");
-                    ordered.AddRange(missing);
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("StepDependencyResolver.ResolveOrder", ex);
-                // Fallback: return original order
-                return steps.Select(s => s.StepTag).ToList();
-            }
-
-            return ordered;
-        }
-
-        /// <summary>Validate that all dependencies reference existing steps.</summary>
-        public static List<string> ValidateDependencies(List<StepDependency> steps)
-        {
-            var errors = new List<string>();
-            var allTags = new HashSet<string>(steps.Select(s => s.StepTag));
-
-            foreach (var step in steps)
-            {
-                foreach (var dep in step.DependsOn)
-                {
-                    if (!allTags.Contains(dep))
-                        errors.Add($"Step '{step.StepTag}' depends on '{dep}' which does not exist");
-                }
-            }
-
-            return errors;
-        }
-    }
-
     // ════════════════════════════════════════════════════════════════
     //  PARTIAL ROLLBACK MANAGER — Per-Step Transaction Isolation
     // ════════════════════════════════════════════════════════════════

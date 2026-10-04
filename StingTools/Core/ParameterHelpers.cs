@@ -2394,32 +2394,6 @@ namespace StingTools.Core
             int second = (seq - 1) % 26;
             return ((char)('A' + first - 1)).ToString() + ((char)('A' + second)).ToString();
         }
-
-        /// <summary>
-        /// Build a phase-index mapping for efficient batch operations.
-        /// Maps each phase name to its ordinal position in the project's phase sequence.
-        /// Returns a dictionary of phase ElementId to phase ordinal (0-based).
-        /// </summary>
-        public static Dictionary<ElementId, int> BuildPhaseIndex(Document doc)
-        {
-            var index = new Dictionary<ElementId, int>();
-            try
-            {
-                int ordinal = 0;
-                foreach (Phase phase in new FilteredElementCollector(doc)
-                    .OfClass(typeof(Phase))
-                    .Cast<Phase>()
-                    .OrderBy(p => p.Id.Value))
-                {
-                    index[phase.Id] = ordinal++;
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"BuildPhaseIndex: {ex.Message}");
-            }
-            return index;
-        }
     }
 
     /// <summary>
@@ -5652,7 +5626,7 @@ namespace StingTools.Core
         {
             try
             {
-                string s = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
+                string s = ParameterHelpers.GetString(el, ParamRegistry.ASS_TOKEN_LOCK_TXT);
                 if (string.IsNullOrWhiteSpace(s)) return null;
                 return new HashSet<string>(
                     s.Split(',').Select(k => k.Trim()).Where(k => k.Length > 0),
@@ -5830,7 +5804,7 @@ namespace StingTools.Core
                     // Phase 74d: Only allocate locked snapshot when token lock is non-empty (rare)
                     try
                     {
-                        string preLockStr = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
+                        string preLockStr = ParameterHelpers.GetString(el, ParamRegistry.ASS_TOKEN_LOCK_TXT);
                         if (!string.IsNullOrWhiteSpace(preLockStr))
                         {
                             lockedSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

@@ -99,51 +99,5 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"LayerInspector.Read layers: {ex.Message}"); }
             return rows;
         }
-
-        /// <summary>
-        /// Build a multi-line tag string of the form
-        ///   01 · Finish1     · BLE_Render_External · 15.0mm
-        ///   02 · Substrate   · BLE_Block_Heavy     · 200.0mm
-        ///   03 · Membrane    · BLE_DPM             · 0.5mm
-        ///   04 · Insulation  · BLE_PIR             · 80.0mm
-        ///   05 · Finish2     · BLE_Plasterboard    · 12.5mm
-        /// suitable for a Wall/Floor/Roof type-parameter tag.
-        /// </summary>
-        public static string BuildLayerTag(IList<MaterialLayer> layers)
-        {
-            if (layers == null || layers.Count == 0) return "";
-            int maxFn = layers.Max(l => (l.Function ?? "").Length);
-            int maxMat = layers.Max(l => (l.Material ?? "").Length);
-            var sb = new StringBuilder();
-            foreach (var l in layers)
-            {
-                sb.AppendLine(
-                    $"{l.Layer:00} · " +
-                    (l.Function ?? "").PadRight(maxFn) + " · " +
-                    (l.Material ?? "").PadRight(maxMat) + " · " +
-                    $"{l.ThicknessMm:F1}mm");
-            }
-            return sb.ToString().TrimEnd();
-        }
-
-        /// <summary>
-        /// Stamp the layer tag into <c>STING_LAYERS_TXT</c> on the host
-        /// element's Type. Caller owns the transaction.
-        /// </summary>
-        public static bool WriteLayerTag(Document doc, Element host, string tag)
-        {
-            if (doc == null || host == null) return false;
-            try
-            {
-                var typeId = host.GetTypeId();
-                if (typeId == null || typeId.Value <= 0) return false;
-                var type = doc.GetElement(typeId);
-                var p = type?.LookupParameter("STING_LAYERS_TXT");
-                if (p == null || p.IsReadOnly || p.StorageType != StorageType.String) return false;
-                p.Set(tag ?? "");
-                return true;
-            }
-            catch (Exception ex) { StingLog.Warn($"WriteLayerTag: {ex.Message}"); return false; }
-        }
     }
 }

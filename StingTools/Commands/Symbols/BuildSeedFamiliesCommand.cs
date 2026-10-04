@@ -174,7 +174,7 @@ namespace StingTools.Commands.Symbols
             aggregate.Warnings.AddRange(migration.Warnings);
 
             // ── Auto-register swap candidates ──────────────────────────────
-            try { AutoRegisterSwapCandidates(specs, outRoot, aggregate); }
+            try { AutoRegisterSwapCandidates(doc, specs, outRoot, aggregate); }
             catch (Exception ex) { StingLog.Warn($"AutoRegisterSwapCandidates: {ex.Message}"); }
 
             // Phase 178e — connector audit. Walks each loaded seed
@@ -274,27 +274,44 @@ namespace StingTools.Commands.Symbols
         }
 
         /// <summary>
-        /// Reads the swapCandidates[] array from every seed JSON spec and
-        /// merges the entries into STING_FAMILY_SWAP_REGISTRY.json next to
-        /// the seed output folder. Existing registry entries with the same
-        /// seedId + label are updated in place; new entries are appended
-        /// and tagged with <c>"source": "auto"</c>. Entries that were
-        /// previously auto-registered but are no longer present in any
-        /// current spec are pruned, preserving manually added entries
-        /// (those without a "source" field, or with "source" != "auto").
+        /// Reads the swapCandidates[] array from every seed JSON spec and upserts them into the
+        /// project swap override, <c>_BIM_COORD/family_swap_registry.json</c> — the file
+        /// <c>SwapToManufacturerCommand.LoadRegistry</c> merges over the corporate
+        /// STING_FAMILY_SWAP_REGISTRY.json. Shape is the reader's:
+        /// <c>seeds[{seedId, category, candidates[{familyNamePattern, typeNamePattern,
+        /// seedVariantPattern, label, priority}]}]</c>.
+        /// <para>
+        /// Candidates are matched by label within their seed. Ones written here carry
+        /// <c>"source": "auto"</c>; an auto candidate no longer declared by its seed's spec is
+        /// pruned (per seed). Candidates without that tag are manual and never touched.
+        /// </para>
+        /// <para>
+        /// The reader REPLACES a corporate seed with the project seed of the same id, so a
+        /// project seed written here also carries the corporate candidates for that seed,
+        /// tagged <c>"source": "corporate"</c> and refreshed on every run — otherwise
+        /// registering one manufacturer family would hide every corporate candidate.
+        /// </para>
+        /// <para>
+        /// The earlier writer put flat <c>entries[]</c> in Families/STING_FAMILY_SWAP_REGISTRY.json,
+        /// which nothing read. Those entries are folded in once, and the old file is renamed
+        /// <c>*.migrated_yyyyMMdd</c> (never deleted).
+        /// </para>
         /// </summary>
-        private static void AutoRegisterSwapCandidates(IList<string> specs, string outRoot, SymbolCreationResult result)
+        private static void AutoRegisterSwapCandidates(Document doc, IList<string> specs, string outRoot, SymbolCreationResult result)
         {
-            string registryPath = Path.Combine(outRoot, "..", "STING_FAMILY_SWAP_REGISTRY.json");
-            registryPath = Path.GetFullPath(registryPath);
+            string registryPath = StingPaths.MetaFile(doc, "_BIM_COORD", "family_swap_registry.json");
+            if (string.IsNullOrEmpty(registryPath))
+            {
+                result.Warnings.Add("Swap registry: no project folder (save the model first); swap candidates not registered.");
+                return;
+            }
 
-            // Load or create the registry JSON object.
-            Newtonsoft.Json.Linq.JObject registry;
+            JObject registry;
             try
             {
                 registry = File.Exists(registryPath)
-                    ? Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(registryPath))
-                    : new Newtonsoft.Json.Linq.JObject();
+                    ? JObject.Parse(File.ReadAllText(registryPath))
+                    : new JObject();
             }
             catch (Exception ex)
             {
@@ -302,113 +319,214 @@ namespace StingTools.Commands.Symbols
                 return;
             }
 
-            var entries = registry["entries"] as Newtonsoft.Json.Linq.JArray
-                ?? new Newtonsoft.Json.Linq.JArray();
-            int added = 0, updated = 0, pruned = 0;
+            var seeds = registry["seeds"] as JArray;
+            if (seeds == null) { seeds = new JArray(); registry["seeds"] = seeds; }
+            int added = 0, updated = 0, pruned = 0, folded = 0;
+            bool changed = false;
+            var createdSeeds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            // Build the complete set of (seedId, label) pairs declared in
-            // current specs so the post-loop prune pass can identify stale
-            // auto-registered entries.  Only candidates with a non-empty
-            // FamilyPath are eligible for auto-registration (same gate as the
-            // merge loop below).
-            var currentPairs = new HashSet<(string seedId, string label)>();
-            foreach (var specPath in specs)
+            JObject SeedNode(string seedId, string category)
             {
-                try
-                {
-                    if (!File.Exists(specPath)) continue;
-                    var lib = Newtonsoft.Json.JsonConvert.DeserializeObject<
-                        StingTools.Core.Symbols.SymbolLibrary>(File.ReadAllText(specPath));
-                    if (lib?.Symbols == null) continue;
-                    foreach (var sym in lib.Symbols)
+                foreach (var s in seeds.OfType<JObject>())
+                    if (string.Equals((string)s["seedId"], seedId, StringComparison.OrdinalIgnoreCase))
                     {
-                        if (sym?.SwapCandidates == null) continue;
-                        foreach (var cand in sym.SwapCandidates)
-                        {
-                            if (!string.IsNullOrWhiteSpace(cand?.FamilyPath))
-                                currentPairs.Add((sym.Id ?? "", cand.Label ?? ""));
-                        }
+                        if (string.IsNullOrEmpty((string)s["category"]) && !string.IsNullOrEmpty(category))
+                            s["category"] = category;
+                        if (!(s["candidates"] is JArray)) s["candidates"] = new JArray();
+                        return s;
                     }
-                }
-                catch { /* parse errors surfaced in the merge loop below */ }
+                var node = new JObject { ["seedId"] = seedId, ["category"] = category ?? "", ["candidates"] = new JArray() };
+                seeds.Add(node);
+                createdSeeds.Add(seedId);
+                changed = true;
+                return node;
             }
 
-            // Merge loop — add / update entries from the current spec set.
+            JObject FindByLabel(JArray cands, string label)
+            {
+                foreach (var c in cands.OfType<JObject>())
+                    if (string.Equals((string)c["label"] ?? "", label ?? "", StringComparison.OrdinalIgnoreCase))
+                        return c;
+                return null;
+            }
+
+            // ── One-time fold of the legacy flat entries[] (old file, or an entries[] key) ──
+            string legacyPath = null;
+            try { legacyPath = Path.GetFullPath(Path.Combine(outRoot, "..", "STING_FAMILY_SWAP_REGISTRY.json")); }
+            catch (Exception ex) { StingLog.Warn($"Swap registry legacy path: {ex.Message}"); }
+            var legacyEntries = new List<JObject>();
+            if (registry["entries"] is JArray inline)
+            {
+                legacyEntries.AddRange(inline.OfType<JObject>());
+                registry.Remove("entries");
+                changed = true;
+            }
+            bool legacyFileRead = false;
+            if (!string.IsNullOrEmpty(legacyPath) && File.Exists(legacyPath)
+                && !string.Equals(legacyPath, registryPath, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    if (JObject.Parse(File.ReadAllText(legacyPath))["entries"] is JArray arr)
+                        legacyEntries.AddRange(arr.OfType<JObject>());
+                    legacyFileRead = true;
+                }
+                catch (Exception ex) { result.Warnings.Add($"Swap registry: legacy file unreadable, left in place: {ex.Message}"); }
+            }
+            foreach (var e in legacyEntries)
+            {
+                string seedId = (string)e["seedId"];
+                string label = (string)e["label"] ?? "";
+                if (string.IsNullOrEmpty(seedId)) continue;
+                var cands = (JArray)SeedNode(seedId, null)["candidates"];
+                if (FindByLabel(cands, label) != null) continue;   // project entry already wins
+                string fam = (string)e["familyNamePattern"] ?? "";
+                // The old writer stored the .rfa path here, not a regex.
+                if (fam.EndsWith(".rfa", StringComparison.OrdinalIgnoreCase)
+                    || fam.IndexOf('\\') >= 0 || fam.IndexOf('/') >= 0)
+                    fam = FamilyPathPattern(fam);
+                cands.Add(new JObject
+                {
+                    ["familyNamePattern"]  = fam,
+                    ["typeNamePattern"]    = (string)e["typeNamePattern"] ?? "",
+                    ["seedVariantPattern"] = (string)e["seedVariantPattern"] ?? "",
+                    ["label"]              = label,
+                    ["priority"]           = e["priority"] ?? new JValue(999),
+                    ["source"]             = (string)e["source"] ?? "auto",
+                });
+                folded++; changed = true;
+            }
+
+            // ── Current spec candidates, per seed ──
+            var declared = new Dictionary<string, List<SeedSwapCandidate>>(StringComparer.OrdinalIgnoreCase);
+            var categories = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var specPath in specs)
             {
                 try
                 {
                     if (!File.Exists(specPath)) continue;
-                    var lib = Newtonsoft.Json.JsonConvert.DeserializeObject<
-                        StingTools.Core.Symbols.SymbolLibrary>(File.ReadAllText(specPath));
+                    var lib = JsonConvert.DeserializeObject<SymbolLibrary>(File.ReadAllText(specPath));
                     if (lib?.Symbols == null) continue;
-
                     foreach (var sym in lib.Symbols)
                     {
-                        if (sym?.SwapCandidates == null || sym.SwapCandidates.Count == 0) continue;
-                        foreach (var cand in sym.SwapCandidates)
-                        {
-                            if (string.IsNullOrWhiteSpace(cand?.FamilyPath)) continue;
-                            // Find existing entry (match by seedId + label).
-                            Newtonsoft.Json.Linq.JObject existing = null;
-                            foreach (var e in entries)
-                            {
-                                if ((string)e["seedId"] == sym.Id && (string)e["label"] == cand.Label)
-                                { existing = e as Newtonsoft.Json.Linq.JObject; break; }
-                            }
-                            if (existing != null)
-                            {
-                                existing["familyNamePattern"] = cand.FamilyPath;
-                                existing["typeNamePattern"]   = cand.TypePattern ?? "";
-                                existing["seedVariantPattern"]= cand.VariantPattern ?? "";
-                                existing["priority"]          = cand.Priority;
-                                existing["source"]            = "auto"; // tag for future prune passes
-                                updated++;
-                            }
-                            else
-                            {
-                                var node = new Newtonsoft.Json.Linq.JObject
-                                {
-                                    ["seedId"]             = sym.Id,
-                                    ["label"]             = cand.Label,
-                                    ["familyNamePattern"] = cand.FamilyPath,
-                                    ["typeNamePattern"]   = cand.TypePattern   ?? "",
-                                    ["seedVariantPattern"]= cand.VariantPattern ?? "",
-                                    ["priority"]          = cand.Priority,
-                                    ["source"]            = "auto",
-                                };
-                                entries.Add(node);
-                                added++;
-                            }
-                        }
+                        if (sym == null || string.IsNullOrEmpty(sym.Id) || sym.SwapCandidates == null) continue;
+                        var list = sym.SwapCandidates.Where(c => !string.IsNullOrWhiteSpace(c?.FamilyPath)).ToList();
+                        if (list.Count == 0) continue;
+                        declared[sym.Id] = list;
+                        categories[sym.Id] = sym.Category ?? "";
                     }
                 }
                 catch (Exception ex2) { result.Warnings.Add($"SwapCandidates parse '{Path.GetFileName(specPath)}': {ex2.Message}"); }
             }
 
-            // Prune pass — remove auto-registered entries that are no longer
-            // declared in any current spec.  Entries without a "source" field,
-            // or with source != "auto", are treated as manually added and
-            // are never removed.
-            var toRemove = new List<Newtonsoft.Json.Linq.JToken>();
-            foreach (var e in entries)
+            // ── Upsert by label + prune stale auto candidates, scoped per seed ──
+            foreach (var kv in declared)
             {
-                string src = (string)e["source"];
-                if (!string.Equals(src, "auto", StringComparison.OrdinalIgnoreCase)) continue;
-                var key = ((string)e["seedId"] ?? "", (string)e["label"] ?? "");
-                if (!currentPairs.Contains(key)) toRemove.Add(e);
+                var cands = (JArray)SeedNode(kv.Key, categories[kv.Key])["candidates"];
+                var labels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var cand in kv.Value)
+                {
+                    labels.Add(cand.Label ?? "");
+                    var node = new JObject
+                    {
+                        ["familyNamePattern"]  = FamilyPathPattern(cand.FamilyPath),
+                        ["typeNamePattern"]    = cand.TypePattern ?? "",
+                        ["seedVariantPattern"] = cand.VariantPattern ?? "",
+                        ["label"]              = cand.Label ?? "",
+                        ["priority"]           = cand.Priority,
+                        ["source"]             = "auto",
+                    };
+                    var existing = FindByLabel(cands, cand.Label);
+                    string src = existing == null ? null : (string)existing["source"];
+                    bool writerOwned = string.Equals(src, "auto", StringComparison.OrdinalIgnoreCase)
+                                    || string.Equals(src, "corporate", StringComparison.OrdinalIgnoreCase);
+                    if (existing == null) { cands.Add(node); added++; changed = true; }
+                    else if (!writerOwned) { /* hand-written candidate with this label: the user's wins */ }
+                    else if (!JToken.DeepEquals(existing, node)) { existing.Replace(node); updated++; changed = true; }
+                }
             }
-            foreach (var e in toRemove) { entries.Remove(e); pruned++; }
+            foreach (var s in seeds.OfType<JObject>())
+            {
+                string seedId = (string)s["seedId"] ?? "";
+                if (!(s["candidates"] is JArray cands)) continue;
+                declared.TryGetValue(seedId, out var cur);
+                var keep = new HashSet<string>(
+                    (cur ?? new List<SeedSwapCandidate>()).Select(c => c.Label ?? ""), StringComparer.OrdinalIgnoreCase);
+                foreach (var c in cands.OfType<JObject>().ToList())
+                {
+                    if (!string.Equals((string)c["source"], "auto", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!keep.Contains((string)c["label"] ?? "")) { c.Remove(); pruned++; changed = true; }
+                }
+            }
 
-            if (added + updated + pruned == 0) return;
-            registry["entries"] = entries;
+            // ── Corporate candidates carried on every project seed (see summary) ──
+            try
+            {
+                string corp = StingToolsApp.FindDataFile("STING_FAMILY_SWAP_REGISTRY.json");
+                if (!string.IsNullOrEmpty(corp) && File.Exists(corp)
+                    && JObject.Parse(File.ReadAllText(corp))["seeds"] is JArray corpSeeds)
+                {
+                    foreach (var s in seeds.OfType<JObject>())
+                    {
+                        var cands = (JArray)s["candidates"];
+                        var oldCorp = cands.OfType<JObject>()
+                            .Where(c => string.Equals((string)c["source"], "corporate", StringComparison.OrdinalIgnoreCase))
+                            .ToList();
+                        // Only seeds this writer manages: created here, or already carrying corporate
+                        // copies. A hand-written project seed that replaces the corporate one is left alone.
+                        if (oldCorp.Count == 0 && !createdSeeds.Contains((string)s["seedId"] ?? "")) continue;
+                        var cs = corpSeeds.OfType<JObject>().FirstOrDefault(x =>
+                            string.Equals((string)x["seedId"], (string)s["seedId"], StringComparison.OrdinalIgnoreCase));
+                        var before = new JArray(oldCorp.Select(c => c.DeepClone()));
+                        foreach (var c in oldCorp) c.Remove();
+                        if (string.IsNullOrEmpty((string)s["category"]) && cs != null) s["category"] = cs["category"];
+                        if (cs?["candidates"] is JArray corpCands)
+                            foreach (var cc in corpCands.OfType<JObject>())
+                            {
+                                if (FindByLabel(cands, (string)cc["label"]) != null) continue;
+                                var copy = (JObject)cc.DeepClone();
+                                copy["source"] = "corporate";
+                                cands.Add(copy);
+                            }
+                        var after = new JArray(cands.OfType<JObject>()
+                            .Where(c => string.Equals((string)c["source"], "corporate", StringComparison.OrdinalIgnoreCase)));
+                        if (!JToken.DeepEquals(before, after)) changed = true;
+                    }
+                }
+            }
+            catch (Exception ex) { result.Warnings.Add($"Swap registry: corporate candidates not carried: {ex.Message}"); }
+
+            if (!changed && !legacyFileRead) return;
             registry["_updated"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
             try
             {
-                File.WriteAllText(registryPath, registry.ToString(Newtonsoft.Json.Formatting.Indented));
-                result.Warnings.Add($"Swap registry: {added} added, {updated} updated, {pruned} pruned → {registryPath}");
+                OutputLocationHelper.WriteAllTextAtomic(registryPath, registry.ToString(Formatting.Indented));
+                result.Warnings.Add($"Swap registry: {added} added, {updated} updated, {pruned} pruned, {folded} folded from legacy → {registryPath}");
             }
-            catch (Exception ex) { result.Warnings.Add($"Swap registry save failed: {ex.Message}"); }
+            catch (Exception ex) { result.Warnings.Add($"Swap registry save failed: {ex.Message}"); return; }
+
+            if (legacyFileRead)
+            {
+                try
+                {
+                    string moved = legacyPath + ".migrated_" + DateTime.Now.ToString("yyyyMMdd");
+                    if (!File.Exists(moved)) File.Move(legacyPath, moved);
+                    StingLog.Info($"Swap registry: legacy {legacyPath} folded into {registryPath}, renamed to {moved}");
+                }
+                catch (Exception ex) { result.Warnings.Add($"Swap registry: legacy file folded but not renamed: {ex.Message}"); }
+            }
+        }
+
+        /// <summary>
+        /// The reader matches <c>familyNamePattern</c> as a regex against loaded family names, so a
+        /// spec's .rfa path becomes an exact, escaped match on the file name without extension.
+        /// </summary>
+        private static string FamilyPathPattern(string familyPath)
+        {
+            string name = "";
+            try { name = Path.GetFileNameWithoutExtension((familyPath ?? "").Trim()); }
+            catch (Exception ex) { StingLog.Warn($"FamilyPathPattern '{familyPath}': {ex.Message}"); }
+            return string.IsNullOrEmpty(name) ? "" : "^" + System.Text.RegularExpressions.Regex.Escape(name) + "$";
         }
 
         private static string ResolveSeedOutputFolder(Document doc)

@@ -95,29 +95,30 @@ namespace StingTools.Core.CostPlan
             if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
             try
             {
-                bool headerSeen = false;
                 int loaded = 0;
-                foreach (string raw in File.ReadAllLines(path))
+                // DSCH-2: columns by header name, not position.
+                var t = CsvTable.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                var missing = t.Missing("BuildingType", "ElementCode", "ElementName", "Unit",
+                    "LowRate", "LikelyRate", "HighRate");
+                if (missing.Count > 0)
                 {
-                    if (string.IsNullOrWhiteSpace(raw)) continue;
-                    string trim = raw.TrimStart();
-                    if (trim.StartsWith("#")) continue;
-                    var cols = StingToolsApp.ParseCsvLine(raw);
-                    if (cols == null || cols.Length < 7) continue;
-                    if (!headerSeen)
-                    {
-                        headerSeen = true;
-                        if (cols[0].Equals("BuildingType", StringComparison.OrdinalIgnoreCase)) continue;
-                    }
+                    StingLog.Warn($"CostPlanRegistry: {Path.GetFileName(path)} header has no " +
+                        $"{string.Join(", ", missing)} column(s) — file skipped ({source}).");
+                    return;
+                }
+                int srcCol = t.Col("Source");
+                foreach (var row in t.Rows)
+                {
+                    if (row.Count < 7) continue;
 
-                    string buildingType = cols[0].Trim();
-                    string elementCode = cols[1].Trim();
-                    string elementName = cols[2].Trim();
-                    string unit = cols[3].Trim();
-                    if (!double.TryParse(cols[4], NumberStyles.Any, CultureInfo.InvariantCulture, out double low)) continue;
-                    if (!double.TryParse(cols[5], NumberStyles.Any, CultureInfo.InvariantCulture, out double likely)) continue;
-                    if (!double.TryParse(cols[6], NumberStyles.Any, CultureInfo.InvariantCulture, out double high)) continue;
-                    string srcLabel = cols.Length > 7 ? cols[7].Trim() : source;
+                    string buildingType = row["BuildingType"];
+                    string elementCode = row["ElementCode"];
+                    string elementName = row["ElementName"];
+                    string unit = row["Unit"];
+                    if (!double.TryParse(row["LowRate"], NumberStyles.Any, CultureInfo.InvariantCulture, out double low)) continue;
+                    if (!double.TryParse(row["LikelyRate"], NumberStyles.Any, CultureInfo.InvariantCulture, out double likely)) continue;
+                    if (!double.TryParse(row["HighRate"], NumberStyles.Any, CultureInfo.InvariantCulture, out double high)) continue;
+                    string srcLabel = srcCol >= 0 && row.Count > srcCol ? row["Source"] : source;
 
                     if (!bench.TryGetValue(buildingType, out var byElement))
                     {

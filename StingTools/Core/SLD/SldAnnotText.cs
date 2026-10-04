@@ -292,6 +292,7 @@ namespace StingTools.Core.SLD
             return IsName(s) && Enum.TryParse(s, false, out kind) && Enum.IsDefined(typeof(SldAnnotKind), kind);
         }
 
+        // D1: test-oracle - StingTools.Tags.Tests/SldAnnotTextTests.cs
         public static bool TryParseFormat(string s, out SldAnnotFormat fmt)
         {
             fmt = default;

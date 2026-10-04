@@ -9,7 +9,9 @@
 //    Item 2  ComputeIssueCostImpact   — cost per open issue from linked elements
 //    Item 3  OnRevisionCreated        — auto BOQ snapshot on every revision
 //    Item 4  ComputeClashCosts        — cost per clash-group from affected elements
-//    Item 5  GetBOQRatesByCategory    — replace Scheduling4DEngine's internal rates
+//    Item 5  (retired) 4D/5D rates — Scheduling4DEngine.GenerateCostEstimate now
+//            builds the canonical BOQ itself, so the two category-average rate
+//            helpers that were to feed it had no caller and were deleted.
 //    Item 6  BuildMeetingAgendaBullet — BOQ delta bullet for auto-agenda
 //    Item 7  ComputeBOQHealthBand     — "BOQ Data Quality" row on Model Health
 //    Item 8  EmitBOQGapWarnings       — synthetic warnings for missing rates / tokens
@@ -226,58 +228,6 @@ namespace StingTools.BOQ
         }
 
         // ══════════════════════════════════════════════════════════════════
-        //  Item 5 — 4D/5D cash flow from BOQ
-        //  Scheduling4DEngine currently uses its own internal rate table
-        //  (DefaultCostRates) as a fallback when cost_rates_5d.csv has no
-        //  entry. This bridge returns a Dictionary<category, rate> derived
-        //  from the LIVE BOQDocument so the cash-flow curve, 4D timeline
-        //  and 5D exports stay consistent with the Cost Manager's rates
-        //  (including the P0 Override any QS edit set inline).
-        //
-        //  Returns the AVERAGE rate across all model items of each
-        //  category so a section of mixed-size walls still gets a single
-        //  reasonable rate figure. Keyed by Category name (case-insensitive).
-        // ══════════════════════════════════════════════════════════════════
-
-        public static Dictionary<string, double> GetBOQRatesByCategory(Document doc)
-        {
-            var d = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-            var boq = GetBoq(doc);
-            if (boq == null) return d;
-            var grp = boq.AllItems
-                .Where(i => !string.IsNullOrEmpty(i.Category) && i.RateUGX > 0 && i.Source == BOQRowSource.Model)
-                .GroupBy(i => i.Category, StringComparer.OrdinalIgnoreCase);
-            foreach (var g in grp)
-                d[g.Key] = g.Average(i => i.RateUGX);
-            return d;
-        }
-
-        /// <summary>
-        /// Returns a category → (ratePerUnit, unit, description) triple
-        /// matching Scheduling4DEngine.DefaultCostRates's shape, so the
-        /// engine can do a direct lookup. Only populated when the BOQ has
-        /// a rate for the category.
-        /// </summary>
-        public static Dictionary<string, (double rate, string unit, string description)>
-            GetBOQCostRateTable(Document doc)
-        {
-            var d = new Dictionary<string, (double, string, string)>(StringComparer.OrdinalIgnoreCase);
-            var boq = GetBoq(doc);
-            if (boq == null) return d;
-            var grp = boq.AllItems
-                .Where(i => !string.IsNullOrEmpty(i.Category) && i.RateUGX > 0 && i.Source == BOQRowSource.Model)
-                .GroupBy(i => i.Category, StringComparer.OrdinalIgnoreCase);
-            foreach (var g in grp)
-            {
-                double rate = g.Average(i => i.RateUGX);
-                string unit = g.First().Unit ?? "each";
-                string desc = g.First().Category ?? "";
-                d[g.Key] = (rate, unit, desc);
-            }
-            return d;
-        }
-
-        // ══════════════════════════════════════════════════════════════════
         //  Item 6 — Meeting agenda auto-bullet
         //  Compares the most recent BOQ snapshot to the previous one and
         //  returns a one-paragraph summary suitable for dropping into the
@@ -367,7 +317,7 @@ namespace StingTools.BOQ
             }
 
             b.TotalItems = boq.AllItems.Count;
-            b.ItemsMissingRate = boq.AllItems.Count(i => i.RateUGX <= 0);
+            b.ItemsMissingRate = boq.AllItems.Count(i => !i.IsPriceDecided);   // DSCH-26: NIL / INCL are priced
             b.ItemsMissingParagraph = boq.AllItems.Count(i => string.IsNullOrEmpty(i.ResolvedNRM2Paragraph));
             b.ParagraphCoveragePct = boq.ParagraphCoveragePct;
             b.AvgRateConfidence = boq.AverageRateConfidence;
@@ -414,7 +364,7 @@ namespace StingTools.BOQ
             foreach (var item in boq.AllItems)
             {
                 if (item.Source != BOQRowSource.Model) continue;
-                if (item.RateUGX <= 0)
+                if (!item.IsPriceDecided)   // DSCH-26: a declared NIL / INCL is not a missing rate
                 {
                     missingRate++;
                     list.Add(new BOQGapWarning

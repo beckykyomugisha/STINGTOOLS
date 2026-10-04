@@ -732,12 +732,6 @@ namespace StingTools.Model
 
             return (inDuctLevel, ncRating, meets, rec);
         }
-
-        /// <summary>Get NC limit for a room type.</summary>
-        public static int GetNCLimit(string roomType)
-        {
-            return _ncLimits.TryGetValue(roomType, out int nc) ? nc : 35;
-        }
     }
 
     // ════════════════════════════════════════════════════════════════

@@ -86,7 +86,8 @@ namespace StingTools.Commands.Electrical.Export
                                   $"toBus=\"{Esc(f.DownstreamPanel)}\" " +
                                   $"csaMm2=\"{f.CsaMm2:0.0}\" " +
                                   $"lengthM=\"{f.LengthM:0.00}\" " +
-                                  $"rOhm=\"{f.ResistanceOhm:0.000000}\" " +
+                                  $"material=\"{Esc(f.Material)}\" " +
+                                  (f.ResistanceKnown ? $"rOhm=\"{f.ResistanceOhm:0.000000}\" " : "") +
                                   $"xOhm=\"{f.ReactanceOhm:0.000000}\" " +
                                   $"ratingA=\"{f.RatingA:0}\"/>");
                 }
@@ -100,7 +101,9 @@ namespace StingTools.Commands.Electrical.Export
                     sb.AppendLine($"    <Bus id=\"{Esc(af.PanelName)}\" " +
                                   $"ie_cal_cm2=\"{af.IncidentEnergy_CalCm2:0.00}\" " +
                                   $"boundary_mm=\"{af.BoundaryMm:0}\" " +
-                                  $"ppe=\"{af.PpeCategory}\"/>");
+                                  // An incident-energy BAND (STING presentation), not an NFPA 70E
+                                  // PPE category — the attribute used to be "ppe" (DSCH-25).
+                                  $"sting_energy_band=\"{Esc(af.EnergyBand)}\"/>");
                 }
                 sb.AppendLine("  </ArcFlash>");
             }

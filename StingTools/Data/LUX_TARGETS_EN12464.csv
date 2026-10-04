@@ -22,7 +22,7 @@ AUDITORIUM,500,Lecture theatre / auditorium
 LIBRARY,500,Library reading area
 LABORATORY,500,Science laboratory general
 CLEANROOM,1000,Cleanroom workspace
-WARD,100,Hospital ward general (500 at bed head, 1000 at clinical exam)
+WARD,100,"Hospital ward general (500 at bed head, 1000 at clinical exam)"
 EXAM_ROOM,1000,Examination / consulting room
 OPERATING_THEATRE,1000,Operating theatre general
 PHARMACY,500,Pharmacy dispensing

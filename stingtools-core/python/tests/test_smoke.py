@@ -46,6 +46,17 @@ def test_pset_registry_loads():
     assert len(pst.rules) == 9
 
 
+def test_every_pset_template_on_disk_loads():
+    """Every shared/ifc/psets/Pset_Sting*.xml loads, including the sets declared for
+    the DSCH-38 follow-ups (Pset_StingMEP is the one the Bonsai add-on writes)."""
+    reg = PsetRegistry().load()
+    for name in ("Pset_StingMEP", "Pset_StingMEPServices", "Pset_StingCoordination",
+                 "Pset_StingLightningProtection", "Pset_StingPlacement"):
+        assert name in reg, f"{name} did not load: {reg.names()}"
+    mep = reg.require("Pset_StingMEP")
+    assert {p.name for p in mep.properties} >= {"PLM_SUP_DN", "PLM_DRN_DU", "ELC_FILL_STATUS"}
+
+
 def test_pset_enum_references_resolve():
     enums = EnumRegistry().load()
     psets = PsetRegistry().load()
@@ -784,6 +795,7 @@ if __name__ == "__main__":
         test_known_enum_codes,
         test_pset_registry_loads,
         test_pset_enum_references_resolve,
+        test_every_pset_template_on_disk_loads,
         test_tag_render_and_parse,
         test_tag_validation_stage_3,
         # negative + integrity

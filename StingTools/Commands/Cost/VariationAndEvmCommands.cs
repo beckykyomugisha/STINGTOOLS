@@ -4,6 +4,7 @@
 //  P5.2:
 //    Variation_FromDiff      — pick a saved diff, mint a draft VO.
 //    Variation_BuildStarRate — wizard-style star-rate build-up.
+//    Variation_ApplyStarRate — price a new variation item at a saved star rate.
 //    Variation_ExportRegister — CSV register of all VOs for a contract.
 //  P5.3:
 //    Evm_Calculate           — produce an EVM period from BAC/BCWS/BCWP/ACWP.
@@ -404,6 +405,129 @@ namespace StingTools.Commands.Cost
             catch (Exception ex)
             {
                 StingLog.Error("Variation_BuildStarRate", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Variation_ApplyStarRate - the read side of Variation_BuildStarRate (DSCH-46b).
+    /// Adds one item to a variation still being valued: the star rate's
+    /// description and unit, a measured quantity the QS enters, priced at the
+    /// star rate's final rate and linked back by StarRateId. Same shape as
+    /// Daywork_Attach. Headless: ExtraParams StarRateApplyId, StarRateApplyVo,
+    /// StarRateApplyQty.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class VariationApplyStarRateCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                Document doc = ParameterHelpers.GetDoc(commandData);
+                if (doc == null) { message = "No active document."; return Result.Failed; }
+
+                var rates = VariationEngine.ListStarRates(doc);
+                if (rates.Count == 0)
+                {
+                    StingResultPanel.Create("Apply star rate to variation")
+                        .AddSection("NO STAR RATES")
+                        .Text("No saved star rates. Build one first (Variation_BuildStarRate).")
+                        .Show();
+                    return Result.Cancelled;
+                }
+                var vos = VariationEngine.ListVariations(doc).Select(VariationEngine.Load)
+                    .Where(v => v != null && StarRatePricing.AcceptsNewItems(v.Status)).ToList();
+                if (vos.Count == 0)
+                {
+                    StingResultPanel.Create("Apply star rate to variation")
+                        .AddSection("NO OPEN VARIATIONS")
+                        .Text("No variation in Draft, Submitted or Reviewed. Approved, rejected and "
+                            + "incorporated variations are settled and are not re-priced.")
+                        .Show();
+                    return Result.Cancelled;
+                }
+
+                string rateId = UI.StingCommandHandler.GetExtraParam("StarRateApplyId");
+                string voNumber = UI.StingCommandHandler.GetExtraParam("StarRateApplyVo");
+                string qtyText = UI.StingCommandHandler.GetExtraParam("StarRateApplyQty");
+
+                StarRate rate;
+                if (!string.IsNullOrEmpty(rateId))
+                    rate = rates.FirstOrDefault(r => string.Equals(r.Id, rateId, StringComparison.OrdinalIgnoreCase));
+                else
+                {
+                    var items = rates.Select(r => new StingListPicker.ListItem
+                    {
+                        Label = $"{r.Description} (per {r.Unit})",
+                        Detail = $"{r.Currency} {r.FinalRate:N2} · built {r.CreatedUtc:yyyy-MM-dd}",
+                        Tag = r
+                    }).ToList();
+                    var picked = StingListPicker.Show("Apply star rate",
+                        "Pick the star rate to price the varied work:", items, false)?.FirstOrDefault();
+                    if (picked == null) return Result.Cancelled;
+                    rate = picked.Tag as StarRate;
+                }
+                if (rate == null) { message = "Star rate not found."; return Result.Failed; }
+
+                VariationInstruction vo;
+                if (!string.IsNullOrEmpty(voNumber))
+                    vo = vos.FirstOrDefault(v => string.Equals(v.Number, voNumber, StringComparison.OrdinalIgnoreCase));
+                else
+                {
+                    var items = vos.Select(v => new StingListPicker.ListItem
+                    {
+                        Label = v.Number,
+                        Detail = $"{v.Status} · {v.Currency} {v.TotalValue:N2}",
+                        Tag = v
+                    }).ToList();
+                    var picked = StingListPicker.Show("Apply star rate",
+                        "Pick the variation to add the priced item to:", items, false)?.FirstOrDefault();
+                    if (picked == null) return Result.Cancelled;
+                    vo = picked.Tag as VariationInstruction;
+                }
+                if (vo == null) { message = "Variation not found, or not open for valuation."; return Result.Failed; }
+
+                // The quantity is measured by the QS - never defaulted.
+                if (string.IsNullOrEmpty(qtyText))
+                {
+                    qtyText = SitePhotosTabHelpers.PromptForString(null, "Apply star rate",
+                        $"Measured quantity of '{rate.Description}' for {vo.Number}, in {rate.Unit}:", "");
+                    if (qtyText == null) return Result.Cancelled;
+                }
+                if (!double.TryParse(qtyText.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double qty)
+                    && !double.TryParse(qtyText.Trim(), NumberStyles.Float, CultureInfo.CurrentCulture, out qty))
+                    qty = double.NaN;
+
+                var item = StarRatePricing.NewItem(vo, rate, qty, out string why);
+                if (item == null)
+                {
+                    StingResultPanel.Create("Apply star rate to variation")
+                        .AddSection("NOT APPLIED")
+                        .Text(why)
+                        .Show();
+                    return Result.Failed;
+                }
+                vo.Items.Add(item);
+                VariationEngine.Save(doc, vo);
+
+                StingResultPanel.Create("Star rate applied to variation")
+                    .SetSubtitle($"{rate.Description} → {vo.Number}")
+                    .AddSection("NEW ITEM")
+                    .Metric("Quantity", $"{item.Quantity:N2} {item.Unit}")
+                    .Metric("Star rate", $"{vo.Currency} {item.UnitRate:N2}")
+                    .MetricHighlight("Item value", $"{vo.Currency} {item.TotalValue:N2}")
+                    .Metric("Variation total (now)", $"{vo.Currency} {vo.TotalValue:N2}")
+                    .Show();
+                StingLog.Info($"Star rate {rate.Id} applied to {vo.Number}: {item.Quantity} {item.Unit} @ {item.UnitRate:N2}.");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Variation_ApplyStarRate", ex);
                 message = ex.Message;
                 return Result.Failed;
             }

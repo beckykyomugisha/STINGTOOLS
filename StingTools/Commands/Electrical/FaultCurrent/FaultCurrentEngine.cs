@@ -74,19 +74,20 @@ namespace StingTools.Commands.Electrical.FaultCurrent
         /// </summary>
         public static Dictionary<long, FaultPropagationResult> PropagateAll(
             StingTools.Core.SLD.SLDNode root, double utilityFaultKa, WireTableSet wireTables,
-            Func<StingTools.Core.SLD.SLDNode, PanelSupplyInfo> supplyOf, double[] aicTiers = null)
+            Func<StingTools.Core.SLD.SLDNode, PanelSupplyInfo> supplyOf, double[] aicTiers = null,
+            double aicSafetyMarginPct = 10.0)
         {
             var results = new Dictionary<long, FaultPropagationResult>();
             if (root == null) return results;
             PropagateNode(root, utilityFaultKa, 0, 0, false, wireTables, supplyOf,
-                aicTiers ?? new double[0], results);
+                aicTiers ?? new double[0], aicSafetyMarginPct, results);
             return results;
         }
 
         private static void PropagateNode(StingTools.Core.SLD.SLDNode node,
             double parentFaultKa, double parentVoltageLL, int parentPhases, bool parentVoltageAssumed,
             WireTableSet wireTables, Func<StingTools.Core.SLD.SLDNode, PanelSupplyInfo> supplyOf,
-            double[] aicTiers, Dictionary<long, FaultPropagationResult> results)
+            double[] aicTiers, double aicSafetyMarginPct, Dictionary<long, FaultPropagationResult> results)
         {
             if (node == null) return;
             var info = supplyOf?.Invoke(node) ?? new PanelSupplyInfo();
@@ -130,13 +131,15 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             if (node.HierarchyLevel > 0)
             {
                 string material = string.IsNullOrEmpty(info.Material) ? "Cu" : info.Material;
+                if (string.IsNullOrEmpty(info.Material) && csa > 0)
+                    notes.Add("feeder conductor material not recorded — copper assumed");
                 lengthM = info.FeederLengthM;
                 rPerM = csa > 0 && wireTables != null ? wireTables.GetMohmPerMetre(csa, material) : 0;
                 if (csa <= 0)
                     notes.Add("feeder CSA unknown — cable impedance ignored, fault level taken as upstream " +
                               "(conservative for breaking capacity only)");
                 else if (rPerM <= 0)
-                    notes.Add($"no resistance data for {csa:0.#} mm² — cable impedance ignored");
+                    notes.Add($"no resistance data for {csa:0.#} mm² {material} — cable impedance ignored");
                 if (lengthM <= 0)
                     notes.Add("feeder length unknown — cable impedance ignored, fault level taken as upstream " +
                               "(conservative for breaking capacity only)");
@@ -170,7 +173,7 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                     PanelName     = node.Label,
                     FaultKa       = thisFaultKa,
                     ZtotalMohm    = conductor.Magnitude,
-                    AicRequiredKa = NextAicTierKa(thisFaultKa, aicTiers),
+                    AicRequiredKa = NextAicTierKa(thisFaultKa, aicTiers, aicSafetyMarginPct),
                     Voltage       = phases == 3 ? $"{vLL:0}V 3ph" : $"{vLN:0}V 1ph",
                     FeederCsaMm2  = csa,
                     FeederLengthM = lengthM,
@@ -181,7 +184,7 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             }
 
             foreach (var child in node.Children ?? Enumerable.Empty<StingTools.Core.SLD.SLDNode>())
-                PropagateNode(child, thisFaultKa, vLL, phases, voltageAssumed, wireTables, supplyOf, aicTiers, results);
+                PropagateNode(child, thisFaultKa, vLL, phases, voltageAssumed, wireTables, supplyOf, aicTiers, aicSafetyMarginPct, results);
         }
 
         /// <summary>Look up the next AIC tier ≥ <paramref name="faultKa"/> × (1 + safetyMargin).</summary>
@@ -211,7 +214,9 @@ namespace StingTools.Commands.Electrical.FaultCurrent
         public double FeederCsaMm2         { get; set; }
         public double FeederLengthM        { get; set; }
         public string LengthSource         { get; set; }
-        public string Material             { get; set; } = "Cu";
+        /// <summary>"Cu" / "Al" / "CCA" recorded on the feeder; null = not recorded (copper is
+        /// assumed and the result notes say so).</summary>
+        public string Material             { get; set; }
     }
 
     public class FaultPropagationResult

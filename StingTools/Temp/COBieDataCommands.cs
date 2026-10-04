@@ -252,7 +252,9 @@ namespace StingTools.Temp
                     if (SetIfVal(el, ParamRegistry.Ext("MATERIAL"), t.Material)) any = true;
                     if (SetIfVal(el, ParamRegistry.Ext("FINISH"), t.Finish)) any = true;
                     if (SetIfVal(el, ParamRegistry.Ext("DESC"), t.Description)) any = true;
-                    if (SetIfVal(el, ParamRegistry.Ext("REPLACE_COST"), t.ReplacementCostGBP.ToString("F0"))) any = true;
+                    // ReplacementCostGBP is not written: the only replacement-cost parameter
+                    // is PER_REPLACEMENT_COST_UGX, and a GBP figure in a UGX field is wrong
+                    // data where today there is none (DSCH-42; CobieFieldMap does the same).
                     if (SetIfVal(el, ParamRegistry.Ext("EXPECTED_LIFE"), t.ExpectedLifeYears.ToString())) any = true;
                     if (SetIfVal(el, ParamRegistry.Ext("DUR_UNIT"), t.DurationUnit)) any = true;
                     if (SetIfVal(el, ParamRegistry.Ext("WARR_DUR_PARTS"), t.WarrantyDurationYears.ToString())) any = true;
@@ -371,7 +373,7 @@ namespace StingTools.Temp
                     if (SetIfVal(el, ParamRegistry.Ext("MATERIAL"), match.Material)) any = true;
                     if (SetIfVal(el, ParamRegistry.Ext("FINISH"), match.Finish)) any = true;
                     if (SetIfVal(el, ParamRegistry.Ext("DESC"), match.Description)) any = true;
-                    if (SetIfVal(el, ParamRegistry.Ext("REPLACE_COST"), match.ReplacementCostGBP.ToString("F0"))) any = true;
+                    // ReplacementCostGBP not written - see PushTypeToElements (DSCH-42).
                     if (SetIfVal(el, ParamRegistry.Ext("EXPECTED_LIFE"), match.ExpectedLifeYears.ToString())) any = true;
                     if (SetIfVal(el, ParamRegistry.Ext("WARR_DUR_PARTS"), match.WarrantyDurationYears.ToString())) any = true;
                     if (SetIfVal(el, ParamRegistry.Ext("WARR_DUR_UNIT"), "year")) any = true;
@@ -1492,6 +1494,25 @@ namespace StingTools.Temp
 
     internal static class COBieDataHelper
     {
+        // Reads a COBie data file by column name (DSCH-2). Returns null — after one
+        // warning naming the file and the missing columns — when the header lacks a
+        // required column, so the caller keeps its old empty result. minFields is the
+        // field count a row needs to reach the last required column; shorter rows are
+        // skipped, as the positional reader did.
+        private static CsvTable OpenTable(string path, string fileName, string[] required, out int minFields)
+        {
+            minFields = 0;
+            var t = CsvTable.Parse(File.ReadLines(path), StingToolsApp.ParseCsvLine);
+            var missing = t.Missing(required);
+            if (missing.Count > 0)
+            {
+                StingLog.Warn($"{fileName}: header lacks column(s) {string.Join(", ", missing)} — file not loaded ({path})");
+                return null;
+            }
+            foreach (string c in required) minFields = Math.Max(minFields, t.Col(c) + 1);
+            return t;
+        }
+
         // ── Type Map ───────────────────────────────────────────────────
 
         internal static List<COBieTypeRecord> LoadTypeMap()
@@ -1500,44 +1521,46 @@ namespace StingTools.Temp
             if (string.IsNullOrEmpty(path)) return new List<COBieTypeRecord>();
 
             var result = new List<COBieTypeRecord>();
-            bool first = true;
-            foreach (string line in File.ReadLines(path))
+            var t = OpenTable(path, "COBIE_TYPE_MAP.csv", new[] {
+                "TypeCode", "TypeName", "Category", "AssetType", "Manufacturer", "ModelNumber",
+                "WarrantyDurationYears", "ReplacementCostGBP", "ExpectedLifeYears", "DurationUnit",
+                "MaintenanceFreqMonths", "Description", "Material", "Finish", "SFG20Code", "UniclassCode",
+                "RevitCategory", "StingDiscCode", "StingSysCode", "StingFuncCode", "StingProdCode" }, out int minFields);
+            if (t == null) return result;
+            foreach (var r in t.Rows)
             {
-                if (first) { first = false; continue; } // skip header
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                var fields = StingToolsApp.ParseCsvLine(line);
-                if (fields.Length < 21) continue;
+                if (r.Count < minFields) continue;
 
                 try
                 {
                     result.Add(new COBieTypeRecord
                     {
-                        TypeCode = fields[0].Trim(),
-                        TypeName = fields[1].Trim(),
-                        Category = fields[2].Trim(),
-                        AssetType = fields[3].Trim(),
-                        Manufacturer = fields[4].Trim(),
-                        ModelNumber = fields[5].Trim(),
-                        WarrantyDurationYears = ParseInt(fields[6]),
-                        ReplacementCostGBP = ParseDouble(fields[7]),
-                        ExpectedLifeYears = ParseInt(fields[8]),
-                        DurationUnit = fields[9].Trim(),
-                        MaintenanceFreqMonths = ParseInt(fields[10]),
-                        Description = fields[11].Trim(),
-                        Material = fields[12].Trim(),
-                        Finish = fields[13].Trim(),
-                        SFG20Code = fields[14].Trim(),
-                        UniclassCode = fields[15].Trim(),
-                        RevitCategory = fields[16].Trim(),
-                        StingDiscCode = fields[17].Trim(),
-                        StingSysCode = fields[18].Trim(),
-                        StingFuncCode = fields[19].Trim(),
-                        StingProdCode = fields[20].Trim(),
+                        TypeCode = r["TypeCode"],
+                        TypeName = r["TypeName"],
+                        Category = r["Category"],
+                        AssetType = r["AssetType"],
+                        Manufacturer = r["Manufacturer"],
+                        ModelNumber = r["ModelNumber"],
+                        WarrantyDurationYears = ParseInt(r["WarrantyDurationYears"]),
+                        ReplacementCostGBP = ParseDouble(r["ReplacementCostGBP"]),
+                        ExpectedLifeYears = ParseInt(r["ExpectedLifeYears"]),
+                        DurationUnit = r["DurationUnit"],
+                        MaintenanceFreqMonths = ParseInt(r["MaintenanceFreqMonths"]),
+                        Description = r["Description"],
+                        Material = r["Material"],
+                        Finish = r["Finish"],
+                        SFG20Code = r["SFG20Code"],
+                        UniclassCode = r["UniclassCode"],
+                        RevitCategory = r["RevitCategory"],
+                        StingDiscCode = r["StingDiscCode"],
+                        StingSysCode = r["StingSysCode"],
+                        StingFuncCode = r["StingFuncCode"],
+                        StingProdCode = r["StingProdCode"],
                     });
                 }
                 catch (Exception ex)
                 {
-                    StingLog.Warn($"COBie TypeMap parse error: {ex.Message} — line: {line.Substring(0, Math.Min(80, line.Length))}");
+                    StingLog.Warn($"COBie TypeMap parse error: {ex.Message} — line {r.Line}");
                 }
             }
 
@@ -1553,18 +1576,16 @@ namespace StingTools.Temp
             if (string.IsNullOrEmpty(path)) return new List<COBiePickListEntry>();
 
             var result = new List<COBiePickListEntry>();
-            bool first = true;
-            foreach (string line in File.ReadLines(path))
+            var t = OpenTable(path, "COBIE_PICKLISTS.csv", new[] { "ListName", "Value", "Description" }, out int minFields);
+            if (t == null) return result;
+            foreach (var r in t.Rows)
             {
-                if (first) { first = false; continue; }
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                var fields = StingToolsApp.ParseCsvLine(line);
-                if (fields.Length < 3) continue;
+                if (r.Count < minFields) continue;
                 result.Add(new COBiePickListEntry
                 {
-                    ListName = fields[0].Trim(),
-                    Value = fields[1].Trim(),
-                    Description = fields[2].Trim(),
+                    ListName = r["ListName"],
+                    Value = r["Value"],
+                    Description = r["Description"],
                 });
             }
             return result;
@@ -1578,31 +1599,32 @@ namespace StingTools.Temp
             if (string.IsNullOrEmpty(path)) return new List<COBieJobRecord>();
 
             var result = new List<COBieJobRecord>();
-            bool first = true;
-            foreach (string line in File.ReadLines(path))
+            var t = OpenTable(path, "COBIE_JOB_TEMPLATES.csv", new[] {
+                "TypeCodePattern", "JobName", "JobType", "Description", "Duration", "DurationUnit",
+                "Start", "TaskStartUnit", "Frequency", "FrequencyUnit", "Priority", "SFG20Code",
+                "ResourceNames" }, out int minFields);
+            if (t == null) return result;
+            foreach (var r in t.Rows)
             {
-                if (first) { first = false; continue; }
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                var fields = StingToolsApp.ParseCsvLine(line);
-                if (fields.Length < 13) continue;
+                if (r.Count < minFields) continue;
 
                 try
                 {
                     result.Add(new COBieJobRecord
                     {
-                        TypeCodePattern = fields[0].Trim(),
-                        JobName = fields[1].Trim(),
-                        JobType = fields[2].Trim(),
-                        Description = fields[3].Trim(),
-                        Duration = ParseDouble(fields[4]),
-                        DurationUnit = fields[5].Trim(),
-                        Start = ParseDouble(fields[6]),
-                        TaskStartUnit = fields[7].Trim(),
-                        Frequency = ParseDouble(fields[8]),
-                        FrequencyUnit = fields[9].Trim(),
-                        Priority = fields[10].Trim(),
-                        SFG20Code = fields[11].Trim(),
-                        ResourceNames = fields[12].Trim(),
+                        TypeCodePattern = r["TypeCodePattern"],
+                        JobName = r["JobName"],
+                        JobType = r["JobType"],
+                        Description = r["Description"],
+                        Duration = ParseDouble(r["Duration"]),
+                        DurationUnit = r["DurationUnit"],
+                        Start = ParseDouble(r["Start"]),
+                        TaskStartUnit = r["TaskStartUnit"],
+                        Frequency = ParseDouble(r["Frequency"]),
+                        FrequencyUnit = r["FrequencyUnit"],
+                        Priority = r["Priority"],
+                        SFG20Code = r["SFG20Code"],
+                        ResourceNames = r["ResourceNames"],
                     });
                 }
                 catch (Exception ex)
@@ -1621,22 +1643,22 @@ namespace StingTools.Temp
             if (string.IsNullOrEmpty(path)) return new List<COBieSpareRecord>();
 
             var result = new List<COBieSpareRecord>();
-            bool first = true;
-            foreach (string line in File.ReadLines(path))
+            var t = OpenTable(path, "COBIE_SPARE_PARTS.csv", new[] {
+                "TypeCodePattern", "SpareName", "Category", "PartNumber", "SetNumber",
+                "Description", "Supplier" }, out int minFields);
+            if (t == null) return result;
+            foreach (var r in t.Rows)
             {
-                if (first) { first = false; continue; }
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                var fields = StingToolsApp.ParseCsvLine(line);
-                if (fields.Length < 7) continue;
+                if (r.Count < minFields) continue;
                 result.Add(new COBieSpareRecord
                 {
-                    TypeCodePattern = fields[0].Trim(),
-                    SpareName = fields[1].Trim(),
-                    Category = fields[2].Trim(),
-                    PartNumber = fields[3].Trim(),
-                    SetNumber = fields[4].Trim(),
-                    Description = fields[5].Trim(),
-                    Supplier = fields[6].Trim(),
+                    TypeCodePattern = r["TypeCodePattern"],
+                    SpareName = r["SpareName"],
+                    Category = r["Category"],
+                    PartNumber = r["PartNumber"],
+                    SetNumber = r["SetNumber"],
+                    Description = r["Description"],
+                    Supplier = r["Supplier"],
                 });
             }
             return result;
@@ -1650,22 +1672,23 @@ namespace StingTools.Temp
             if (string.IsNullOrEmpty(path)) return new List<COBieAttributeTemplate>();
 
             var result = new List<COBieAttributeTemplate>();
-            bool first = true;
-            foreach (string line in File.ReadLines(path))
+            // StingParamKey is optional (blank when absent or short), as before.
+            var t = OpenTable(path, "COBIE_ATTRIBUTE_TEMPLATES.csv", new[] {
+                "SheetName", "RowNamePattern", "AttributeName", "Unit", "Description",
+                "AllowedValues" }, out int minFields);
+            if (t == null) return result;
+            foreach (var r in t.Rows)
             {
-                if (first) { first = false; continue; }
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                var fields = StingToolsApp.ParseCsvLine(line);
-                if (fields.Length < 6) continue;
+                if (r.Count < minFields) continue;
                 result.Add(new COBieAttributeTemplate
                 {
-                    SheetName = fields[0].Trim(),
-                    RowNamePattern = fields[1].Trim(),
-                    AttributeName = fields[2].Trim(),
-                    Unit = fields[3].Trim(),
-                    Description = fields[4].Trim(),
-                    AllowedValues = fields[5].Trim(),
-                    StingParamKey = fields.Length > 6 ? fields[6].Trim() : "",
+                    SheetName = r["SheetName"],
+                    RowNamePattern = r["RowNamePattern"],
+                    AttributeName = r["AttributeName"],
+                    Unit = r["Unit"],
+                    Description = r["Description"],
+                    AllowedValues = r["AllowedValues"],
+                    StingParamKey = r["StingParamKey"],
                 });
             }
             return result;
@@ -1679,22 +1702,22 @@ namespace StingTools.Temp
             if (string.IsNullOrEmpty(path)) return new List<COBieZoneTypeRecord>();
 
             var result = new List<COBieZoneTypeRecord>();
-            bool first = true;
-            foreach (string line in File.ReadLines(path))
+            var t = OpenTable(path, "COBIE_ZONE_TYPES.csv", new[] {
+                "ZoneTypeCode", "ZoneTypeName", "Category", "Description", "ClassificationCode",
+                "RegulatoryDriver", "Properties" }, out int minFields);
+            if (t == null) return result;
+            foreach (var r in t.Rows)
             {
-                if (first) { first = false; continue; }
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                var fields = StingToolsApp.ParseCsvLine(line);
-                if (fields.Length < 7) continue;
+                if (r.Count < minFields) continue;
                 result.Add(new COBieZoneTypeRecord
                 {
-                    ZoneTypeCode = fields[0].Trim(),
-                    ZoneTypeName = fields[1].Trim(),
-                    Category = fields[2].Trim(),
-                    Description = fields[3].Trim(),
-                    ClassificationCode = fields[4].Trim(),
-                    RegulatoryDriver = fields[5].Trim(),
-                    Properties = fields[6].Trim(),
+                    ZoneTypeCode = r["ZoneTypeCode"],
+                    ZoneTypeName = r["ZoneTypeName"],
+                    Category = r["Category"],
+                    Description = r["Description"],
+                    ClassificationCode = r["ClassificationCode"],
+                    RegulatoryDriver = r["RegulatoryDriver"],
+                    Properties = r["Properties"],
                 });
             }
             return result;
@@ -1708,29 +1731,30 @@ namespace StingTools.Temp
             if (string.IsNullOrEmpty(path)) return new List<COBieSystemRecord>();
 
             var result = new List<COBieSystemRecord>();
-            bool first = true;
-            foreach (string line in File.ReadLines(path))
+            var t = OpenTable(path, "COBIE_SYSTEM_MAP.csv", new[] {
+                "SystemCode", "SystemName", "Category", "Description", "UniclassSsCode", "CIBSECode",
+                "Discipline", "StingSysCode", "StingFuncCode", "ComponentTypes", "DesignCapacity",
+                "Redundancy" }, out int minFields);
+            if (t == null) return result;
+            foreach (var r in t.Rows)
             {
-                if (first) { first = false; continue; }
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                var fields = StingToolsApp.ParseCsvLine(line);
-                if (fields.Length < 12) continue;
+                if (r.Count < minFields) continue;
                 try
                 {
                     result.Add(new COBieSystemRecord
                     {
-                        SystemCode = fields[0].Trim(),
-                        SystemName = fields[1].Trim(),
-                        Category = fields[2].Trim(),
-                        Description = fields[3].Trim(),
-                        UniclassSsCode = fields[4].Trim(),
-                        CIBSECode = fields[5].Trim(),
-                        Discipline = fields[6].Trim(),
-                        StingSysCode = fields[7].Trim(),
-                        StingFuncCode = fields[8].Trim(),
-                        ComponentTypes = fields[9].Trim(),
-                        DesignCapacity = fields[10].Trim(),
-                        Redundancy = fields[11].Trim(),
+                        SystemCode = r["SystemCode"],
+                        SystemName = r["SystemName"],
+                        Category = r["Category"],
+                        Description = r["Description"],
+                        UniclassSsCode = r["UniclassSsCode"],
+                        CIBSECode = r["CIBSECode"],
+                        Discipline = r["Discipline"],
+                        StingSysCode = r["StingSysCode"],
+                        StingFuncCode = r["StingFuncCode"],
+                        ComponentTypes = r["ComponentTypes"],
+                        DesignCapacity = r["DesignCapacity"],
+                        Redundancy = r["Redundancy"],
                     });
                 }
                 catch (Exception ex)
@@ -1749,27 +1773,27 @@ namespace StingTools.Temp
             if (string.IsNullOrEmpty(path)) return new List<COBieDocumentTypeRecord>();
 
             var result = new List<COBieDocumentTypeRecord>();
-            bool first = true;
-            foreach (string line in File.ReadLines(path))
+            var t = OpenTable(path, "COBIE_DOCUMENT_TYPES.csv", new[] {
+                "DocTypeCode", "DocTypeName", "Category", "Description", "ApplicableTo", "Mandatory",
+                "RegulatoryRef", "RetentionPeriod", "Format", "NamingConvention" }, out int minFields);
+            if (t == null) return result;
+            foreach (var r in t.Rows)
             {
-                if (first) { first = false; continue; }
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                var fields = StingToolsApp.ParseCsvLine(line);
-                if (fields.Length < 10) continue;
+                if (r.Count < minFields) continue;
                 try
                 {
                     result.Add(new COBieDocumentTypeRecord
                     {
-                        DocTypeCode = fields[0].Trim(),
-                        DocTypeName = fields[1].Trim(),
-                        Category = fields[2].Trim(),
-                        Description = fields[3].Trim(),
-                        ApplicableTo = fields[4].Trim(),
-                        Mandatory = fields[5].Trim(),
-                        RegulatoryRef = fields[6].Trim(),
-                        RetentionPeriod = fields[7].Trim(),
-                        Format = fields[8].Trim(),
-                        NamingConvention = fields[9].Trim(),
+                        DocTypeCode = r["DocTypeCode"],
+                        DocTypeName = r["DocTypeName"],
+                        Category = r["Category"],
+                        Description = r["Description"],
+                        ApplicableTo = r["ApplicableTo"],
+                        Mandatory = r["Mandatory"],
+                        RegulatoryRef = r["RegulatoryRef"],
+                        RetentionPeriod = r["RetentionPeriod"],
+                        Format = r["Format"],
+                        NamingConvention = r["NamingConvention"],
                     });
                 }
                 catch (Exception ex)

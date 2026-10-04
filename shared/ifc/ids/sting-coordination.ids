@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS"
+     xmlns:xs="http://www.w3.org/2001/XMLSchema"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+
+  <info>
+    <title>STING — Coordination and model-quality state (Pset_StingCoordination)</title>
+    <copyright>Planscape Limited, 2026</copyright>
+    <version>1.0.0</version>
+    <description>IDS encoding of shared/ifc/psets/Pset_StingCoordination.xml: every property, when present, carries the data type the template declares; the few properties whose values are fixed by a standard or by the code that writes them are also checked for value. One specification per property, in template order.</description>
+    <author>info@stingtools.io</author>
+    <date>2026-10-02</date>
+    <purpose>STING property-set contract validation (DSCH-38 follow-up)</purpose>
+    <milestone>Stage_4_TechnicalDesign</milestone>
+  </info>
+
+  <specifications>
+
+    <specification name="Revision_type"
+                   identifier="COORD-001"
+                   description="When Pset_StingCoordination.Revision is present it is an IfcLabel."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingCoordination</simpleValue></propertySet>
+          <baseName><simpleValue>Revision</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingCoordination</simpleValue></propertySet>
+          <baseName><simpleValue>Revision</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="ClashSeverity_type"
+                   identifier="COORD-002"
+                   description="When Pset_StingCoordination.ClashSeverity is present it is an IfcInteger; Clash triage severity 1 (lowest) to 5 (highest) (CLASH_TRIAGE_SEVERITY_NR)."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingCoordination</simpleValue></propertySet>
+          <baseName><simpleValue>ClashSeverity</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCINTEGER" cardinality="required">
+          <propertySet><simpleValue>Pset_StingCoordination</simpleValue></propertySet>
+          <baseName><simpleValue>ClashSeverity</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:integer">
+              <xs:minInclusive value="1"/>
+              <xs:maxInclusive value="5"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="ClashResolutionStatus_type"
+                   identifier="COORD-003"
+                   description="When Pset_StingCoordination.ClashResolutionStatus is present it is an IfcLabel."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingCoordination</simpleValue></propertySet>
+          <baseName><simpleValue>ClashResolutionStatus</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingCoordination</simpleValue></propertySet>
+          <baseName><simpleValue>ClashResolutionStatus</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="AsBuiltDeviation_type"
+                   identifier="COORD-004"
+                   description="When Pset_StingCoordination.AsBuiltDeviation is present it is an IfcReal (in mm)."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingCoordination</simpleValue></propertySet>
+          <baseName><simpleValue>AsBuiltDeviation</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCREAL" cardinality="required">
+          <propertySet><simpleValue>Pset_StingCoordination</simpleValue></propertySet>
+          <baseName><simpleValue>AsBuiltDeviation</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="AsBuiltCaptureDate_type"
+                   identifier="COORD-005"
+                   description="When Pset_StingCoordination.AsBuiltCaptureDate is present it is an IfcDate."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingCoordination</simpleValue></propertySet>
+          <baseName><simpleValue>AsBuiltCaptureDate</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCDATE" cardinality="required">
+          <propertySet><simpleValue>Pset_StingCoordination</simpleValue></propertySet>
+          <baseName><simpleValue>AsBuiltCaptureDate</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="ACCIssueId_type"
+                   identifier="COORD-006"
+                   description="When Pset_StingCoordination.ACCIssueId is present it is an IfcIdentifier."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingCoordination</simpleValue></propertySet>
+          <baseName><simpleValue>ACCIssueId</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCIDENTIFIER" cardinality="required">
+          <propertySet><simpleValue>Pset_StingCoordination</simpleValue></propertySet>
+          <baseName><simpleValue>ACCIssueId</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="ModelHealthScore_type"
+                   identifier="COORD-007"
+                   description="When Pset_StingCoordination.ModelHealthScore is present it is an IfcInteger; Model health score 0 to 100 (HEALTH_SCORE_LAST_NR)."
+                   ifcVersion="IFC4 IFC4X3_ADD2">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <property>
+          <propertySet><simpleValue>Pset_StingCoordination</simpleValue></propertySet>
+          <baseName><simpleValue>ModelHealthScore</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IFCINTEGER" cardinality="required">
+          <propertySet><simpleValue>Pset_StingCoordination</simpleValue></propertySet>
+          <baseName><simpleValue>ModelHealthScore</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:integer">
+              <xs:minInclusive value="0"/>
+              <xs:maxInclusive value="100"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+  </specifications>
+</ids>

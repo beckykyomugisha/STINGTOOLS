@@ -26,7 +26,13 @@ namespace StingTools.Core
         /// <summary>An increment inside the collision loop exceeded the pad capacity.</summary>
         CollisionOverflow,
         /// <summary>The collision safety limit was exhausted and the tag is still a duplicate.</summary>
-        SafetyExhausted
+        SafetyExhausted,
+        /// <summary>DSCH-39: the next number would pass the SEQ_RANGE_ALLOCATION maximum
+        /// for the element's DISC. Refused, never wrapped and never written.</summary>
+        RangeExhausted,
+        /// <summary>DSCH-39: a server-reserved number lies outside the DISC's allocated
+        /// range. Refused rather than written out of range.</summary>
+        ReservationOutsideRange
     }
 
     /// <summary>Outcome of <see cref="SeqAssigner.AssignNext"/>.</summary>
@@ -188,6 +194,23 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// DSCH-39: true when <paramref name="n"/> lies inside <paramref name="range"/>
+        /// (always true with no range). A held number outside the range must not move a
+        /// counter: one above the maximum would block the whole group, and one below the
+        /// minimum is superseded by the start-at-minimum rule.
+        /// </summary>
+        public static bool InRange(int n, (int Min, int Max)? range)
+            => range == null || (n >= range.Value.Min && n <= range.Value.Max);
+
+        /// <summary>
+        /// DSCH-39: the counter value from which the next allocation is made. With a
+        /// range, a counter below <c>Min - 1</c> (a new counter is 0) is lifted so the
+        /// next number is <c>Min</c>. With no range the counter is returned unchanged.
+        /// </summary>
+        public static int FloorForRange(int counter, (int Min, int Max)? range)
+            => range != null && counter < range.Value.Min - 1 ? range.Value.Min - 1 : counter;
+
+        /// <summary>
         /// Allocate the next unique sequence number for <paramref name="seqKey"/>.
         ///
         /// Tentatively increments <paramref name="counters"/>[seqKey]; on overflow
@@ -201,6 +224,13 @@ namespace StingTools.Core
         /// On success the counter is left at the allocated value; on any failure it
         /// is restored to its pre-increment value so the slot can be reused.
         /// <paramref name="existingTags"/> is only read, never mutated.
+        ///
+        /// DSCH-39: <paramref name="range"/> is the SEQ_RANGE_ALLOCATION entry for the
+        /// element's DISC (TagConfig.SeqRangeFor). It applies to every counter of that
+        /// DISC (the key is DISC/SYS/LVL[/ZONE/LOC]): a counter below the minimum starts
+        /// at the minimum, and a number past the maximum fails with
+        /// <see cref="SeqFailureReason.RangeExhausted"/> — not wrapped, not written. With
+        /// no range (null) behaviour is unchanged: 1 up to the pad capacity.
         /// </summary>
         public static SeqResult AssignNext(
             string seqKey,
@@ -212,7 +242,8 @@ namespace StingTools.Core
             string seqSchemeContext,
             int maxCollisionDepth,
             HashSet<string> existingTags,
-            SeqBlockReservation reservation = null)
+            SeqBlockReservation reservation = null,
+            (int Min, int Max)? range = null)
         {
             if (counters == null) throw new ArgumentNullException(nameof(counters));
             tagBody ??= string.Empty;
@@ -225,6 +256,7 @@ namespace StingTools.Core
             }
 
             int preIncrementValue = currentSeqVal;
+            counters[seqKey] = FloorForRange(currentSeqVal, range);
 
             // Server-reserved block, when one was granted for this key. Taking the
             // number from the reservation is what makes Revit and StingBridge
@@ -241,6 +273,11 @@ namespace StingTools.Core
             // remarks on SeqBlockReservation.
             if (reservation != null && reservation.TryTake(seqKey, out int reservedSeq))
             {
+                if (!InRange(reservedSeq, range))
+                {
+                    counters[seqKey] = preIncrementValue;
+                    return SeqResult.Fail(SeqFailureReason.ReservationOutsideRange, 0);
+                }
                 counters[seqKey] = reservedSeq;
             }
             else
@@ -248,11 +285,13 @@ namespace StingTools.Core
                 counters[seqKey]++;
             }
 
-            int maxSeq = MaxSeqForPad(pad);
+            int padMax = MaxSeqForPad(pad);
+            int maxSeq = range != null ? Math.Min(padMax, range.Value.Max) : padMax;
+            bool rangeBinds = range != null && range.Value.Max < padMax;
             if (counters[seqKey] > maxSeq)
             {
                 counters[seqKey] = preIncrementValue;          // rollback on overflow
-                return SeqResult.Fail(SeqFailureReason.InitialOverflow, 0);
+                return SeqResult.Fail(rangeBinds ? SeqFailureReason.RangeExhausted : SeqFailureReason.InitialOverflow, 0);
             }
 
             string seq = BuildSeqString(counters[seqKey], scheme, pad, seqSchemeContext);
@@ -269,7 +308,7 @@ namespace StingTools.Core
                     if (counters[seqKey] > maxSeq)
                     {
                         counters[seqKey] = preIncrementValue;  // rollback to pre-collision value
-                        return SeqResult.Fail(SeqFailureReason.CollisionOverflow, collisionCount);
+                        return SeqResult.Fail(rangeBinds ? SeqFailureReason.RangeExhausted : SeqFailureReason.CollisionOverflow, collisionCount);
                     }
                     seq = BuildSeqString(counters[seqKey], scheme, pad, seqSchemeContext);
                     tag = tagBody + seq + tagSuffix;

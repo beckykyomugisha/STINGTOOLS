@@ -266,8 +266,8 @@ namespace StingTools.Commands.Electrical
             }
             catch (Exception ex) { StingLog.Warn("WireStampHelper: " + ex.Message); }
 
-            // Fallback for conductor material
-            if (string.IsNullOrEmpty(d.ConductorMat)) d.ConductorMat = "Cu";
+            // No fallback: a blank material stays blank. "Cu" was written here and then
+            // stamped onto the conduit as if recorded, turning an assumption into a fact.
 
             return d;
         }
@@ -408,7 +408,7 @@ namespace StingTools.Commands.Electrical
 
             TaskDialog.Show("Wire Stamp",
                   $"Circuit: {wsd.CircuitNumber}  Panel: {wsd.PanelName}\n"
-                + $"  Phase: {wsd.Phase}  Cores: {wsd.CoreCount}  Mat: {wsd.ConductorMat}\n"
+                + $"  Phase: {wsd.Phase}  Cores: {wsd.CoreCount}  Mat: {(string.IsNullOrWhiteSpace(wsd.ConductorMat) ? "not recorded" : wsd.ConductorMat)}\n"
                 + $"  Max demand: {wsd.MaxDemandA:0.0} A\n\n"
                 + $"{report.Written} parameter(s) written."
                 + report.Describe());
@@ -661,6 +661,16 @@ namespace StingTools.Commands.Electrical
                         ? Math.Sqrt(3.0) * voltV * demandA * pf / 1000.0
                         : voltV * demandA * pf / 1000.0;
 
+                    // One reading of the material text (it was Contains("Al") — so
+                    // "ALUMINIUM" and "CCA" were both sized as copper). Unrecognised: refused.
+                    if (!StingTools.Standards.NEC2023.ConductorMaterialText.TryParse(mat, out var condMat))
+                    {
+                        refused++;
+                        string why = $"conductor material \"{mat}\" not recognised (Cu, Al or CCA)";
+                        refusalReasons[why] = refusalReasons.TryGetValue(why, out int nm) ? nm + 1 : 1;
+                        continue;
+                    }
+
                     var input = new CableSizeInput
                     {
                         LoadKW         = kw,
@@ -670,7 +680,7 @@ namespace StingTools.Commands.Electrical
                         // sizing data, so the old "B2" default was refused on every
                         // conduit with no method set. Assume C and say so.
                         InstallMethod  = string.IsNullOrWhiteSpace(method) ? DefaultInstallMethod : method,
-                        Material       = mat?.Contains("Al") == true ? "Al" : "Cu",
+                        Material       = StingTools.Standards.NEC2023.ConductorMaterialText.Label(condMat),
                         Phases         = phases,
                         AmbientTempC   = 30,
                         VDLimitPct     = 3.0,
@@ -697,7 +707,8 @@ namespace StingTools.Commands.Electrical
                     // Ib, which already lives in ELC_WIRE_MAX_DEMAND_A (this command's input).
                     var r = new WireStampWriteReport();
                     WireStampHelper.WriteNumber(el, "ELC_WIRE_CSA_MM2_NUM",       result.RecommendedCsaMm2, r);
-                    WireStampHelper.WriteNumber(el, "ELC_WIRE_VD_PCT_NUM",        result.ActualVoltDropPct, r);
+                    if (result.VoltDropCalculated)
+                        WireStampHelper.WriteNumber(el, "ELC_WIRE_VD_PCT_NUM",    result.ActualVoltDropPct, r);
                     double iz = result.EffectiveCapacityIzA > 0 ? result.EffectiveCapacityIzA : result.TabulatedCapacityA;
                     if (iz > 0) WireStampHelper.WriteNumber(el, "ELC_WIRE_AMPACITY_A", iz, r);
                     if (result.ProposedBreakerA > 0)
@@ -930,7 +941,8 @@ namespace StingTools.Commands.Electrical
         public static double CpcAdiabatic(double faultCurrentA, double clearingTimeS,
             string material = "Cu")
         {
-            double k = material?.Contains("Al") == true ? 115 : 143;
+            if (StingTools.Standards.NEC2023.ConductorMaterialText.IsCopperClad(material)) return double.NaN; // no CCA k factor shipped
+            double k = StingTools.Standards.NEC2023.ConductorMaterialText.IsAluminium(material) ? 115 : 143;
             return Math.Sqrt(faultCurrentA * faultCurrentA * clearingTimeS) / k;
         }
 

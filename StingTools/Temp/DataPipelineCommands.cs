@@ -268,12 +268,17 @@ namespace StingTools.Temp
                 categoryCount >= 20 && paramRows >= 10,
                 $"{paramRows} params × {categoryCount} categories"));
 
-            // Check for empty rows
+            // Check for empty rows. DSCH-2: the parameter-name cell is never blank or
+            // "0", so testing the whole row counted nothing — test the category cells.
+            int nameCol = Array.FindIndex(headers, h => h.Trim().TrimStart('﻿')
+                .Equals("Parameter_Name", StringComparison.OrdinalIgnoreCase));
+            if (nameCol < 0)
+                StingLog.Warn($"BINDING_COVERAGE_MATRIX.csv: header lacks column Parameter_Name ({path})");
             int emptyRows = 0;
             for (int i = 1; i < lines.Length; i++)
             {
                 var cols = StingToolsApp.ParseCsvLine(lines[i]);
-                if (cols.All(c => string.IsNullOrWhiteSpace(c) || c == "0"))
+                if (cols.Where((c, ci) => ci != nameCol).All(c => string.IsNullOrWhiteSpace(c) || c == "0"))
                     emptyRows++;
             }
             results.Add(new ValidationResult("BCM empty parameters", "LOW",
@@ -319,17 +324,24 @@ namespace StingTools.Temp
                     $"{headers.Length} columns, Name={hasName}, Color={hasColor}"));
             }
 
-            // Check for duplicate material codes
+            // Check for duplicate material codes. DSCH-2: read MAT_CODE by name — the
+            // positional cols[0] is SOURCE_SHEET, which reported ~800 false duplicates.
             if (lines.Length > 1)
             {
+                var table = CsvTable.Parse(lines, StingToolsApp.ParseCsvLine);
+                if (!table.Has("MAT_CODE"))
+                {
+                    StingLog.Warn($"{fileName}: header lacks column MAT_CODE — duplicate check skipped ({path})");
+                    return;
+                }
                 var codes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 int dupes = 0;
-                for (int i = 1; i < lines.Length; i++)
+                foreach (var row in table.Rows)
                 {
-                    var cols = StingToolsApp.ParseCsvLine(lines[i]);
-                    if (cols.Length > 0 && !string.IsNullOrWhiteSpace(cols[0]))
+                    string code = row["MAT_CODE"];
+                    if (!string.IsNullOrWhiteSpace(code))
                     {
-                        if (!codes.Add(cols[0])) dupes++;
+                        if (!codes.Add(code)) dupes++;
                     }
                 }
                 results.Add(new ValidationResult($"{fileName} duplicates", "MODERATE",
@@ -392,9 +404,11 @@ namespace StingTools.Temp
             if (lines.Length > 1)
             {
                 var headers = StingToolsApp.ParseCsvLine(lines[0]);
-                int depIdx = Array.FindIndex(headers, h =>
-                    h.IndexOf("Dep", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    h.IndexOf("Level", StringComparison.OrdinalIgnoreCase) >= 0);
+                // DSCH-2: exact column name, not the first header containing "Dep"/"Level".
+                int depIdx = Array.FindIndex(headers, h => h.Trim().TrimStart('﻿')
+                    .Equals("Dependency_Level", StringComparison.OrdinalIgnoreCase));
+                if (depIdx < 0)
+                    StingLog.Warn($"FORMULAS_WITH_DEPENDENCIES.csv: header lacks column Dependency_Level ({path})");
 
                 if (depIdx >= 0)
                 {
@@ -448,6 +462,12 @@ namespace StingTools.Temp
                     colCount = arr.Count;
                 else if (columns is JObject obj)
                     colCount = obj.Count;
+                else
+                    // DSCH round 5: MATERIAL_SCHEMA.json declares required_columns /
+                    // optional_columns, never "columns" or "fields", so this always
+                    // reported "0 columns defined" as a failure.
+                    colCount = ((schema["required_columns"] as JArray)?.Count ?? 0)
+                             + ((schema["optional_columns"] as JArray)?.Count ?? 0);
 
                 results.Add(new ValidationResult("Schema columns", "MODERATE",
                     colCount >= 20,
@@ -815,6 +835,7 @@ namespace StingTools.Temp
             // Get expected columns from schema
             var expectedColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var requiredColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            bool cellsMustBeFilled = true;
 
             var columns = schema["columns"] ?? schema["fields"];
             if (columns is JArray colArray)
@@ -836,14 +857,30 @@ namespace StingTools.Temp
                         requiredColumns.Add(prop.Name);
                 }
             }
+            else
+            {
+                // DSCH round 5: the shipped schema's own shape. Without this branch
+                // both sets stayed empty and the validation checked nothing.
+                // required_columns there means "the file carries this column", not
+                // "every cell is filled" (most material rows leave most properties
+                // blank), so only column presence is checked for this shape.
+                cellsMustBeFilled = false;
+                foreach (var t in schema["required_columns"] as JArray ?? new JArray())
+                {
+                    expectedColumns.Add(t.ToString());
+                    requiredColumns.Add(t.ToString());
+                }
+                foreach (var t in schema["optional_columns"] as JArray ?? new JArray())
+                    expectedColumns.Add(t.ToString());
+            }
 
             report.AppendLine($"Schema: {expectedColumns.Count} columns, {requiredColumns.Count} required");
             report.AppendLine();
 
             // Validate each material file
             int totalIssues = 0;
-            totalIssues += ValidateFile("BLE_MATERIALS.csv", expectedColumns, requiredColumns, report);
-            totalIssues += ValidateFile("MEP_MATERIALS.csv", expectedColumns, requiredColumns, report);
+            totalIssues += ValidateFile("BLE_MATERIALS.csv", expectedColumns, requiredColumns, report, cellsMustBeFilled);
+            totalIssues += ValidateFile("MEP_MATERIALS.csv", expectedColumns, requiredColumns, report, cellsMustBeFilled);
 
             TaskDialog td = new TaskDialog("Schema Validate");
             td.MainInstruction = totalIssues == 0
@@ -856,7 +893,7 @@ namespace StingTools.Temp
         }
 
         private int ValidateFile(string fileName, HashSet<string> expectedCols,
-            HashSet<string> requiredCols, StringBuilder report)
+            HashSet<string> requiredCols, StringBuilder report, bool cellsMustBeFilled = true)
         {
             string path = StingToolsApp.FindDataFile(fileName);
             if (path == null)
@@ -915,7 +952,7 @@ namespace StingTools.Temp
 
             // Sample data quality: check first 100 rows for empty required fields
             int emptyRequired = 0;
-            for (int i = 1; i < Math.Min(lines.Length, 101); i++)
+            for (int i = 1; cellsMustBeFilled && i < Math.Min(lines.Length, 101); i++)
             {
                 var cols = StingToolsApp.ParseCsvLine(lines[i]);
                 foreach (string req in requiredCols)
@@ -1947,7 +1984,7 @@ namespace StingTools.Temp
                 if (p.StorageType == StorageType.Integer)
                     return p.AsInteger();
                 string s = p.AsString();
-                return double.TryParse(s, out double d) ? d : 0;
+                return NumberText.TryParse(s, out double d) ? d : 0;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
@@ -1994,7 +2031,10 @@ namespace StingTools.Temp
                     var cols = StingToolsApp.ParseCsvLine(trimmed);
                     if (cols.Length >= 2 && !string.IsNullOrEmpty(cols[0]))
                     {
-                        if (double.TryParse(cols[1], out double rate) && rate > 0)
+                        // Invariant: BOQ_TEMPLATE.csv is authored with '.' decimals; the
+                        // current culture reads "1.5" as 15 on a comma-decimal Windows locale.
+                        if (double.TryParse(cols[1], System.Globalization.NumberStyles.Float,
+                                System.Globalization.CultureInfo.InvariantCulture, out double rate) && rate > 0)
                             rates[cols[0].Trim()] = rate;
                     }
                 }
@@ -2379,17 +2419,11 @@ namespace StingTools.Temp
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            // Load BEP from project-specific BIM manager directory (where Create/Update BEP save it),
-            // falling back to the data directory for legacy/standalone BEP files.
-            string bepPath = BIMManager.BIMManagerEngine.GetBIMManagerFilePath(doc, "project_bep.json");
-            if (!File.Exists(bepPath))
-            {
-                // Fallback: check data directory for legacy BEP files
-                string fallback = StingToolsApp.FindDataFile("project_bep.json");
-                if (!string.IsNullOrEmpty(fallback))
-                    bepPath = fallback;
-            }
-            if (!File.Exists(bepPath))
+            // The project BEP is the one Create/Update BEP write. There is no fallback to the
+            // shipped Data/project_bep.json: that is a corporate sample, and validating a
+            // project against it reports another project's codes as this one's rules.
+            string bepPath = CoordStores.Bep(doc);
+            if (string.IsNullOrEmpty(bepPath) || !File.Exists(bepPath))
             {
                 TaskDialog.Show("BEP Validation",
                     "No project_bep.json found.\n\n" +
@@ -2417,17 +2451,20 @@ namespace StingTools.Temp
             var allowedFunc = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var allowedProd = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            if (bep["allowed_loc"] is JArray locArr)
+            // Create BEP nests the lists under "allowed_codes"; older/hand-written BEPs carry
+            // them at the top level.
+            JObject codes = (bep["allowed_codes"] as JObject) ?? bep;
+            if (codes["allowed_loc"] is JArray locArr)
                 foreach (string v in locArr) allowedLoc.Add(v);
-            if (bep["allowed_zone"] is JArray zoneArr)
+            if (codes["allowed_zone"] is JArray zoneArr)
                 foreach (string v in zoneArr) allowedZone.Add(v);
-            if (bep["allowed_disc"] is JArray discArr)
+            if (codes["allowed_disc"] is JArray discArr)
                 foreach (string v in discArr) allowedDisc.Add(v);
-            if (bep["allowed_sys"] is JArray sysArr)
+            if (codes["allowed_sys"] is JArray sysArr)
                 foreach (string v in sysArr) allowedSys.Add(v);
-            if (bep["allowed_func"] is JArray funcArr)
+            if (codes["allowed_func"] is JArray funcArr)
                 foreach (string v in funcArr) allowedFunc.Add(v);
-            if (bep["allowed_prod"] is JArray prodArr)
+            if (codes["allowed_prod"] is JArray prodArr)
                 foreach (string v in prodArr) allowedProd.Add(v);
 
             if (allowedLoc.Count == 0 && allowedZone.Count == 0 && allowedDisc.Count == 0
@@ -4189,7 +4226,7 @@ namespace StingTools.Temp
                     if (!string.IsNullOrEmpty(value))
                     {
                         // Try to write as number for numeric columns
-                        if (double.TryParse(value, out double numVal))
+                        if (NumberText.TryParse(value, out double numVal))
                         {
                             ws.Cell(row, c + 1).Value = numVal;
                             ws.Cell(row, c + 1).Style.NumberFormat.Format = "#,##0.##";

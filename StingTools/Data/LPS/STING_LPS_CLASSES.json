@@ -92,7 +92,8 @@
     "ALUMINIUM": 0.44,
     "STEEL": 0.5
   },
-  "tolerableRisk": {
+  "_tolerableRisk_reference": {
+    "_note": "Reference copy only — nothing reads it; STING_LPS_RISK_FACTORS.json lossTypes[].rt is the source of Rt.",
     "_comment": "Tolerable annual risk Rt per loss type (BS EN 62305-2 Table 7).",
     "L1_human_life": 1e-05,
     "L2_public_service": 0.001,

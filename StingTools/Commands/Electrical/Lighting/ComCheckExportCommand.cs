@@ -166,14 +166,28 @@ namespace StingTools.Commands.Electrical.Lighting
             var list = new List<(string, string)>();
             void Parse(string path)
             {
-                foreach (var raw in File.ReadAllLines(path))
+                // DSCH-2: columns by header name, not position.
+                var t = CsvTable.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                var missing = t.Missing("Pattern", "ComCheckSpaceType");
+                if (missing.Count == 2 && t.Header.Count >= 2)
                 {
-                    string line = raw.Trim();
-                    if (line.Length == 0 || line.StartsWith("#")) continue;
-                    var f = StingToolsApp.ParseCsvLine(line);
-                    if (f.Length < 2) continue;
-                    if (f[0].Trim().Equals("Pattern", StringComparison.OrdinalIgnoreCase)) continue;
-                    list.Add((f[0].Trim().ToLowerInvariant(), f[1].Trim()));
+                    // A headerless overlay (accepted before DSCH-2): first two
+                    // columns, header line included as data, as the old reader did.
+                    StingLog.Info($"ComCheck space map {Path.GetFileName(path)} has no header row — read as Pattern,ComCheckSpaceType.");
+                    list.Add((t.Header[0].ToLowerInvariant(), t.Header[1]));
+                    foreach (var r in t.Rows)
+                        if (r.Count >= 2) list.Add(((r.Fields[0] ?? "").Trim().ToLowerInvariant(), (r.Fields[1] ?? "").Trim()));
+                    return;
+                }
+                if (missing.Count > 0)
+                {
+                    StingLog.Warn($"ComCheck space map {Path.GetFileName(path)}: header has no {string.Join(", ", missing)} column(s) — file skipped.");
+                    return;
+                }
+                foreach (var r in t.Rows)
+                {
+                    if (r.Count < 2) continue;
+                    list.Add((r["Pattern"].ToLowerInvariant(), r["ComCheckSpaceType"]));
                 }
             }
             // Project overlay first (wins), then corporate.

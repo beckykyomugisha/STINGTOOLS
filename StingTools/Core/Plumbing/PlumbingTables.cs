@@ -11,6 +11,7 @@ using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.Standards.BSEN12056;
 
 namespace StingTools.Core.Plumbing
 {
@@ -57,6 +58,9 @@ namespace StingTools.Core.Plumbing
         private static readonly object _lock = new object();
         private static JObject _drainage;
         private static JObject _supply;
+        private static WaterSafetyLimitsFile _waterSafety;
+        private static List<string> _waterSafetyErrors = new List<string>();
+        private static bool _waterSafetyLoaded;
         private static List<MaterialHydraulic> _materials;
         private static List<FixtureUnitRow> _fixtureUnits;
         private static List<FittingEquivLength> _fittings;
@@ -70,6 +74,57 @@ namespace StingTools.Core.Plumbing
 
         public static JObject Drainage     { get { EnsureLoaded(); return _drainage; } }
         public static JObject Supply       { get { EnsureLoaded(); return _supply;   } }
+
+        /// <summary>
+        /// STING_TMV_STANDARDS.json — TMV outlet limits and dead-leg limits, the one
+        /// owner of those values. Null when the file is missing or invalid; the
+        /// reason is in <see cref="WaterSafetyErrors"/> and logged once, and every
+        /// caller then reports NOT CHECKED (no constant fallback).
+        /// </summary>
+        public static WaterSafetyLimitsFile WaterSafety
+        {
+            get
+            {
+                if (_waterSafetyLoaded) return _waterSafety;
+                lock (_lock)
+                {
+                    if (_waterSafetyLoaded) return _waterSafety;
+                    string text = ReadDataText("STING_TMV_STANDARDS.json");
+                    _waterSafety = WaterSafetyLimits.Parse(text, out var errors);
+                    _waterSafetyErrors = errors;
+                    if (_waterSafety == null)
+                        StingLog.Error("PlumbingTables: STING_TMV_STANDARDS.json unusable — TMV and dead-leg checks will report NOT CHECKED: "
+                                       + string.Join("; ", errors));
+                    _waterSafetyLoaded = true;
+                    return _waterSafety;
+                }
+            }
+        }
+
+        /// <summary>Why <see cref="WaterSafety"/> is null (empty when it loaded).</summary>
+        public static IReadOnlyList<string> WaterSafetyErrors { get { var _ = WaterSafety; return _waterSafetyErrors; } }
+
+        /// <summary>
+        /// The number at a JSON path (SelectToken syntax) under <paramref name="root"/>,
+        /// or null when the root, path or value is absent or not numeric.
+        /// </summary>
+        public static double? NumberAt(JToken root, string path)
+        {
+            try
+            {
+                var t = root?.SelectToken(path);
+                if (t != null && (t.Type == JTokenType.Float || t.Type == JTokenType.Integer))
+                {
+                    double v = t.Value<double>();
+                    if (!double.IsNaN(v) && !double.IsInfinity(v)) return v;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("PlumbingTables.NumberAt", $"PlumbingTables: '{path}' unreadable: {ex.Message}");
+            }
+            return null;
+        }
         public static IReadOnlyList<MaterialHydraulic> Materials       { get { EnsureLoaded(); return _materials; } }
         public static IReadOnlyList<FixtureUnitRow>    FixtureUnits    { get { EnsureLoaded(); return _fixtureUnits; } }
         public static IReadOnlyList<FittingEquivLength> Fittings       { get { EnsureLoaded(); return _fittings; } }
@@ -79,6 +134,8 @@ namespace StingTools.Core.Plumbing
             lock (_lock)
             {
                 _drainage = _supply = null;
+                _waterSafety = null;
+                _waterSafetyLoaded = false;
                 _materials = null;
                 _fixtureUnits = null;
                 _fittings = null;
@@ -155,36 +212,41 @@ namespace StingTools.Core.Plumbing
         }
 
         // Shared CSV reader used by the corporate baseline and the per-project
-        // overlay. Header row: "FittingType,DN15,DN20,..." — column 0 is the
-        // fitting type key, every subsequent column is a DN with an optional
-        // "DN" prefix. Empty / "#" lines are skipped.
+        // overlay. Header row: "FittingType,DN15,DN20,..." — the FittingType
+        // column (found by name, DSCH-2) is the key, every other column is a DN
+        // with an optional "DN" prefix. Empty / "#" lines are skipped.
         private static List<FittingEquivLength> ReadFittingsCsv(string path)
         {
             var rows = new List<FittingEquivLength>();
-            var lines = File.ReadAllLines(path);
-            if (lines.Length < 2) return rows;
-
-            var headers = lines[0].Split(',');
-            var dnSeries = new int[headers.Length - 1];
-            for (int i = 1; i < headers.Length; i++)
+            var t = CsvTable.Parse(File.ReadAllLines(path), l => l.Split(','));
+            int iType = t.Col("FittingType");
+            if (iType < 0)
             {
-                var h = headers[i].Trim();
+                if (t.HeaderLine > 0)
+                    StingLog.Warn($"PlumbingTables: {path} header has no FittingType column; file skipped");
+                return rows;
+            }
+
+            // Per column: the DN it carries, 0 for the key column and any non-DN column.
+            var dnSeries = new int[t.Header.Count];
+            for (int i = 0; i < t.Header.Count; i++)
+            {
+                if (i == iType) continue;
+                var h = t.Header[i];
                 if (h.StartsWith("DN", StringComparison.OrdinalIgnoreCase)) h = h.Substring(2);
                 int.TryParse(h, out int dn);
-                dnSeries[i - 1] = dn;
+                dnSeries[i] = dn;
             }
             if (_fittingsDnSeries == null) _fittingsDnSeries = dnSeries;
 
-            for (int r = 1; r < lines.Length; r++)
+            foreach (var r in t.Rows)
             {
-                var line = lines[r];
-                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-                var cells = line.Split(',');
+                var cells = r.Fields;
                 if (cells.Length < 2) continue;
-                var row = new FittingEquivLength { FittingType = cells[0].Trim() };
-                for (int c = 1; c < cells.Length && c - 1 < dnSeries.Length; c++)
+                var row = new FittingEquivLength { FittingType = r["FittingType"] };
+                for (int c = 0; c < cells.Length && c < dnSeries.Length; c++)
                 {
-                    int dn = dnSeries[c - 1];
+                    int dn = dnSeries[c];
                     if (dn <= 0) continue;
                     if (double.TryParse(cells[c],
                         System.Globalization.NumberStyles.Any,
@@ -274,6 +336,30 @@ namespace StingTools.Core.Plumbing
             catch (Exception ex)
             {
                 StingLog.Warn($"EnsureProjectOverlay: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static string ReadDataText(string fileName)
+        {
+            try
+            {
+                var path = StingToolsApp.FindDataFile(fileName);
+                if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                {
+                    var fallback = Path.Combine(StingToolsApp.DataPath ?? "", "Plumbing", fileName);
+                    if (File.Exists(fallback)) path = fallback;
+                }
+                if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                {
+                    StingLog.Warn($"PlumbingTables: data file '{fileName}' not found");
+                    return null;
+                }
+                return File.ReadAllText(path);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"PlumbingTables.ReadDataText({fileName})", ex);
                 return null;
             }
         }
@@ -402,6 +488,70 @@ namespace StingTools.Core.Plumbing
                 return 125;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 100; }
+        }
+
+        /// <summary>
+        /// A number from STING_PLUMBING_SUPPLY_TABLES.json at <c>section.key</c>,
+        /// or <paramref name="fallback"/> when the file, section or key is
+        /// absent or not numeric.
+        /// </summary>
+        public static double SupplyNumber(string section, string key, double fallback)
+            => ReadNumber(Supply, section, key, fallback);
+
+        private static double ReadNumber(JObject root, string section, string key, double fallback)
+        {
+            try
+            {
+                var t = root?[section]?[key];
+                if (t != null && (t.Type == JTokenType.Float || t.Type == JTokenType.Integer))
+                {
+                    double v = t.Value<double>();
+                    if (!double.IsNaN(v) && !double.IsInfinity(v)) return v;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("PlumbingTables.ReadNumber",
+                    $"PlumbingTables: {section}.{key} unreadable ({ex.Message}); using {fallback}");
+            }
+            return fallback;
+        }
+
+        /// <summary>
+        /// Minimum drain gradient (%) for a nominal DN — the first
+        /// <c>minSlopePct</c> row in STING_PLUMBING_DRAINAGE_TABLES.json whose
+        /// <c>dnMm</c> is at least <paramref name="dnMm"/>; branch or main column.
+        /// A stack has no gradient (0). A DN beyond the table, or a missing or
+        /// unreadable table, falls back to BSen12056Standards.GetMinimumSlopePct.
+        /// </summary>
+        public static double MinSlopePct(int dnMm, bool isMain, bool isStack = false)
+        {
+            double fallback = BSen12056Standards.GetMinimumSlopePct(dnMm, isStack, isMain);
+            if (isStack) return fallback;
+            try
+            {
+                var arr = Drainage?["minSlopePct"] as JArray;
+                if (arr == null || arr.Count == 0) return fallback;
+                JToken best = null;
+                int bestDn = int.MaxValue;
+                foreach (var row in arr)
+                {
+                    var dnTok = row?["dnMm"];
+                    if (dnTok == null) continue;
+                    int rowDn = dnTok.Value<int>();
+                    if (rowDn >= dnMm && rowDn < bestDn) { best = row; bestDn = rowDn; }
+                }
+                var pctTok = best?[isMain ? "mainPct" : "branchPct"];
+                if (pctTok == null) return fallback;
+                double pct = pctTok.Value<double>();
+                return pct > 0 ? pct : fallback;
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("PlumbingTables.MinSlopePct",
+                    $"PlumbingTables.MinSlopePct(DN{dnMm}): {ex.Message}; using BS EN 12056 constant {fallback}");
+                return fallback;
+            }
         }
 
         public static double StackCapacityDu(int dnMm)

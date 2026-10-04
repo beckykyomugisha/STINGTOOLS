@@ -414,42 +414,42 @@
     {
       "pset_name": "Pset_WallCommon",
       "property_name": "ThermalTransmittance",
-      "sting_param": "PER_U_VALUE_W_M",
+      "sting_param": "PER_U_VALUE_W_M2K",
       "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
       "notes": "Wall U-value W/m²K"
     },
     {
       "pset_name": "Pset_SlabCommon",
       "property_name": "ThermalTransmittance",
-      "sting_param": "PER_U_VALUE_W_M",
+      "sting_param": "PER_U_VALUE_W_M2K",
       "element_types": ["IFCSLAB"],
       "notes": "Slab U-value"
     },
     {
       "pset_name": "Pset_WindowCommon",
       "property_name": "ThermalTransmittance",
-      "sting_param": "PER_U_VALUE_W_M",
+      "sting_param": "PER_U_VALUE_W_M2K",
       "element_types": ["IFCWINDOW"],
       "notes": "Window U-value"
     },
     {
       "pset_name": "Pset_DoorCommon",
       "property_name": "ThermalTransmittance",
-      "sting_param": "PER_U_VALUE_W_M",
+      "sting_param": "PER_U_VALUE_W_M2K",
       "element_types": ["IFCDOOR"],
       "notes": "Door U-value"
     },
     {
       "pset_name": "Pset_RoofCommon",
       "property_name": "ThermalTransmittance",
-      "sting_param": "PER_U_VALUE_W_M",
+      "sting_param": "PER_U_VALUE_W_M2K",
       "element_types": ["IFCROOF"],
       "notes": "Roof U-value"
     },
     {
       "pset_name": "Pset_BeamCommon",
       "property_name": "ThermalTransmittance",
-      "sting_param": "PER_U_VALUE_W_M",
+      "sting_param": "PER_U_VALUE_W_M2K",
       "element_types": ["IFCBEAM"],
       "notes": "Beam U-value (insulated beams)"
     },
@@ -461,11 +461,11 @@
       "notes": "Room number"
     },
     {
-      "pset_name": "Pset_SpaceCommon",
-      "property_name": "Category",
+      "pset_name": "AC_Pset_ZoneCategory",
+      "property_name": "ZoneCategoryCode",
       "sting_param": "ASS_FUNC_TXT",
-      "element_types": ["IFCSPACE"],
-      "notes": "Room category / function"
+      "element_types": ["IFCZONE", "IFCSPACE"],
+      "notes": "Functional category (e.g. OFFICE, WARD, PLANT) maps to the STING FUNC token. See docs/archicad-zone-mapping-guide.md."
     },
     {
       "pset_name": "Pset_SpaceCommon",
@@ -475,11 +475,11 @@
       "notes": "Room occupancy type (fallback to ASS_FUNC_TXT)"
     },
     {
-      "pset_name": "Pset_SpaceCommon",
-      "property_name": "NetPlannedArea",
+      "pset_name": "Qto_SpaceBaseQuantities",
+      "property_name": "NetFloorArea",
       "sting_param": "QTO_NET_FLOOR_AREA_M2",
       "element_types": ["IFCSPACE"],
-      "notes": "Room net area m²"
+      "notes": "quantity_set: true"
     },
     {
       "pset_name": "Pset_SpaceCommon",
@@ -489,32 +489,93 @@
       "notes": "Room gross area m²"
     },
     {
+      "pset_name": "Qto_SpaceBaseQuantities",
+      "property_name": "FinishCeilingHeight",
+      "sting_param": "SPC_CEILING_HEIGHT_M",
+      "element_types": ["IFCSPACE"],
+      "notes": "Room clear ceiling height m. IFC4 / IFC4X3: Qto_SpaceBaseQuantities.FinishCeilingHeight, top of flooring to underside of the suspended ceiling (https://github.com/buildingSMART/IFC4.3.x-development/blob/master/reference_schemas/psd/Qto_SpaceBaseQuantities.xml). Ordered fallback, tried first. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
+      "pset_name": "BaseQuantities",
+      "property_name": "ClearHeight",
+      "sting_param": "SPC_CEILING_HEIGHT_M",
+      "element_types": ["IFCSPACE"],
+      "notes": "Room clear ceiling height m. IFC2X3: IfcSpace quantity ClearHeight, floor finish to ceiling finish (IFC2x3 TC1 IfcSpace, Quantity Use Definition, https://standards.buildingsmart.org/IFC/RELEASE/IFC2x3/TC1/HTML/ifcproductextension/lexical/ifcspace.htm). Ordered fallback, tried second.",
+      "verify": "IFC2x3 TC1 names the quantity ClearHeight but not the IfcElementQuantity that carries it; \"BaseQuantities\" is the name exporters use (this map's other IFC2X3 quantity rows assume it). An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
       "pset_name": "Pset_SpaceCommon",
       "property_name": "CeilingHeight",
       "sting_param": "SPC_CEILING_HEIGHT_M",
       "element_types": ["IFCSPACE"],
-      "notes": "Room ceiling height m"
+      "notes": "Room clear ceiling height m. Last fallback: the name this map used before DSCH-38.",
+      "verify": "Pset_SpaceCommon.CeilingHeight is not a buildingSMART IFC2X3, IFC4 or IFC4X3 property; kept in case ArchiCAD writes it under this name. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
+      "pset_name": "Pset_SpaceCoveringRequirements",
+      "property_name": "FloorCovering",
+      "sting_param": "SPC_FINISH_FLOOR_TXT",
+      "element_types": ["IFCSPACE"],
+      "notes": "Room floor finish. IFC4 / IFC4X3: Pset_SpaceCoveringRequirements.FloorCovering (https://github.com/buildingSMART/IFC4.3.x-development/blob/master/reference_schemas/psd/Pset_SpaceCoveringRequirements.xml). Ordered fallback, tried first. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
+      "pset_name": "Pset_SpaceCommon",
+      "property_name": "FloorCovering",
+      "sting_param": "SPC_FINISH_FLOOR_TXT",
+      "element_types": ["IFCSPACE"],
+      "notes": "Room floor finish. IFC2X3: Pset_SpaceCommon.FloorCovering (https://github.com/buildingSMART/IFC4.3.x-development/blob/master/reference_schemas/psd_IFC2x3/Pset_SpaceCommon.xml). Ordered fallback, tried second."
     },
     {
       "pset_name": "Pset_SpaceCommon",
       "property_name": "FinishFloor",
       "sting_param": "SPC_FINISH_FLOOR_TXT",
       "element_types": ["IFCSPACE"],
-      "notes": "Room floor finish"
+      "notes": "Room floor finish. Last fallback: the name this map used before DSCH-38.",
+      "verify": "Pset_SpaceCommon.FinishFloor is not a buildingSMART IFC2X3, IFC4 or IFC4X3 property; kept in case ArchiCAD writes it under this name. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
+      "pset_name": "Pset_SpaceCoveringRequirements",
+      "property_name": "CeilingCovering",
+      "sting_param": "SPC_FINISH_CEILING_TXT",
+      "element_types": ["IFCSPACE"],
+      "notes": "Room ceiling finish. IFC4 / IFC4X3: Pset_SpaceCoveringRequirements.CeilingCovering (https://github.com/buildingSMART/IFC4.3.x-development/blob/master/reference_schemas/psd/Pset_SpaceCoveringRequirements.xml). Ordered fallback, tried first. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
+      "pset_name": "Pset_SpaceCommon",
+      "property_name": "CeilingCovering",
+      "sting_param": "SPC_FINISH_CEILING_TXT",
+      "element_types": ["IFCSPACE"],
+      "notes": "Room ceiling finish. IFC2X3: Pset_SpaceCommon.CeilingCovering (https://github.com/buildingSMART/IFC4.3.x-development/blob/master/reference_schemas/psd_IFC2x3/Pset_SpaceCommon.xml). Ordered fallback, tried second."
     },
     {
       "pset_name": "Pset_SpaceCommon",
       "property_name": "FinishCeiling",
       "sting_param": "SPC_FINISH_CEILING_TXT",
       "element_types": ["IFCSPACE"],
-      "notes": "Room ceiling finish"
+      "notes": "Room ceiling finish. Last fallback: the name this map used before DSCH-38.",
+      "verify": "Pset_SpaceCommon.FinishCeiling is not a buildingSMART IFC2X3, IFC4 or IFC4X3 property; kept in case ArchiCAD writes it under this name. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
+      "pset_name": "Pset_SpaceCoveringRequirements",
+      "property_name": "WallCovering",
+      "sting_param": "SPC_FINISH_WALLS_TXT",
+      "element_types": ["IFCSPACE"],
+      "notes": "Room wall finish. IFC4 / IFC4X3: Pset_SpaceCoveringRequirements.WallCovering (https://github.com/buildingSMART/IFC4.3.x-development/blob/master/reference_schemas/psd/Pset_SpaceCoveringRequirements.xml). Ordered fallback, tried first. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
+      "pset_name": "Pset_SpaceCommon",
+      "property_name": "WallCovering",
+      "sting_param": "SPC_FINISH_WALLS_TXT",
+      "element_types": ["IFCSPACE"],
+      "notes": "Room wall finish. IFC2X3: Pset_SpaceCommon.WallCovering (https://github.com/buildingSMART/IFC4.3.x-development/blob/master/reference_schemas/psd_IFC2x3/Pset_SpaceCommon.xml). Ordered fallback, tried second."
     },
     {
       "pset_name": "Pset_SpaceCommon",
       "property_name": "FinishWalls",
       "sting_param": "SPC_FINISH_WALLS_TXT",
       "element_types": ["IFCSPACE"],
-      "notes": "Room wall finish"
+      "notes": "Room wall finish. Last fallback: the name this map used before DSCH-38.",
+      "verify": "Pset_SpaceCommon.FinishWalls is not a buildingSMART IFC2X3, IFC4 or IFC4X3 property; kept in case ArchiCAD writes it under this name. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
     },
     {
       "pset_name": "Pset_SpaceCommon",
@@ -636,11 +697,19 @@
       "notes": "Window security rating"
     },
     {
+      "pset_name": "Pset_DoorWindowGlazingType",
+      "property_name": "SolarHeatGainTransmittance",
+      "sting_param": "PER_SOLAR_GAIN_NR",
+      "element_types": ["IFCWINDOW"],
+      "notes": "Window solar heat gain coefficient g-value (0-1). IFC2X3, IFC4 and IFC4X3 all name it Pset_DoorWindowGlazingType.SolarHeatGainTransmittance (https://github.com/buildingSMART/IFC4.3.x-development/blob/master/reference_schemas/psd/Pset_DoorWindowGlazingType.xml, https://github.com/buildingSMART/IFC4.3.x-development/blob/master/reference_schemas/psd_IFC2x3/Pset_DoorWindowGlazingType.xml). Ordered fallback, tried first. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
       "pset_name": "Pset_WindowCommon",
       "property_name": "SolarHeatGainCoefficientGlazing",
       "sting_param": "PER_SOLAR_GAIN_NR",
       "element_types": ["IFCWINDOW"],
-      "notes": "Window solar heat gain coefficient g-value"
+      "notes": "Window solar heat gain coefficient g-value. Last fallback: the name this map used before DSCH-38.",
+      "verify": "Pset_WindowCommon.SolarHeatGainCoefficientGlazing is not a buildingSMART IFC2X3, IFC4 or IFC4X3 property; kept in case ArchiCAD writes it under this name. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
     },
     {
       "pset_name": "Pset_WindowCommon",
@@ -692,11 +761,11 @@
       "notes": "Authoritative renovation status — preferred over ArchiCAD_PropertyGroup_General fallback"
     },
     {
-      "pset_name": "AC_Pset_RenovationInfo",
-      "property_name": "RenovationStatus",
+      "pset_name": "ArchiCAD_PropertyGroup_General",
+      "property_name": "Renovation Status",
       "sting_param": "ASS_STATUS_TXT",
       "element_types": [],
-      "notes": "Gap 12: Dual-map RenovationStatus to ASS_STATUS_TXT so STING phase/status field is populated from ArchiCAD renovation state (NEW/EXISTING/DEMOLISHED/TEMPORARY)"
+      "notes": "Fallback renovation status (kept for backward compat); prefer AC_Pset_RenovationInfo"
     },
     {
       "pset_name": "AC_Pset_RenovationInfo",
@@ -727,18 +796,11 @@
       "notes": "Demolition contractor name"
     },
     {
-      "pset_name": "ArchiCAD_PropertyGroup_General",
-      "property_name": "Renovation Status",
+      "pset_name": "AC_Pset_RenovationInfo",
+      "property_name": "RenovationStatus",
       "sting_param": "ASS_STATUS_TXT",
       "element_types": [],
-      "notes": "Fallback renovation status (kept for backward compat); prefer AC_Pset_RenovationInfo"
-    },
-    {
-      "pset_name": "AC_Pset_ElementID",
-      "property_name": "elementGUID",
-      "sting_param": "AC_ELEMENT_GUID_TXT",
-      "element_types": [],
-      "notes": "Gap 12: ArchiCAD element GUID (AC_Pset_ElementID.elementGUID) — used by WriteGlobalIdRegistryAsync for cross-tool identity mapping; distinct from IFC GlobalId"
+      "notes": "Gap 12: Dual-map RenovationStatus to ASS_STATUS_TXT so STING phase/status field is populated from ArchiCAD renovation state (NEW/EXISTING/DEMOLISHED/TEMPORARY)"
     },
     {
       "pset_name": "AC_Pset_ElementID",
@@ -797,11 +859,11 @@
       "notes": "Spatial zone designator (e.g. Z01, Z02) — correct source for the STING ZONE token on IfcZone. ZoneCategoryCode carries the functional category and must NOT be mapped to ASS_ZONE_TXT. See docs/archicad-zone-mapping-guide.md."
     },
     {
-      "pset_name": "AC_Pset_ZoneCategory",
-      "property_name": "ZoneCategoryCode",
+      "pset_name": "Pset_SpaceCommon",
+      "property_name": "Category",
       "sting_param": "ASS_FUNC_TXT",
-      "element_types": ["IFCZONE", "IFCSPACE"],
-      "notes": "Functional category (e.g. OFFICE, WARD, PLANT) maps to the STING FUNC token. See docs/archicad-zone-mapping-guide.md."
+      "element_types": ["IFCSPACE"],
+      "notes": "Room category / function"
     },
     {
       "pset_name": "AC_Pset_ZoneCategory",
@@ -841,7 +903,7 @@
     {
       "pset_name": "ArchiCAD_PropertyGroup_Classification",
       "property_name": "Uniclass 2015 Pr",
-      "sting_param": "ASS_UNICLASS_2015_PR_TXT",
+      "sting_param": "UNICLASS_PR_TXT",
       "element_types": [],
       "notes": "Uniclass 2015 Product code — separate param from Ss to avoid collision"
     },
@@ -1078,17 +1140,17 @@
     },
     {
       "pset_name": "",
-      "property_name": "UnitCost",
+      "property_name": "Cost",
       "sting_param": "CST_UNIT_COST_NR",
       "element_types": [],
-      "notes": "scan_all_psets"
+      "notes": "scan_all_psets — GDL Cost parameter fallback"
     },
     {
       "pset_name": "",
-      "property_name": "ElementCost",
+      "property_name": "Material_cost",
       "sting_param": "CST_ELEMENT_COST_NR",
       "element_types": [],
-      "notes": "scan_all_psets"
+      "notes": "scan_all_psets — GDL material cost fallback"
     },
     {
       "pset_name": "",
@@ -1127,52 +1189,52 @@
     },
     {
       "pset_name": "",
-      "property_name": "Cost",
+      "property_name": "UnitCost",
       "sting_param": "CST_UNIT_COST_NR",
       "element_types": [],
-      "notes": "scan_all_psets — GDL Cost parameter fallback"
+      "notes": "scan_all_psets"
     },
     {
       "pset_name": "",
-      "property_name": "Material_cost",
+      "property_name": "ElementCost",
       "sting_param": "CST_ELEMENT_COST_NR",
       "element_types": [],
-      "notes": "scan_all_psets — GDL material cost fallback"
+      "notes": "scan_all_psets"
     },
     {
-      "pset_name": "Qto_WallBaseQuantities",
-      "property_name": "GrossSideArea",
+      "pset_name": "BaseQuantities",
+      "property_name": "GrossArea",
       "sting_param": "QTO_GROSS_AREA_M2",
-      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
-      "notes": "quantity_set: true"
+      "element_types": [],
+      "notes": "quantity_set: true — IFC 2x3 legacy"
     },
     {
-      "pset_name": "Qto_WallBaseQuantities",
-      "property_name": "NetSideArea",
+      "pset_name": "BaseQuantities",
+      "property_name": "NetArea",
       "sting_param": "QTO_NET_AREA_M2",
-      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
-      "notes": "quantity_set: true"
+      "element_types": [],
+      "notes": "quantity_set: true — IFC 2x3 legacy"
     },
     {
-      "pset_name": "Qto_WallBaseQuantities",
+      "pset_name": "BaseQuantities",
       "property_name": "GrossVolume",
       "sting_param": "QTO_GROSS_VOLUME_M3",
-      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
-      "notes": "quantity_set: true"
+      "element_types": [],
+      "notes": "quantity_set: true — IFC 2x3 legacy quantity set name"
     },
     {
-      "pset_name": "Qto_WallBaseQuantities",
+      "pset_name": "BaseQuantities",
       "property_name": "NetVolume",
       "sting_param": "QTO_NET_VOLUME_M3",
-      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
-      "notes": "quantity_set: true"
+      "element_types": [],
+      "notes": "quantity_set: true — IFC 2x3 legacy"
     },
     {
-      "pset_name": "Qto_WallBaseQuantities",
+      "pset_name": "BaseQuantities",
       "property_name": "Length",
       "sting_param": "QTO_LENGTH_M",
-      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
-      "notes": "quantity_set: true"
+      "element_types": [],
+      "notes": "quantity_set: true — IFC 2x3 legacy"
     },
     {
       "pset_name": "Qto_WallBaseQuantities",
@@ -1189,31 +1251,31 @@
       "notes": "quantity_set: true"
     },
     {
-      "pset_name": "Qto_SlabBaseQuantities",
-      "property_name": "GrossArea",
+      "pset_name": "Qto_CoveringBaseQuantities",
+      "property_name": "Area",
       "sting_param": "QTO_GROSS_AREA_M2",
-      "element_types": ["IFCSLAB"],
+      "element_types": ["IFCCOVERING"],
       "notes": "quantity_set: true"
     },
     {
-      "pset_name": "Qto_SlabBaseQuantities",
+      "pset_name": "Qto_RoofBaseQuantities",
       "property_name": "NetArea",
       "sting_param": "QTO_NET_AREA_M2",
-      "element_types": ["IFCSLAB"],
+      "element_types": ["IFCROOF"],
       "notes": "quantity_set: true"
     },
     {
-      "pset_name": "Qto_SlabBaseQuantities",
+      "pset_name": "Qto_ColumnBaseQuantities",
       "property_name": "GrossVolume",
       "sting_param": "QTO_GROSS_VOLUME_M3",
-      "element_types": ["IFCSLAB"],
+      "element_types": ["IFCCOLUMN"],
       "notes": "quantity_set: true"
     },
     {
-      "pset_name": "Qto_SlabBaseQuantities",
+      "pset_name": "Qto_StairBaseQuantities",
       "property_name": "NetVolume",
       "sting_param": "QTO_NET_VOLUME_M3",
-      "element_types": ["IFCSLAB"],
+      "element_types": ["IFCSTAIR"],
       "notes": "quantity_set: true"
     },
     {
@@ -1224,10 +1286,10 @@
       "notes": "quantity_set: true"
     },
     {
-      "pset_name": "Qto_DoorBaseQuantities",
-      "property_name": "Area",
+      "pset_name": "Qto_BeamBaseQuantities",
+      "property_name": "OuterSurfaceArea",
       "sting_param": "QTO_GROSS_AREA_M2",
-      "element_types": ["IFCDOOR"],
+      "element_types": ["IFCBEAM"],
       "notes": "quantity_set: true"
     },
     {
@@ -1252,10 +1314,10 @@
       "notes": "quantity_set: true"
     },
     {
-      "pset_name": "Qto_WindowBaseQuantities",
-      "property_name": "Area",
+      "pset_name": "Qto_RoofBaseQuantities",
+      "property_name": "GrossArea",
       "sting_param": "QTO_GROSS_AREA_M2",
-      "element_types": ["IFCWINDOW"],
+      "element_types": ["IFCROOF"],
       "notes": "quantity_set: true"
     },
     {
@@ -1287,11 +1349,11 @@
       "notes": "quantity_set: true"
     },
     {
-      "pset_name": "Qto_SpaceBaseQuantities",
-      "property_name": "NetFloorArea",
+      "pset_name": "Pset_SpaceCommon",
+      "property_name": "NetPlannedArea",
       "sting_param": "QTO_NET_FLOOR_AREA_M2",
       "element_types": ["IFCSPACE"],
-      "notes": "quantity_set: true"
+      "notes": "Room net area m²"
     },
     {
       "pset_name": "Qto_SpaceBaseQuantities",
@@ -1308,10 +1370,10 @@
       "notes": "quantity_set: true"
     },
     {
-      "pset_name": "Qto_SpaceBaseQuantities",
+      "pset_name": "Qto_CoveringBaseQuantities",
       "property_name": "NetVolume",
       "sting_param": "QTO_NET_VOLUME_M3",
-      "element_types": ["IFCSPACE"],
+      "element_types": ["IFCCOVERING"],
       "notes": "quantity_set: true"
     },
     {
@@ -1322,158 +1384,190 @@
       "notes": "quantity_set: true"
     },
     {
-      "pset_name": "Qto_RoofBaseQuantities",
-      "property_name": "GrossArea",
-      "sting_param": "QTO_GROSS_AREA_M2",
-      "element_types": ["IFCROOF"],
-      "notes": "quantity_set: true"
-    },
-    {
-      "pset_name": "Qto_RoofBaseQuantities",
-      "property_name": "NetArea",
-      "sting_param": "QTO_NET_AREA_M2",
-      "element_types": ["IFCROOF"],
-      "notes": "quantity_set: true"
-    },
-    {
-      "pset_name": "Qto_RoofBaseQuantities",
-      "property_name": "GrossVolume",
-      "sting_param": "QTO_GROSS_VOLUME_M3",
-      "element_types": ["IFCROOF"],
-      "notes": "quantity_set: true"
-    },
-    {
-      "pset_name": "Qto_BeamBaseQuantities",
-      "property_name": "Length",
-      "sting_param": "QTO_LENGTH_M",
-      "element_types": ["IFCBEAM"],
-      "notes": "quantity_set: true"
-    },
-    {
-      "pset_name": "Qto_BeamBaseQuantities",
-      "property_name": "GrossVolume",
-      "sting_param": "QTO_GROSS_VOLUME_M3",
-      "element_types": ["IFCBEAM"],
-      "notes": "quantity_set: true"
-    },
-    {
-      "pset_name": "Qto_BeamBaseQuantities",
-      "property_name": "NetVolume",
-      "sting_param": "QTO_NET_VOLUME_M3",
-      "element_types": ["IFCBEAM"],
-      "notes": "quantity_set: true"
-    },
-    {
-      "pset_name": "Qto_BeamBaseQuantities",
-      "property_name": "Weight",
-      "sting_param": "QTO_WEIGHT_KG",
-      "element_types": ["IFCBEAM"],
-      "notes": "quantity_set: true"
-    },
-    {
-      "pset_name": "Qto_BeamBaseQuantities",
-      "property_name": "OuterSurfaceArea",
-      "sting_param": "QTO_GROSS_AREA_M2",
-      "element_types": ["IFCBEAM"],
-      "notes": "quantity_set: true"
-    },
-    {
-      "pset_name": "Qto_ColumnBaseQuantities",
-      "property_name": "Length",
-      "sting_param": "QTO_LENGTH_M",
-      "element_types": ["IFCCOLUMN"],
-      "notes": "quantity_set: true"
-    },
-    {
-      "pset_name": "Qto_ColumnBaseQuantities",
-      "property_name": "GrossVolume",
-      "sting_param": "QTO_GROSS_VOLUME_M3",
-      "element_types": ["IFCCOLUMN"],
-      "notes": "quantity_set: true"
-    },
-    {
-      "pset_name": "Qto_ColumnBaseQuantities",
-      "property_name": "NetVolume",
-      "sting_param": "QTO_NET_VOLUME_M3",
-      "element_types": ["IFCCOLUMN"],
-      "notes": "quantity_set: true"
-    },
-    {
-      "pset_name": "Qto_ColumnBaseQuantities",
-      "property_name": "Weight",
-      "sting_param": "QTO_WEIGHT_KG",
-      "element_types": ["IFCCOLUMN"],
-      "notes": "quantity_set: true"
-    },
-    {
-      "pset_name": "Qto_CoveringBaseQuantities",
+      "pset_name": "Qto_WindowBaseQuantities",
       "property_name": "Area",
       "sting_param": "QTO_GROSS_AREA_M2",
-      "element_types": ["IFCCOVERING"],
+      "element_types": ["IFCWINDOW"],
       "notes": "quantity_set: true"
     },
     {
-      "pset_name": "Qto_CoveringBaseQuantities",
-      "property_name": "NetVolume",
-      "sting_param": "QTO_NET_VOLUME_M3",
-      "element_types": ["IFCCOVERING"],
-      "notes": "quantity_set: true"
-    },
-    {
-      "pset_name": "Qto_StairBaseQuantities",
-      "property_name": "Length",
-      "sting_param": "QTO_LENGTH_M",
-      "element_types": ["IFCSTAIR"],
-      "notes": "quantity_set: true"
-    },
-    {
-      "pset_name": "Qto_StairBaseQuantities",
-      "property_name": "NetVolume",
-      "sting_param": "QTO_NET_VOLUME_M3",
-      "element_types": ["IFCSTAIR"],
-      "notes": "quantity_set: true"
-    },
-    {
-      "pset_name": "BaseQuantities",
-      "property_name": "GrossVolume",
-      "sting_param": "QTO_GROSS_VOLUME_M3",
-      "element_types": [],
-      "notes": "quantity_set: true — IFC 2x3 legacy quantity set name"
-    },
-    {
-      "pset_name": "BaseQuantities",
-      "property_name": "NetVolume",
-      "sting_param": "QTO_NET_VOLUME_M3",
-      "element_types": [],
-      "notes": "quantity_set: true — IFC 2x3 legacy"
-    },
-    {
-      "pset_name": "BaseQuantities",
-      "property_name": "Length",
-      "sting_param": "QTO_LENGTH_M",
-      "element_types": [],
-      "notes": "quantity_set: true — IFC 2x3 legacy"
-    },
-    {
-      "pset_name": "BaseQuantities",
-      "property_name": "GrossArea",
-      "sting_param": "QTO_GROSS_AREA_M2",
-      "element_types": [],
-      "notes": "quantity_set: true — IFC 2x3 legacy"
-    },
-    {
-      "pset_name": "BaseQuantities",
+      "pset_name": "Qto_SlabBaseQuantities",
       "property_name": "NetArea",
       "sting_param": "QTO_NET_AREA_M2",
-      "element_types": [],
-      "notes": "quantity_set: true — IFC 2x3 legacy"
+      "element_types": ["IFCSLAB"],
+      "notes": "quantity_set: true"
     },
     {
-      "pset_name": "AC_Pset_BuildingCategoryCode",
-      "property_name": "FireCategory",
+      "pset_name": "Qto_BeamBaseQuantities",
+      "property_name": "GrossVolume",
+      "sting_param": "QTO_GROSS_VOLUME_M3",
+      "element_types": ["IFCBEAM"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_StairBaseQuantities",
+      "property_name": "Length",
+      "sting_param": "QTO_LENGTH_M",
+      "element_types": ["IFCSTAIR"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_RoofBaseQuantities",
+      "property_name": "GrossVolume",
+      "sting_param": "QTO_GROSS_VOLUME_M3",
+      "element_types": ["IFCROOF"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_ColumnBaseQuantities",
+      "property_name": "NetVolume",
+      "sting_param": "QTO_NET_VOLUME_M3",
+      "element_types": ["IFCCOLUMN"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_BeamBaseQuantities",
+      "property_name": "NetWeight",
+      "sting_param": "QTO_WEIGHT_KG",
+      "element_types": ["IFCBEAM"],
+      "notes": "quantity_set: true. Element weight kg. IFC4 / IFC4X3: Qto_BeamBaseQuantities.NetWeight, weight taking cut-outs, openings and recesses into account (https://github.com/buildingSMART/IFC4.3.x-development/blob/master/reference_schemas/psd/Qto_BeamBaseQuantities.xml). Ordered fallback, tried first. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
+      "pset_name": "BaseQuantities",
+      "property_name": "NetWeight",
+      "sting_param": "QTO_WEIGHT_KG",
+      "element_types": ["IFCBEAM"],
+      "notes": "quantity_set: true. Element weight kg. IFC2X3: the beam quantity NetWeight (IFC2x3 TC1 IfcBeam, Quantity Use Definition, https://standards.buildingsmart.org/IFC/RELEASE/IFC2x3/TC1/HTML/ifcsharedbldgelements/lexical/ifcbeam.htm). Ordered fallback, tried second.",
+      "verify": "IFC2x3 TC1 names the quantity NetWeight but not the IfcElementQuantity that carries it; \"BaseQuantities\" is the name exporters use (this map's other IFC2X3 quantity rows assume it). An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
+      "pset_name": "Qto_BeamBaseQuantities",
+      "property_name": "Weight",
+      "sting_param": "QTO_WEIGHT_KG",
+      "element_types": ["IFCBEAM"],
+      "notes": "quantity_set: true. Element weight kg. Last fallback: the name this map used before DSCH-38.",
+      "verify": "Qto_BeamBaseQuantities.Weight is not a buildingSMART IFC2X3, IFC4 or IFC4X3 quantity; kept in case ArchiCAD writes it under this name. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
+      "pset_name": "Qto_DoorBaseQuantities",
+      "property_name": "Area",
+      "sting_param": "QTO_GROSS_AREA_M2",
+      "element_types": ["IFCDOOR"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_ColumnBaseQuantities",
+      "property_name": "Length",
+      "sting_param": "QTO_LENGTH_M",
+      "element_types": ["IFCCOLUMN"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_SlabBaseQuantities",
+      "property_name": "GrossVolume",
+      "sting_param": "QTO_GROSS_VOLUME_M3",
+      "element_types": ["IFCSLAB"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_BeamBaseQuantities",
+      "property_name": "NetVolume",
+      "sting_param": "QTO_NET_VOLUME_M3",
+      "element_types": ["IFCBEAM"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_ColumnBaseQuantities",
+      "property_name": "NetWeight",
+      "sting_param": "QTO_WEIGHT_KG",
+      "element_types": ["IFCCOLUMN"],
+      "notes": "quantity_set: true. Element weight kg. IFC4 / IFC4X3: Qto_ColumnBaseQuantities.NetWeight, weight taking cut-outs, openings and recesses into account (https://github.com/buildingSMART/IFC4.3.x-development/blob/master/reference_schemas/psd/Qto_ColumnBaseQuantities.xml). Ordered fallback, tried first. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
+      "pset_name": "BaseQuantities",
+      "property_name": "NetWeight",
+      "sting_param": "QTO_WEIGHT_KG",
+      "element_types": ["IFCCOLUMN"],
+      "notes": "quantity_set: true. Element weight kg. IFC2X3: the column quantity NetWeight (IFC2x3 TC1 IfcColumn, Quantity Use Definition, https://standards.buildingsmart.org/IFC/RELEASE/IFC2x3/TC1/HTML/ifcsharedbldgelements/lexical/ifccolumn.htm). Ordered fallback, tried second.",
+      "verify": "IFC2x3 TC1 names the quantity NetWeight but not the IfcElementQuantity that carries it; \"BaseQuantities\" is the name exporters use (this map's other IFC2X3 quantity rows assume it). An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
+      "pset_name": "Qto_ColumnBaseQuantities",
+      "property_name": "Weight",
+      "sting_param": "QTO_WEIGHT_KG",
+      "element_types": ["IFCCOLUMN"],
+      "notes": "quantity_set: true. Element weight kg. Last fallback: the name this map used before DSCH-38.",
+      "verify": "Qto_ColumnBaseQuantities.Weight is not a buildingSMART IFC2X3, IFC4 or IFC4X3 quantity; kept in case ArchiCAD writes it under this name. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
+      "pset_name": "Qto_SlabBaseQuantities",
+      "property_name": "GrossArea",
+      "sting_param": "QTO_GROSS_AREA_M2",
+      "element_types": ["IFCSLAB"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_SpaceBaseQuantities",
+      "property_name": "NetVolume",
+      "sting_param": "QTO_NET_VOLUME_M3",
+      "element_types": ["IFCSPACE"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_BeamBaseQuantities",
+      "property_name": "Length",
+      "sting_param": "QTO_LENGTH_M",
+      "element_types": ["IFCBEAM"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_SlabBaseQuantities",
+      "property_name": "NetVolume",
+      "sting_param": "QTO_NET_VOLUME_M3",
+      "element_types": ["IFCSLAB"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_WallBaseQuantities",
+      "property_name": "GrossVolume",
+      "sting_param": "QTO_GROSS_VOLUME_M3",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_WallBaseQuantities",
+      "property_name": "NetVolume",
+      "sting_param": "QTO_NET_VOLUME_M3",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_WallBaseQuantities",
+      "property_name": "Length",
+      "sting_param": "QTO_LENGTH_M",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_WallBaseQuantities",
+      "property_name": "GrossSideArea",
+      "sting_param": "QTO_GROSS_AREA_M2",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Qto_WallBaseQuantities",
+      "property_name": "NetSideArea",
+      "sting_param": "QTO_NET_AREA_M2",
+      "element_types": ["IFCWALL", "IFCWALLSTANDARDCASE"],
+      "notes": "quantity_set: true"
+    },
+    {
+      "pset_name": "Pset_BuildingCommon",
+      "property_name": "FireProtectionClass",
       "sting_param": "BLD_FIRE_CLASS_TXT",
       "element_types": [],
-      "notes": "Building fire occupancy classification"
+      "notes": "Building fire protection class"
     },
     {
       "pset_name": "AC_Pset_BuildingCategoryCode",
@@ -1511,11 +1605,11 @@
       "notes": "Building has sprinkler protection"
     },
     {
-      "pset_name": "Pset_BuildingCommon",
-      "property_name": "FireProtectionClass",
+      "pset_name": "AC_Pset_BuildingCategoryCode",
+      "property_name": "FireCategory",
       "sting_param": "BLD_FIRE_CLASS_TXT",
       "element_types": [],
-      "notes": "Building fire protection class"
+      "notes": "Building fire occupancy classification"
     },
     {
       "pset_name": "Pset_BuildingStoreyCommon",
@@ -1575,29 +1669,37 @@
     },
     {
       "pset_name": "Pset_EnvironmentalImpactValues",
+      "property_name": "ClimateChange",
+      "sting_param": "CBN_GWP_KG_CO2E",
+      "element_types": [],
+      "notes": "Global warming potential kg CO₂e. IFC4 / IFC4X3: Pset_EnvironmentalImpactValues.ClimateChange, greenhouse gases emitted in equivalent CO2 as a mass (https://github.com/buildingSMART/IFC4.3.x-development/blob/master/reference_schemas/psd/Pset_EnvironmentalImpactValues.xml). IFC2X3 has no Pset_EnvironmentalImpactValues. Ordered fallback, tried first. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
+      "pset_name": "Pset_EnvironmentalImpactValues",
       "property_name": "GlobalWarmingPotential",
       "sting_param": "CBN_GWP_KG_CO2E",
       "element_types": [],
-      "notes": "Global warming potential kg CO₂e"
+      "notes": "Global warming potential kg CO₂e. Last fallback: the name this map used before DSCH-38.",
+      "verify": "Pset_EnvironmentalImpactValues.GlobalWarmingPotential is not a buildingSMART IFC4 or IFC4X3 property; kept in case ArchiCAD writes it under this name. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
     },
     {
       "pset_name": "Pset_ManufacturerTypeInformation",
       "property_name": "Manufacturer",
-      "sting_param": "MNFR_NAME_TXT",
+      "sting_param": "ASS_MANUFACTURER_TXT",
       "element_types": [],
       "notes": "Manufacturer name"
     },
     {
       "pset_name": "Pset_ManufacturerTypeInformation",
       "property_name": "ModelReference",
-      "sting_param": "MNFR_MODEL_TXT",
+      "sting_param": "ASS_MODEL_REF_TXT",
       "element_types": [],
       "notes": "Manufacturer model reference"
     },
     {
       "pset_name": "Pset_ManufacturerTypeInformation",
       "property_name": "ArticleNumber",
-      "sting_param": "MNFR_ARTICLE_NR_TXT",
+      "sting_param": "ASS_PART_NUMBER_TXT",
       "element_types": [],
       "notes": "Manufacturer article number"
     }

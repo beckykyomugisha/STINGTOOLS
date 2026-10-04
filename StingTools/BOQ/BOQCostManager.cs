@@ -58,7 +58,7 @@ namespace StingTools.BOQ
         /// <summary>
         /// Builds a complete BOQDocument for the model. Reads cost rates from
         /// cost_rates_5d.csv (configurable via TagConfig.CostRatesFileName),
-        /// falls back to COBie type map and finally Scheduling4DEngine
+        /// falls back to the Scheduling4DEngine
         /// defaults. Merges manual/PS rows from project_boq_manual.json so
         /// a QS can author extra line items without modelling them.
         /// </summary>
@@ -175,7 +175,6 @@ namespace StingTools.BOQ
         // Host raw-item builder — full walk, or incremental (dirty + added only).
         private static List<BOQLineItem> BuildHostRawItems(Document doc, HashSet<string> knownCats,
             Dictionary<string, (double rate, string unit)> csvRates,
-            Dictionary<string, string> cobieCostCodes,
             IMeasurementStandard measStd, bool allowIncremental,
             BoqExclusionIndex exclusions = null, List<BOQExcludedRow> excludedOut = null)
         {
@@ -196,7 +195,7 @@ namespace StingTools.BOQ
             {
                 var items = new List<BOQLineItem>(currentElements.Count);
                 foreach (var el in currentElements)
-                    items.AddRange(BuildLinesForElement(doc, el, csvRates, cobieCostCodes, measStd));
+                    items.AddRange(BuildLinesForElement(doc, el, csvRates, measStd));
                 StoreHostCache(key, items, st);
                 return items;
             }
@@ -231,7 +230,7 @@ namespace StingTools.BOQ
             foreach (var id in reTakeoff)
             {
                 if (!currentById.TryGetValue(id, out var el) || el == null) continue;
-                var lines = BuildLinesForElement(doc, el, csvRates, cobieCostCodes, measStd);
+                var lines = BuildLinesForElement(doc, el, csvRates, measStd);
                 if (lines.Count > 0) { result.AddRange(lines); rebuilt++; }
             }
             StingLog.Info($"BOQ incremental host take-off: re-took-off {rebuilt} of {currentIds.Count} element(s) " +
@@ -249,12 +248,12 @@ namespace StingTools.BOQ
         /// </summary>
         private static List<BOQLineItem> BuildLinesForElement(Document doc, Element el,
             Dictionary<string, (double rate, string unit)> csvRates,
-            Dictionary<string, string> cobieCostCodes, IMeasurementStandard measStd)
+            IMeasurementStandard measStd)
         {
             if (Takeoff.CompoundTakeoffBuilder.Enabled())
             {
                 var compound = Takeoff.CompoundTakeoffBuilder.TryBuild(
-                    doc, el, csvRates, cobieCostCodes, measStd, out bool hostMeasured);
+                    doc, el, csvRates, measStd, out bool hostMeasured);
                 if (compound != null && compound.Count > 0)
                 {
                     if (hostMeasured) return compound;
@@ -272,14 +271,14 @@ namespace StingTools.BOQ
                     // quantity and its writeback; the accessory rows must not also
                     // claim the element, or the CST_* stamp becomes last-one-wins
                     // between two rows describing different things.
-                    var host = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
+                    var host = BuildLineItemFromElement(doc, el, csvRates, measStd);
                     if (host == null) return compound;
                     foreach (var c in compound) { c.RevitElementId = -1; c.UniqueId = ""; }
                     compound.Insert(0, host);
                     return compound;
                 }
             }
-            var single = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
+            var single = BuildLineItemFromElement(doc, el, csvRates, measStd);
             return single != null ? new List<BOQLineItem> { single } : new List<BOQLineItem>();
         }
 
@@ -566,10 +565,11 @@ namespace StingTools.BOQ
 
             // ── STEP 2: Load rate tables (3-source merge) ────────────────
             //   (a) project cost_rates_5d.csv  — highest priority
-            //   (b) COBie type map             — category → cost-rate code
-            //   (c) Scheduling4DEngine defaults — lowest priority
-            Dictionary<string, (double rate, string unit)> csvRates = LoadCsvRates();
-            Dictionary<string, string> cobieCostCodes = LoadCobieCostCodes();
+            //   (b) Scheduling4DEngine defaults — lowest priority
+            //   (DSCH-28: the COBie type-map provider was removed — it keyed a
+            //   COBie category list by Revit category name and never priced
+            //   anything the CSV had not already priced.)
+            Dictionary<string, (double rate, string unit)> csvRates = LoadCsvRates(doc);
 
             // ── STEP 3: Embodied carbon factors ──────────────────────────
             // Resolved per material by CarbonFactorResolver (each cached where it loads).
@@ -591,7 +591,7 @@ namespace StingTools.BOQ
             var exclusions = BuildExclusionIndex(doc);
             var excludedRows = exclusions != null ? new List<BOQExcludedRow>() : null;
 
-            var items = BuildHostRawItems(doc, knownCats, csvRates, cobieCostCodes, measStd, allowIncremental,
+            var items = BuildHostRawItems(doc, knownCats, csvRates, measStd, allowIncremental,
                                           exclusions, excludedRows);
 
             // ── STEP 6: Merge manual + PS rows ───────────────────────────
@@ -621,7 +621,7 @@ namespace StingTools.BOQ
             {
                 try
                 {
-                    var linkItems = CollectLinkedItems(doc, knownCats, csvRates, cobieCostCodes,
+                    var linkItems = CollectLinkedItems(doc, knownCats, csvRates,
                         grouping, includedLinks, measStd, boq.LinkUnderCounts, exclusions, excludedRows);
                     if (linkItems.Count > 0) items.AddRange(linkItems);
                 }
@@ -723,7 +723,6 @@ namespace StingTools.BOQ
 
         private static BOQLineItem BuildLineItemFromElement(Document doc, Element el,
             Dictionary<string, (double rate, string unit)> csvRates,
-            Dictionary<string, string> cobieCostCodes,
             IMeasurementStandard std = null)
         {
             string catName = ParameterHelpers.GetCategoryName(el);
@@ -750,14 +749,16 @@ namespace StingTools.BOQ
             }
             catch (Exception ex) { StingLog.WarnRateLimited("FfeTreatment", $"FF&E treatment: {ex.Message}"); }
 
-            // (a) Rate lookup — CSV by category → CSV by PROD code → COBie type map → default
+            // (a) Rate lookup — overrides → rate card → material library → CSV (PROD / system / material / category) → default
             string rateSource;
             int rateConfidence;
             (double rate, string unit, string description) picked = ResolveRate(
-                doc, el, catName, csvRates, cobieCostCodes, out rateSource, out rateConfidence,
+                doc, el, catName, csvRates, out rateSource, out rateConfidence,
                 out double? splitLabour, out double? splitPlant, out double? splitMaterial,
-                out string rateSourceCurrency);
-            if (picked.rate <= 0) rateConfidence = Math.Max(20, rateConfidence); // confidence floor for zero-rate rows
+                out string rateSourceCurrency, out RateOutcome rateOutcome, out string rateIncludedIn);
+            // Confidence floor for an UNPRICED row only — a declared Nil / Included is a
+            // decision with its provider's own confidence (DSCH-26).
+            if (!RateChainRule.IsDecided(rateOutcome, picked.rate)) rateConfidence = Math.Max(20, rateConfidence);
 
             string unit = string.IsNullOrEmpty(picked.unit) ? "each" : picked.unit;
 
@@ -912,6 +913,8 @@ namespace StingTools.BOQ
                 LastCosted = DateTime.UtcNow,
                 RateSource = rateSource,
                 RateConfidence = rateConfidence,
+                RateOutcome = rateOutcome,          // DSCH-26
+                IncludedIn = rateIncludedIn,
                 CsiSection = csiSection,
                 CsiTitle = csiTitle,
                 RateSourceCurrency = rateSourceCurrency,
@@ -978,7 +981,8 @@ namespace StingTools.BOQ
             try
             {
                 var ovr = StingCostRateOverrideSchema.Read(el);
-                if (ovr != null && (ovr.OverheadPercent > 0 || ovr.ProfitPercent > 0))
+                if (ovr != null && ovr.Outcome == StingTools.BOQ.Rates.RateOutcome.Priced
+                    && (ovr.OverheadPercent > 0 || ovr.ProfitPercent > 0))
                 {
                     line.RateIncludesOhp = true;
                     string ohpNote = $"Rate loaded (OH {ovr.OverheadPercent:0.##}% + profit " +
@@ -999,7 +1003,8 @@ namespace StingTools.BOQ
             }
             else if (ffeTreatment == StingTools.BOQ.FfeTreatment.PcSum)
             {
-                line.Source = BOQRowSource.ProvisionalSum;
+                // DSCH-44 — a prime cost sum, not a provisional sum.
+                line.Source = StingTools.BOQ.FfeTreatment.RowSource(ffeTreatment);
                 string pcNote = "PC sum — Fohlio FF&E register" +
                     (string.IsNullOrEmpty(line.CsiSection) ? "" : $" (spec {line.CsiSection})");
                 line.Note = string.IsNullOrEmpty(line.Note) ? pcNote : $"{line.Note}; {pcNote}";
@@ -1023,8 +1028,23 @@ namespace StingTools.BOQ
             }
 
             // Mark provisional sums on the element if configured via existing parameter.
-            bool isPS = ParameterHelpers.GetInt(el, "CST_PROVISIONAL_SUM", 0) == 1;
+            bool isPS = ParameterHelpers.GetInt(el, ParamRegistry.CST_PROVISIONAL_SUM, 0) == 1;
             if (isPS) line.Source = BOQRowSource.ProvisionalSum;
+
+            // DSCH-35 — defined / undefined (NRM2 2.9.1) from CST_PS_TYPE_TXT. Read on every
+            // PS line (a Fohlio PC sum is not one — DSCH-44). Blank stays Undeclared (flagged
+            // by the health check, never defaulted); unreadable text stays Undeclared and says so.
+            if (line.Source == BOQRowSource.ProvisionalSum)
+            {
+                string psRaw = ParameterHelpers.GetString(el, ParamRegistry.CST_PS_TYPE_TXT);
+                if (ProvisionalSumTypes.TryParse(psRaw, out var psType))
+                    line.PsType = psType;
+                else if (!string.IsNullOrWhiteSpace(psRaw))
+                {
+                    string psNote = ProvisionalSumTypes.UnreadableNote(psRaw);
+                    line.Note = string.IsNullOrEmpty(line.Note) ? psNote : $"{line.Note}; {psNote}";
+                }
+            }
 
             return line;
         }
@@ -1046,7 +1066,6 @@ namespace StingTools.BOQ
         internal sealed class ElementCostContext
         {
             public Dictionary<string, (double rate, string unit)> CsvRates;
-            public Dictionary<string, string> CobieCostCodes;
             public IMeasurementStandard Std;
 
             public static ElementCostContext Build(Document doc)
@@ -1059,8 +1078,7 @@ namespace StingTools.BOQ
                 try { BoqEpdStore.Invalidate(doc); } catch (Exception ex) { StingLog.Warn($"ElementCostContext EPD: {ex.Message}"); }
                 return new ElementCostContext
                 {
-                    CsvRates = LoadCsvRates(),
-                    CobieCostCodes = LoadCobieCostCodes(),
+                    CsvRates = LoadCsvRates(doc),
                     Std = MeasurementStandardRegistry.Get(stdId)
                 };
             }
@@ -1077,7 +1095,7 @@ namespace StingTools.BOQ
         {
             if (doc == null || el == null) return null;
             var c = ctx ?? ElementCostContext.Build(doc);
-            return BuildLineItemFromElement(doc, el, c.CsvRates, c.CobieCostCodes, c.Std);
+            return BuildLineItemFromElement(doc, el, c.CsvRates, c.Std);
         }
 
         /// <summary>
@@ -1145,13 +1163,15 @@ namespace StingTools.BOQ
         private static (double rate, string unit, string description) ResolveRate(
             Document doc, Element el, string catName,
             Dictionary<string, (double rate, string unit)> csvRates,
-            Dictionary<string, string> cobieCostCodes,
             out string rateSource, out int rateConfidence,
             out double? splitLabour, out double? splitPlant, out double? splitMaterial,
-            out string rateSourceCurrency)
+            out string rateSourceCurrency,
+            out RateOutcome rateOutcome, out string includedIn)
         {
             splitLabour = splitPlant = splitMaterial = null;
             rateSourceCurrency = "";
+            rateOutcome = RateOutcome.Priced;
+            includedIn = "";
             // P0 refactor — delegate to the pluggable rate-provider chain.
             // The 5 legacy passes are now individual providers registered
             // with RateProviderRegistry; behaviour is preserved while
@@ -1160,7 +1180,7 @@ namespace StingTools.BOQ
             double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
             double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
 
-            var registry = RateProviderRegistry.Get(doc, csvRates, cobieCostCodes, ugxPerUsd, ugxPerGbp);
+            var registry = RateProviderRegistry.Get(doc, csvRates, ugxPerUsd, ugxPerGbp, LoadCsvDeclaredRates(doc));
             var req = new RateRequest
             {
                 CategoryName = catName ?? "",
@@ -1189,12 +1209,15 @@ namespace StingTools.BOQ
             };
 
             var lookup = registry.Resolve(req);
-            if (lookup == null || lookup.UnitRate <= 0)
+            // DSCH-26 — a declared Nil / Included is a decided price, not a miss.
+            if (lookup == null || !RateChainRule.IsDecided(lookup.Outcome, lookup.UnitRate))
             {
                 rateSource = "None";
                 rateConfidence = 20;
                 return (0, "each", catName);
             }
+            rateOutcome = lookup.Outcome;
+            includedIn = lookup.IncludedIn ?? "";
 
             // Map provider id back to the legacy RateSource label so the
             // rest of the codebase (heat-map, schedules, exports) keeps
@@ -2233,7 +2256,8 @@ namespace StingTools.BOQ
 
                     // Rate fields — always write both currencies so the element
                     // stays currency-agnostic across sessions (Gap G3).
-                    WriteIfChanged(el, "CST_UNIT_RATE_UGX", item.RateUGX.ToString("F0", CultureInfo.InvariantCulture), ref written);
+                    // DSCH-26 — a declared rate is stamped as its token (NIL / INCL:<ref>), not as "0".
+                    WriteIfChanged(el, "CST_UNIT_RATE_UGX", RateOutcomeToken.StampText(item.RateOutcome, item.IncludedIn, item.RateUGX), ref written);
                     WriteIfChanged(el, "CST_UNIT_RATE_USD", item.RateUSD.ToString("F2", CultureInfo.InvariantCulture), ref written);
                     WriteIfChanged(el, "CST_QTY_MEASURED", $"{qty:F3} {item.Unit}", ref written);
 
@@ -2773,6 +2797,8 @@ namespace StingTools.BOQ
             public int Repriced;
             public int SkippedOverride;
             public int NoRate;
+            /// <summary>DSCH-26 — resolved to a declared NIL / INCL: nothing to pin.</summary>
+            public int Declared;
             public int Unchanged;
             public double OldTotalUgx;
             public double NewTotalUgx;
@@ -2785,11 +2811,10 @@ namespace StingTools.BOQ
             if (doc == null || elementIds == null) return outcome;
             try
             {
-                var csvRates = LoadCsvRates();
-                var cobie = LoadCobieCostCodes();
+                var csvRates = LoadCsvRates(doc);
                 double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
                 double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
-                var registry = RateProviderRegistry.Get(doc, csvRates, cobie, ugxPerUsd, ugxPerGbp);
+                var registry = RateProviderRegistry.Get(doc, csvRates, ugxPerUsd, ugxPerGbp, LoadCsvDeclaredRates(doc));
 
                 foreach (long id in elementIds.Distinct())
                 {
@@ -2820,7 +2845,10 @@ namespace StingTools.BOQ
                     };
 
                     var lk = registry.Resolve(req);
-                    if (lk == null || lk.UnitRate <= 0) { outcome.NoRate++; continue; }
+                    if (lk == null || !RateChainRule.IsDecided(lk.Outcome, lk.UnitRate)) { outcome.NoRate++; continue; }
+                    // DSCH-26 — a declared Nil / Included has no rate to pin; the bill
+                    // re-derives it from the rate file on every build.
+                    if (lk.Outcome != RateOutcome.Priced) { outcome.Declared++; continue; }
 
                     double newRate = lk.UnitRate;   // already converted to UGX
                     double oldRate = 0;
@@ -3117,6 +3145,9 @@ namespace StingTools.BOQ
                 {
                     item.RateUGX = ov.RateUGX.Value;
                     item.RateUSD = ov.RateUSD ?? (rate > 0 ? Math.Round(item.RateUGX / rate, 2) : 0);
+                    // A pinned rate replaces whatever the chain decided, a NIL / INCL included.
+                    item.RateOutcome = RateOutcome.Priced;
+                    item.IncludedIn = "";
                     item.RateSource = string.IsNullOrEmpty(ov.RateSource) ? "Override" : ov.RateSource;
                     item.RateConfidence = 100;
                     // G4 — a single-number manual override has no split; drop any
@@ -3245,12 +3276,10 @@ namespace StingTools.BOQ
         //  card in both the BOQ panel and the BIM Coordination Center.
         // ══════════════════════════════════════════════════════════════════
 
-        // WP2 — categories that legitimately carry no measured cost.
-        private static readonly HashSet<string> _freeCategoryNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        { "Rooms", "Spaces", "Areas", "Zones", "HVAC Zones" };
-
+        // WP2 / DSCH-34 — categories that are never bill items. Declared NOT MEASURED
+        // in STING_DEFAULT_COST_RATES.csv; this used to be a list in code.
         private static bool IsFreeCategoryForCost(string cat)
-            => !string.IsNullOrEmpty(cat) && _freeCategoryNames.Contains(cat.Trim());
+            => Scheduling4DEngine.IsNotMeasuredCategory(cat);
 
         private static bool IsMeasuredUnit(string unit)
         {
@@ -3289,7 +3318,9 @@ namespace StingTools.BOQ
                 // is set by the take-off itself, so this counts only real failures.
                 if (measured && !i.QuantityResolved) r.QuantityUnresolvedCount++;
 
-                bool zeroRate = i.RateUGX <= 0 ||
+                // DSCH-26 — a declared Nil / Included is priced (at nothing, or elsewhere),
+                // not at risk. Only a line nobody priced counts here.
+                bool zeroRate = !RateChainRule.IsDecided(i.RateOutcome, i.RateUGX) ||
                     string.Equals(i.RateSource, "None", StringComparison.OrdinalIgnoreCase);
                 if (zeroRate)
                 {
@@ -3382,6 +3413,11 @@ namespace StingTools.BOQ
             if (uncosted.LowConfidenceCount > 0)
                 score.Recommendations.Add($"{uncosted.LowConfidenceCount} row(s) priced below the export confidence floor ({MinRateConfidenceForExport():F0}).");
 
+            // DSCH-35 — undeclared provisional sums cost a point each (max 5); listed below.
+            var psUndeclared = ps.Where(i => i.PsType == ProvisionalSumType.Undeclared).ToList();
+            if (psUndeclared.Count > 0)
+                score.OverallScore = Math.Max(0, score.OverallScore - Math.Min(5, psUndeclared.Count));
+
             score.Grade = score.OverallScore >= 85 ? "Excellent"
                 : score.OverallScore >= 70 ? "Good"
                 : score.OverallScore >= 50 ? "Fair" : "Poor";
@@ -3399,6 +3435,18 @@ namespace StingTools.BOQ
                 score.Recommendations.Add("Set a project budget via the BOQ panel Budget button.");
             if (psMissing > 0)
                 score.Recommendations.Add($"Add scope notes to {psMissing} provisional sum(s) before handover.");
+
+            // DSCH-35 — a provisional sum must be declared Defined or Undefined (NRM2 2.9.1):
+            // it decides whether preliminaries are deemed allowed. Flagged, never defaulted.
+            if (psUndeclared.Count > 0)
+            {
+                foreach (var row in psUndeclared.Take(5))
+                    score.Issues.Add(ProvisionalSumTypes.Finding(row.PsType,
+                        string.IsNullOrWhiteSpace(row.BOQLineRef) ? row.ItemName : row.BOQLineRef));
+                if (psUndeclared.Count > 5)
+                    score.Issues.Add($"... and {psUndeclared.Count - 5} more provisional sum(s) not declared Defined / Undefined.");
+                score.Recommendations.Add("Declare each provisional sum Defined or Undefined (CST_PS_TYPE_TXT, or the BOQ panel row menu) before tender issue.");
+            }
             if (carbonPct < 50)
                 score.Recommendations.Add("Carbon coverage below 50% — populate MAT_CARBON_FACTOR on primary materials.");
             return score;
@@ -3414,27 +3462,61 @@ namespace StingTools.BOQ
         // full BOQ build (M elements) parses each table ONCE instead of per element.
         // Invalidated by Cost_ReloadRules → InvalidateRateTables().
         private static (string path, long ticks, int count, object data)? _csvRatesMemo;
-        private static (string path, long ticks, int count, object data)? _cobieMemo;
         private static readonly object _rateMemoLock = new object();
 
         internal static void InvalidateRateTables()
         {
-            lock (_rateMemoLock) { _csvRatesMemo = null; _cobieMemo = null; }
+            lock (_rateMemoLock) { _csvRatesMemo = null; }
         }
 
         internal static Dictionary<string, (double rate, string unit)> LoadCsvRates()
+            => LoadCsvRates(null);
+
+        /// <summary>
+        /// DSCH-1: the cost-rate file for this project. The Cost File Browser saves
+        /// an override path per project (_BIM_COORD/cost_rates_override.json); it
+        /// wins when it names a file that exists. Otherwise the corporate card
+        /// (TagConfig.CostRatesFileName, default cost_rates_5d.csv). Every reader
+        /// that has a Document asks this, so the BOQ, the 5D trace and the stamp
+        /// price from the same file.
+        /// </summary>
+        internal static string ResolveCostRatesPath(Document doc)
         {
-            string costFile = TagConfig.CostRatesFileName ?? "cost_rates_5d.csv";
-            string path = StingToolsApp.FindDataFile(costFile);
+            try
+            {
+                string ov = doc != null ? StingTools.BIMManager.CostFileBrowserCommand.LoadOverridePath(doc) : null;
+                if (!string.IsNullOrEmpty(ov) && File.Exists(ov)) return ov;
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveCostRatesPath: override unreadable ({ex.Message}); using the corporate card."); }
+            return StingToolsApp.FindDataFile(TagConfig.CostRatesFileName ?? "cost_rates_5d.csv");
+        }
+
+        internal static Dictionary<string, (double rate, string unit)> LoadCsvRates(Document doc)
+            => LoadCsvRateTables(doc).Rates;
+
+        /// <summary>DSCH-26 — the keys the project's rate file declares NIL / INCL.
+        /// Same file, same parse and same memo as <see cref="LoadCsvRates(Document)"/>.</summary>
+        internal static Dictionary<string, DeclaredRate> LoadCsvDeclaredRates(Document doc)
+            => LoadCsvRateTables(doc).Declared;
+
+        private sealed class CsvRateTables
+        {
+            public Dictionary<string, (double rate, string unit)> Rates;
+            public Dictionary<string, DeclaredRate> Declared;
+        }
+
+        private static CsvRateTables LoadCsvRateTables(Document doc)
+        {
+            string path = ResolveCostRatesPath(doc);
             long ticks = SafeWriteTicks(path);
             lock (_rateMemoLock)
             {
                 if (_csvRatesMemo is { } m && m.path == path && m.ticks == ticks
-                    && m.data is Dictionary<string, (double rate, string unit)> cached)
+                    && m.data is CsvRateTables cached)
                     return cached;
             }
-            var loaded = LoadCsvRatesUncached();
-            lock (_rateMemoLock) { _csvRatesMemo = (path, ticks, loaded.Count, loaded); }
+            var loaded = LoadCsvRatesUncached(path);
+            lock (_rateMemoLock) { _csvRatesMemo = (path, ticks, loaded.Rates.Count, loaded); }
             return loaded;
         }
 
@@ -3444,124 +3526,35 @@ namespace StingTools.BOQ
             catch { return 0; }
         }
 
-        private static Dictionary<string, (double rate, string unit)> LoadCsvRatesUncached()
+        private static CsvRateTables LoadCsvRatesUncached(string path)
         {
             var rates = new Dictionary<string, (double rate, string unit)>(StringComparer.OrdinalIgnoreCase);
-            string costFile = TagConfig.CostRatesFileName ?? "cost_rates_5d.csv";
-            string path = StingToolsApp.FindDataFile(costFile);
-            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return rates;
+            var declared = new Dictionary<string, DeclaredRate>(StringComparer.OrdinalIgnoreCase);
+            string costFile = string.IsNullOrEmpty(path) ? (TagConfig.CostRatesFileName ?? "cost_rates_5d.csv") : Path.GetFileName(path);
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return new CsvRateTables { Rates = rates, Declared = declared };
             try
             {
-                string[] lines = File.ReadAllLines(path);
-                if (lines.Length < 2) return rates;
-                string header = lines[0].ToLowerInvariant();
-                bool is7Col = header.Contains("mat_code");
-                // D6 — the 8-column schema adds a PROD column and keys the product
-                // tier on DISC|PROD. Two rows can now share a PROD code and stay
-                // distinct: Air Terminals ATU (M|GRL) and LAT (E|GRL) are different
-                // products in one Revit category, and keying on PROD alone would have
-                // collapsed them into one rate.
-                bool hasProd = header.Contains(",prod,") || header.StartsWith("category,prod");
+                // Columns are found by header NAME (Rates/CostRateCsv), never by
+                // position: D6 inserted PROD at index 1 and a positional reader
+                // reads every later column off by one.
+                var parsed = Rates.CostRateCsv.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                foreach (string problem in parsed.Problems)
+                    StingLog.WarnRateLimited("LoadCsvRates.Row", $"LoadCsvRates: {costFile} {problem}");
+                if (parsed.Layout.UnknownColumns.Count > 0)
+                    StingLog.Warn($"LoadCsvRates: {costFile} has column(s) no reader uses: " +
+                        string.Join(", ", parsed.Layout.UnknownColumns));
 
-                // CA-1 — explicit one-wins de-duplication. The first row for a key
-                // wins (top of file is authoritative); a later duplicate is skipped
-                // and logged, so a QS sees the collision instead of a silent
-                // last-row-wins overwrite. Applies to category, MAT_CODE keys alike.
-                int dupes = 0;
-                void Put(string key, double rate, string unit)
-                {
-                    if (string.IsNullOrEmpty(key)) return;
-                    string k = key.Trim();
-                    if (rates.ContainsKey(k))
-                    {
-                        dupes++;
-                        StingLog.WarnRateLimited("LoadCsvRates.Dupe",
-                            $"LoadCsvRates: duplicate rate key '{k}' in {costFile} — keeping first, skipping later row.");
-                        return;
-                    }
-                    rates[k] = (rate, string.IsNullOrEmpty(unit) ? "each" : unit);
-                }
-
-                for (int i = 1; i < lines.Length; i++)
-                {
-                    string[] cols = StingToolsApp.ParseCsvLine(lines[i]);
-                    if (cols.Length < 3) continue;
-                    if (hasProd && cols.Length >= 8)
-                    {
-                        // Category, PROD, MAT_CODE, MAT_DISCIPLINE, USD, UGX, Unit, Description
-                        if (double.TryParse(cols[5], NumberStyles.Any, CultureInfo.InvariantCulture, out double rateUgx))
-                        {
-                            string unit = cols[6].Trim();
-                            string prodCode = cols[1].Trim();
-                            string disc = cols[3].Trim();
-                            // D6: the product key. Registered FIRST so it wins the
-                            // one-wins de-dup against the coarser keys below.
-                            if (!string.IsNullOrEmpty(prodCode) && !string.IsNullOrEmpty(disc))
-                                Put($"{disc}|{prodCode}", rateUgx, unit);
-                            Put(cols[0], rateUgx, unit);   // category
-                            Put(cols[2], rateUgx, unit);   // MAT_CODE
-                        }
-                    }
-                    else if (is7Col && cols.Length >= 7)
-                    {
-                        // Legacy 7-column: Category, MAT_CODE, MAT_DISCIPLINE, USD, UGX, Unit, Description
-                        if (double.TryParse(cols[4], NumberStyles.Any, CultureInfo.InvariantCulture, out double rateUgx))
-                        {
-                            Put(cols[0], rateUgx, cols[5].Trim());
-                            Put(cols[1], rateUgx, cols[5].Trim());
-                        }
-                    }
-                    else if (double.TryParse(cols[1], NumberStyles.Any, CultureInfo.InvariantCulture, out double rate3))
-                    {
-                        Put(cols[0], rate3, cols.Length > 2 ? cols[2].Trim() : "each");
-                    }
-                }
-                if (dupes > 0)
-                    StingLog.Warn($"LoadCsvRates: {dupes} duplicate rate key(s) in {costFile} skipped (first-wins).");
+                var dupeKeys = new List<string>();
+                rates = Rates.CostRateCsv.ToTables(parsed, out declared, dupeKeys);   // DSCH-26: + NIL / INCL keys
+                foreach (string k in dupeKeys)
+                    StingLog.WarnRateLimited("LoadCsvRates.Dupe",
+                        $"LoadCsvRates: duplicate rate key '{k}' in {costFile} — keeping first, skipping later row.");
+                if (dupeKeys.Count > 0)
+                    StingLog.Warn($"LoadCsvRates: {dupeKeys.Count} duplicate rate key(s) in {costFile} skipped (first-wins).");
             }
             catch (Exception ex) { StingLog.Warn($"LoadCsvRates: {ex.Message}"); }
-            return rates;
-        }
-
-        internal static Dictionary<string, string> LoadCobieCostCodes()
-        {
-            string path = StingToolsApp.FindDataFile("COBIE_TYPE_MAP.csv");
-            long ticks = SafeWriteTicks(path);
-            lock (_rateMemoLock)
-            {
-                if (_cobieMemo is { } m && m.path == path && m.ticks == ticks
-                    && m.data is Dictionary<string, string> cached)
-                    return cached;
-            }
-            var loaded = LoadCobieCostCodesUncached();
-            lock (_rateMemoLock) { _cobieMemo = (path, ticks, loaded.Count, loaded); }
-            return loaded;
-        }
-
-        private static Dictionary<string, string> LoadCobieCostCodesUncached()
-        {
-            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            string path = StingToolsApp.FindDataFile("COBIE_TYPE_MAP.csv");
-            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return map;
-            try
-            {
-                string[] lines = File.ReadAllLines(path);
-                if (lines.Length < 2) return map;
-                var headers = StingToolsApp.ParseCsvLine(lines[0]).Select(h => h.ToLowerInvariant()).ToArray();
-                int catCol = Array.FindIndex(headers, h => h.Contains("category"));
-                int codeCol = Array.FindIndex(headers, h => h.Contains("cost") && h.Contains("code"));
-                if (catCol < 0 || codeCol < 0) return map;
-                for (int i = 1; i < lines.Length; i++)
-                {
-                    string[] cols = StingToolsApp.ParseCsvLine(lines[i]);
-                    if (cols.Length <= Math.Max(catCol, codeCol)) continue;
-                    string cat = cols[catCol].Trim();
-                    string code = cols[codeCol].Trim();
-                    if (!string.IsNullOrEmpty(cat) && !string.IsNullOrEmpty(code)) map[cat] = code;
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"LoadCobieCostCodes: {ex.Message}"); }
-            return map;
+            return new CsvRateTables { Rates = rates, Declared = declared };
         }
 
         // P1.1 — non-measurable categories that must never reach takeoff.
@@ -3585,7 +3578,8 @@ namespace StingTools.BOQ
             // nobody buys it, but it is 3D model geometry, so unlike the 2D content
             // above it does not look like noise: it arrives as plausible "each" rows
             // and prices. It was classified in the CSI map as Site Improvements, which
-            // is how it survived this long.
+            // is how it survived this long. (It is also NOT MEASURED in
+            // STING_DEFAULT_COST_RATES.csv; this BIC entry is the locale-proof guard.)
             BuiltInCategory.OST_Entourage,
         };
 
@@ -3641,7 +3635,6 @@ namespace StingTools.BOQ
         private static List<BOQLineItem> CollectLinkedItems(
             Document doc, HashSet<string> knownCategories,
             Dictionary<string, (double rate, string unit)> csvRates,
-            Dictionary<string, string> cobieCostCodes,
             BoqGroupingMode grouping,
             HashSet<string> includedTitles,
             IMeasurementStandard measStd,
@@ -3695,7 +3688,7 @@ namespace StingTools.BOQ
                     rawItems = new List<BOQLineItem>(linkEls.Count);
                     foreach (var el in linkEls)
                     {
-                        var line = BuildLineItemFromElement(ld, el, csvRates, cobieCostCodes, measStd);
+                        var line = BuildLineItemFromElement(ld, el, csvRates, measStd);
                         if (line != null) rawItems.Add(line);
                     }
                     // Store an isolated clone so a later caller mutating the returned
@@ -3878,7 +3871,7 @@ namespace StingTools.BOQ
         {
             var list = new List<Element>();
             var excludedNames = BuildExcludedCategoryNames();
-            int excluded = 0, optionAlternates = 0, userExcluded = 0;
+            int excluded = 0, optionAlternates = 0, userExcluded = 0, notMeasured = 0;
             // WP2 — bill the MAIN model + each set's PRIMARY design option only;
             // never the alternates (which multiply quantities by the option count).
             // Configurable: set COST_BILL_PRIMARY_OPTION_ONLY = false to bill all.
@@ -3915,11 +3908,11 @@ namespace StingTools.BOQ
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (string.IsNullOrEmpty(cat)) continue;
                 if (excludedNames.Contains(cat)) { excluded++; continue; }
+                // DSCH-34 — categories the benchmark file declares NOT MEASURED
+                // (rooms, areas, analytical elements, loads, massing, containers,
+                // entourage...). The data decides; there is no list here.
+                if (Scheduling4DEngine.IsNotMeasuredCategory(cat)) { notMeasured++; continue; }
                 if (!knownCategories.Contains(cat)) continue;
-                if (cat.Equals("Rooms", StringComparison.OrdinalIgnoreCase)
-                    || cat.Equals("Spaces", StringComparison.OrdinalIgnoreCase)
-                    || cat.Equals("Areas", StringComparison.OrdinalIgnoreCase))
-                    continue;
 
                 // K-4 — user exclusion. Tested LAST, on an element that would
                 // otherwise have been billed, so the audit list is exactly "rows
@@ -3941,6 +3934,9 @@ namespace StingTools.BOQ
             if (excluded > 0)
                 StingLog.Info($"BOQ takeoff: excluded {excluded} non-measurable element(s) " +
                               "(2D content / annotation / CAD imports).");
+            if (notMeasured > 0)
+                StingLog.Info($"BOQ takeoff: {notMeasured} element(s) in NOT MEASURED categories " +
+                              "(STING_DEFAULT_COST_RATES.csv) left out of the bill.");
             if (optionAlternates > 0)
                 StingLog.Info($"BOQ takeoff: skipped {optionAlternates} non-primary design-option " +
                               "alternate(s) (COST_BILL_PRIMARY_OPTION_ONLY).");
@@ -4042,7 +4038,10 @@ namespace StingTools.BOQ
             {
                 i.NRM2Section ?? "", i.Category ?? "", i.Discipline ?? "",
                 i.FamilyName ?? "", i.TypeName ?? "", i.Unit ?? "",
-                SpatialPart(i)
+                SpatialPart(i),
+                // DSCH-26 — a Nil or Included row never merges with a priced (or an
+                // unpriced) one: the merged row could carry only one of the answers.
+                i.RateOutcome.ToString() + ":" + (i.IncludedIn ?? "")
             });
 
             double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);

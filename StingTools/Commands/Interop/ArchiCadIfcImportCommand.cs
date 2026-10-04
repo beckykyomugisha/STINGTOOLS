@@ -172,16 +172,7 @@ namespace StingTools.Commands.Interop
         [JsonProperty("notes")]             public string Notes           { get; set; } = "";
     }
 
-    public sealed class AcIfcPropMapping
-    {
-        [JsonProperty("archicad_pset")]   public string ArchiCadPset  { get; set; } = "";
-        [JsonProperty("archicad_prop")]   public string ArchiCadProp  { get; set; } = "";
-        [JsonProperty("sting_param")]     public string StingParam    { get; set; } = "";
-        [JsonProperty("revit_builtin")]   public string RevitBuiltIn  { get; set; } = "";
-        [JsonProperty("notes")]           public string Notes         { get; set; } = "";
-        /// <summary>When non-empty, mapping only applies to IFC elements whose IfcType is in this list.</summary>
-        [JsonProperty("element_types")]   public List<string> ElementTypes { get; set; } = new();
-    }
+    // AcIfcPropMapping lives in ArchiCadPropertyResolver.cs (Revit-free, unit-tested).
 
     public sealed class AcIfcMappingConfig
     {
@@ -2091,46 +2082,55 @@ namespace StingTools.Commands.Interop
             // Post-process: write predominant material layer to STING param
             ApplyMaterialLayer(revitEl, src);
 
-            foreach (var m in _mappings)
+            // Ordered fallback: rows for one target are tried in file order and the
+            // first whose source is present wins; later rows do not overwrite it.
+            var claimed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var c in ArchiCadPropertyResolver.Candidates(_mappings, src.IfcType, src.Properties))
             {
-                // Change 3: element-type filter
-                if (m.ElementTypes.Count > 0 &&
-                    !m.ElementTypes.Contains(src.IfcType, StringComparer.OrdinalIgnoreCase))
-                    continue;
+                var m = c.Mapping;
+                if (claimed.Contains(c.TargetKey)) continue;
 
-                // Change 4: scan_all_psets — when pset is empty or notes says scan_all_psets,
-                // search all psets for the first occurrence of the property name.
-                string? val = null;
-                bool scanAll = string.IsNullOrEmpty(m.ArchiCadPset)
-                    || m.Notes.IndexOf("scan_all_psets", StringComparison.OrdinalIgnoreCase) >= 0;
-
-                if (scanAll)
-                {
-                    // Iterate all properties looking for any key ending with ".<prop>"
-                    string suffix = "." + m.ArchiCadProp;
-                    foreach (var kv in src.Properties)
-                    {
-                        if (kv.Key.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
-                            && !string.IsNullOrWhiteSpace(kv.Value))
-                        { val = kv.Value; break; }
-                    }
-                }
-                else
-                {
-                    src.Properties.TryGetValue($"{m.ArchiCadPset}.{m.ArchiCadProp}", out val);
-                }
-
-                if (string.IsNullOrWhiteSpace(val)) continue;
-
-                bool wrote = false;
+                bool wrote = false, satisfied = false, missingTarget = false;
                 if (!string.IsNullOrEmpty(m.StingParam))
-                    wrote = Write(revitEl.LookupParameter(m.StingParam), val);
-                if (!wrote && !string.IsNullOrEmpty(m.RevitBuiltIn) &&
+                {
+                    var target = revitEl.LookupParameter(m.StingParam);
+                    wrote = Write(target, c.Value);
+                    satisfied = wrote || AlreadyHolds(target, c.Value);
+                    missingTarget = target == null;
+                }
+                if (!satisfied && !string.IsNullOrEmpty(m.RevitBuiltIn) &&
                     Enum.TryParse<BuiltInParameter>(m.RevitBuiltIn, out var bip))
-                    wrote = Write(revitEl.get_Parameter(bip), val);
+                {
+                    var bp = revitEl.get_Parameter(bip);
+                    wrote = Write(bp, c.Value);
+                    satisfied = wrote || AlreadyHolds(bp, c.Value);
+                }
+                // A mapping whose target is not on this element writes nothing; say so
+                // once - but only when no built-in fallback wrote the value instead.
+                if (!satisfied && missingTarget)
+                    StingLog.WarnRateLimited("ArchiCadMap.NoParam." + m.StingParam,
+                        $"ArchiCAD mapping {m.ArchiCadPset}.{m.ArchiCadProp} -> {m.StingParam}: " +
+                        "parameter not found on the element (not bound, or not in MR_PARAMETERS).");
+                if (!satisfied) continue;   // a later row for this target may still supply it
+
+                claimed.Add(c.TargetKey);
+                string how = $"{c.TargetKey} <- {c.SourceKey}";
+                MatchedSources[how] = MatchedSources.TryGetValue(how, out int n) ? n + 1 : 1;
+                if (!string.IsNullOrEmpty(m.Verify))
+                    StingLog.WarnRateLimited("ArchiCadMap.Unconfirmed." + c.SourceKey,
+                        $"ArchiCAD mapping: {c.TargetKey} was read from {c.SourceKey}, a source no primary " +
+                        $"document confirms ({m.Verify})");
                 if (wrote) Written++;
             }
         }
+
+        /// <summary>Which source filled each target, with element counts: "PARAM <- Pset.Property".</summary>
+        public Dictionary<string, int> MatchedSources { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>True when the parameter already holds this value, so the row is satisfied
+        /// even though <see cref="Write"/> had nothing to change.</summary>
+        private static bool AlreadyHolds(Parameter? p, string val)
+            => p != null && p.StorageType == StorageType.String && p.AsString() == val;
 
         // Change 6: write predominant material layer to a STING parameter
         private static void ApplyMaterialLayer(Element revitEl, AcIfcElement src)
@@ -2253,6 +2253,13 @@ namespace StingTools.Commands.Interop
             catch (Exception ex) { StingLog.Warn("ApplyMaterialLayer: " + ex.Message); }
         }
 
+        private static bool TryIfcBool(string val, out int result)
+        {
+            string v = (val ?? "").Trim().Trim('.').ToUpperInvariant();
+            result = v == "T" || v == "TRUE" || v == "YES" ? 1 : 0;
+            return v == "T" || v == "TRUE" || v == "YES" || v == "F" || v == "FALSE" || v == "NO";
+        }
+
         private static bool Write(Parameter? p, string val)
         {
             if (p == null || p.IsReadOnly) return false;
@@ -2268,6 +2275,10 @@ namespace StingTools.Commands.Interop
                         p.Set(d); return true;
                     case StorageType.Integer when int.TryParse(val, out int i):
                         p.Set(i); return true;
+                    // IFC booleans arrive as TRUE / FALSE / .T. / .F. ; a YES/NO
+                    // target is Integer storage and int.TryParse dropped them all.
+                    case StorageType.Integer when TryIfcBool(val, out int b):
+                        p.Set(b); return true;
                 }
             }
             catch { }
@@ -2424,6 +2435,8 @@ namespace StingTools.Commands.Interop
             result.Direct             = em.CreatedDirect;
             result.Skipped            = em.Skipped;
             result.PropsWritten       = pm.Written;
+            foreach (var kv in pm.MatchedSources.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
+                StingLog.Info($"ArchiCAD import: {kv.Key} on {kv.Value} element(s)");
             result.GeometryFallbacks  = parser.Elements.Count(e => e.GeometryIsAabbFallback);
             result.WithHierarchy      = parser.Elements.Count(e => e.Properties.ContainsKey("IfcHierarchy.Storey"));
             result.WithDerivedQty     = parser.Elements.Count(e => e.Properties.ContainsKey("DerivedQty.NetSideArea_m2")

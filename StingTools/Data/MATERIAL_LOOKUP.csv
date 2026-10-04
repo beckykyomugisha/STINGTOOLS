@@ -142,7 +142,7 @@ BRICK_BOND,STRETCHER,BRICKS_PER_M2,60,bricks/m²,Standard stretcher/running bond
 BRICK_BOND,STRETCHER,MORTAR_RATIO,0.025,,Mortar volume per m² (10mm joints)
 BRICK_BOND,STRETCHER,WASTE_PCT,5,%,Cutting waste percentage
 BRICK_BOND,HEADER,BRICKS_PER_M2,120,bricks/m²,Header bond (all headers one-brick wall)
-BRICK_BOND,HEADER,MORTAR_RATIO,0.055,,MAT-2 [Med] one-brick wall: 0.030→0.055 m³/m² (count doubled, mortar must too)
+BRICK_BOND,HEADER,MORTAR_RATIO,0.055,,"MAT-2 [Med] one-brick wall: 0.030→0.055 m³/m² (count doubled, mortar must too)"
 BRICK_BOND,HEADER,WASTE_PCT,5,%,Cutting waste
 BRICK_BOND,ENGLISH,BRICKS_PER_M2,89,bricks/m²,English bond (alternating stretcher/header courses)
 BRICK_BOND,ENGLISH,MORTAR_RATIO,0.050,,MAT-2 [Med] one-brick wall: 0.035→0.050 m³/m²
@@ -188,7 +188,7 @@ MORTAR,1:4,SAND_RATIO,1.25,,Sand m³/m³ = 4 × 9 × 0.034722 (true 1:4)
 MORTAR,1:5,CEMENT_BAGS_PER_M3,7.5,bags/m³,General purpose mortar (standard brickwork)
 MORTAR,1:5,SAND_RATIO,1.30,,Sand m³/m³ = 5 × 7.5 × 0.034722 (true 1:5)
 MORTAR,1:6,CEMENT_BAGS_PER_M3,6,bags/m³,Weak mortar (internal non-loadbearing walls)
-MORTAR,1:6,SAND_RATIO,1.25,,Sand m³/m³ = 6 × 6 × 0.034722 (true 1:6, was 0.86)
+MORTAR,1:6,SAND_RATIO,1.25,,"Sand m³/m³ = 6 × 6 × 0.034722 (true 1:6, was 0.86)"
 MORTAR,1:8,CEMENT_BAGS_PER_M3,4.5,bags/m³,Very weak mortar (temporary or infill)
 MORTAR,1:8,SAND_RATIO,1.25,,Sand m³/m³ = 8 × 4.5 × 0.034722 (true 1:8)
 MORTAR,DEFAULT,CEMENT_BAGS_PER_M3,6,bags/m³,Default: 1:6 mix
@@ -199,7 +199,7 @@ MORTAR,DEFAULT,SAND_RATIO,1.25,,Default sand fraction (true 1:6)
 # parts per 1 part cement. Lime improves workability/water retention; sand parts
 # rise as the mix weakens. CEMENT_BAGS recomputed at 0.034722 m³/bag for the
 # cement fraction of a ~1.25 m³ dry yield.
-MORTAR_CL,M_I,CEMENT_BAGS_PER_M3,12,bags/m³,Designation (i) 1:0.25:3 — strongest, parapets/retaining
+MORTAR_CL,M_I,CEMENT_BAGS_PER_M3,12,bags/m³,"Designation (i) 1:0.25:3 — strongest, parapets/retaining"
 MORTAR_CL,M_I,LIME_RATIO,0.25,,Lime parts per 1 cement
 MORTAR_CL,M_I,SAND_RATIO,1.10,,Sand m³/m³ (3-3.75 parts)
 MORTAR_CL,M_II,CEMENT_BAGS_PER_M3,8,bags/m³,Designation (ii) 1:0.5:4.5 — external above DPC
@@ -377,7 +377,7 @@ GLASS,FLOAT,DENSITY_KG_M3,2500,kg/m³,Float glass density
 TIMBER,SOFTWOOD,CARBON_FOSSIL_KG_M3,126,kgCO₂/m³,ICE v3.0 sawn softwood A1-A3 fossil 0.263 kg/kg × 480
 TIMBER,SOFTWOOD,CARBON_BIOGENIC_KG_M3,-787,kgCO₂/m³,ICE v3.0 sequestration -1.64 kg/kg × 480
 TIMBER,SOFTWOOD,CARBON_KG_PER_M3,-661,kgCO₂/m³,net = fossil + biogenic (Z-25 split)
-TIMBER,SOFTWOOD,DENSITY_KG_M3,480,kg/m³,corrected softwood density (CIBSE 420-550, Z-23)
+TIMBER,SOFTWOOD,DENSITY_KG_M3,480,kg/m³,"corrected softwood density (CIBSE 420-550, Z-23)"
 # --- TILE: adhesive spreading rate and grout consumption (MAT-SCHED-3) -------
 # Adhesive is manufacturer coverage for a cementitious adhesive at the notch
 # size that tile size needs; bigger tiles need a bigger notch and more adhesive.
@@ -403,4 +403,4 @@ TILE,DEFAULT,GROUT_KG_PER_M2,0.5,kg/m2,Default: 2-3mm joints
 # Every export that uses it carries a banner saying so. Edit per project.
 # ONE key on purpose: an unreachable row advertises coverage the export
 # does not have, which is the defect Every_Rule_Is_Reachable exists for.
-CEILING,DEFAULT,FURRING_M_PER_M2,2.7,m/m2,600x600 exposed grid - practice ratio, not a standard
+CEILING,DEFAULT,FURRING_M_PER_M2,2.7,m/m2,"600x600 exposed grid - practice ratio, not a standard"
