@@ -50,6 +50,9 @@
     <Compile Include="..\StingTools\V6\AccModelCoordSync.cs" Link="V6\AccModelCoordSync.cs" />
     <Compile Include="..\StingTools\V6\AccEscalationLedger.cs" Link="V6\AccEscalationLedger.cs" />
     <Compile Include="..\StingTools\V6\AccIssueSync.cs" Link="V6\AccIssueSync.cs" />
+    <!-- INT-12: the one STING <-> ACC Issues v1 status mapping. It lives in Planscape.Shared
+         so the server compiles the same source; AccIssueSync and the server both call it. -->
+    <Compile Include="..\Planscape.Server\src\Planscape.Shared\Helpers\AccIssueStatusMap.cs" Link="Shared\AccIssueStatusMap.cs" />
     <!-- A5: the record ACCPublish writes so ACC_UploadLastBundle can upload the bundle it
          built without a human picking a file. The "is the file still there?" rule is the
          difference between a file choice and a guess, so it is tested. -->
