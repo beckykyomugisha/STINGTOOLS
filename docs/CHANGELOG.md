@@ -26672,3 +26672,7 @@ Not yet run in Revit.
 
 Build 0/0. Not run in Revit. Other readers of `project_config.json` keys the KUT pack does not set
 (SLD sync, handover mode, scale tiers, symbol auto-place) still read only beside the model.
+- **The KUT overlay now sets `LOC_CODES_EXTRA`** as well. Federation review and the building-aware CDE
+  folders read only that key (base BLD1–BLD3 + EXT + XX plus the extras), so they did not know
+  Grounds, Utility or Guard House. All three LOC keys now carry the same seven codes, as the
+  Modelling Playbook requires; the shipped-overlay test checks all three (red without the new key).

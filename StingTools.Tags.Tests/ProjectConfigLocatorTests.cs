@@ -79,9 +79,18 @@ namespace StingTools.Tags.Tests
             string path = Path.Combine(dir.FullName, "project-templates", "KUT",
                                        ProjectConfigLocator.OverlayRelativePath.Replace('/', Path.DirectorySeparatorChar));
             Assert.True(File.Exists(path), "the KUT pack no longer ships " + ProjectConfigLocator.OverlayRelativePath);
-            var loc = JObject.Parse(File.ReadAllText(path))["LOC_CODES"].Select(t => (string)t).ToList();
-            foreach (var code in new[] { "BLD1", "BLD2", "BLD3", "BLD4", "BLD5", "BLD6", "EXT" })
-                Assert.Contains(code, loc);
+            var cfg = JObject.Parse(File.ReadAllText(path));
+            // Three keys, three consumers: LOC_CODES (the tag writer, Excel round-trip,
+            // picklists), CUSTOM_VALID_LOC (ValidateTags) and LOC_CODES_EXTRA (federation
+            // review, building-aware CDE folders). The pack shipped without the third,
+            // so those two features knew only BLD1-BLD3.
+            foreach (var key in new[] { "LOC_CODES", "CUSTOM_VALID_LOC", "LOC_CODES_EXTRA" })
+            {
+                Assert.True(cfg[key] is JArray, "the KUT overlay does not set " + key);
+                var loc = cfg[key].Select(t => (string)t).ToList();
+                foreach (var code in new[] { "BLD1", "BLD2", "BLD3", "BLD4", "BLD5", "BLD6", "EXT" })
+                    Assert.True(loc.Contains(code), key + " is missing " + code);
+            }
         }
     }
 }
