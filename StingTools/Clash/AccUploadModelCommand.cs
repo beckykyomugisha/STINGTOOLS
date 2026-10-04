@@ -114,7 +114,7 @@ namespace StingTools.Core.Clash
         /// <summary>IM-17: ACCPublish records its bundle's transmittal as PREPARED. When
         /// exactly that file has now reached ACC, the row becomes SENT with today's issue
         /// date. Any other file changes nothing. Returns a line for the dialog, or null.</summary>
-        private static string MarkBundleTransmittalSent(Document doc, string file, string itemUrn)
+        internal static string MarkBundleTransmittalSent(Document doc, string file, string itemUrn)
         {
             try
             {
