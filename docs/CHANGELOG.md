@@ -26680,3 +26680,15 @@ Not yet run in Revit.
   encoded the withdrawn premise and is replaced by `ElementOnlyDisciplineCodesAreNotContainerRoles`.
 
 Gate OK (100 assertions); overlay `--check` current; 37 KUT tests pass. Not run in Revit.
+- **The hand-edited KUT sources were only half-migrated, though the README called them corrected.**
+  The Modelling Playbook used the old building codes `TE`…`GH` throughout, including the step that
+  puts them into `project_config.json` (contradicting the shipped `BLD1`–`BLD6` overlay). The
+  Manager Playbook used `KUT-PLNS-TE-…`. The Managing Playbook and Numbering Convention listed roles
+  `F` (Facilities Manager in the standard) and `L` (Landscape Architect), and types `DC`/`BQ`/`TR`.
+  All corrected per `KUT_NAMING_MIGRATION_MAP.md`: element tags `BLD1`–`BLD6`/`EXT`, container
+  volumes `01`–`06`/`00`/`ZZ`, NA.3 roles, NA.2 types, and the element-discipline split. The
+  migration map now says `FP`, `LV` and `G` stay valid as element codes, and records that it and
+  `kut_naming.SHEET_BANDS` disagree on number bands `8` and `9` (a kickoff decision, not changed).
+- **New gate check `check_hand_edited_sources`** reads `KUT_DOCS_WORKING/source/` (migration map
+  exempt) and fails on a retired building code or a four-character originator. 131 findings on the
+  previous sources, 0 now. Added to the gate's CI path filter.

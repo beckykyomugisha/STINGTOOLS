@@ -32,10 +32,10 @@ example: `KUT-[ORG]-01-GF-DR-A-1001`
 |---|---|---|
 | Project | Fixed | KUT |
 | [ORG] | Originator (authoring company) | assigned per company at mobilisation |
-| Volume | Building | TE, MH, HS, GB, UB, GH, ZZ (project-wide), XX |
+| Volume | Building | 01 Temple, 02 Meetinghouse, 03 Housing/Ancillary, 04 Grounds, 05 Utility, 06 Guard House, 00 site-wide, ZZ all volumes, XX not applicable |
 | Level | Floor / level | B1, GF, 01, 02, RF, ZZ (multi-level), XX |
-| Type | Information type | DR drawing, M3 model, SH schedule, SP specification, RP report, DC document, BQ BOQ, TR transmittal |
-| Role | Discipline | A, S, M, E, P, F, C, I, L, Z |
+| Type | Information type (UK NA Table NA.2) | DR drawing, M3 model, SH schedule, SP specification, RP report (incl. calculations and method statements), CP cost plan / BOQ, IE transmittal, RD room data sheet, RI RFI |
+| Role | Discipline of the originating organisation (UK NA Table NA.3) | A, C, E, I, M, P, Q, S, W, X, Y, Z — fire protection and low voltage issue under Y |
 | Number | Type band + sequence (this document) | 4 digits, see Section 3 |
 
 Because the building (Volume) and the discipline (Role) are already separate fields, the **same number repeats across buildings and disciplines** and the other fields keep it unique. `KUT-[ORG]-01-GF-DR-A-1001` and `KUT-[ORG]-02-GF-DR-A-1001` are both "architectural floor-plan sheet 1", one for the Temple and one for the Meetinghouse. The number never has to grow to keep them apart.
@@ -75,7 +75,7 @@ Bands 7 and 8 are deliberately left "user-defined" by the standard so a project 
 | KUT-[ORG]-01-GF-DR-E-1001 | Temple, ground floor, electrical (power/lighting) plan, sheet 1 |
 | KUT-[ORG]-01-XX-DR-E-6001 | Temple, electrical schedule (e.g. panel schedule), sheet 1 |
 | KUT-[ORG]-01-XX-DR-E-7001 | Temple, electrical single-line / riser diagram, sheet 1 |
-| KUT-[ORG]-ZZ-XX-DR-C-1001 | Site, civil layout plan, sheet 1 |
+| KUT-[ORG]-00-XX-DR-C-1001 | Site, civil layout plan, sheet 1 (volume 00 = site-wide; ZZ = all volumes) |
 
 # 5. Non-drawing information (models, schedules, documents)
 
@@ -86,9 +86,9 @@ The type band applies to **drawings** (Type `DR`). Other information types use a
 | M3 model | 0001 per discipline per building | KUT-[ORG]-01-ZZ-M3-A-0001 (Temple architectural model) |
 | SH schedule (standalone register/schedule) | 0001+ | KUT-[ORG]-ZZ-XX-SH-Z-0001 |
 | SP specification | 0001+ (or the CSI section number) | KUT-[ORG]-ZZ-XX-SP-Z-0001 |
-| RP report / DC document | 0001+ per type | KUT-[ORG]-ZZ-XX-RP-Z-0002 (this BEP series) |
-| BQ bill of quantities | 0001+ | KUT-[ORG]-ZZ-XX-CP-Z-0001 |
-| TR transmittal / notice | 0001+ | KUT-[ORG]-ZZ-XX-IE-Z-0001 |
+| RP report — including documents, calculations and method statements | 0001+ per type | KUT-[ORG]-ZZ-XX-RP-Z-0002 (this BEP series) |
+| CP cost plan — including bills of quantities | 0001+ | KUT-[ORG]-ZZ-XX-CP-Z-0001 |
+| IE information exchange — transmittal / notice | 0001+ | KUT-[ORG]-ZZ-XX-IE-Z-0001 |
 
 # 6. Why this is flexible and sustainable
 

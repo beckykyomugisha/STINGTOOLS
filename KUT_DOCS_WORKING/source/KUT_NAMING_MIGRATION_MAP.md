@@ -68,9 +68,17 @@ The role field states the **discipline of the originator**, not the subject of t
 - **`G` was Civil.** In the standard `G` is Geographical/Land Surveyor. Civil Engineer is `C`.
   A container issued as `-G-` therefore claimed to come from a land surveyor.
 - **`F` was fire protection.** In the standard `F` is Facilities Manager.
-- **`FP` and `LV` are not codes at all.** Both issue under `Y`, distinguished by the
+- **`FP` and `LV` are not role codes.** Both issue under `Y`, distinguished by the
   Volume/System field. An invented role code is invalid on every downstream system that reads
   the standard, and silently so.
+
+> **Role codes are not element discipline codes.** Everything in this section is about the
+> ROLE field of a container name, which ISO 19650 defines as the discipline of the
+> organisation that produced the file. The first segment of the element tag is a different
+> field that the standard does not define, and `FP`, `LV` and `G` remain valid there:
+> `A S M E P FP LV G` (`tools/kut_naming.py`, `ASSET_DISCIPLINES`). A sprinkler head in the
+> mechanical engineer's model is an `FP` element in a container with role `M`. Do not rename
+> element tags from this table — the same split as §1's volume `01` and location `BLD1`.
 
 **Q, W and X did not exist before.** The QS, the Contractor and sub-contractors had delivery
 plans and no way to name a compliant container — ten deliverables in the MIDP. That gap closes
@@ -131,6 +139,12 @@ and is more useful than a flat sequence.
 | `7` | Schematics, risers, single-line and system diagrams |
 | `8` | Reserved — coordination, sketches, mark-ups |
 | `9` | 3D — isometrics, axonometrics, perspectives |
+
+> **Not yet agreed — the pack says otherwise.** The generated BEP and Document Control
+> Standard (from `tools/kut_naming.py` `SHEET_BANDS`) put 3D and presentation in `8` and
+> reserve `9`; this table does the reverse. The pack also flags the banding as unconfirmed
+> (BEP 15.2, a kickoff decision). Settle `8` and `9` at the kickoff and change one of the two
+> before any sheet is numbered in those bands.
 
 ---
 

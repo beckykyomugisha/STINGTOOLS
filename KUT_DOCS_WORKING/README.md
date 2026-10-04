@@ -34,11 +34,22 @@ live here rather than scattered at the repository root.
 
 | File | Status | Where it belongs |
 |---|---|---|
-| `KUT_Drawing_and_Document_Numbering_Convention.md` | corrected, **not yet copied back** | `KUT2026\00 Project Standards and Control\` |
-| `KUT_BIM_MANAGING_PLAYBOOK.md` | corrected, **not yet copied back** | same |
-| `KUT_BIM_MODELLING_PLAYBOOK.md` | corrected, **not yet copied back** | same |
-| `KUT_BIM_MANAGER_PLAYBOOK.md` | corrected, **not yet copied back** | same |
+| `KUT_Drawing_and_Document_Numbering_Convention.md` | corrected (second pass 2026-10-04), **not yet copied back** | `KUT2026\00 Project Standards and Control\` |
+| `KUT_BIM_MANAGING_PLAYBOOK.md` | corrected (second pass 2026-10-04), **not yet copied back** | same |
+| `KUT_BIM_MODELLING_PLAYBOOK.md` | corrected (second pass 2026-10-04), **not yet copied back** | same |
+| `KUT_BIM_MANAGER_PLAYBOOK.md` | corrected (second pass 2026-10-04), **not yet copied back** | same |
 | `KUT_NAMING_MIGRATION_MAP.md` | new | issue with the corrected set |
+
+**The first pass was incomplete.** These four were marked corrected while the modelling
+playbook still used the building codes `TE`…`GH` throughout (and told people to put them in
+`project_config.json`), the manager playbook still used `KUT-PLNS-TE-…`, and the managing
+playbook and the numbering convention still listed roles `F` and `L` and types `DC`/`BQ`/`TR`.
+`tools/check_kut_documents.py` now reads this folder (`check_hand_edited_sources`) and fails on
+a retired building code or a four-character originator; the migration map is exempt because it
+names the old codes on purpose.
+
+The asset tag's first field is the **element discipline** (`A S M E P FP LV G`), not the
+container role — see `ASSET_DISCIPLINES` in `tools/kut_naming.py`.
 
 The four corrected files still need copying into the project folder. Their originals there are
 untouched — that folder is outside this repository.

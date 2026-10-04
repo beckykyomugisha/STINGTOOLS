@@ -962,6 +962,44 @@ def _check_withdrawn(root: Path, f: Findings, verbose: bool):
             print("  no withdrawn codes / bad originators in %s" % Path(rel).name)
 
 
+HAND_EDITED_DIR = "KUT_DOCS_WORKING/source"
+# The migration map names the old codes on purpose -- it is the table that retires them.
+HAND_EDITED_EXEMPT = {"KUT_NAMING_MIGRATION_MAP.md"}
+_OLD_SITE_CODE = re.compile(r"\b(TE|MH|HS|GB|UB|GH)\b")
+_OLD_ORIGINATOR = re.compile(r"\bPLNS\b|KUT\s*-\s*[A-Z]{4}\s*-")
+
+
+def check_hand_edited_sources(root: Path, f: Findings, verbose: bool):
+    """The hand-edited playbooks must not use codes the migration map retired.
+
+    These files are copied into the project folder and read by the team, but no
+    generator owns them and no gate read them. The README listed all four as
+    "corrected" while the modelling playbook still told people to put TE..GH into
+    project_config.json, and two others still named roles F and L. A line that
+    says the old codes are withdrawn, or a blockquote explaining them, is allowed.
+    """
+    d = root / HAND_EDITED_DIR
+    files = sorted(p for p in d.glob("*.md") if p.name not in HAND_EDITED_EXEMPT)
+    if not files:
+        f.fail(HAND_EDITED_DIR, "no hand-edited sources found -- the check reads nothing")
+        return
+    for p in files:
+        for n, line in enumerate(p.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            low = line.lower()
+            if line.lstrip().startswith(">") or "withdrawn" in low or "old site code" in low:
+                continue
+            for m in _OLD_SITE_CODE.finditer(line):
+                f.fail("%s:%d" % (p.name, n), "uses the retired building code %s; element tags "
+                       "use BLD1-BLD6 and container names 01-06 (KUT_NAMING_MIGRATION_MAP.md)"
+                       % m.group(1))
+            if _OLD_ORIGINATOR.search(line):
+                f.fail("%s:%d" % (p.name, n), "uses a four-character originator; the convention "
+                       "is %d characters" % N.ORIGINATOR_LENGTH)
+        f.ok()
+    if verbose:
+        print("  hand-edited sources free of retired codes: %d files" % len(files))
+
+
 def check_draft_on_every_sheet(root: Path, f: Findings, verbose: bool):
     """The workbook's status must appear on every sheet, not only the Cover.
 
@@ -1293,6 +1331,7 @@ def main() -> int:
     check_tiers(root, bep_t, pb_t, f, args.verbose)
     check_draft_on_every_sheet(root, f, args.verbose)
     check_source_code_tables(root, f, args.verbose)
+    check_hand_edited_sources(root, f, args.verbose)
     check_no_leakage(root, f, args.verbose)
     counts = check_placeholders(root, f, args.verbose)
 
