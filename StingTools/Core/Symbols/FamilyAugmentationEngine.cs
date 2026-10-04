@@ -169,7 +169,7 @@ namespace StingTools.Core.Symbols
                             catch (Exception ex2) { StingTools.Core.StingLog.Warn($"AugmentFamily set type: {ex2.Message}"); }
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 famDoc.LoadFamily(doc, new ReuseLoadOptions());
@@ -208,7 +208,7 @@ namespace StingTools.Core.Symbols
                         }
                         catch (Exception ex) { StingTools.Core.StingLog.Warn($"RollbackAugmentation rm {name}: {ex.Message}"); }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 famDoc.LoadFamily(doc, new ReuseLoadOptions());
                 return true;

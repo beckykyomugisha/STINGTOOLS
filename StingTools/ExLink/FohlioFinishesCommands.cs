@@ -191,7 +191,7 @@ namespace StingTools.ExLink
                     }
                     if (ok) written++;
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             new TaskDialog("Fohlio Import Finishes")

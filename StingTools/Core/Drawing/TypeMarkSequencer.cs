@@ -318,7 +318,7 @@ namespace StingTools.Core.Drawing
                         r.Warnings.Add($"{a.TypeName}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             Save(doc, store, r);

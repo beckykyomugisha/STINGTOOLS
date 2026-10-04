@@ -194,7 +194,7 @@ namespace StingTools.Core.Mep
                     }
                     catch (Exception ex) { result.Errors.Add($"{change.ElementId}: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // Anti-hollow guard: computed but persisted nothing → loud, not silent.

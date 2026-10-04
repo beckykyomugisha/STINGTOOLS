@@ -890,7 +890,8 @@ namespace StingTools.Core
                                 StingLog.Warn($"AutoTagger queue element {id.Value}: {elEx.Message}");
                             }
                         }
-                        trans.Commit();
+                        // a rolled-back chunk processed nothing
+                        if (!StingTx.TryCommit(trans, null, out string chunkWhy)) { StingLog.Warn(chunkWhy); processed = 0; }
                     }
                 }
                 catch (Exception batchEx)
@@ -1097,7 +1098,7 @@ namespace StingTools.Core
                             StingLog.Warn($"OnDocumentChanged stale-mark {id.Value}: {ex.Message}");
                         }
                     }
-                    tx.Commit();
+                    if (!StingTx.TryCommit(tx, null, out string staleWhy)) StingLog.Warn(staleWhy);
                 }
 
                 // A2: Update last stale-mark timestamp for debounce
@@ -1859,7 +1860,8 @@ namespace StingTools.Core
                     tx.Start();
                     foreach (var id in ids)
                         if (TryMarkElementStale(doc, id, roomIndex, projectLoc)) marked++;
-                    tx.Commit();
+                    // rolled back: nothing was marked
+                    if (!StingTx.TryCommit(tx, null, out string remarkWhy)) { StingLog.Warn(remarkWhy); marked = 0; }
                 }
 
                 if (marked > 0)

@@ -172,7 +172,8 @@ namespace StingTools.Core.Storage
                             StingLog.Warn($"StingSchemaBuilder.Migrate {el?.Id}: {ex.Message}");
                         }
                     }
-                    t.Commit();
+                    // rolled back: nothing was migrated
+                    if (!StingTx.TryCommit(t, null, out string why)) { StingLog.Warn(why); n = 0; }
                 }
             }
             catch (Exception ex)

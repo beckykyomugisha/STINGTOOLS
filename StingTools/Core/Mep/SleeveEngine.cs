@@ -196,7 +196,7 @@ namespace StingTools.Core.Mep
                     }
                 }
 
-                try { tx.Commit(); }
+                try { StingTx.Commit(tx); }
                 catch (Exception ex)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();

@@ -272,7 +272,7 @@ namespace StingTools.BIMManager
                         StingLog.Info($"Created workset: {wsName}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Create Worksets", created > 0

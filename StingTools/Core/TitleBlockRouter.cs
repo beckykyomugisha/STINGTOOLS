@@ -74,7 +74,7 @@ namespace StingTools.Core
                     tx.Start();
                     fs.Activate();
                     doc.Regenerate();
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
             }
             catch (Exception ex)

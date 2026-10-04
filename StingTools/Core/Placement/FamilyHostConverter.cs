@@ -529,7 +529,7 @@ namespace StingTools.Core.Placement
                         p.Set(1);
                         set = true;
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 if (!set)
@@ -641,7 +641,7 @@ namespace StingTools.Core.Placement
                         res.Warnings.Add($"Some geometry failed to copy: {ex.Message}");
                         StingLog.Warn($"P2 CopyElements '{fam.Name}': {ex.Message}");
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
                 res.Notes.Add($"Copied {copied}/{geomIds.Count} geometry/reference elements from the source family.");
 
@@ -668,7 +668,7 @@ namespace StingTools.Core.Placement
                     {
                         res.Warnings.Add($"Could not re-apply category '{cat?.Name}': {ex.Message}");
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 // 5. Save the new .rfa, then close the source before reloading.
@@ -750,8 +750,9 @@ namespace StingTools.Core.Placement
                     if (rep != null)
                     {
                         StingTools.Tags.FamilyQuickEditHelpers.RestoreInstanceParams(rep, snap.Params);
-                        res.InstancesRehosted++;
-                        t.Commit();
+                        // one instance's rollback counts as that instance failing
+                        if (StingTx.TryCommit(t, null, out string rehostWhy)) res.InstancesRehosted++;
+                        else { StingLog.Warn(rehostWhy); res.InstancesFailed++; }
                     }
                     else
                     {
@@ -917,7 +918,7 @@ namespace StingTools.Core.Placement
                 }
 
                 CopyTypes(sm, tm, srcByName, created, res);
-                t.Commit();
+                StingTx.Commit(t);
             }
             finally
             {

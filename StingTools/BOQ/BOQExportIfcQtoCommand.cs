@@ -77,7 +77,7 @@ namespace StingTools.BOQ
                 {
                     tx.Start();
                     tally = IfcQuantitySetWriter.StampAllElements(doc, boq);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
             }
             catch (Exception ex)

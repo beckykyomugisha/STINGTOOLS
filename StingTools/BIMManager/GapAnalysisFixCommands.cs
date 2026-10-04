@@ -132,7 +132,7 @@ namespace StingTools.BIMManager
                     }
                     else report.AppendLine("Component worksheet: not found (skipped)");
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 ComplianceScan.InvalidateCache();

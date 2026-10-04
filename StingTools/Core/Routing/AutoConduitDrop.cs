@@ -286,7 +286,7 @@ namespace StingTools.Core.Routing
                             result.Warnings.Add($"Drop from {fx?.Id}: {ex3.Message}");
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex3)
                 {

@@ -453,11 +453,11 @@ namespace StingTools.Core.Cad.Mep
                         }
                     }
                     done:
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {
-                    tx.RollBack();
+                    StingTx.RollBackIfOpen(tx);
                     StingLog.Error("MepRunBuilder.Build", ex);
                     result.Warnings.Add($"Run batch failed (rolled back): {ex.Message}");
                     result.CreatedIds.Clear();
@@ -604,11 +604,11 @@ namespace StingTools.Core.Cad.Mep
 
                         if (MepBatch.ShouldCancel(i, result.Warnings)) break;   // P6-4.1 — was missing
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {
-                    tx.RollBack();
+                    StingTx.RollBackIfOpen(tx);
                     StingLog.Error("MepRunBuilder.BuildRisers", ex);
                     result.Warnings.Add($"Riser batch failed (rolled back): {ex.Message}");
                     result.CreatedIds.Clear();

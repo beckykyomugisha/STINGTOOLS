@@ -353,7 +353,7 @@ namespace StingTools.Core.Symbols
                             result.Warnings.Add($"MepSymbolEngine place {eid.Value}: {ex.Message}");
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {

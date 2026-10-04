@@ -462,6 +462,7 @@ namespace StingTools.BIMManager
                     using (var tx = new Transaction(doc, "STING COBie Stream Import"))
                     {
                         tx.Start();
+                        int matchedAtBatch = matched, updatedAtBatch = updated;
                         for (int r = batchStart; r <= batchEnd; r++)
                         {
                             try
@@ -502,7 +503,12 @@ namespace StingTools.BIMManager
                             }
                             catch (Exception ex) { errors++; if (errors <= 10) warnings.Add($"Row {r}: {ex.Message}"); }
                         }
-                        tx.Commit();
+                        // one batch's rollback counts as that batch failing; the next batch still runs
+                        if (!StingTx.TryCommit(tx, null, out string batchWhy))
+                        {
+                            matched = matchedAtBatch; updated = updatedAtBatch;
+                            errors++; warnings.Add($"Rows {batchStart}-{batchEnd}: {batchWhy}");
+                        }
                     }
                     batchStart = batchEnd + 1;
                 }

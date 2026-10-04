@@ -138,11 +138,11 @@ namespace StingTools.Core.Cad.Mep
 
                         if (MepBatch.ShouldCancel(i, result.Warnings)) break;
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {
-                    tx.RollBack();
+                    StingTx.RollBackIfOpen(tx);
                     StingLog.Error("MepFixtureBuilder.Place", ex);
                     result.Warnings.Add($"Placement batch failed (rolled back): {ex.Message}");
                     result.CreatedIds.Clear();

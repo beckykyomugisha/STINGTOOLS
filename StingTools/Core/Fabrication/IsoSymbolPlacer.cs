@@ -200,7 +200,7 @@ namespace StingTools.Core.Fabrication
                         if (TryPlace(doc, detailView, assemblyId, r, fs, occupied, stepFt, result))
                             placed++;
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {

@@ -277,7 +277,7 @@ namespace StingTools.Core.Drawing
                     // reach a drawing. Idempotent.
                     PlaceCdeBands(famDoc, fm, defFile, view, spec, paramByName, r);
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 // 4f2. No-own-seed working sheets: propagate the label set from
@@ -316,7 +316,7 @@ namespace StingTools.Core.Drawing
                     if (revView != null)
                         PlaceRevisionSchedules(famDoc, famDoc.FamilyManager, defFile, revView, spec,
                             builtParams ?? new Dictionary<string, FamilyParameter>(StringComparer.OrdinalIgnoreCase), r);
-                    txRev.Commit();
+                    StingTx.Commit(txRev);
                 }
                 if (!fromSeed)
                 {
@@ -835,7 +835,7 @@ namespace StingTools.Core.Drawing
                         }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 if (curvesSkipped > 0 || regionsSkipped > 0)
                     r.Warnings.Add(

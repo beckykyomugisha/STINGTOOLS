@@ -1381,7 +1381,7 @@ namespace StingTools.Core
                         t.Start();
                         StingTools.Core.Storage.StingWorkflowStateSchema
                             .StampLastRun(doc, preset.Name ?? "", status);
-                        t.Commit();
+                        StingTx.Commit(t);
                     }
                 }
                 catch (Exception esEx) { StingLog.Warn($"WorkflowState ES stamp: {esEx.Message}"); }

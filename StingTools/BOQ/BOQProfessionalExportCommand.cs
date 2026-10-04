@@ -196,7 +196,7 @@ namespace StingTools.BOQ
                     tx.Start();
                     BOQCostManager.WriteElementParameters(doc, boq.AllItems);
                     BOQCostManager.WriteProjectParameters(doc, boq);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 var meta = BuildProjectMetadata(doc, boq, tcfg);

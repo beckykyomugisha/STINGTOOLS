@@ -555,7 +555,7 @@ namespace StingTools.Core
                             RagStatus        = result.RAGStatus ?? "",
                         };
                         Storage.StingComplianceBaselineSchema.Write(doc, snap);
-                        t.Commit();
+                        if (!StingTx.TryCommit(t, null, out string why)) StingLog.Warn(why);
                     }
                 }
                 catch (Exception persistEx) { StingLog.Warn($"ComplianceScan ES persist: {persistEx.Message}"); }

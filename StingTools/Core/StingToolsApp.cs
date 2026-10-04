@@ -787,7 +787,8 @@ namespace StingTools.Core
                         }
                         catch (Exception elEx) { StingLog.Warn($"AutoTagger deferred retry element {id.Value}: {elEx.Message}"); }
                     }
-                    tx.Commit();
+                    // rolled back: nothing was tagged
+                    if (!StingTx.TryCommit(tx, null, out string retryWhy)) { StingLog.Warn(retryWhy); processed = 0; }
                 }
 
                 if (processed > 0)
@@ -1061,8 +1062,10 @@ namespace StingTools.Core
                                             site.Id, overwrite: true);
                                         ParameterHelpers.SetString(pi, "PRJ_CLIMATE_SITE_LABEL_TXT",
                                             site.Label, overwrite: true);
-                                        tx.Commit();
-                                        StingLog.Info($"HVAC climate site auto-stamped: {site.Id} ({site.Label})");
+                                        if (StingTx.TryCommit(tx, null, out string climWhy))
+                                            StingLog.Info($"HVAC climate site auto-stamped: {site.Id} ({site.Label})");
+                                        else
+                                            StingLog.Warn(climWhy);
                                     }
                                 }
                             }

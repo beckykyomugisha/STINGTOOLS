@@ -223,7 +223,7 @@ namespace StingTools.Core.Mep
                             result.Warnings.Add($"Fixture {item.FixtureId}: stub placement failed — {ex.Message}");
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {

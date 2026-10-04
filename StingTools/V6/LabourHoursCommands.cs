@@ -45,7 +45,7 @@ namespace StingTools.V6
                 {
                     t.Start();
                     r = LabourHoursEngine.Apply(doc, targets);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 string crewSummary = string.Join("\n", r.ByCrew

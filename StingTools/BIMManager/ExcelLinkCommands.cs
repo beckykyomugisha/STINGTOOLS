@@ -853,14 +853,14 @@ namespace StingTools.BIMManager
                 try
                 {
                     var (applied, skipped, failed) = ApplyChanges(doc, changes, trans, forceInvalid);
+                    StingTx.Commit(trans); // counts only after Revit kept the batch
                     result.Applied += applied;
                     result.Skipped += skipped;
                     result.Failed += failed;
-                    trans.Commit();
                 }
                 catch (Exception ex)
                 {
-                    if (trans.HasStarted()) trans.RollBack();
+                    StingTx.RollBackIfOpen(trans);
                     StingLog.Error($"Excel streaming import batch failed", ex);
                     return;
                 }
@@ -971,14 +971,14 @@ namespace StingTools.BIMManager
                                 StingLog.Warn($"Excel streaming tag rebuild failed for {eid}: {ex.Message}");
                             }
                         }
-                        rebuildTrans.Commit();
+                        StingTx.Commit(rebuildTrans);
 
                         try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
                         catch (Exception ssEx) { StingLog.Warn($"Excel streaming SaveSeqSidecar: {ssEx.Message}"); }
                     }
                     catch (Exception ex)
                     {
-                        if (rebuildTrans.HasStarted()) rebuildTrans.RollBack();
+                        StingTx.RollBackIfOpen(rebuildTrans);
                         StingLog.Error("Excel streaming tag rebuild transaction failed", ex);
                     }
                 }
@@ -1692,12 +1692,11 @@ namespace StingTools.BIMManager
                     try
                     {
                         (applied, skipped, failed) = ExcelLinkEngine.ApplyChanges(doc, changes, trans, forceInvalid);
-                        trans.Commit();
+                        StingTx.Commit(trans);
                     }
                     catch (Exception ex2)
                     {
-                        if (trans.HasStarted())
-                            trans.RollBack();
+                        StingTx.RollBackIfOpen(trans);
                         throw new InvalidOperationException($"Transaction failed: {ex2.Message}", ex2);
                     }
                 }
@@ -1810,14 +1809,14 @@ namespace StingTools.BIMManager
                                     StingLog.Warn($"ExcelLink tag rebuild failed for {eid}: {ex2.Message}");
                                 }
                             }
-                            rebuildTrans.Commit();
+                            StingTx.Commit(rebuildTrans);
                             // FIX-R07: Save SEQ sidecar after commit
                             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
                             catch (Exception ssEx) { StingLog.Warn($"ExcelLink Import SaveSeqSidecar: {ssEx.Message}"); }
                         }
                         catch (Exception ex2)
                         {
-                            if (rebuildTrans.HasStarted()) rebuildTrans.RollBack();
+                            StingTx.RollBackIfOpen(rebuildTrans);
                             StingLog.Error("ExcelLink tag rebuild transaction failed", ex2);
                         }
                     }
@@ -2118,12 +2117,11 @@ namespace StingTools.BIMManager
                     try
                     {
                         (applied, skipped, failed) = ExcelLinkEngine.ApplyChanges(doc, changes, trans, forceInvalid);
-                        trans.Commit();
+                        StingTx.Commit(trans);
                     }
                     catch (Exception ex2)
                     {
-                        if (trans.HasStarted())
-                            trans.RollBack();
+                        StingTx.RollBackIfOpen(trans);
                         throw new InvalidOperationException($"Transaction failed: {ex2.Message}", ex2);
                     }
                 }
@@ -2236,14 +2234,14 @@ namespace StingTools.BIMManager
                                     StingLog.Warn($"ExcelLink RoundTrip tag rebuild failed for {eid}: {ex2.Message}");
                                 }
                             }
-                            rebuildTrans.Commit();
+                            StingTx.Commit(rebuildTrans);
                             // FIX-R07: Save SEQ sidecar after commit
                             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
                             catch (Exception ssEx) { StingLog.Warn($"ExcelLink RoundTrip SaveSeqSidecar: {ssEx.Message}"); }
                         }
                         catch (Exception ex2)
                         {
-                            if (rebuildTrans.HasStarted()) rebuildTrans.RollBack();
+                            StingTx.RollBackIfOpen(rebuildTrans);
                             StingLog.Error("ExcelLink RoundTrip tag rebuild failed", ex2);
                         }
                     }
@@ -2831,7 +2829,7 @@ namespace StingTools.BIMManager
                         }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 // ── Report ──
@@ -3240,7 +3238,7 @@ namespace StingTools.BIMManager
                 {
                     tx.Start();
                     var (applied, skippedI, failedI) = ExcelLinkEngine.ApplyChanges(doc, actualChanges, tx);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 ComplianceScan.InvalidateCache();
@@ -3295,7 +3293,7 @@ namespace StingTools.BIMManager
                         {
                             tx.Start();
                             ExcelLinkEngine.ApplyChanges(doc, actualChanges, tx);
-                            tx.Commit();
+                            StingTx.Commit(tx);
                         }
                         ComplianceScan.InvalidateCache();
                         StingAutoTagger.InvalidateContext();

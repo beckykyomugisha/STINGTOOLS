@@ -203,7 +203,7 @@ namespace StingTools.ExLink
                 using var tx = new Transaction(doc, "STING IFC Export");
                 tx.Start();
                 doc.Export(outputDir, safeName, ifcOptions);
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 success = true;
                 resultMsg = $"IFC exported.\n\n{Path.Combine(outputDir, safeName + ".ifc")}";

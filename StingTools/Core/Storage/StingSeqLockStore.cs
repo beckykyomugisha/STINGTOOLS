@@ -270,7 +270,7 @@ namespace StingTools.Core.Storage
                 {
                     tx.Start();
                     Write();
-                    tx.Commit();
+                    if (!StingTx.TryCommit(tx, null, out string why)) StingLog.Warn(why);
                 }
             }
             catch (Exception ex)

@@ -38,7 +38,13 @@ namespace StingTools.Core.Clash
                     tCreate.Start();
                     _sharedView = View3D.CreateIsometric(_doc, viewType.Id);
                     _sharedView.Name = $"STING_clash_snap_{DateTime.UtcNow:yyyyMMddHHmmssfff}";
-                    tCreate.Commit();
+                    // a rolled-back create leaves no view: forget it so the next clash retries
+                    if (!StingTx.TryCommit(tCreate, null, out string createWhy))
+                    {
+                        _sharedView = null;
+                        StingLog.Warn(createWhy);
+                        return null;
+                    }
                 }
 
                 using (var t = new Transaction(_doc, "STING clash snapshot retarget"))
@@ -47,7 +53,7 @@ namespace StingTools.Core.Clash
                     var min = new XYZ(clash.AabbMin[0] - 1.6, clash.AabbMin[1] - 1.6, clash.AabbMin[2] - 1.6);
                     var max = new XYZ(clash.AabbMax[0] + 1.6, clash.AabbMax[1] + 1.6, clash.AabbMax[2] + 1.6);
                     _sharedView.SetSectionBox(new BoundingBoxXYZ { Min = min, Max = max });
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 string path = Path.Combine(outputDir, $"{clash.Id}.png");
@@ -88,7 +94,7 @@ namespace StingTools.Core.Clash
                 t.Start();
                 try { _doc.Delete(_sharedView.Id); }
                 catch (Exception delEx) { StingLog.Warn($"BcfSnapshotter cleanup {_sharedView.Id}: {delEx.Message}"); }
-                t.Commit();
+                if (!StingTx.TryCommit(t, null, out string why)) StingLog.Warn(why);
             }
             catch (Exception ex) { StingLog.Warn($"BcfSnapshotter dispose: {ex.Message}"); }
             _sharedView = null;

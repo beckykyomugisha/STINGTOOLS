@@ -668,7 +668,7 @@ namespace StingTools.Core.Symbols
                     {
                         AddFormulaBindings(fdoc, def, result);
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 var saveAs = new SaveAsOptions { OverwriteExistingFile = true };
@@ -2614,7 +2614,7 @@ namespace StingTools.Core.Symbols
                             // too, so they carry the same stamp parameters.
                             AddSldStampParameters(compDoc, conceptId + "_compound", result);
 
-                            tx.Commit();
+                            StingTx.Commit(tx);
                         }
 
                         var saveAs = new SaveAsOptions { OverwriteExistingFile = true };
@@ -2672,7 +2672,7 @@ namespace StingTools.Core.Symbols
                     tx.Start();
                     Family fam;
                     bool loaded = hostDoc.LoadFamily(rfaPath, new FamilyLoadOpts(), out fam);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                     if (!loaded) result.Warnings.Add($"LoadFamily returned false for {Path.GetFileName(rfaPath)}");
                     return loaded;
                 }
@@ -2882,7 +2882,7 @@ namespace StingTools.Core.Symbols
                 {
                     tx.Start();
                     fdoc.OwnerFamily.FamilyCategory = cat;
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 result.Warnings.Add($"{def.Id}: '{TrueAccessoryTemplate(isDuct)}' is not installed; " +

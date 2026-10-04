@@ -115,7 +115,7 @@ namespace StingTools.ExLink
             using var tx = new Transaction(doc, "STING ExLink Import");
             tx.Start();
             var result = ExLinkEngine.ImportFromExcel(doc, def, inputPath);
-            tx.Commit();
+            StingTx.Commit(tx);
 
             var msg = result.Success
                 ? $"Read: {result.RowsRead} rows\nUpdated: {result.RowsUpdated}\nSkipped: {result.RowsSkipped}\nProperties written: {result.PropertiesWritten}"

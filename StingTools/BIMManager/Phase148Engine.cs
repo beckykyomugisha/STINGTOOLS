@@ -1185,7 +1185,7 @@ namespace StingTools.BIMManager
                     }
                     catch (Exception ex) { StingLog.Warn($"MepCommissioningSchedules '{def.Name}': {ex.Message}"); }
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
             return created;
         }

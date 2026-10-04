@@ -412,7 +412,13 @@ namespace StingTools.Core.Visibility
                                 total.Blockers.Add($"{v.Name}: {r.Error ?? "not applied"}");
                                 continue;
                             }
-                            t.Commit();
+                            // one view's rollback counts as that view not applied
+                            if (!StingTx.TryCommit(t, null, out string why))
+                            {
+                                StingLog.Warn(why);
+                                total.Blockers.Add($"{v.Name}: {why}");
+                                continue;
+                            }
                             total.ViewsAffected++;
                             total.ElementsAffected = Math.Max(total.ElementsAffected, r.ElementsAffected);
                             total.FiltersCreated += r.FiltersCreated;
@@ -484,7 +490,15 @@ namespace StingTools.Core.Visibility
                     }
 
                     result.FiltersReused = RemoveStingFilters(view, result);
-                    t.Commit();
+                    if (!StingTx.TryCommit(t, null, out string why))
+                    {
+                        // rolled back: this view was not reset
+                        StingLog.Warn(why);
+                        result.Ok = false; result.Error = why;
+                        result.ElementsAffected = 0; result.FiltersReused = 0;
+                        result.Blockers.Add(why);
+                        return result;
+                    }
                 }
             }
             catch (Exception ex)

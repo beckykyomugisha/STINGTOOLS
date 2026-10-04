@@ -47,7 +47,7 @@ namespace StingTools.Core.Fabrication.Pipe
                         if (views.ViewIso6412 != null && views.ViewIso6412 != ElementId.InvalidElementId)
                             symbolTargets.Add((assyId, views.ViewIso6412));
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {

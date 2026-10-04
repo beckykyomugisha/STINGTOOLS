@@ -270,7 +270,7 @@ namespace StingTools.Core
                 {
                     tx.Start();
                     ProcessElements(doc, ids, reason: "Geometry");
-                    tx.Commit();
+                    if (!StingTx.TryCommit(tx, null, out string why)) { StingLog.Warn(why); return; }
                 }
                 StingLog.Info($"StingCostStaleMarker: deferred re-mark processed {ids.Count} overflow elements.");
             }

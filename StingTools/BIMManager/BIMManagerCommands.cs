@@ -5488,7 +5488,7 @@ namespace StingTools.BIMManager
                                 }
                                 catch (Exception elEx) { StingLog.Warn($"COBie pre-export container write: {elEx.Message}"); }
                             }
-                            combTx.Commit();
+                            StingTx.Commit(combTx);
                         }
                         StingLog.Info($"COBie pre-export: WriteContainers ran on {allTaggable.Count} elements, {cobieSkippedContainers} skipped (incomplete tokens)");
                         if (headless) presetNotes.Add($"Stale discipline containers rewritten before export ({allTaggable.Count} elements, {cobieSkippedContainers} with incomplete tokens skipped).");
@@ -6098,7 +6098,7 @@ namespace StingTools.BIMManager
                 tx.Start();
                 ParameterHelpers.SetString(doc.ProjectInformation, "ASS_CDE_STATUS_TXT", status, true);
                 ParameterHelpers.SetString(doc.ProjectInformation, "ASS_CDE_SUITABILITY_TXT", suitCode, true);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // Phase 75: Auto-create transmittal record on SHARED/PUBLISHED transitions
@@ -7598,7 +7598,7 @@ namespace StingTools.BIMManager
                         ParameterHelpers.SetString(successor, "STING_PREDECESSOR_TAGS_TXT", newVal, overwrite: true);
                         linked++;
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 TaskDialog.Show("Link Predecessors",
@@ -7674,7 +7674,7 @@ namespace StingTools.BIMManager
                             }
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 TaskDialog.Show("Phase Dates",
@@ -8179,7 +8179,7 @@ namespace StingTools.BIMManager
                         DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
                     written++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Sticky Note", $"Note added to {written} element(s).");
@@ -8231,7 +8231,7 @@ namespace StingTools.BIMManager
                         cleared++;
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Sticky Notes", $"Cleared notes from {cleared} element(s).");
@@ -10188,7 +10188,7 @@ namespace StingTools.BIMManager
                         entry["prod"]?.ToString(), entry["seq"]?.ToString());
                     ParameterHelpers.SetString(target, ParamRegistry.TAG1, tag1, overwrite: true);
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             ComplianceScan.InvalidateCache();
@@ -10435,7 +10435,7 @@ namespace StingTools.BIMManager
                         }
                         if (anyWritten) updated++;
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 ComplianceScan.InvalidateCache();

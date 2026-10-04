@@ -146,11 +146,11 @@ namespace StingTools.Core.Cad.Mep
                             if (result.Warnings.Count < 30) result.Warnings.Add($"Junction: {ex.Message}");
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {
-                    tx.RollBack();
+                    StingTx.RollBackIfOpen(tx);
                     StingLog.Error("MepFittingBuilder.Build", ex);
                     result.Warnings.Add($"Fitting batch failed (rolled back): {ex.Message}");
                     return new MepFittingBuildResult();
@@ -231,11 +231,11 @@ namespace StingTools.Core.Cad.Mep
                             if (result.Warnings.Count < 30) result.Warnings.Add($"Branch tap: {ex.Message}");
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {
-                    tx.RollBack();
+                    StingTx.RollBackIfOpen(tx);
                     StingLog.Error("MepFittingBuilder.BuildMidRunTaps", ex);
                     result.Warnings.Add($"Branch-tap batch failed (rolled back): {ex.Message}");
                 }

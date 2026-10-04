@@ -112,7 +112,7 @@ namespace StingTools.V6
                         Operative = Environment.UserName,
                         Notes = $"Scanned: {Truncate(payload.Raw, 160)}"
                     });
-                    if (tr.Ok) t.Commit(); else t.RollBack();
+                    if (tr.Ok) StingTx.Commit(t); else t.RollBack();
                 }
 
                 if (tr.Ok)
