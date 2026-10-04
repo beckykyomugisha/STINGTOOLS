@@ -1,3 +1,5 @@
+using System.Linq;
+using Newtonsoft.Json.Linq;
 using StingTools.Core.Electrical;
 using Xunit;
 
@@ -41,6 +43,38 @@ namespace StingTools.Tags.Tests
         [Fact]
         public void Unsorted_tiers_are_searched_in_order()
             => Assert.Equal(25, AicTier.Next(20, new double[] { 100, 25, 6, 50 }));
+
+        /// <summary>STING_AIC_TIERS.json's safetyMarginPct was never read: the code always used 10 %.</summary>
+        [Fact]
+        public void The_data_file_margin_is_read_not_ignored()
+        {
+            var set = AicTier.Parse("{\"tiers_kA\":[10,16,25],\"safetyMarginPct\":25}");
+            Assert.Equal(25, set.MarginPct);
+            Assert.Equal(new double[] { 10, 16, 25 }, set.Tiers);
+            // 9 kA: 10 % margin → 10 kA tier; the file's 25 % → 16 kA.
+            Assert.Equal(16, AicTier.Next(9, set.Tiers, set.MarginPct));
+        }
+
+        [Theory]
+        [InlineData("{\"tiers_kA\":[10]}")]
+        [InlineData("{\"tiers_kA\":[10],\"safetyMarginPct\":-5}")]
+        [InlineData("{\"tiers_kA\":[10],\"safetyMarginPct\":\"ten\"}")]
+        public void A_missing_or_invalid_margin_falls_back_to_ten_percent(string json)
+            => Assert.Equal(AicTier.DefaultMarginPct, AicTier.Parse(json).MarginPct);
+
+        [Fact]
+        public void The_shipped_tier_file_parses_to_sorted_tiers_and_its_margin()
+        {
+            var dir = new System.IO.DirectoryInfo(System.AppContext.BaseDirectory);
+            while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir.FullName, "StingTools.addin"))) dir = dir.Parent;
+            Assert.NotNull(dir);
+            string json = System.IO.File.ReadAllText(System.IO.Path.Combine(dir.FullName, "StingTools", "Data", "STING_AIC_TIERS.json"));
+            var set = AicTier.Parse(json);
+            Assert.NotEmpty(set.Tiers);
+            Assert.Equal(set.Tiers.OrderBy(x => x), set.Tiers);
+            var root = Newtonsoft.Json.Linq.JObject.Parse(json);
+            Assert.Equal(root["safetyMarginPct"].Value<double>(), set.MarginPct);
+        }
 
         [Fact]
         public void Unknown_fault_level_gives_no_tier()

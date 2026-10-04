@@ -9,9 +9,17 @@
 
 using System.Globalization;
 using System.Linq;
+using Newtonsoft.Json.Linq;
 
 namespace StingTools.Core.Electrical
 {
+    /// <summary>The loaded tier table and the margin to apply over the fault level.</summary>
+    public sealed class AicTierSet
+    {
+        public double[] Tiers { get; set; } = new double[0];
+        public double MarginPct { get; set; } = AicTier.DefaultMarginPct;
+    }
+
     public static class AicTier
     {
         /// <summary>Default margin over the calculated fault level, %.</summary>
@@ -29,6 +37,27 @@ namespace StingTools.Core.Electrical
             foreach (double t in tiers.Where(x => x > 0).OrderBy(x => x))
                 if (t >= target - 1e-9) return t;
             return 0;
+        }
+
+        /// <summary>
+        /// STING_AIC_TIERS.json: <c>tiers_kA</c> and <c>safetyMarginPct</c>. The margin used to be
+        /// ignored — the code always applied 10 %, so a project that edited it changed nothing.
+        /// A missing or invalid margin falls back to <see cref="DefaultMarginPct"/>; a negative one
+        /// is refused (treated as the default) because it would pick a tier below the fault.
+        /// </summary>
+        public static AicTierSet Parse(string json)
+        {
+            var set = new AicTierSet();
+            if (string.IsNullOrWhiteSpace(json)) return set;
+            var root = Newtonsoft.Json.Linq.JObject.Parse(json);
+            set.Tiers = ((root["tiers_kA"] as Newtonsoft.Json.Linq.JArray) ?? new Newtonsoft.Json.Linq.JArray())
+                .Where(t => t.Type == Newtonsoft.Json.Linq.JTokenType.Float || t.Type == Newtonsoft.Json.Linq.JTokenType.Integer)
+                .Select(t => t.Value<double>()).Where(x => x > 0).OrderBy(x => x).ToArray();
+            var m = root["safetyMarginPct"];
+            if (m != null && (m.Type == Newtonsoft.Json.Linq.JTokenType.Float || m.Type == Newtonsoft.Json.Linq.JTokenType.Integer)
+                && m.Value<double>() >= 0)
+                set.MarginPct = m.Value<double>();
+            return set;
         }
 
         /// <summary>The reason no tier was returned, for the report; null when one was.</summary>

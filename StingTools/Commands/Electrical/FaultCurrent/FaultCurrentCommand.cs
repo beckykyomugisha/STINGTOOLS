@@ -73,9 +73,10 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             }
 
             var wireTables = WireTableSet.Load(StingToolsApp.DataPath);
-            var aicTiers   = LoadAicTiers();
+            var aicSet     = LoadAicTierSet();
+            var aicTiers   = aicSet.Tiers;
             var results = FaultCurrentEngine.PropagateAll(root, utilityKa, wireTables,
-                ResolveSupply, aicTiers).Values.ToList();
+                ResolveSupply, aicTiers, aicSet.MarginPct).Values.ToList();
             LastResults = results;
 
             int written = 0;
@@ -264,19 +265,18 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             return 0;
         }
 
-        public static double[] LoadAicTiers()
+        public static double[] LoadAicTiers() => LoadAicTierSet().Tiers;
+
+        /// <summary>STING_AIC_TIERS.json — the tiers AND its safetyMarginPct (once ignored).</summary>
+        public static AicTierSet LoadAicTierSet()
         {
             try
             {
                 string path = StingToolsApp.FindDataFile("STING_AIC_TIERS.json");
-                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new double[0];
-                var root = JObject.Parse(File.ReadAllText(path));
-                return ((root["tiers_kA"] as JArray) ?? new JArray())
-                    .Select(t => t.Value<double>())
-                    .OrderBy(x => x)
-                    .ToArray();
+                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new AicTierSet();
+                return AicTier.Parse(File.ReadAllText(path));
             }
-            catch (Exception ex) { StingLog.Warn($"LoadAicTiers: {ex.Message}"); return new double[0]; }
+            catch (Exception ex) { StingLog.Warn($"LoadAicTiers: {ex.Message}"); return new AicTierSet(); }
         }
     }
 
@@ -309,7 +309,8 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                 TaskDialog.Show("STING AIC", "Run fault-current calculation first.");
                 return Result.Failed;
             }
-            var tiers = FaultCurrentCommand.LoadAicTiers();
+            var tierSet = FaultCurrentCommand.LoadAicTierSet();
+            var tiers = tierSet.Tiers;
 
             int stamped = 0, refused = 0;
             var noTier = new List<string>();
@@ -325,10 +326,10 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                         if (elId == null) continue;
                         var panel = doc.GetElement(elId) as FamilyInstance;
                         if (panel == null) continue;
-                        double aic = FaultCurrentEngine.NextAicTierKa(r.FaultKa, tiers);
+                        double aic = FaultCurrentEngine.NextAicTierKa(r.FaultKa, tiers, tierSet.MarginPct);
                         // No tier covers this board: write nothing rather than a rating
                         // below its fault level (the old lookup stamped the largest tier).
-                        if (aic <= 0) { noTier.Add($"{r.PanelName}: {AicTier.NoTierReason(r.FaultKa, tiers)}"); continue; }
+                        if (aic <= 0) { noTier.Add($"{r.PanelName}: {AicTier.NoTierReason(r.FaultKa, tiers, tierSet.MarginPct)}"); continue; }
                         if (ParameterHelpers.SetString(panel, ParamRegistry.ELC_PNL_AIC_KA,
                                 aic.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true))
                             stamped++;
