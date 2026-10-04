@@ -26652,6 +26652,31 @@ Reviewed `docs/StingTools_Complete_Guide.html` (Phase 174 baseline) against the 
 Not compiled here (the .NET SDK download is blocked in this sandbox); CI builds and runs the tests.
 Not yet run in Revit.
 
+#### Completed (KUT: the owner pack's project_config.json is read, branch `claude/kut-fix2-project-config-overlay`)
+
+- **The KUT pack's `project_config.json` was never read.** The pack deploys it to
+  `<project>/_BIM_COORD/` with the other overlays, but TagConfig only looked beside the `.rvt` and in
+  the plugin data folder. A deployed KUT project therefore tagged on the built-in defaults: building
+  codes `BLD1 BLD2 BLD3 EXT` (no Grounds, Utility or Guard House) and sequence numbers not grouped
+  per building. The smoke test passed, because it checked only that the file was present.
+- **New `Core/ProjectConfigLocator`** (Revit-free): beside the model first, then the project overlay
+  (`_BIM_COORD/project_config.json`, consolidated or legacy sibling, via
+  `ResolveProjectOverridePath`). Used on document open and by Project Cfg (ConfigEditor).
+- **A shadowed overlay is reported, not resolved.** When both exist and differ, the copy beside the
+  model wins and a warning names both. Project Cfg shows the source and the shadowed file. The copy
+  beside the model may be a deliberate edit, or the auto-tagger having persisted the defaults before
+  the overlay was read; only a person can tell which. Save still writes beside the model.
+- KUT smoke test step 2 now has an observable check: after reopening, Project Cfg must show the
+  overlay as the source and Locations `BLD1`–`BLD6`, `EXT`.
+- `ProjectConfigLocatorTests` (6), including that the shipped KUT overlay carries all six buildings.
+
+Build 0/0. Not run in Revit. Other readers of `project_config.json` keys the KUT pack does not set
+(SLD sync, handover mode, scale tiers, symbol auto-place) still read only beside the model.
+- **The KUT overlay now sets `LOC_CODES_EXTRA`** as well. Federation review and the building-aware CDE
+  folders read only that key (base BLD1–BLD3 + EXT + XX plus the extras), so they did not know
+  Grounds, Utility or Guard House. All three LOC keys now carry the same seven codes, as the
+  Modelling Playbook requires; the shipped-overlay test checks all three (red without the new key).
+
 #### Completed (KUT mobilisation: no second BEP, and no project reading another project's BEP, branch `claude/kut-fix4-mobilisation-bep`)
 
 - **`WORKFLOW_KUT_Mobilisation.json` no longer runs `GenerateBEP`.** That deprecated alias opens the

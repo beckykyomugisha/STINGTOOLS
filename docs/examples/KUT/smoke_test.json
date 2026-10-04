@@ -20,7 +20,7 @@
       "commandTag": null,
       "reach": "manual",
       "fixture": "project-templates/KUT/_BIM_COORD",
-      "expected": "All seven overlay files in place: manifest.json, project_config.json, tag_schemes.json, lod_matrix.json, owner_standards.json, fohlio_map.json, sting_classification.json (+ climate_data.json only if the corporate Kampala entry is being replaced)",
+      "expected": "All seven overlay files in place: manifest.json, project_config.json, tag_schemes.json, lod_matrix.json, owner_standards.json, fohlio_map.json, sting_classification.json (+ climate_data.json only if the corporate Kampala entry is being replaced) Then close and reopen the model and click Project Cfg (ConfigEditor): it must say 'Config file found (project overlay (_BIM_COORD))' and list Locations BLD1, BLD2, BLD3, BLD4, BLD5, BLD6, EXT. 'BLD1, BLD2, BLD3, EXT' means the built-in defaults are in force: a project_config.json beside the .rvt is shadowing the overlay (the dialog names it).",
       "notes": "Copy the FOLDER, not a selection. This step used to name three files from docs/examples/KUT/, so owner_standards.json, lod_matrix.json and fohlio_map.json never arrived and steps 12, 13 and 17-19 silently exercised the corporate baseline. Then on Project Information set PRJ_ORG_PROJECT_CODE_TXT = KUT, the originator code, an address containing \"Kampala\", and PLM_PRJ_PLUMBING_CODE_TXT = IPC-US (blank falls back to BS EN 12056 with no error)."
     },
     {
