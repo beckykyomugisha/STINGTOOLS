@@ -47,8 +47,15 @@ namespace StingTools.Commands.Electrical
                 // for "NEC", which is why selecting NEC 2023 produced a BS 7671 answer.
                 snap.Standard = StingTools.Standards.ElectricalStandardId.Normalise(
                     StingTools.UI.StingElectricalCommandHandler.ActivePanel?.SelectedStandard);
-                // Phase 178 — surface LastResults caches (no extra Revit reads).
-                snap.Feeders = StingTools.Commands.Electrical.FeederSizing.FeederSizerCommand.LastResults
+                // Phase 178 — surface LastResults caches (no extra Revit reads), but only this
+                // document's: a study run on another model is not shown as this one's.
+                string docKey = StingTools.Core.Electrical.ElecResultScope.Key(doc.PathName, doc.Title);
+                bool feedersHere = StingTools.Core.Electrical.ElecResultScope.Matches(
+                    StingTools.Commands.Electrical.FeederSizing.FeederSizerCommand.LastResultsDocKey, docKey);
+                bool faultsHere = StingTools.Core.Electrical.ElecResultScope.Matches(
+                    StingTools.Commands.Electrical.FaultCurrent.FaultCurrentCommand.LastResultsDocKey, docKey);
+                snap.Feeders = (feedersHere ? StingTools.Commands.Electrical.FeederSizing.FeederSizerCommand.LastResults
+                                            : new List<StingTools.Commands.Electrical.FeederSizing.FeederSizeResult>())
                     .Select(r => new StingTools.UI.FeederData
                     {
                         PanelName = r.PanelName, DemandKW = r.DemandKW,
@@ -58,7 +65,8 @@ namespace StingTools.Commands.Electrical
                         ProposedRatingA = r.ProposedRatingA,
                         Status = r.Status
                     }).ToList();
-                snap.FaultResults = StingTools.Commands.Electrical.FaultCurrent.FaultCurrentCommand.LastResults
+                snap.FaultResults = (faultsHere ? StingTools.Commands.Electrical.FaultCurrent.FaultCurrentCommand.LastResults
+                                                : new List<StingTools.Commands.Electrical.FaultCurrent.FaultPropagationResult>())
                     .Select(r => new StingTools.UI.FaultData
                     {
                         PanelName = r.PanelName, Voltage = r.Voltage,

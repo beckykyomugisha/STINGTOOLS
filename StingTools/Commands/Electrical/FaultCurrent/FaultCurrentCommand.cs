@@ -29,6 +29,9 @@ namespace StingTools.Commands.Electrical.FaultCurrent
     {
         public static List<FaultPropagationResult> LastResults { get; private set; }
             = new List<FaultPropagationResult>();
+        /// <summary>The document LastResults were computed on (ElecResultScope.Key); consumers
+        /// refuse results from another model — they are keyed by element id.</summary>
+        public static string LastResultsDocKey { get; private set; }
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -78,6 +81,7 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             var results = FaultCurrentEngine.PropagateAll(root, utilityKa, wireTables,
                 ResolveSupply, aicTiers, aicSet.MarginPct).Values.ToList();
             LastResults = results;
+            LastResultsDocKey = ElecResultScope.Key(doc.PathName, doc.Title);
 
             int written = 0;
             TransactionStatus stampStatus;
@@ -299,6 +303,16 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             // levels the last Calc_FaultCurrent computed; without them the step fails. The
             // summary goes to the step message.
             var results = FaultCurrentCommand.LastResults;
+            if (results != null && results.Count > 0
+                && !ElecResultScope.Matches(FaultCurrentCommand.LastResultsDocKey, ElecResultScope.Key(doc.PathName, doc.Title)))
+            {
+                // Another model's study: its element ids mean nothing here (or, in a detached
+                // copy, the same boards at an older state).
+                string why = "AIC stamp: " + ElecResultScope.Refusal("Fault Current", FaultCurrentCommand.LastResultsDocKey);
+                if (WorkflowEngine.IsRunningPreset) { message = why; return Result.Failed; }
+                TaskDialog.Show("STING AIC", why);
+                return Result.Failed;
+            }
             if (results == null || results.Count == 0)
             {
                 if (WorkflowEngine.IsRunningPreset)

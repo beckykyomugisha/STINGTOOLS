@@ -37,6 +37,8 @@ namespace StingTools.Commands.Electrical.FeederSizing
     public class FeederSizerCommand : IExternalCommand
     {
         public static List<FeederSizeResult> LastResults { get; private set; } = new();
+        /// <summary>The document LastResults belong to (ElecResultScope.Key).</summary>
+        public static string LastResultsDocKey { get; private set; }
 
         /// <summary>The standard this run sizes to (ELEC-24), read from the Electrical panel.</summary>
         private string _standard = StingTools.Standards.ElectricalStandardId.Bs7671;
@@ -90,6 +92,7 @@ namespace StingTools.Commands.Electrical.FeederSizing
             var results = FeederSizerEngine.CalculateAll(inputs, wireTables,
                 StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables(doc));
             LastResults = results;
+            LastResultsDocKey = StingTools.Core.Electrical.ElecResultScope.Key(doc.PathName, doc.Title);
 
             int written = 0, vdFails = 0, notSized = 0, onDefaults = 0, notFound = 0, refused = 0;
             var notSizedLines = new List<string>();

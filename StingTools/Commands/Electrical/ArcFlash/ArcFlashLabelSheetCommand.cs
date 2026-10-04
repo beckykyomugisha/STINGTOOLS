@@ -34,6 +34,14 @@ namespace StingTools.Commands.Electrical.ArcFlash
             var doc = ctx.Doc;
 
             var rows = ArcFlashCommand.LastResults;
+            if (rows != null && rows.Count > 0
+                && !StingTools.Core.Electrical.ElecResultScope.Matches(ArcFlashCommand.LastResultsDocKey,
+                       StingTools.Core.Electrical.ElecResultScope.Key(doc.PathName, doc.Title)))
+            {
+                PresetDialog.Show("STING Arc Flash Labels",
+                    StingTools.Core.Electrical.ElecResultScope.Refusal("Arc Flash Calc", ArcFlashCommand.LastResultsDocKey), ref message);
+                return Result.Cancelled;
+            }
             if (rows == null || rows.Count == 0)
             {
                 PresetDialog.Show("STING Arc Flash Labels",

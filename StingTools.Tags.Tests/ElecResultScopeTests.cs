@@ -1,0 +1,59 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
+using StingTools.Core.Electrical;
+using Xunit;
+
+namespace StingTools.Tags.Tests
+{
+    /// <summary>
+    /// Static electrical result caches (Fault Current, Feeder Sizing, Arc Flash) are consumed
+    /// by element id. Without the document they came from, one model's study was applied to
+    /// another — a detached copy keeps the original's ids.
+    /// </summary>
+    public class ElecResultScopeTests
+    {
+        [Fact]
+        public void Same_document_matches()
+            => Assert.True(ElecResultScope.Matches(ElecResultScope.Key(@"C:\P\A.rvt", "A"), ElecResultScope.Key(@"c:\p\a.rvt", "A")));
+
+        [Fact]
+        public void A_detached_copy_with_the_same_ids_does_not_match_the_original()
+        {
+            string original = ElecResultScope.Key(@"C:\P\Kampala.rvt", "Kampala");
+            string detached = ElecResultScope.Key("", "Kampala_detached");
+            Assert.False(ElecResultScope.Matches(original, detached));
+            Assert.Contains("another model (KAMPALA)", ElecResultScope.Refusal("Fault Current", original));
+        }
+
+        [Fact]
+        public void Two_unsaved_models_differ_by_title()
+            => Assert.False(ElecResultScope.Matches(ElecResultScope.Key("", "Project1"), ElecResultScope.Key("", "Project2")));
+
+        [Fact]
+        public void No_recorded_document_never_matches()
+        {
+            Assert.False(ElecResultScope.Matches(null, ElecResultScope.Key("", "Project1")));
+            Assert.Equal("Run Fault Current on this model first.", ElecResultScope.Refusal("Fault Current", null));
+        }
+
+        /// <summary>Every reader of a LastResults cache checks the document it came from.</summary>
+        [Theory]
+        [InlineData("Commands/Electrical/FaultCurrent/FaultCurrentCommand.cs", "class AicRatingCommand")]
+        [InlineData("Commands/Electrical/ArcFlash/ArcFlashCommand.cs", "class ArcFlashCommand")]
+        [InlineData("Commands/Electrical/ArcFlash/ArcFlashLabelSheetCommand.cs", "class ArcFlashLabelSheetCommand")]
+        [InlineData("Commands/Electrical/ElectricalSnapshotBuilder.cs", "FeederSizerCommand.LastResults")]
+        [InlineData("Commands/Electrical/Export/ExternalExportEngine.cs", "FaultCurrentCommand.LastResults")]
+        public void Cache_readers_check_the_document(string file, string anchor)
+        {
+            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            while (dir != null && !File.Exists(Path.Combine(dir.FullName, "StingTools.addin"))) dir = dir.Parent;
+            Assert.NotNull(dir);
+            string src = File.ReadAllText(Path.Combine(dir.FullName, "StingTools", file.Replace('/', Path.DirectorySeparatorChar)));
+            int at = src.IndexOf(anchor, StringComparison.Ordinal);
+            Assert.True(at >= 0, anchor);
+            Assert.Contains("ElecResultScope.Matches", src.Substring(Math.Max(0, at - 2000), Math.Min(src.Length - Math.Max(0, at - 2000), 6000)));
+        }
+    }
+}
