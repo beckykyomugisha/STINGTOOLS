@@ -199,7 +199,18 @@ namespace StingTools.Core.Clash
             // explicitly configured, and NOTHING at all without a policy: a pull + triage +
             // CSV is a useful cycle on its own and it creates no work for anyone.
             string sidecar = SidecarPath(doc);
-            var pushedMap = LoadPushed(sidecar);
+            var pushedMap = LoadPushed(sidecar, out string ledgerError);
+            if (pushedMap == null)
+            {
+                // The escalation ledger exists but cannot be read. Escalating without it would
+                // raise a duplicate ACC issue for every clash already raised (INT-14). The pull
+                // and triage still stand; escalation does not happen.
+                StingLog.Warn("ACC_PullClashes: escalation refused — " + ledgerError);
+                report.AppendLine();
+                report.AppendLine("Escalation NOT done: " + ledgerError);
+                Report(policy, "ACC — Pull Clashes", report.ToString());
+                return Result.Failed;
+            }
             var tracked = new HashSet<string>(pushedMap.Keys, StringComparer.Ordinal);
             var plan = policy.PlanEscalation(scoredAll, sc => SignatureFor(sc, byId), tracked);
             StingLog.Info("ACC_PullClashes escalation — " + plan.Reason);
@@ -208,12 +219,18 @@ namespace StingTools.Core.Clash
             {
                 if (plan.ToPush.Count > 0)
                 {
-                    var (pushed, skipped) = PushTopIssues(creds, plan.ToPush, byId, chosen, pushedMap);
-                    SavePushed(sidecar, pushedMap);
+                    var (pushed, skipped, failed, ledgerSaveError) = PushTopIssues(creds, plan.ToPush, byId, chosen, pushedMap, sidecar);
                     StingLog.Info($"ACC_PullClashes: escalated {pushed} clash(es) to ACC Issues " +
-                                  $"({skipped} already tracked).");
+                                  $"({skipped} already tracked, {failed} FAILED).");
                     report.AppendLine();
-                    report.AppendLine($"Escalated {pushed} clash(es) to ACC Issues by policy ({skipped} already tracked).");
+                    report.AppendLine($"Escalated {pushed} clash(es) to ACC Issues by policy ({skipped} already tracked, {failed} failed).");
+                    if (ledgerSaveError != null) report.AppendLine("Ledger NOT saved: " + ledgerSaveError);
+                    if (failed > 0 || ledgerSaveError != null)
+                    {
+                        // An unattended run that failed to raise issues must not read as a success.
+                        Report(policy, "ACC — Pull Clashes", report.ToString());
+                        return Result.Failed;
+                    }
                 }
                 else
                 {
@@ -241,10 +258,11 @@ namespace StingTools.Core.Clash
 
                 if (res == TaskDialogResult.CommandLink1 && plan.OfferInteractively)
                 {
-                    var (pushed, skipped) = PushTopIssues(creds, plan.ToPush, byId, chosen, pushedMap);
-                    SavePushed(sidecar, pushedMap);
+                    var (pushed, skipped, failed, ledgerSaveError) = PushTopIssues(creds, plan.ToPush, byId, chosen, pushedMap, sidecar);
                     TaskDialog.Show("ACC — Pull Clashes",
-                        $"Pushed {pushed} new clash(es) to ACC Issues; {skipped} already pushed (skipped).");
+                        $"Pushed {pushed} new clash(es) to ACC Issues; {skipped} already pushed (skipped)" +
+                        (failed > 0 ? $"; {failed} FAILED — see the log." : ".") +
+                        (ledgerSaveError != null ? "\n\nLedger NOT saved: " + ledgerSaveError : ""));
                 }
             }
 
@@ -311,10 +329,15 @@ namespace StingTools.Core.Clash
 
         // Idempotent push: skip clashes already issued (by stable signature), record the
         // returned ACC issue id in the sidecar so re-runs don't create duplicate issues.
-        private static (int pushed, int skipped) PushTopIssues(AccCredentials creds, IReadOnlyList<ScoredClash> top,
-            Dictionary<string, AccClashRecord> byId, AccModelSet set, Dictionary<string, string> pushedMap)
+        private static (int pushed, int skipped, int failed, string ledgerSaveError) PushTopIssues(AccCredentials creds,
+            IReadOnlyList<ScoredClash> top, Dictionary<string, AccClashRecord> byId, AccModelSet set,
+            Dictionary<string, string> pushedMap, string ledgerPath)
         {
-            int pushed = 0, skipped = 0;
+            // Failures are COUNTED (INT-4): a run whose every push failed used to report
+            // "escalated 0" and succeed. The ledger is written after each created issue
+            // (INT-14): written once at the end, a crash part-way lost every id created so far.
+            int pushed = 0, skipped = 0, failed = 0;
+            string ledgerSaveError = null;
             foreach (var s in top)
             {
                 byId.TryGetValue(s.ClashId, out var c);
@@ -333,21 +356,19 @@ namespace StingTools.Core.Clash
                 try
                 {
                     var id = AccIssueSync.PushIssueAsync(creds, issue).GetAwaiter().GetResult();
-                    if (!string.IsNullOrEmpty(id)) { pushed++; pushedMap[sig] = id; }
+                    if (string.IsNullOrEmpty(id)) { failed++; StingLog.Warn($"ACC push issue: clash {s.ClashId} — no issue id returned"); continue; }
+                    pushed++;
+                    pushedMap[sig] = id;
+                    if (!SavePushed(ledgerPath, pushedMap, out string err)) ledgerSaveError = err;
                 }
-                catch (Exception ex) { StingLog.Warn("ACC push issue: " + ex.Message); }
+                catch (Exception ex) { failed++; StingLog.Warn($"ACC push issue: clash {s.ClashId} — {ex.Message}"); }
             }
-            return (pushed, skipped);
+            return (pushed, skipped, failed, ledgerSaveError);
         }
 
         /// <summary>Order-invariant clash signature (object dbid @ document for each side,
         /// sorted) so an A/B swap between ACC runs maps to the same key — true idempotency.</summary>
-        internal static string Signature(AccClashRecord c)
-        {
-            string a = $"{c.LeftObjectId}@{c.LeftDocument}";
-            string b = $"{c.RightObjectId}@{c.RightDocument}";
-            return string.CompareOrdinal(a, b) <= 0 ? $"{a}|{b}" : $"{b}|{a}";
-        }
+        internal static string Signature(AccClashRecord c) => c.StableSignature();
 
         internal static string SidecarPath(Document doc)
         {
@@ -359,28 +380,16 @@ namespace StingTools.Core.Clash
             return Path.Combine(accDir, "pushed_clashes.json");
         }
 
-        internal static Dictionary<string, string> LoadPushed(string path)
-        {
-            var map = new Dictionary<string, string>(StringComparer.Ordinal);
-            try
-            {
-                if (path != null && File.Exists(path))
-                    foreach (var p in JObject.Parse(File.ReadAllText(path)).Properties())
-                        map[p.Name] = (string)p.Value ?? string.Empty;
-            }
-            catch (Exception ex) { StingLog.Warn("ACC pushed_clashes load: " + ex.Message); }
-            return map;
-        }
+        /// <summary>The escalation ledger, or null (with the reason) when it exists but cannot be
+        /// read. Callers must not escalate or untrack on a null — see AccEscalationLedger.</summary>
+        internal static Dictionary<string, string> LoadPushed(string path, out string error)
+            => AccEscalationLedger.Load(path, out error);
 
-        internal static void SavePushed(string path, Dictionary<string, string> map)
+        internal static bool SavePushed(string path, Dictionary<string, string> map, out string error)
         {
-            try
-            {
-                var o = new JObject();
-                foreach (var kv in map) o[kv.Key] = kv.Value;
-                File.WriteAllText(path, o.ToString());
-            }
-            catch (Exception ex) { StingLog.Warn("ACC pushed_clashes save: " + ex.Message); }
+            bool ok = AccEscalationLedger.Save(path, map, out error);
+            if (!ok) StingLog.Warn("ACC pushed_clashes save: " + error);
+            return ok;
         }
 
         private static string WriteCsv(Document doc, AccModelSet set, List<ScoredClash> scored,

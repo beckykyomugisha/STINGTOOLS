@@ -48,6 +48,7 @@
          it would not catch the CLIENT mapping a 404 to an empty list, which is the actual
          defect. So the real transports are linked and driven over a loopback listener. -->
     <Compile Include="..\StingTools\V6\AccModelCoordSync.cs" Link="V6\AccModelCoordSync.cs" />
+    <Compile Include="..\StingTools\V6\AccEscalationLedger.cs" Link="V6\AccEscalationLedger.cs" />
     <Compile Include="..\StingTools\V6\AccIssueSync.cs" Link="V6\AccIssueSync.cs" />
     <!-- A5: the record ACCPublish writes so ACC_UploadLastBundle can upload the bundle it
          built without a human picking a file. The "is the file still there?" rule is the

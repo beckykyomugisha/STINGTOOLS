@@ -47,7 +47,13 @@ namespace StingTools.Core.Clash
             }
 
             string sidecar = AccPullClashesCommand.SidecarPath(doc);
-            var pushedMap = AccPullClashesCommand.LoadPushed(sidecar);
+            var pushedMap = AccPullClashesCommand.LoadPushed(sidecar, out string ledgerError);
+            if (pushedMap == null)
+            {
+                // Untracking against an unreadable ledger would lose the issue ids for good.
+                TaskDialog.Show("ACC — Sync Issue Status", "Nothing was changed.\n\n" + ledgerError);
+                return Result.Failed;
+            }
             if (pushedMap.Count == 0)
             {
                 TaskDialog.Show("ACC — Sync Issue Status",
@@ -101,7 +107,7 @@ namespace StingTools.Core.Clash
             }
 
             foreach (var sig in toUntrack) pushedMap.Remove(sig);   // closed → re-raise on recurrence
-            AccPullClashesCommand.SavePushed(sidecar, pushedMap);
+            AccPullClashesCommand.SavePushed(sidecar, pushedMap, out _);
 
             string csvPath = null;
             try
