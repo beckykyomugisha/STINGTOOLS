@@ -9,6 +9,9 @@ on:
       - 'Planscape.Server/src/Planscape.Shared/**'
       - 'Planscape.Server/src/Planscape.PluginSync/**'
       - 'tools/**'
+      - 'build.bat'
+      - 'deploy.bat'
+      - 'extract_plugin.sh'
       - '.github/workflows/stingtools-plugin.yml'
   pull_request:
     branches: [main]
@@ -16,6 +19,9 @@ on:
       - 'StingTools/**'
       - 'StingTools.Standards/**'
       - 'tools/**'
+      - 'build.bat'
+      - 'deploy.bat'
+      - 'extract_plugin.sh'
       - '.github/workflows/stingtools-plugin.yml'
 
 env:
@@ -164,6 +170,11 @@ jobs:
       # a ratchet, not a zero: it fails when the count RISES.
       - name: No new catch that lies about the outcome
         run: python3 tools/find_lying_catches.py --check
+
+      # build.bat stages one CompiledPlugin per Revit year; extract_plugin.sh must
+      # install each stage into exactly the years it is given (ROADMAP ELEC-29).
+      - name: Per-year stage routing
+        run: bash tools/check_stage_routing.sh
 
       - name: Command doc-acquisition discipline
         shell: pwsh
@@ -521,3 +532,35 @@ jobs:
           name: StingTools-Plugin-${{ github.sha }}
           path: CompiledPlugin/
           retention-days: 14
+
+  # ── 3b. Compile for the other Revit years (ROADMAP ELEC-29) ──────────────────
+  # The build job above compiles against Revit 2025. 2026 renamed built-ins and
+  # 2027 removed APIs and moved to .NET 10, so a change that compiles for 2025 can
+  # break the others. These compile (no packaging) against the real 2026 / 2027
+  # reference assemblies from NuGet (StingTools.csproj picks the version by year).
+  compile-other-years:
+    name: Compile plugin for Revit ${{ matrix.year }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        year: ['2026', '2027']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8 and 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Compile StingTools for Revit ${{ matrix.year }}
+        run: |
+          dotnet build StingTools/StingTools.csproj `
+            --configuration Release `
+            -p:RevitYear=${{ matrix.year }} `
+            -p:UseRevitNuget=true `
+            --nologo `
+            -v minimal
+        shell: pwsh

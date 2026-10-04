@@ -101,13 +101,19 @@
     </Reference>
   </ItemGroup>
 
-  <!-- CI / no local Revit: real Revit 2025 reference assemblies from NuGet. -->
+  <!-- CI / no local Revit: the real reference assemblies for $(RevitYear) from NuGet
+       (2025 by default; CI also compiles -p:RevitYear=2026 and 2027). Pinned versions. -->
+  <PropertyGroup>
+    <RevitNugetVersion Condition="'$(RevitYear)' == '2025'">2025.4.50</RevitNugetVersion>
+    <RevitNugetVersion Condition="'$(RevitYear)' == '2026'">2026.4.10</RevitNugetVersion>
+    <RevitNugetVersion Condition="'$(RevitYear)' == '2027'">2027.3.0</RevitNugetVersion>
+  </PropertyGroup>
   <ItemGroup Condition="'$(UseRevitNuget)' == 'true'">
-    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2025.4.50">
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitNugetVersion)">
       <ExcludeAssets>runtime</ExcludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2025.4.50">
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitNugetVersion)">
       <ExcludeAssets>runtime</ExcludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>

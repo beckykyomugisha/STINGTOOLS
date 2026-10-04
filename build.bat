@@ -3,35 +3,59 @@ setlocal enabledelayedexpansion
 
 :: ──────────────────────────────────────────────────────────────────
 ::  StingTools Build + Deploy Script
-::  Compiles the plugin and copies output to CompiledPlugin/
+::  Compiles the plugin once per installed Revit year and stages each build:
+::    Revit 2025 -> StingTools\bin\Release        -> CompiledPlugin\        (as before)
+::    Revit 2026 -> StingTools\bin\R2026\Release  -> CompiledPlugin-R2026\
+::    Revit 2027 -> StingTools\bin\R2027\Release  -> CompiledPlugin-R2027\  (.NET 10)
+::  Limit the years with STING_YEARS, e.g.  set STING_YEARS=2025
+::
+::  With STING_DEPLOY=1 (deploy.bat) the manifests point:
+::    Addins\2025 and Addins\2026 -> CompiledPlugin\  (unchanged; the 2025 build runs in
+::                                  2026 — CompiledPlugin-R2026 is a compile check, and
+::                                  is installed into 2026 only when 2025 was not built)
+::    Addins\2027                 -> CompiledPlugin-R2027\ (2027 removed APIs the 2025
+::                                  build calls, so it must never load CompiledPlugin\)
 :: ──────────────────────────────────────────────────────────────────
 
 set "SCRIPT_DIR=%~dp0"
 set "PROJECT=%SCRIPT_DIR%StingTools\StingTools.csproj"
 
-:: ── Locate Revit API ──────────────────────────────────────────────
-set "REVIT_API="
-for %%V in (2025 2026 2027) do (
-    if exist "C:\Program Files\Autodesk\Revit %%V\RevitAPI.dll" (
-        if "!REVIT_API!"=="" set "REVIT_API=C:\Program Files\Autodesk\Revit %%V"
+:: ── Which Revit years ─────────────────────────────────────────────
+set "YEARS=%STING_YEARS%"
+if "!YEARS!"=="" (
+    for %%V in (2025 2026 2027) do (
+        if exist "C:\Program Files\Autodesk\Revit %%V\RevitAPI.dll" set "YEARS=!YEARS! %%V"
     )
 )
-
-if "!REVIT_API!"=="" (
+if "!YEARS!"=="" (
     echo ERROR: Revit API not found in Program Files.
     echo        Checked: Revit 2025, 2026, 2027
-    exit /b 1
+    goto :fail
 )
-echo Found Revit API at: !REVIT_API!
+for %%V in (!YEARS!) do (
+    if not "%%V"=="2025" if not "%%V"=="2026" if not "%%V"=="2027" (
+        echo ERROR: Revit %%V is not supported ^(2025, 2026, 2027^).
+        goto :fail
+    )
+    if not exist "C:\Program Files\Autodesk\Revit %%V\RevitAPI.dll" (
+        echo ERROR: STING_YEARS asks for Revit %%V, which is not installed.
+        goto :fail
+    )
+)
+echo Revit years to build:!YEARS!
 
-:: ── Build ─────────────────────────────────────────────────────────
-echo.
-echo Building StingTools (Release^)...
-dotnet build "%PROJECT%" -c Release -p:RevitApiPath="!REVIT_API!" --nologo -v minimal
-if errorlevel 1 (
+:: ── Build each year ───────────────────────────────────────────────
+set "BUILT_2025="
+for %%V in (!YEARS!) do (
     echo.
-    echo BUILD FAILED.
-    exit /b 1
+    echo Building StingTools for Revit %%V ^(Release^)...
+    dotnet build "%PROJECT%" -c Release -p:RevitApiPath="C:\Program Files\Autodesk\Revit %%V" --nologo -v minimal
+    if errorlevel 1 (
+        echo.
+        echo BUILD FAILED for Revit %%V.
+        goto :fail
+    )
+    if "%%V"=="2025" set "BUILT_2025=1"
 )
 
 :: ── Locate Git Bash ───────────────────────────────────────────────
@@ -62,17 +86,39 @@ if not defined GIT_BASH (
     echo.
     echo        Install Git for Windows, or stage manually with:
     echo          "C:\path\to\Git\bin\bash.exe" extract_plugin.sh
-    exit /b 1
+    goto :fail
 )
 echo Found Git Bash at: !GIT_BASH!
 
-:: ── Stage (and, when STING_DEPLOY=1, install into Revit) ──────────
-echo.
-"!GIT_BASH!" "%SCRIPT_DIR%extract_plugin.sh"
-if errorlevel 1 (
+:: ── Stage each year (and, when STING_DEPLOY=1, install into Revit) ─
+for %%V in (!YEARS!) do (
+    if "%%V"=="2025" (
+        set "STING_BUILD_DIR=%SCRIPT_DIR%StingTools\bin\Release"
+        set "STING_STAGE_DIR=%SCRIPT_DIR%CompiledPlugin"
+        set "STING_INSTALL_YEARS=2025 2026"
+    ) else (
+        set "STING_BUILD_DIR=%SCRIPT_DIR%StingTools\bin\R%%V\Release"
+        set "STING_STAGE_DIR=%SCRIPT_DIR%CompiledPlugin-R%%V"
+        set "STING_INSTALL_YEARS=%%V"
+        rem "none", not empty: cmd's set "X=" DELETES X, and extract_plugin.sh then
+        rem falls back to installing into every year.
+        if "%%V"=="2026" if defined BUILT_2025 set "STING_INSTALL_YEARS=none"
+    )
     echo.
-    if "%STING_DEPLOY%"=="1" (echo DEPLOY FAILED.) else (echo STAGING FAILED.)
-    exit /b 1
+    echo Staging Revit %%V -^> !STING_STAGE_DIR!
+    "!GIT_BASH!" "%SCRIPT_DIR%extract_plugin.sh"
+    if errorlevel 1 (
+        echo.
+        if "%STING_DEPLOY%"=="1" (echo DEPLOY FAILED for Revit %%V.) else (echo STAGING FAILED for Revit %%V.)
+        goto :fail
+    )
 )
 
 endlocal
+exit /b 0
+
+:fail
+:: One exit for every failure: `exit /b 1` inside a ( ) block does not always reach the
+:: caller as a non-zero exit code when this file is run directly (cmd /c build.bat).
+endlocal
+exit /b 1

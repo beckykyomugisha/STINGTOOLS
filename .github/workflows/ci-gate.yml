@@ -48,6 +48,9 @@ jobs:
             plugin:
               - 'StingTools/**'
               - 'StingTools.Standards/**'
+              - 'build.bat'
+              - 'deploy.bat'
+              - 'extract_plugin.sh'
               - '.github/workflows/stingtools-plugin.yml'
             server:
               - 'Planscape.Server/**'
@@ -81,7 +84,7 @@ jobs:
           # Build the list of required checks as ASCII substrings (unique enough
           # to match each job's display name without depending on the "↔" glyph).
           req=""
-          if [ "$PLUGIN" = "true" ];   then req="$req"$'\n'"Validate data files"$'\n'"Viewer JS syntax"$'\n'"Build StingTools Plugin"; fi
+          if [ "$PLUGIN" = "true" ];   then req="$req"$'\n'"Validate data files"$'\n'"Viewer JS syntax"$'\n'"Build StingTools Plugin"$'\n'"Compile plugin for Revit 2026"$'\n'"Compile plugin for Revit 2027"; fi
           if [ "$SERVER" = "true" ];   then req="$req"$'\n'"Build & Test"; fi
           if [ "$CONTRACT" = "true" ]; then req="$req"$'\n'"Server build (DTOs compile)"$'\n'"wire-contract tests"$'\n'"Mobile typecheck"; fi
           if [ "$MOBILE" = "true" ];   then req="$req"$'\n'"Type-check + Lint"; fi

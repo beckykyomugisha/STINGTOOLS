@@ -1,0 +1,30 @@
+<Project>
+  <!--
+    Per-Revit-year build folders (ROADMAP ELEC-29).
+
+    Imported before StingTools.csproj's own properties, so only GLOBAL properties
+    (-p:RevitYear=… or -p:RevitApiPath=…) are visible here — which is exactly what
+    build.bat passes. Revit 2025 (and a plain `dotnet build`) keeps the original
+    obj\ and bin\ folders, so the existing 2025/2026 flow and CompiledPlugin\ are
+    unchanged. Any other year gets its own:
+        obj\R<year>\   restore + intermediates  (2027 restores for net10.0-windows;
+                       sharing obj\ with the net8 2025 build would re-restore on
+                       every switch and could not build side by side)
+        bin\R<year>\   output, e.g. bin\R2027\Release\StingTools.dll
+    StingTools.csproj derives the same year again for TargetFramework / defines.
+  -->
+  <PropertyGroup>
+    <_StingBuildYear>$(RevitYear)</_StingBuildYear>
+    <_StingBuildYear Condition="'$(_StingBuildYear)' == '' And $(RevitApiPath.Contains('2027'))">2027</_StingBuildYear>
+    <_StingBuildYear Condition="'$(_StingBuildYear)' == '' And $(RevitApiPath.Contains('2026'))">2026</_StingBuildYear>
+  </PropertyGroup>
+  <!-- Every year's obj\ and bin\ sit under the same project folder: none may be globbed
+       as source by another year's build (obj\Release\*.g.cs would compile twice). -->
+  <PropertyGroup>
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj\**;bin\**</DefaultItemExcludes>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(_StingBuildYear)' != '' And '$(_StingBuildYear)' != '2025'">
+    <BaseIntermediateOutputPath>obj\R$(_StingBuildYear)\</BaseIntermediateOutputPath>
+    <BaseOutputPath>bin\R$(_StingBuildYear)\</BaseOutputPath>
+  </PropertyGroup>
+</Project>

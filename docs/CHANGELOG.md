@@ -2,6 +2,15 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Per-Revit-year builds and the Addins/2027 manifest, 2026-10-04)
+
+- `StingTools/Directory.Build.props`: Revit 2026 / 2027 builds get their own `obj\R<year>\` and `bin\R<year>\` (2027 restores for .NET 10); 2025 keeps `obj\` / `bin\`. All `obj\**` / `bin\**` are excluded from source globs so one year never compiles another's generated files.
+- `build.bat` builds every installed year (or `STING_YEARS`) and stages each (`CompiledPlugin\`, `CompiledPlugin-R2026\`, `CompiledPlugin-R2027\`); every failure goes through one `:fail` exit, because `exit /b 1` inside a block reached `cmd /c build.bat` as exit code 0.
+- `deploy.bat`: `Addins/2025` and `/2026` → `CompiledPlugin` (unchanged); `Addins/2027` → `CompiledPlugin-R2027`. Before this the 2025-built plugin was installed into 2027, which removed APIs it calls.
+- Found while proving it: cmd's `set "X="` deletes `X`, so a "compile check only" stage fell back to installing into **every** year. `build.bat` passes `none`; `tools/check_stage_routing.sh` fails on an empty value (red on the buggy file) and checks the routing of four cases against a throwaway APPDATA.
+- CI: `Compile plugin for Revit 2026` / `2027` (Nice3point reference assemblies, version chosen by `RevitYear`) are required by the CI Gate; `Per-year stage routing` runs in Validate data files. `build.bat`, `deploy.bat` and `extract_plugin.sh` now trigger the plugin workflow.
+- Proof run locally: `build.bat` built and staged 2025 / 2026 / 2027 (0/0 each); `deploy.bat` routing checked with `APPDATA` pointed at a scratch folder — the real `Addins` manifest was not touched. **Not loaded in Revit 2027.**
+
 #### Completed (ELEC-27 to ELEC-31 closed + follow-up sweep, 2026-10-04)
 
 Branch `claude/electrical-defect-review-ea67f1`. Builds 0/0 against Revit **2025, 2026 and 2027**; Tags 5,763/5,763. **Not run in Revit.**
