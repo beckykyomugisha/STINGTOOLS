@@ -60,6 +60,11 @@ def scan():
 
 
 def main():
+    # Flagged lines can hold non-ASCII text; a piped Windows stdout is cp1252 and would crash.
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except (AttributeError, ValueError):
+        pass
     hits = scan()
     if hits:
         print(f"{len(hits)} Transaction.Commit() call(s) discard the status "
