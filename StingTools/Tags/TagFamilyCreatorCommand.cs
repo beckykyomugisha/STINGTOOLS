@@ -1985,7 +1985,7 @@ namespace StingTools.Tags
                         {
                             t.Start();
                             doc.LoadFamily(existingRfa);
-                            t.Commit();
+                            StingTx.Commit(t);
                         }
                         loaded++;
                         report.AppendLine($"  [LOAD] {tiein.display} — loaded from existing .rfa");
@@ -2056,7 +2056,7 @@ namespace StingTools.Tags
                     {
                         t.Start();
                         doc.LoadFamily(savePath);
-                        t.Commit();
+                        StingTx.Commit(t);
                     }
                     loaded++;
                     string paramStatus = paramsAdded ? "with params" : "no params";
@@ -2111,7 +2111,7 @@ namespace StingTools.Tags
                         {
                             t.Start();
                             doc.LoadFamily(existingRfa);
-                            t.Commit();
+                            StingTx.Commit(t);
                         }
                         loaded++;
                         report.AppendLine($"  [LOAD] {ds.display} — loaded from existing .rfa");
@@ -2180,7 +2180,7 @@ namespace StingTools.Tags
                     {
                         t.Start();
                         doc.LoadFamily(savePath);
-                        t.Commit();
+                        StingTx.Commit(t);
                     }
                     loaded++;
                     string paramStatus = paramsAdded ? "with params" : "no params";
@@ -2235,7 +2235,7 @@ namespace StingTools.Tags
                         {
                             t.Start();
                             doc.LoadFamily(existingRfa);
-                            t.Commit();
+                            StingTx.Commit(t);
                         }
                         loaded++;
                         report.AppendLine($"  [LOAD] {sv.display} — loaded from existing .rfa");
@@ -2304,7 +2304,7 @@ namespace StingTools.Tags
                     {
                         t.Start();
                         doc.LoadFamily(savePath);
-                        t.Commit();
+                        StingTx.Commit(t);
                     }
                     loaded++;
                     string paramStatus = paramsAdded ? "with params" : "no params";
@@ -2359,7 +2359,7 @@ namespace StingTools.Tags
                         {
                             t.Start();
                             doc.LoadFamily(existingRfa);
-                            t.Commit();
+                            StingTx.Commit(t);
                         }
                         loaded++;
                         report.AppendLine($"  [LOAD] {mv.display} — loaded from existing .rfa");
@@ -2428,7 +2428,7 @@ namespace StingTools.Tags
                     {
                         t.Start();
                         doc.LoadFamily(savePath);
-                        t.Commit();
+                        StingTx.Commit(t);
                     }
                     loaded++;
                     string paramStatus = paramsAdded ? "with params" : "no params";
@@ -2483,7 +2483,7 @@ namespace StingTools.Tags
                         {
                             t.Start();
                             doc.LoadFamily(existingRfa);
-                            t.Commit();
+                            StingTx.Commit(t);
                         }
                         loaded++;
                         report.AppendLine($"  [LOAD] {hv.display} — loaded from existing .rfa");
@@ -2552,7 +2552,7 @@ namespace StingTools.Tags
                     {
                         t.Start();
                         doc.LoadFamily(savePath);
-                        t.Commit();
+                        StingTx.Commit(t);
                     }
                     loaded++;
                     string paramStatus = paramsAdded ? "with params" : "no params";
@@ -2753,7 +2753,7 @@ namespace StingTools.Tags
                     if (famDoc.OwnerFamily.FamilyCategory == null ||
                         famDoc.OwnerFamily.FamilyCategory.Id != tagCat.Id)
                         famDoc.OwnerFamily.FamilyCategory = tagCat;
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 var familyParams = TagFamilyConfig.GetAllFamilyParams(decl.HostCategory, decl.FamilyName);
@@ -2827,7 +2827,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             return created;
         }
@@ -2940,7 +2940,7 @@ namespace StingTools.Tags
                         }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 StingLog.Info($"AddSharedParameters: added {added}, skipped-exists {skippedExists}, " +
@@ -3018,7 +3018,7 @@ namespace StingTools.Tags
                             {
                                 dim.FamilyLabel = tagParam;
                                 StingLog.Info("Successfully rebound dimension label to ASS_TAG_1_TXT");
-                                tx.Commit();
+                                if (!StingTx.TryCommit(tx, null, out string whyRebind)) { StingLog.Warn(whyRebind); return false; }
                                 return true;
                             }
                         }
@@ -3053,7 +3053,7 @@ namespace StingTools.Tags
                         catch (Exception ex) { StingLog.Warn($"Not supported — expected: {ex.Message}"); }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 // If we get here, no programmatic rebind worked.
@@ -3205,7 +3205,7 @@ namespace StingTools.Tags
                 {
                     tx.Start();
                     bool loaded = doc.LoadFamily(familyPath, new TagFamilyLoadOptions(), out Family family);
-                    tx.Commit();
+                    StingTx.Commit(tx);
 
                     if (loaded && family != null)
                     {

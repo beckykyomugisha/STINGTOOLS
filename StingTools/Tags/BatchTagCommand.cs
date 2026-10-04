@@ -250,7 +250,7 @@ namespace StingTools.Tags
                     }
                     else
                     {
-                        tx.Commit();
+                        StingTx.Commit(tx);
                         // P6: Save SEQ sidecar after each committed batch
                         TagConfig.SaveSeqSidecar(doc, sequenceCounters);
                         StingLog.Info($"Batch Tag: batch {batchNum} committed");
@@ -607,7 +607,7 @@ namespace StingTools.Tags
                         }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 // TAG-H-04: Save sidecar after each batch so partial progress survives a crash.
                 try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
@@ -926,7 +926,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             // Save SEQ sidecar once + invalidate caches after delta update
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }

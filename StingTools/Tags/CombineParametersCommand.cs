@@ -280,7 +280,7 @@ namespace StingTools.Tags
                             writesPerGroup["UNIVERSAL"] += tag7Writes;
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
             } // end batched loop
             }

@@ -84,7 +84,7 @@ namespace StingTools.Tags
                     p.Set(composed);
                     updated++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             StingLog.Info($"ApplyParagraphPreset[{requested}]: updated={updated} readonly={skippedReadOnly} scope={scope.Count}");
@@ -433,7 +433,7 @@ namespace StingTools.Tags
                         p.Set(want);
                         updated++;
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 return updated;
             }

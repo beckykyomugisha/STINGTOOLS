@@ -135,7 +135,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Rich Tag Note", $"Placed {placed} rich text annotations in '{view.Name}'.");
@@ -970,7 +970,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Rich Segment Note", $"Placed {placed} segment-colored annotations in '{view.Name}'.");

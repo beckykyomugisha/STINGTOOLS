@@ -1122,7 +1122,7 @@ namespace StingTools.Tags
                         catch (Exception ex) { StingLog.Warn($"InjectSymbolGeometry '{Path.GetFileName(rfaPath)}': {ex.Message}"); }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 // Save
@@ -1548,7 +1548,7 @@ namespace StingTools.Tags
                         catch (Exception ex) { StingLog.Warn($"InjectSymbolGeometry '{familyDisplayName}': {ex.Message}"); }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 result.Success = true;

@@ -280,7 +280,7 @@ namespace StingTools.Tags
                     if (flipped > 0) { r.TypeMatrixFlips++; r.ParamsChanged += flipped; }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             StingLog.Info(

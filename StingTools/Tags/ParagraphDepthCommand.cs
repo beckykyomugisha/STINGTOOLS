@@ -259,7 +259,7 @@ namespace StingTools.Tags
 
                         if (anySet) updated++;
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
             }
             finally { progress?.Close(); }
@@ -291,7 +291,8 @@ namespace StingTools.Tags
                         txd.Start();
                         var r = RefreshTagDisplayCommand.RefreshDisplayInScope(doc, dispScope, mask, seqPad);
                         displayUpdated = r.updated;
-                        txd.Commit();
+                        // a rolled-back refresh updated nothing
+                        if (!StingTx.TryCommit(txd, null, out string whyDisp)) { displayUpdated = 0; StingLog.Warn(whyDisp); }
                     }
 
                     // E4: persist this config on the active view so switching away and back
@@ -701,7 +702,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             string stateLabel = showWarnings

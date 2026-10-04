@@ -308,7 +308,7 @@ namespace StingTools.Tags
                             tx.RollBack();
                         else
                         {
-                            tx.Commit();
+                            StingTx.Commit(tx);
                             TagConfig.SaveSeqSidecar(doc, sequenceCounters);
                         }
                     }
@@ -557,7 +557,7 @@ namespace StingTools.Tags
                                 break;
                             }
                         }
-                        if (!cancelled) tx.Commit();
+                        if (!cancelled) StingTx.Commit(tx);
                     }
                 }
             }

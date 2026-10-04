@@ -91,7 +91,7 @@ namespace StingTools.Tags
                             TextNote.Create(fdoc, uidoc.ActiveView.Id, new XYZ(gx, gy, 0), tag, tnt.Id);
                             guides++;
                         }
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
                 }
             }
@@ -169,7 +169,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 fdoc.Delete(ids);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("Tier Prep", $"Removed {ids.Count} guide note(s).");
             return Result.Succeeded;

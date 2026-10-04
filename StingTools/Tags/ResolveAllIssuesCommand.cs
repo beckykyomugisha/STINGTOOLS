@@ -279,7 +279,7 @@ namespace StingTools.Tags
                     }
                     else
                     {
-                        tx.Commit();
+                        StingTx.Commit(tx);
                         StingLog.Info($"ResolveAllIssues: batch {batchNum} committed");
                     }
                 }

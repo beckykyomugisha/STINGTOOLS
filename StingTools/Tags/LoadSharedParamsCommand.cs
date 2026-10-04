@@ -630,7 +630,7 @@ namespace StingTools.Tags
                             catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); skipped++; }
                         }
 
-                        tx.Commit();
+                        StingTx.Commit(tx);
                         bound += groupBound;
                         boundByGroup[groupName] = groupBound;
 
@@ -1361,7 +1361,7 @@ namespace StingTools.Tags
                         }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex2)
                 {
@@ -1631,7 +1631,7 @@ namespace StingTools.Tags
                 foreach (var (n, d) in remove)
                     try { doc.ParameterBindings.Remove(d); removed++; }
                     catch (Exception ex) { StingLog.Warn($"PurgeParams '{n}': {ex.Message}"); }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             ParameterHelpers.ClearParamCache();
             TaskDialog.Show("Purge Done", $"Removed {removed}/{remove.Count} bindings.");
@@ -1850,7 +1850,7 @@ namespace StingTools.Tags
                         }
                         catch (Exception ex) { failed++; StingLog.Warn($"PruneToSpec '{p.name}': {ex.Message}"); }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 ParameterHelpers.ClearParamCache();

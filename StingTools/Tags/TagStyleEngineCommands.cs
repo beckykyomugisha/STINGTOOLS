@@ -446,7 +446,7 @@ namespace StingTools.Tags
                         skipped++;
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var report = new StringBuilder();
@@ -943,7 +943,7 @@ namespace StingTools.Tags
                     }
                     catch (Exception ex) { StingLog.Warn($"Apply style preset to tag {tag.Id}: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Load Style Preset",
@@ -1617,7 +1617,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Apply Param-Driven Styles",
@@ -1778,7 +1778,7 @@ namespace StingTools.Tags
                     colorsCleared++;
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Clear Param-Driven Styles",
@@ -1887,7 +1887,7 @@ namespace StingTools.Tags
                     catch (Exception ex) { StingLog.Warn($"Batch apply param-driven style to element: {ex.Message}"); }
                 }
 
-                if (batchStyleProgress.IsCancelled) tx.RollBack(); else tx.Commit();
+                if (batchStyleProgress.IsCancelled) tx.RollBack(); else StingTx.Commit(tx);
             }
             try { batchStyleProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchStyle progress close: {ex.Message}"); }
 

@@ -609,7 +609,7 @@ namespace StingTools.Tags
                 {
                     t.Start();
                     ctx.Doc.Delete(inst.Id);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
                 TaskDialog.Show("STING — Delete Instance", $"Deleted instance [id {instId}].");
                 StingLog.Info($"ChangeHost(Delete): removed instance {instId}");
@@ -680,7 +680,7 @@ namespace StingTools.Tags
                     }
                     catch (Exception ex) { StingLog.Warn($"ChangeHost rotation restore ({modeLabel}): {ex.Message}"); }
 
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 if (newInstId != ElementId.InvalidElementId)
@@ -931,11 +931,11 @@ namespace StingTools.Tags
                             return Result.Failed;
                         }
                         famDoc.OwnerFamily.FamilyCategory = newCat;
-                        t.Commit();
+                        StingTx.Commit(t);
                     }
                     catch (Exception inner)
                     {
-                        t.RollBack();
+                        StingTx.RollBackIfOpen(t);
                         StingLog.Error("SwapCategoryCommand inner", inner);
                         message = $"Revit refused the category change: {inner.Message}";
                         return Result.Failed;
@@ -1014,7 +1014,7 @@ namespace StingTools.Tags
                     t.Start();
                     var (a, s) = FamilyParamEngine.InjectAutomationPresentationPack(famDoc);
                     added = a; skipped = s;
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 var loadOpts = new StingFamilyLoadOptions(false); // preserve instance values

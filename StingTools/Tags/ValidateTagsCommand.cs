@@ -747,7 +747,7 @@ namespace StingTools.Tags
                             Footer = "STING Tools — ISO 19650 Validation",
                         };
                         LegendBuilder.CreateLegendView(doc, legendEntries, legendConfig);
-                        ltx.Commit();
+                        StingTx.Commit(ltx);
                     }
                 }
             }

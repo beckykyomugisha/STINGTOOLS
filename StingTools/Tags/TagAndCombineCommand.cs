@@ -227,7 +227,7 @@ namespace StingTools.Tags
                     return Result.Cancelled;
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
                 // P6: Save SEQ sidecar after commit
                 TagConfig.SaveSeqSidecar(doc, seqCounters);
             }

@@ -645,7 +645,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             // Centralized post-tag cleanup (SEQ sidecar + cache invalidation + compliance gate)
             if (seqCounters != null)
@@ -894,7 +894,7 @@ namespace StingTools.Tags
                     totalSkipped += result.Skipped;
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             // Save SEQ sidecar + invalidate caches after batch system push
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }

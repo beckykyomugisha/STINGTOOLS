@@ -118,7 +118,7 @@ namespace StingTools.Tags
                     if (any) updated++;
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // Mixed paragraph BOOL storage types (some families YESNO, others

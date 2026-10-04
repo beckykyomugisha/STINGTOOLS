@@ -52,7 +52,8 @@ namespace StingTools.Tags
                 {
                     t.Start();
                     typesUpdated = TagStyleEngine.SetParagraphDepth(doc, 10, warnVisible: false);
-                    t.Commit();
+                    // a rolled-back depth write updated no types
+                    if (!StingTx.TryCommit(t, null, out string why)) { typesUpdated = 0; StingLog.Warn(why); }
                 }
             }
             catch (Exception ex) { StingLog.Warn("ScaffoldTiers depth: " + ex.Message); }
