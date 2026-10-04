@@ -151,7 +151,7 @@ namespace StingTools.Tags
                         StingLog.Warn($"RenderSchemeTags: element {el?.Id}: {ex.Message}");
                     }
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
             sw.Stop();
 

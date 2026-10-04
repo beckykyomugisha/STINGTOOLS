@@ -90,11 +90,12 @@ namespace StingTools.Commands.Mep
                             warnings.Add($"tray {el?.Id}: {ex2.Message}");
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                    updated = 0; // nothing this transaction wrote is in the model
                     warnings.Add($"Live-fill fatal: {ex.Message}");
                 }
             }

@@ -164,7 +164,7 @@ namespace StingTools.BOQ
                     tx.Start();
                     BOQCostManager.WriteElementParameters(doc, boq.AllItems);
                     BOQCostManager.WriteProjectParameters(doc, boq);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 string outputPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", baseName, ".xlsx");

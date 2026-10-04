@@ -223,7 +223,7 @@ namespace StingTools.Docs
                         StingLog.Warn($"TB: swap failed on {sheet.SheetNumber}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             StingLog.Info($"TB Swap: target='{newType.FamilyName}:{newType.Name}' scope={scopeLabel} " +

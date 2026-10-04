@@ -135,7 +135,7 @@ namespace StingTools.ExLink
                         message = $"Failed to create schedule for {commandLabel}.";
                         return Result.Failed;
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 TaskDialog.Show("STING ISB",
@@ -468,7 +468,7 @@ namespace StingTools.ExLink
                         }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                     TaskDialog.Show("STING ISB",
                         $"Key Plan created.\nView: {view.Name}\nLevels: {levels.Count}");
                 }

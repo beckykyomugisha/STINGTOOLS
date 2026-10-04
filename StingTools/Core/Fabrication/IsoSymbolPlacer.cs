@@ -143,6 +143,7 @@ namespace StingTools.Core.Fabrication
             // BEFORE the transaction so we don't re-read the view mid-loop.
             var existingByMember = CollectExistingPlaced(doc, detailView);
 
+            int replacedBefore = result.SymbolsReplaced, symbolIdsBefore = result.SymbolIds.Count;
             using (var tx = new Transaction(doc, "STING v4 ISO 6412 symbols"))
             {
                 try { tx.Start(); }
@@ -200,11 +201,15 @@ namespace StingTools.Core.Fabrication
                         if (TryPlace(doc, detailView, assemblyId, r, fs, occupied, stepFt, result))
                             placed++;
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                    // Nothing this transaction placed or purged is in the model.
+                    placed = 0;
+                    result.SymbolsReplaced = replacedBefore;
+                    result.SymbolIds.RemoveRange(symbolIdsBefore, result.SymbolIds.Count - symbolIdsBefore);
                     result.Warnings.Add($"IsoSymbolPlacer fatal: {ex.Message}");
                 }
             }

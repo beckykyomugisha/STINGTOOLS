@@ -467,7 +467,7 @@ namespace StingTools.Select
                         colored++;
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // Build legend report
@@ -510,9 +510,10 @@ namespace StingTools.Select
                 {
                     ltx.Start();
                     var legendView = Tags.LegendBuilder.CreateLegendView(doc, legendEntries, legendConfig);
-                    ltx.Commit();
-
-                    if (legendView != null)
+                    // The colours are already committed; a rolled-back legend must not fail the command.
+                    if (!StingTx.TryCommit(ltx, null, out string legendWhy))
+                        TaskDialog.Show("Legend Not Created", $"The elements were coloured, but the legend was not created.\n\n{legendWhy}");
+                    else if (legendView != null)
                         TaskDialog.Show("Legend Created", $"Legend view: '{legendView.Name}'\nPlace on a sheet for documentation.");
                 }
             }
@@ -592,7 +593,7 @@ namespace StingTools.Select
                         cleared++;
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Clear Color Overrides",
@@ -761,7 +762,7 @@ namespace StingTools.Select
                             ci++;
                         }
                     }
-                    txM.Commit();
+                    StingTx.Commit(txM);
                 }
                 TaskDialog.Show("Load Color Preset",
                     $"Applied manual preset '{selected}': colored {appliedM} elements with {preset.ValueColors.Count} stored colors.\n\n" +
@@ -798,7 +799,7 @@ namespace StingTools.Select
                         colored++;
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Load Color Preset",
@@ -942,7 +943,7 @@ namespace StingTools.Select
                         StingLog.Warn($"CreateFilter '{filterName}': {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             string result2 = $"Created {created} view filters for '{paramName}'.";

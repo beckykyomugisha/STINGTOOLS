@@ -707,7 +707,8 @@ namespace StingTools.BOQ
                         }
                         catch (Exception ex) { StingLog.WarnRateLimited("ClearStale", $"ClearStale {item.RevitElementId}: {ex.Message}"); }
                     }
-                    t.Commit();
+                    // rolled back: nothing was cleared
+                    if (!StingTx.TryCommit(t, null, out string why)) { StingLog.Warn(why); cleared = 0; }
                 }
                 if (cleared > 0) StingLog.Info($"BOQ build: refreshed {cleared} stale element row(s).");
             }

@@ -134,7 +134,7 @@ namespace StingTools.Core.Symbols
                 tx.Start();
                 var p = view.LookupParameter("STING_VIEW_SYMBOL_STANDARD");
                 if (p != null && !p.IsReadOnly) p.Set(standardId ?? "");
-                tx.Commit();
+                StingTx.Commit(tx);
             }
         }
 

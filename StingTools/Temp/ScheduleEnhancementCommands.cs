@@ -416,7 +416,7 @@ namespace StingTools.Temp
                     return Result.Failed;
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             if (clone != null)
@@ -612,7 +612,7 @@ namespace StingTools.Temp
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var report = new StringBuilder();
@@ -702,7 +702,7 @@ namespace StingTools.Temp
                         break;
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Field Manager",
@@ -991,7 +991,7 @@ namespace StingTools.Temp
                         colored += ApplyDisciplineColor(doc, sched);
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Schedule Colors", $"Applied formatting to {colored} schedule(s).");
@@ -1351,7 +1351,7 @@ namespace StingTools.Temp
                         catch (Exception ex2) { StingLog.Warn($"Delete schedule failed '{sched.Name}': {ex2.Message}"); }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Delete Schedules",

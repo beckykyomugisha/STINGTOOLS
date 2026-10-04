@@ -91,7 +91,8 @@ namespace StingTools.Core.Symbols
                             StingTools.Core.StingLog.Warn($"HealOrphans delete {id}: {ex.Message}");
                         }
                     }
-                    tx.Commit();
+                    // rolled back: nothing was healed
+                    if (!StingTx.TryCommit(tx, null, out string why)) { StingTools.Core.StingLog.Warn(why); healed = 0; }
                 }
             }
             catch (Exception ex)

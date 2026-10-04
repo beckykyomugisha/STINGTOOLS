@@ -182,7 +182,9 @@ namespace StingTools.Commands.Visibility
                     foreach (var b in r.Blockers) if (!result.Blockers.Contains(b)) result.Blockers.Add(b);
                 }
                 result.Ok = result.ViewsAffected > 0;
-                if (result.Ok) t.Commit(); else t.RollBack();
+                // a rolled-back apply hid nothing: report it as a failure, never as hidden
+                if (result.Ok) { if (!StingTx.TryCommit(t, null, out string why)) { result.Ok = false; result.ViewsAffected = 0; result.Error = why; } }
+                else t.RollBack();
                 }
             }
             else if (targets.Count > 1)
@@ -195,7 +197,8 @@ namespace StingTools.Commands.Visibility
                 {
                     t.Start();
                     result = VisibilityEngine.Apply(doc, view, plan);
-                    if (result.Ok) t.Commit(); else t.RollBack();
+                    if (result.Ok) { if (!StingTx.TryCommit(t, null, out string why2)) { result.Ok = false; result.Error = why2; } }
+                    else t.RollBack();
                 }
             }
 

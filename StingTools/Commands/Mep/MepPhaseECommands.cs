@@ -36,7 +36,7 @@ namespace StingTools.Commands.Mep
                 {
                     t.Start();
                     res = MepViewProducer.Produce(doc, source);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 var panel = StingResultPanel.Create("MEP — Produce Per-Discipline Views");
@@ -92,7 +92,7 @@ namespace StingTools.Commands.Mep
                     res = MepCircuitBuilder.BuildExisting(doc);
                     if (sel != null && sel.Count > 0)
                         MepCircuitBuilder.CreateFromSelection(doc, sel, res);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 var panel = StingResultPanel.Create("MEP — Build Electrical Circuits");

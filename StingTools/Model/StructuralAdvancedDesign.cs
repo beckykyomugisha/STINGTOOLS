@@ -883,7 +883,7 @@ namespace StingTools.Model
                     }
                     catch (Exception ex) { StingLog.Warn($"STING params: {ex.Message}"); }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 report.FinalPosition = point;
@@ -1020,7 +1020,7 @@ namespace StingTools.Model
                     }
                     catch (Exception ex) { StingLog.Warn($"STING params: {ex.Message}"); }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 report.FinalPosition = startPoint;

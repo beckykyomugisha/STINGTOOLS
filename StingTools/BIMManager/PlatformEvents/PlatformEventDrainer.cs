@@ -136,7 +136,11 @@ public sealed class PlatformEventDrainer : IExternalEventHandler
         {
             t.Start();
             var result = handler.Apply(doc, ev) ?? PlatformEventApplyResult.Failed("handler returned null");
-            if (result.Outcome == PlatformEventOutcome.Applied) t.Commit();
+            if (result.Outcome == PlatformEventOutcome.Applied)
+            {
+                // background drainer: a rolled-back apply is this event failing, never a throw
+                if (!StingTx.TryCommit(t, null, out string why)) return PlatformEventApplyResult.Failed(why);
+            }
             else t.RollBack();
             return result;
         }

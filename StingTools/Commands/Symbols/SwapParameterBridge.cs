@@ -341,7 +341,7 @@ namespace StingTools.Commands.Symbols
                         try
                         {
                             FamilyParamEngine.InjectSharedParams(famDoc, app, missing);
-                            tx.Commit();
+                            StingTx.Commit(tx); // a rollback lands in the catch below; ok stays false
                             ok = true;
                         }
                         catch (Exception ex)

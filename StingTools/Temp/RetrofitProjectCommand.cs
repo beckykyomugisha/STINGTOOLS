@@ -153,7 +153,7 @@ namespace StingTools.Temp
                     tx.Start();
                     ParameterHelpers.SetString(doc.ProjectInformation, "STING_RETROFIT_TS",
                         DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Retrofit timestamp: {ex.Message}"); }

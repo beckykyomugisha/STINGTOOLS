@@ -1460,7 +1460,7 @@ namespace StingTools.Core
                     }
                 }
                 if (report.Fixed > 0)
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 else
                     tx.RollBack();
             }
@@ -5371,7 +5371,7 @@ namespace StingTools.Core
                         view3d.IsSectionBoxActive = true;
                         view3d.SetSectionBox(aggBB);
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 // Activate the 3D view and select elements.

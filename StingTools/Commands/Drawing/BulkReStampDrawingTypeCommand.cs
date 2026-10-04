@@ -123,7 +123,7 @@ namespace StingTools.Commands.Drawing
                         failed++;
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var msg = $"Profile applied: {chosen.Id}\nSheets stamped: {stamped}";

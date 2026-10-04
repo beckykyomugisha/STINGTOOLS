@@ -129,7 +129,7 @@ namespace StingTools.Temp
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Panel Schedules",
@@ -207,7 +207,7 @@ namespace StingTools.Temp
                 // Sort by Level, then Family
                 MEPScheduleHelper.ApplySorting(schedule, "Level", "Family");
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var count = new FilteredElementCollector(doc)
@@ -283,7 +283,7 @@ namespace StingTools.Temp
                 MEPScheduleHelper.AddCountField(schedule);
                 MEPScheduleHelper.ApplySorting(schedule, "Level", "Family");
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var count = new FilteredElementCollector(doc)
@@ -358,7 +358,7 @@ namespace StingTools.Temp
                 MEPScheduleHelper.AddCountField(schedule);
                 MEPScheduleHelper.ApplySorting(schedule, "Level", "Family");
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var count = new FilteredElementCollector(doc)
@@ -432,7 +432,7 @@ namespace StingTools.Temp
                 MEPScheduleHelper.AddCountField(schedule);
                 MEPScheduleHelper.ApplySorting(schedule, "Level", "Family");
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var count = new FilteredElementCollector(doc)
@@ -508,7 +508,7 @@ namespace StingTools.Temp
                 MEPScheduleHelper.AddCountField(schedule);
                 MEPScheduleHelper.ApplySorting(schedule, "Level", "Family");
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var count = new FilteredElementCollector(doc)

@@ -83,7 +83,7 @@ namespace StingTools.Core.Drawing
                     if (s == null) continue;
                     DrawingTypeStamper.StampSheetSequence(s, i + 1);
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
         }
 

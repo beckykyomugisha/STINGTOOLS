@@ -122,11 +122,14 @@ namespace StingTools.Commands.Mep
                                 result.Warnings.Add($"intersect {mep.Id}: {ex2.Message}");
                             }
                         }
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
                     catch (Exception ex)
                     {
                         if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                        // Nothing this transaction placed is in the model.
+                        result.Created = 0;
+                        result.ByDiscipline.Clear();
                         result.Warnings.Add($"AutoSleeve fatal: {ex.Message}");
                     }
                 }

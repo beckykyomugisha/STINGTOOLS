@@ -91,7 +91,7 @@ namespace StingTools.Commands.Drawing
                         problems.Add($"'{kv.Key}': {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             string body = $"View types the drawing catalogue names: {wanted.Count}\n" +

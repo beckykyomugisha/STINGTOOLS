@@ -574,7 +574,7 @@ namespace StingTools.Model
                     else if (level.Elevation > 1) // Not ground level
                         result.Warnings.Add("No column below — check stacking continuity");
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 result.Success = true;
@@ -721,7 +721,7 @@ namespace StingTools.Model
                     if (connections < 2)
                         result.Warnings.Add($"Only {connections}/2 beam-column connections found");
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 result.Success = true;
@@ -812,7 +812,7 @@ namespace StingTools.Model
                             }
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 result.Success = true;
@@ -1066,7 +1066,7 @@ namespace StingTools.Model
                     result.Warnings.AddRange(matResult.Warnings.Take(5));
                     reportLines.Add($"  {matResult.MaterialsApplied} materials applied");
                     reportLines.Add($"  {matResult.MaterialsCreated} new materials created");
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 // ── Step 5: Run structural checks ──

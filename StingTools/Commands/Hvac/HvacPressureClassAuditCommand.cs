@@ -186,7 +186,7 @@ namespace StingTools.Commands.Hvac
                     }
                     catch (Exception ex) { skipped++; StingLog.Warn($"PressureAudit {d.Id}: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 var panel = StingResultPanel.Create("HVAC — Pressure-class Audit");
                 panel.SetSubtitle($"class={pclass.Label} (≤ {maxPa:F0} Pa) · ρ={airDensity:F2} kg/m³ · scope={scope}");

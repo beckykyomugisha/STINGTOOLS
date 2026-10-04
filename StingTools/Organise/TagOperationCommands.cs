@@ -139,7 +139,7 @@ namespace StingTools.Organise
                         }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 // FIX-R01: Save SEQ sidecar inside using block after commit
                 try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
@@ -263,7 +263,7 @@ namespace StingTools.Organise
                         retagged++;
                     // RunFullPipeline already handles TAG7 + containers — no double-write needed
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             // Save SEQ sidecar + invalidate caches after re-tagging
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
@@ -431,7 +431,7 @@ namespace StingTools.Organise
                 if (fixProgress.IsCancelled)
                     tx.RollBack();
                 else
-                    tx.Commit();
+                    StingTx.Commit(tx);
             }
             try { fixProgress.Close(); } catch (Exception ex) { StingLog.Warn($"FixDuplicates progress close: {ex.Message}"); }
 
@@ -556,7 +556,7 @@ namespace StingTools.Organise
                 if (delProgress.IsCancelled)
                     tx.RollBack();
                 else
-                    tx.Commit();
+                    StingTx.Commit(tx);
             }
             try { delProgress.Close(); } catch (Exception ex) { StingLog.Warn($"DeleteTags progress close: {ex.Message}"); }
             ComplianceScan.InvalidateCache();
@@ -745,7 +745,7 @@ namespace StingTools.Organise
                         renumbered++;
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // FIX-DEEP07: Use BuildTagIndexAndCounters for consistent sidecar format
@@ -1035,7 +1035,7 @@ namespace StingTools.Organise
                         }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var resultDlg = new TaskDialog("Highlight Invalid");
@@ -1063,9 +1063,10 @@ namespace StingTools.Organise
                 {
                     ltx.Start();
                     var legendView = Tags.LegendBuilder.CreateLegendView(doc, entries, config);
-                    ltx.Commit();
-
-                    if (legendView != null)
+                    // The highlight is already committed; a rolled-back legend must not fail the command.
+                    if (!StingTx.TryCommit(ltx, null, out string legendWhy))
+                        TaskDialog.Show("Legend Not Created", $"The highlight overrides were applied, but the legend was not created.\n\n{legendWhy}");
+                    else if (legendView != null)
                         TaskDialog.Show("Legend Created", $"Legend view: '{legendView.Name}'\nPlace on a sheet for documentation.");
                 }
             }
@@ -1099,7 +1100,7 @@ namespace StingTools.Organise
                     view.SetElementOverrides(elem.Id, reset);
                     cleared++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Clear Overrides", $"Cleared overrides from {cleared} elements.");
@@ -1222,7 +1223,7 @@ namespace StingTools.Organise
 
                     copied++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // FIX-DEEP03: Persist SEQ state after tag copy (rebuilt TAG1 affects sidecar)
@@ -1327,7 +1328,7 @@ namespace StingTools.Organise
                     StingLog.Warn($"SwapTags: TAG1/container write failed: {ex.Message}");
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             ComplianceScan.InvalidateCache();
@@ -1736,7 +1737,7 @@ namespace StingTools.Organise
                         discCounts[disc] = dcc + 1;
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var report = new StringBuilder();
@@ -1769,9 +1770,10 @@ namespace StingTools.Organise
                 {
                     ltx.Start();
                     var legendView = Tags.LegendBuilder.CreateLegendView(doc, entries, config);
-                    ltx.Commit();
-
-                    if (legendView != null)
+                    // The tag colours are already committed; a rolled-back legend must not fail the command.
+                    if (!StingTx.TryCommit(ltx, null, out string legendWhy))
+                        TaskDialog.Show("Legend Not Created", $"The tags were coloured, but the legend was not created.\n\n{legendWhy}");
+                    else if (legendView != null)
                         TaskDialog.Show("Legend Created", $"Legend view: '{legendView.Name}'\nPlace on a sheet for documentation.");
                 }
             }
@@ -1827,7 +1829,7 @@ namespace StingTools.Organise
                     }
                     catch (Exception ex) { StingLog.Warn($"Set tag text color override failed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Tag Text Color",
@@ -1892,7 +1894,7 @@ namespace StingTools.Organise
                     }
                     catch (Exception ex) { StingLog.Warn($"Set leader color override failed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Leader Color",
@@ -1969,7 +1971,7 @@ namespace StingTools.Organise
                     try { view.SetElementOverrides(tag.Id, leaderOgs); leaderColored++; }
                     catch (Exception ex) { StingLog.Warn($"Set split leader color override failed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Split Color",
@@ -2018,7 +2020,7 @@ namespace StingTools.Organise
                     try { view.SetElementOverrides(tag.Id, blank); cleared++; }
                     catch (Exception ex) { StingLog.Warn($"Clear annotation color override failed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Clear Colors",
@@ -2116,7 +2118,7 @@ namespace StingTools.Organise
                     try { view.SetElementOverrides(tag.Id, leaderOgs); leaderColored++; }
                     catch (Exception ex) { StingLog.Warn($"Set leader appearance override failed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var report = new StringBuilder();
@@ -2278,7 +2280,7 @@ namespace StingTools.Organise
                     }
                     catch (Exception ex) { StingLog.Warn($"Set tag box appearance failed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             string modeLabel = result == TaskDialogResult.CommandLink1 ? "Color + Visibility" :
@@ -2409,7 +2411,7 @@ namespace StingTools.Organise
                     }
                     catch (Exception ex) { StingLog.Warn($"Apply quick tag style failed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var report = new StringBuilder();
@@ -2502,7 +2504,7 @@ namespace StingTools.Organise
                     }
                     catch (Exception ex) { StingLog.Warn($"Set tag line weight override failed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Tag Line Weight",
@@ -2652,7 +2654,7 @@ namespace StingTools.Organise
                         catch (Exception ex) { StingLog.Warn($"Set color-by-param override failed: {ex.Message}"); }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var report = new StringBuilder();
@@ -2775,7 +2777,7 @@ namespace StingTools.Organise
                     }
                     catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); failed++; }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Swap Tag Type",
@@ -3219,7 +3221,7 @@ namespace StingTools.Organise
                         StingLog.Warn($"Add leader to tag {tag.Id}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Add Leaders",
@@ -3268,7 +3270,7 @@ namespace StingTools.Organise
                         StingLog.Warn($"Remove leader from tag {tag.Id}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Remove Leaders",
@@ -3327,7 +3329,7 @@ namespace StingTools.Organise
                         StingLog.Warn($"Toggle leader on tag {tag.Id}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             string action = addLeaders ? "added" : "removed";
@@ -3498,7 +3500,7 @@ namespace StingTools.Organise
                         StingLog.Warn($"Align tag {tags[i].Id}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Align Tags", $"Aligned {aligned} tags.");
@@ -3581,7 +3583,7 @@ namespace StingTools.Organise
                         StingLog.Warn($"Reset tag {tag.Id}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             string leaderNote = removeLeaders ? " (leaders removed)" : withLeaders > 0 ? " (leaders preserved)" : "";
@@ -3632,7 +3634,7 @@ namespace StingTools.Organise
                         StingLog.Warn($"Toggle orientation on tag {tag.Id}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Toggle Orientation",
@@ -3792,7 +3794,7 @@ namespace StingTools.Organise
                     }
                     catch (Exception ex) { StingLog.Warn($"EqualizeLeaders adjust {tag.Id}: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             double medianMm = median * 304.8;
@@ -4206,7 +4208,7 @@ namespace StingTools.Organise
                         StingLog.Warn($"Snap elbow on tag {tag.Id}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             return snapped;
         }
@@ -4315,7 +4317,7 @@ namespace StingTools.Organise
             {
                 tx.Start();
                 aligned = LeaderHelper.AutoAlignTagsToLeaders(doc, tags, view);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // Surface orphan / missing-host counts so users see why
@@ -4454,7 +4456,7 @@ namespace StingTools.Organise
                         StingLog.Warn($"Flip tag {tag.Id}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Flip Tags", $"Flipped {flipped} of {tags.Count} tags.");
@@ -4607,7 +4609,7 @@ namespace StingTools.Organise
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Align Tag Text",
@@ -4681,7 +4683,7 @@ namespace StingTools.Organise
                         StingLog.Warn($"Pin/unpin tag {tag.Id}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             string action = pin ? "Pinned" : "Unpinned";
@@ -4772,7 +4774,7 @@ namespace StingTools.Organise
                         StingLog.Warn($"Nudge tag {tag.Id}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             StingLog.Info($"NudgeTags: direction={direction}, nudged={nudged}");
@@ -4897,7 +4899,7 @@ namespace StingTools.Organise
                         StingLog.Warn($"Attach leader on tag {tag.Id}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             string action = attach ? "Attached (locked)" : "Set to Free";
@@ -5198,7 +5200,7 @@ namespace StingTools.Organise
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
                 TagConfig.SaveSeqSidecar(doc, seqCounters);
             }
             ComplianceScan.InvalidateCache();
@@ -5314,7 +5316,7 @@ namespace StingTools.Organise
                     }
                     catch (Exception ex) { StingLog.Warn($"Set display mode on element failed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("STING — Display Mode",
@@ -5455,11 +5457,11 @@ namespace StingTools.Organise
                         }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {
-                    tx.RollBack();
+                    StingTx.RollBackIfOpen(tx);
                     StingLog.Error("ClusterTags", ex);
                     TaskDialog.Show("STING", $"Clustering failed: {ex.Message}");
                     return Result.Failed;
@@ -5660,11 +5662,11 @@ namespace StingTools.Organise
                         catch (Exception ex) { StingLog.Warn($"Clear cluster metadata failed: {ex.Message}"); }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {
-                    tx.RollBack();
+                    StingTx.RollBackIfOpen(tx);
                     StingLog.Error("DeclusterTags", ex);
                     return Result.Failed;
                 }
@@ -5884,7 +5886,7 @@ namespace StingTools.Organise
                         failed++;
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
                 // P6: Save SEQ sidecar after commit
                 TagConfig.SaveSeqSidecar(doc, seqCounters);
             }
@@ -6058,7 +6060,7 @@ namespace StingTools.Organise
                         StingLog.Warn($"ApplyClonedTags element {target.Id}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 TagConfig.SaveSeqSidecar(doc, seqCounters);
             }

@@ -430,7 +430,7 @@ namespace StingTools.Model
                 {
                     tx.Start();
                     result = FinishFloorCreator.Run(doc);
-                    if (result.Created.Count > 0) tx.Commit(); else tx.RollBack();
+                    if (result.Created.Count > 0) StingTx.Commit(tx); else tx.RollBack();
                 }
 
                 if (result.RoomsScanned == 0)

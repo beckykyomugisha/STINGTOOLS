@@ -96,7 +96,7 @@ namespace StingTools.Commands.DesignOptions
                             StingLog.Warn($"CreateIsolationView '{name}': {ex.Message}");
                         }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
                 tg.Assimilate();
             }

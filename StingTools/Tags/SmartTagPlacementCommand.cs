@@ -2014,7 +2014,7 @@ namespace StingTools.Tags
                             skipped++;
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
             }
             else
@@ -2052,7 +2052,7 @@ namespace StingTools.Tags
 
                     (placed, skipped, collisions) =
                         TagPlacementEngine.PlaceTagsInView(doc, view, addLeaders, tagUntaggedOnly);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
             }
 
@@ -2252,7 +2252,7 @@ namespace StingTools.Tags
                         grid.Insert(oldBox);
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Arrange Tags",
@@ -2350,7 +2350,7 @@ namespace StingTools.Tags
                 }
 
                 // doc.Regenerate() REMOVED — causes native Revit crashes (see StingCommandHandler.cs:759)
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             StingLog.Info($"RemoveAnnotationTags: deleted {removed} of {idsToDelete.Count} tags");
@@ -2441,7 +2441,7 @@ namespace StingTools.Tags
                     if (viewsProcessed % 10 == 0)
                         StingLog.Info($"BatchPlaceTags: {viewsProcessed}/{targetViews.Count} views done");
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             sw.Stop();
@@ -2578,7 +2578,7 @@ namespace StingTools.Tags
                 tx.Start();
                 (placed, skipped) = TagPlacementPresets.ApplyPreset(
                     doc, view, preset, tagOnlyUntagged: true);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             sw.Stop();
@@ -2884,7 +2884,14 @@ namespace StingTools.Tags
                             catch (Exception ex) { StingLog.Warn($"Set text size on AnnotationType: {ex.Message}"); }
                         }
 
-                        ft.Commit();
+                        // one family's rollback counts as that family failing; famDoc is still closed below
+                        if (!StingTx.TryCommit(ft, null, out string whyFt))
+                        {
+                            changed = false;
+                            failed++;
+                            report.AppendLine($"  [FAIL] {fam.Name}: {whyFt}");
+                            StingLog.Warn(whyFt);
+                        }
                     }
 
                     try
@@ -3005,7 +3012,7 @@ namespace StingTools.Tags
                     }
                     catch (Exception ex) { StingLog.Warn($"Set line weight on category {bic}: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Set Tag Category Line Weight",
@@ -3038,7 +3045,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 moved = TagPlacementPresets.AlignTagBands(doc, view, tagH);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("STING \u2014 Align Tag Bands",
                 $"Aligned {moved} tags into horizontal bands in '{view.Name}'.");
@@ -3140,7 +3147,7 @@ namespace StingTools.Tags
                     }
                     catch (Exception ex2) { StingLog.Warn($"Set TAG_POS on type {typeId}: {ex2.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("STING \u2014 Tag Position",
@@ -3268,7 +3275,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 (placed, skipped, collisions) = TagPlacementEngine.PlaceTagsInLinkedViews(doc, view, true);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("STING — Linked Model Tags",
@@ -3550,7 +3557,7 @@ namespace StingTools.Tags
                         skipped++;
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             string modeName = mode switch
@@ -3609,7 +3616,7 @@ namespace StingTools.Tags
                 {
                     tx.Start();
                     updated = TagStyleEngine.OverrideArrowheadOnSelection(doc, tagIds, arrowName);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 TaskDialog.Show("STING — Set Arrowhead Style",
                     $"Overrode arrowhead on {updated}/{tagIds.Count} selected tags.\n" +
@@ -3660,7 +3667,7 @@ namespace StingTools.Tags
                     }
                     catch (Exception ex) { StingLog.Warn($"Set arrowhead line weight on category: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("STING — Set Arrowhead Style",
@@ -3914,7 +3921,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                if (!StingTx.TryCommit(tx, null, out string why)) { StingLog.Warn(why); return 0; }
             }
 
             StingLog.Info($"TagControlSession.Apply: applied settings to {applied} tags in '{view.Name}'");

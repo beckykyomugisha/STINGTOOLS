@@ -68,7 +68,7 @@ namespace StingTools.Commands.Lightning
                 {
                     t.Start();
                     result = LpsSldEngine.Build(doc);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
             }
             catch (Exception ex)
@@ -196,7 +196,7 @@ namespace StingTools.Commands.Lightning
                         }
                         catch (Exception ex) { StingLog.Warn($"SLD earth note: {ex.Message}"); }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
             }
             catch (Exception ex)
@@ -423,7 +423,7 @@ namespace StingTools.Commands.Lightning
                         }
                         catch (Exception ex) { StingLog.Warn($"LPS TAG7 write {el.Id}: {ex.Message}"); }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
             }
             catch (Exception ex)

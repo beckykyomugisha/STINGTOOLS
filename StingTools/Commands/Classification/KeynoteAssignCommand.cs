@@ -69,7 +69,7 @@ namespace StingTools.Commands.Classification
 
                         if (!string.IsNullOrWhiteSpace(csi)) fromCsi++; else fromSys++;
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 var panel = StingResultPanel.Create("MEP / Classification — Assign Keynotes");

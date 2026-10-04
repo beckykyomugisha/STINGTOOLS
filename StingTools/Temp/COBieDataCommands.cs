@@ -270,7 +270,7 @@ namespace StingTools.Temp
 
                     if (any) pushed++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             return pushed;
         }
@@ -384,7 +384,7 @@ namespace StingTools.Temp
                         matchCounts[match.TypeCode]++;
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var report = new StringBuilder();

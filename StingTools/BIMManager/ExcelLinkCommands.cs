@@ -853,14 +853,18 @@ namespace StingTools.BIMManager
                 try
                 {
                     var (applied, skipped, failed) = ApplyChanges(doc, changes, trans, forceInvalid);
+                    StingTx.Commit(trans); // counts only after Revit kept the batch
                     result.Applied += applied;
                     result.Skipped += skipped;
                     result.Failed += failed;
-                    trans.Commit();
                 }
                 catch (Exception ex)
                 {
-                    if (trans.HasStarted()) trans.RollBack();
+                    StingTx.RollBackIfOpen(trans);
+                    // The batch did not commit: no change in it was applied, so the change
+                    // log (built from AllChanges) must not record any as Applied.
+                    foreach (var c in changes)
+                        if (c.Status == ChangeStatus.Applied) c.Status = ChangeStatus.Failed;
                     StingLog.Error($"Excel streaming import batch failed", ex);
                     return;
                 }
@@ -875,6 +879,7 @@ namespace StingTools.BIMManager
 
             if (affectedIds.Count > 0)
             {
+                int rebuiltBefore = result.Rebuilt;
                 using (var rebuildTrans = new Transaction(doc, "STING Excel Import — Tag Rebuild"))
                 {
                     rebuildTrans.Start();
@@ -971,14 +976,15 @@ namespace StingTools.BIMManager
                                 StingLog.Warn($"Excel streaming tag rebuild failed for {eid}: {ex.Message}");
                             }
                         }
-                        rebuildTrans.Commit();
+                        StingTx.Commit(rebuildTrans);
 
                         try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
                         catch (Exception ssEx) { StingLog.Warn($"Excel streaming SaveSeqSidecar: {ssEx.Message}"); }
                     }
                     catch (Exception ex)
                     {
-                        if (rebuildTrans.HasStarted()) rebuildTrans.RollBack();
+                        StingTx.RollBackIfOpen(rebuildTrans);
+                        result.Rebuilt = rebuiltBefore; // this batch's rebuild did not commit
                         StingLog.Error("Excel streaming tag rebuild transaction failed", ex);
                     }
                 }
@@ -1692,12 +1698,11 @@ namespace StingTools.BIMManager
                     try
                     {
                         (applied, skipped, failed) = ExcelLinkEngine.ApplyChanges(doc, changes, trans, forceInvalid);
-                        trans.Commit();
+                        StingTx.Commit(trans);
                     }
                     catch (Exception ex2)
                     {
-                        if (trans.HasStarted())
-                            trans.RollBack();
+                        StingTx.RollBackIfOpen(trans);
                         throw new InvalidOperationException($"Transaction failed: {ex2.Message}", ex2);
                     }
                 }
@@ -1810,14 +1815,15 @@ namespace StingTools.BIMManager
                                     StingLog.Warn($"ExcelLink tag rebuild failed for {eid}: {ex2.Message}");
                                 }
                             }
-                            rebuildTrans.Commit();
+                            StingTx.Commit(rebuildTrans);
                             // FIX-R07: Save SEQ sidecar after commit
                             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
                             catch (Exception ssEx) { StingLog.Warn($"ExcelLink Import SaveSeqSidecar: {ssEx.Message}"); }
                         }
                         catch (Exception ex2)
                         {
-                            if (rebuildTrans.HasStarted()) rebuildTrans.RollBack();
+                            StingTx.RollBackIfOpen(rebuildTrans);
+                            rebuilt = 0; // the rebuild did not commit, so no tag was rebuilt
                             StingLog.Error("ExcelLink tag rebuild transaction failed", ex2);
                         }
                     }
@@ -2118,12 +2124,11 @@ namespace StingTools.BIMManager
                     try
                     {
                         (applied, skipped, failed) = ExcelLinkEngine.ApplyChanges(doc, changes, trans, forceInvalid);
-                        trans.Commit();
+                        StingTx.Commit(trans);
                     }
                     catch (Exception ex2)
                     {
-                        if (trans.HasStarted())
-                            trans.RollBack();
+                        StingTx.RollBackIfOpen(trans);
                         throw new InvalidOperationException($"Transaction failed: {ex2.Message}", ex2);
                     }
                 }
@@ -2236,14 +2241,15 @@ namespace StingTools.BIMManager
                                     StingLog.Warn($"ExcelLink RoundTrip tag rebuild failed for {eid}: {ex2.Message}");
                                 }
                             }
-                            rebuildTrans.Commit();
+                            StingTx.Commit(rebuildTrans);
                             // FIX-R07: Save SEQ sidecar after commit
                             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
                             catch (Exception ssEx) { StingLog.Warn($"ExcelLink RoundTrip SaveSeqSidecar: {ssEx.Message}"); }
                         }
                         catch (Exception ex2)
                         {
-                            if (rebuildTrans.HasStarted()) rebuildTrans.RollBack();
+                            StingTx.RollBackIfOpen(rebuildTrans);
+                            rebuilt = 0; // the rebuild did not commit, so no tag was rebuilt
                             StingLog.Error("ExcelLink RoundTrip tag rebuild failed", ex2);
                         }
                     }
@@ -2831,7 +2837,7 @@ namespace StingTools.BIMManager
                         }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 // ── Report ──
@@ -3240,7 +3246,7 @@ namespace StingTools.BIMManager
                 {
                     tx.Start();
                     var (applied, skippedI, failedI) = ExcelLinkEngine.ApplyChanges(doc, actualChanges, tx);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 ComplianceScan.InvalidateCache();
@@ -3295,7 +3301,7 @@ namespace StingTools.BIMManager
                         {
                             tx.Start();
                             ExcelLinkEngine.ApplyChanges(doc, actualChanges, tx);
-                            tx.Commit();
+                            StingTx.Commit(tx);
                         }
                         ComplianceScan.InvalidateCache();
                         StingAutoTagger.InvalidateContext();

@@ -304,7 +304,7 @@ namespace StingTools.BIMManager
                 {
                     tg.Start();
                     DrawingTypeExcelEngine.ApplyImport(doc, imp.UpdatedDtLib, imp.UpdatedPackLib, outDir);
-                    tg.Commit();
+                    StingTx.Commit(tg);
                 }
 
                 StingLog.Info($"DrawingTypeExcel: applied {imp.Changes.Count} changes from {path}");

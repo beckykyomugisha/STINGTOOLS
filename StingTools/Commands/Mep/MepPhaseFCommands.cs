@@ -161,7 +161,7 @@ namespace StingTools.Commands.Mep
                 {
                     t.Start();
                     res = MepCircuitBuilder.AutoGroup(doc, maxPerCircuit, maxDistM);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 var panel = StingResultPanel.Create("MEP — Auto-Group Circuits (first pass)");

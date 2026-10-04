@@ -341,7 +341,7 @@ namespace StingTools.Temp
                     if (success) existingTypeNames.Add(typeName);
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             string report = tally.Report() +
                 $"Materials created: {matCreated}\n" +

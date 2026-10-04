@@ -111,7 +111,7 @@ namespace StingTools.Temp
                         }
                     }
 
-                    t.Commit();
+                    StingTx.Commit(t);
 
                     // Report
                     var report = new StringBuilder();
@@ -262,7 +262,12 @@ namespace StingTools.Temp
                                 }
                                 catch (Exception ex) { StingLog.Warn($"logged inside: {ex.Message}"); }
                             }
-                            t.Commit();
+                            // one file's rollback counts as that file failing
+                            if (!StingTx.TryCommit(t, null, out string why))
+                            {
+                                fileResults.AppendLine($"  {Path.GetFileName(file)} → ROLLED BACK: {why}");
+                                continue;
+                            }
 
                             totalCreated += created;
                             fileResults.AppendLine($"  {Path.GetFileName(file)} → Level: {level?.Name ?? "N/A"}, Created: {created}");
@@ -392,7 +397,7 @@ namespace StingTools.Temp
                         try { if (CADElementCreator.CreateRevitElement(doc, el) != null) created++; }
                         catch (Exception ex) { StingLog.Warn($"Create Revit element from DWG: {ex.Message}"); }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
 
                     TaskDialog.Show("STING DWG Import",
                         $"Import complete with custom mapping.\n" +
@@ -513,7 +518,7 @@ namespace StingTools.Temp
                     ElementId instanceId = ElementId.InvalidElementId;
                     bool linked = doc.Link(dialog.FileName, linkOptions, doc.ActiveView, out instanceId);
 
-                    t.Commit();
+                    StingTx.Commit(t);
 
                     if (linked && instanceId != null && instanceId != ElementId.InvalidElementId)
                     {
@@ -647,7 +652,7 @@ namespace StingTools.Temp
                 {
                     t.Start();
                     doc.Delete(importInstances);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 TaskDialog.Show("STING Remove Linked CAD", $"Removed {importInstances.Count} linked CAD instance(s).");

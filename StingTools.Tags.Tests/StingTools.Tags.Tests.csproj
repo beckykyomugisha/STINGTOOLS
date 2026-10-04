@@ -120,6 +120,8 @@
     <Compile Include="..\StingTools\Core\Electrical\Iec60909Lv.cs" Link="Core\Electrical\Iec60909Lv.cs" />
     <Compile Include="..\StingTools\Core\Electrical\AicTier.cs" Link="Core\Electrical\AicTier.cs" />
     <Compile Include="..\StingTools\Core\Electrical\ElecWriteReport.cs" Link="Core\Electrical\ElecWriteReport.cs" />
+    <Compile Include="..\StingTools\Core\TxReport.cs" Link="Core\TxReport.cs" />
+    <Compile Include="..\StingTools\Tags\TaggingStatsSnapshot.cs" Link="Tags\TaggingStatsSnapshot.cs" />
     <Compile Include="..\StingTools\Core\Electrical\ElecResultScope.cs" Link="Core\Electrical\ElecResultScope.cs" />
     <Compile Include="..\StingTools\Core\BipNames.cs" Link="Core\BipNames.cs" />
     <Compile Include="..\StingTools\Core\NumberText.cs" Link="Core\NumberText.cs" />

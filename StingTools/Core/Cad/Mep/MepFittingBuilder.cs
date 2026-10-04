@@ -146,14 +146,18 @@ namespace StingTools.Core.Cad.Mep
                             if (result.Warnings.Count < 30) result.Warnings.Add($"Junction: {ex.Message}");
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {
-                    tx.RollBack();
+                    StingTx.RollBackIfOpen(tx);
                     StingLog.Error("MepFittingBuilder.Build", ex);
                     result.Warnings.Add($"Fitting batch failed (rolled back): {ex.Message}");
-                    return new MepFittingBuildResult();
+                    // Nothing this transaction created is in the model: a fresh result, but
+                    // keep the warnings so the rollback reason still reaches the report.
+                    var rolledBack = new MepFittingBuildResult { NearMissJunctions = result.NearMissJunctions };
+                    rolledBack.Warnings.AddRange(result.Warnings);
+                    return rolledBack;
                 }
             }
             return result;
@@ -184,6 +188,7 @@ namespace StingTools.Core.Cad.Mep
             }
             if (branches.Count == 0) return;
 
+            int createdBefore = result.CreatedIds.Count, tapsJoinedBefore = result.TapsJoined;
             using (var tx = new Transaction(_doc, "STING MODEL: Insert MEP Branch Taps"))
             {
                 tx.Start();
@@ -231,12 +236,15 @@ namespace StingTools.Core.Cad.Mep
                             if (result.Warnings.Count < 30) result.Warnings.Add($"Branch tap: {ex.Message}");
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {
-                    tx.RollBack();
+                    StingTx.RollBackIfOpen(tx);
                     StingLog.Error("MepFittingBuilder.BuildMidRunTaps", ex);
+                    // The breaks and tees this transaction made are not in the model.
+                    result.CreatedIds.RemoveRange(createdBefore, result.CreatedIds.Count - createdBefore);
+                    result.TapsJoined = tapsJoinedBefore;
                     result.Warnings.Add($"Branch-tap batch failed (rolled back): {ex.Message}");
                 }
             }

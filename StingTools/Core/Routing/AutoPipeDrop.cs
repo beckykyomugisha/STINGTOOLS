@@ -99,11 +99,15 @@ namespace StingTools.Core.Routing
                             result.Warnings.Add($"Drop from {fx?.Id}: {ex3.Message}");
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex3)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                    // Nothing this transaction created or connected is in the model.
+                    result.CreatedIds.Clear();
+                    result.ConnectedCount = 0;
+                    result.TakeoffCount = 0;
                     result.Warnings.Add($"AutoPipeDrop fatal: {ex3.Message}");
                 }
             }

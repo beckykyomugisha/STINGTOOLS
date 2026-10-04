@@ -128,7 +128,7 @@ namespace StingTools.Core.Drawing
                         StingLog.Warn($"TitleBlockRevisionSyncer: sheet {sheet.SheetNumber} — {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // ROADMAP QR-5 — a sheet QR encodes ?r={revision}, so the moment the
@@ -187,7 +187,7 @@ namespace StingTools.Core.Drawing
                     tx.RollBack();
                     return result;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             return result;
         }

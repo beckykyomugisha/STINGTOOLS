@@ -111,7 +111,7 @@ namespace StingTools.Commands.Symbols
                     }
                     catch (Exception ex) { StingLog.Warn($"FixDrift inner: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("STING", $"Fixed {fixedCount}/{report.DriftedSymbols} drifted tag(s).");
             return Result.Succeeded;
@@ -146,7 +146,7 @@ namespace StingTools.Commands.Symbols
                     catch (Exception ex) { StingLog.Warn($"BatchHeal: {ex.Message}"); }
                 }
                 int synced = SymbolOverlayManager.SyncAllFilterVisibility(ctx.Doc);
-                tx.Commit();
+                StingTx.Commit(tx);
                 TaskDialog.Show("STING - Batch Heal",
                     $"Orphans healed : {orphansHealed}\nDrift fixed    : {driftFixed}\nFilters synced : {synced}");
             }

@@ -129,13 +129,13 @@ namespace StingTools.Temp
                         var point = uidoc.Selection.PickPoint($"Pick placement point for {symbol.Family.Name}");
                         doc.Create.NewFamilyInstance(point, symbol, level,
                             Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
-                        t.Commit();
+                        StingTx.Commit(t);
                         TaskDialog.Show("STING MEP Placement",
                             $"Placed: {symbol.Family.Name} : {symbol.Name}\nLevel: {level.Name}");
                     }
                     catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                     {
-                        t.RollBack();
+                        StingTx.RollBackIfOpen(t);
                         return Result.Cancelled;
                     }
                 }

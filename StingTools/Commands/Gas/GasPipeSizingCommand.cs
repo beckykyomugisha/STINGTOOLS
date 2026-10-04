@@ -275,7 +275,7 @@ namespace StingTools.Commands.Gas
                     }
                     catch (Exception ex) { failed++; warnings.Add($"Pipe {id.Value}: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             return (ok, failed);
         }

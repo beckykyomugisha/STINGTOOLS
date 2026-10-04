@@ -163,7 +163,7 @@ namespace StingTools.Commands.Cost
                         }
                         catch (Exception ex) { StingLog.Warn($"Cost_ClearStale {el.Id}: {ex.Message}"); }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
                 StingCostStaleMarker.ResetRecentlyProcessed();
                 StingResultPanel.Create("Clear stale flags")
@@ -433,7 +433,7 @@ namespace StingTools.Commands.Cost
                         }
                         catch (Exception ex) { StingLog.Warn($"Cost_MigrateCurrencyParams {el.Id}: {ex.Message}"); }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 StingResultPanel.Create("Migrate UGX → Neutral")
@@ -550,7 +550,7 @@ namespace StingTools.Commands.Cost
                             StingLog.Warn($"Cost_MigrateESEntities {el?.Id}: {ex.Message}");
                         }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 StingResultPanel.Create("Migrate ES v1 → v2")

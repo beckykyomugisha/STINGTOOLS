@@ -248,7 +248,8 @@ namespace StingTools.Commands.Rooms
                         {
                             t.Start();
                             var tally = RoomTagPlacer.PlaceInView(doc, view, chosen, withLeader: false);
-                            t.Commit();
+                            // a rolled-back view throws into the per-view catch below and counts as failed
+                            StingTx.Commit(t);
 
                             total.Placed += tally.Placed;
                             total.AlreadyHadTag += tally.AlreadyHadTag;

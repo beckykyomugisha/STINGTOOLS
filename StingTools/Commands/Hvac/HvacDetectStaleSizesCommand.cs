@@ -150,7 +150,7 @@ namespace StingTools.Commands.Hvac
                         }
                         catch (Exception ex) { skipped++; StingLog.Warn($"Stale check {d.Id}: {ex.Message}"); }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 // Build report

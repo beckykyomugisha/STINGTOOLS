@@ -244,7 +244,7 @@ namespace StingTools.ExLink
                         JsonConvert.SerializeObject(kv.Value.snap), DateTime.UtcNow,
                         cd.cost, cd.cur, cd.qty, cd.lead);
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             new TaskDialog("Fohlio Import")

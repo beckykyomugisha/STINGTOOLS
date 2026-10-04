@@ -74,7 +74,7 @@ namespace StingTools.Commands.Plumbing
                 // re-walking the connector graph.
                 dfuMap = FixtureUnitAggregator.BuildDfuMap(doc, writeBack: !dryRun);
                 sizing = DrainageSizer.AnalyseAndSize(doc, dfuMap.PipeDfu, writeBack: !dryRun, dryRun);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var vents = VentDesigner.DesignVents(doc, dfuMap.PipeDfu);
@@ -203,7 +203,7 @@ namespace StingTools.Commands.Plumbing
             {
                 tx.Start();
                 stamped = BackflowClassifier.WriteBack(ctx.Doc, classified);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var panel = StingResultPanel.Create("Backflow Audit (BS EN 1717)");
@@ -365,7 +365,7 @@ namespace StingTools.Commands.Plumbing
             {
                 tx.Start();
                 r = DeadLegDetector.Scan(ctx.Doc, writeBack: true);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             string status = $"Dead-Leg · {r.PipesScanned} pipes · {r.LegsFlagged} flagged · {r.PipesWritten} written";
             var inst = StingPlumbingPanel.Instance;
@@ -445,7 +445,7 @@ namespace StingTools.Commands.Plumbing
             {
                 tx.Start();
                 r = RecircLoopBalancer.Analyse(ctx.Doc, systemNameFilter: null, writeBack: true);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var panel = StingResultPanel.Create("DHW Recirculation Loop Balance");
@@ -484,7 +484,7 @@ namespace StingTools.Commands.Plumbing
                 // Auto-Size Drainage next.
                 var dfu = FixtureUnitAggregator.BuildDfuMap(ctx.Doc, writeBack: true);
                 rep = StackCapacityValidator.Validate(ctx.Doc, dfu, writeBack: true);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var panel = StingResultPanel.Create("Stack Capacity (BS EN 12056-2 Table 11)");

@@ -109,7 +109,7 @@ namespace StingTools.Commands.Placement
                 if (outcome.CreatedSegments.Count == 0 && outcome.RejectedSegments > 0)
                     tx.RollBack();
                 else
-                    tx.Commit();
+                    StingTx.Commit(tx);
             }
 
             var panel = StingResultPanel.Create("STING — Wall Chase")

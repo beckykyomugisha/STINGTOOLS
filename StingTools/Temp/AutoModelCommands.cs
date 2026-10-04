@@ -122,7 +122,12 @@ namespace StingTools.Temp
                                     report.AppendLine($"  ✗ {fileName} — link returned invalid ID");
                                 }
 
-                                t.Commit();
+                                // one file's rollback counts as that file failing
+                                if (!StingTx.TryCommit(t, null, out string why))
+                                {
+                                    if (linkId != ElementId.InvalidElementId) { linked--; failed++; }
+                                    report.AppendLine($"  ✗ {fileName} — {why}");
+                                }
                             }
                         }
                         catch (Exception ex)
@@ -296,7 +301,7 @@ namespace StingTools.Temp
                         }
                     }
 
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 var resultTd = new TaskDialog("Trace Walls — Results");
@@ -477,7 +482,7 @@ namespace StingTools.Temp
                         }
                     }
 
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 var resultTd = new TaskDialog("Extract Rooms — Results");
@@ -632,7 +637,7 @@ namespace StingTools.Temp
                         }
                     }
 
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 report.AppendLine();
@@ -781,7 +786,7 @@ namespace StingTools.Temp
                         }
                     }
 
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 report.AppendLine("Block Name → Family Mapping:");
@@ -892,7 +897,7 @@ namespace StingTools.Temp
                             ThisViewOnly = false
                         };
                         doc.Link(filePath, options, activeView, out linkId);
-                        t.Commit();
+                        StingTx.Commit(t);
                     }
 
                     if (linkId == ElementId.InvalidElementId)
@@ -951,7 +956,7 @@ namespace StingTools.Temp
                                 }
                                 catch (Exception ex) { StingLog.Warn($"skip invalid lines: {ex.Message}"); }
                             }
-                            t.Commit();
+                            StingTx.Commit(t);
                         }
                         report.AppendLine($"  ✓ Created {wallCount} walls from {cadLines.Count} CAD lines");
                     }
@@ -991,7 +996,7 @@ namespace StingTools.Temp
                                 }
                                 catch (Exception ex) { StingLog.Warn($"skip invalid rooms: {ex.Message}"); }
                             }
-                            t.Commit();
+                            StingTx.Commit(t);
                         }
                         report.AppendLine($"  ✓ Created {roomCount} rooms from {textItems.Count} text items");
                     }
@@ -1020,7 +1025,7 @@ namespace StingTools.Temp
                                     try { activeView.SetCategoryHidden(sub.Id, true); } catch (Exception ex) { StingLog.Warn($"Hide category in view: {ex.Message}"); }
                                 }
                             }
-                            t.Commit();
+                            StingTx.Commit(t);
                         }
                     }
                     report.AppendLine($"  ✓ Mapped {layerCount} CAD layers");
@@ -1065,7 +1070,7 @@ namespace StingTools.Temp
                                     }
                                     catch (Exception ex) { StingLog.Warn($"skip failed placements: {ex.Message}"); }
                                 }
-                                t.Commit();
+                                StingTx.Commit(t);
                             }
                         }
                         report.AppendLine($"  ✓ Placed {familyCount} families from {blockPoints.Count} blocks");

@@ -246,7 +246,7 @@ namespace StingTools.Tags
                             StingLog.Warn($"MigrateBindingScope: {f.ParamName} failed: {ex.Message}");
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 SharedParamGuids.InvalidateCache();

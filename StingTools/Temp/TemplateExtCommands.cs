@@ -84,7 +84,7 @@ namespace StingTools.Temp
                         StingLog.Warn($"Line pattern '{name}': {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Create Line Patterns",
@@ -277,7 +277,7 @@ namespace StingTools.Temp
                         }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Apply Filters",
@@ -377,7 +377,7 @@ namespace StingTools.Temp
                         StingLog.Warn($"Material schedule '{name}': {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Material Schedules",

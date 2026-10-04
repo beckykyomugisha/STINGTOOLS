@@ -2346,7 +2346,7 @@ namespace StingTools.BIMManager
                         costed++;
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 // Export cost summary CSV
@@ -2818,7 +2818,7 @@ namespace StingTools.BIMManager
 
                         updated++;
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 StingLog.Info($"P6WritebackCommand: {updated} elements updated, {notFound} not found in model.");

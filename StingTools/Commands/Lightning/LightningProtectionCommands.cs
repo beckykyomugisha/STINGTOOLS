@@ -108,7 +108,7 @@ namespace StingTools.Commands.Lightning
                             ParameterHelpers.SetString(dc, LpsParams.CONDUCTOR_MATERIAL_TXT, mat);
                         stamped++;
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
 
                     TaskDialog.Show("STING — LPS Class Setup",
                         $"Class {classId} applied to project.\n\n" +
@@ -203,7 +203,7 @@ namespace StingTools.Commands.Lightning
                     t.Start();
                     ParameterHelpers.SetString(doc.ProjectInformation,
                         LpsParams.COMPLIANCE_STATUS_TXT, verdict, true);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Stamp compliance: {ex.Message}"); }
@@ -384,7 +384,7 @@ namespace StingTools.Commands.Lightning
                             ok ? "SPACING OK" : "SPACING FAIL", true);
                         if (!ok) { violations++; failingIds.Add(dc.Id); }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
             }
             catch (Exception ex)
@@ -496,7 +496,7 @@ namespace StingTools.Commands.Lightning
                         else if (r > target) { failed++; failedIds.Add(el.Id); ParameterHelpers.SetString(el, LpsParams.COMPLIANCE_STATUS_TXT, $"EARTH FAIL — {r:F1} ohm", true); }
                         else { passed++; ParameterHelpers.SetString(el, LpsParams.COMPLIANCE_STATUS_TXT, "EARTH OK", true); }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
             }
             catch (Exception ex)
@@ -677,7 +677,7 @@ namespace StingTools.Commands.Lightning
                             remarks
                         });
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
             }
             catch (Exception ex)
@@ -834,7 +834,7 @@ namespace StingTools.Commands.Lightning
                         }
                         catch (Exception ex) { StingLog.Warn($"Stamp room elements: {ex.Message}"); }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
             }
             catch (Exception ex)
@@ -977,7 +977,7 @@ namespace StingTools.Commands.Lightning
                         catch (Exception ex) { StingLog.Warn($"TextNote: {ex.Message}"); }
                     }
 
-                    t.Commit();
+                    StingTx.Commit(t);
 
                     try
                     {
@@ -1125,7 +1125,7 @@ namespace StingTools.Commands.Lightning
                             conflict ? "SEP DIST FAIL" : "SEP DIST OK", true);
                         if (conflict) violations++;
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
             }
             catch (Exception ex)
@@ -1254,7 +1254,7 @@ namespace StingTools.Commands.Lightning
                         else if ((nextDue - today).TotalDays <= 90) rowsUpcoming.Add(row);
                         else rowsOk.Add(row);
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
             }
             catch (Exception ex)
@@ -2179,7 +2179,7 @@ namespace StingTools.Commands.Lightning
                         perType[tag] = n;
                         total += n;
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
             }
             catch (Exception ex)
@@ -2251,7 +2251,7 @@ namespace StingTools.Commands.Lightning
                         if (sMm > maxSepMm) maxSepMm = sMm;
                         restamped++;
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
             }
             catch (Exception ex)
@@ -2369,7 +2369,7 @@ namespace StingTools.Commands.Lightning
                         }
                         catch (Exception ex2) { StingLog.Warn($"Contained-FI scan: {ex2.Message}"); }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
             }
             catch (Exception ex)
@@ -2471,7 +2471,7 @@ namespace StingTools.Commands.Lightning
                         }
                         catch (Exception ex2) { StingLog.Warn($"Clear contained: {ex2.Message}"); }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
             }
             catch (Exception ex)
@@ -2537,7 +2537,7 @@ namespace StingTools.Commands.Lightning
                         var s3 = CreateInspectionRegister(doc, cat, suffix);
                         if (s3 != null) created.Add(s3.Name);
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
             }
             catch (Exception ex)

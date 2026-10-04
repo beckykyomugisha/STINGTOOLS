@@ -327,6 +327,9 @@ namespace StingTools.Core
                 // ElementId-based caches and Definition caches become invalid when a
                 // document closes. Using them against a new document causes native crashes.
                 application.ControlledApplication.DocumentClosing += OnDocumentClosing;
+                // ELEC-32: record Revit's error text per transaction (read-only) so a
+                // rolled-back StingTx.Commit can say WHY, not only that it failed.
+                application.ControlledApplication.FailuresProcessing += StingTx.RecordFailures;
                 // MEP-from-DWG P6-2.3: drop the per-import detection cache on ANY model
                 // change so a Preview→Convert cache hit always reflects the current model.
                 application.ControlledApplication.DocumentChanged += OnDocumentChangedMepCache;
@@ -784,7 +787,8 @@ namespace StingTools.Core
                         }
                         catch (Exception elEx) { StingLog.Warn($"AutoTagger deferred retry element {id.Value}: {elEx.Message}"); }
                     }
-                    tx.Commit();
+                    // rolled back: nothing was tagged
+                    if (!StingTx.TryCommit(tx, null, out string retryWhy)) { StingLog.Warn(retryWhy); processed = 0; }
                 }
 
                 if (processed > 0)
@@ -1058,8 +1062,10 @@ namespace StingTools.Core
                                             site.Id, overwrite: true);
                                         ParameterHelpers.SetString(pi, "PRJ_CLIMATE_SITE_LABEL_TXT",
                                             site.Label, overwrite: true);
-                                        tx.Commit();
-                                        StingLog.Info($"HVAC climate site auto-stamped: {site.Id} ({site.Label})");
+                                        if (StingTx.TryCommit(tx, null, out string climWhy))
+                                            StingLog.Info($"HVAC climate site auto-stamped: {site.Id} ({site.Label})");
+                                        else
+                                            StingLog.Warn(climWhy);
                                     }
                                 }
                             }

@@ -490,7 +490,7 @@ namespace StingTools.Commands.Sustainability
                     if (!StampDouble(pi, ParamRegistry.SUS_MAT_ENERGY_MJ_M2, res.Materials?.EnergyIntensityMjM2 ?? 0)) unbound.Add(ParamRegistry.SUS_MAT_ENERGY_MJ_M2);
                     var edge = res.Schemes.FirstOrDefault(s => s.SchemeId == "EDGE");
                     if (!StampText(pi, ParamRegistry.SUS_EDGE_LEVEL, edge?.AchievedLevel ?? "None")) unbound.Add(ParamRegistry.SUS_EDGE_LEVEL);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
                 if (unbound.Count > 0)
                     StingLog.Warn($"Sustain SetBaseline: {unbound.Count} SUS_* param(s) not bound — baseline did NOT persist: " +

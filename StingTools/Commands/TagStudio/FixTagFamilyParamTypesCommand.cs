@@ -406,7 +406,11 @@ namespace StingTools.Commands.TagStudio
                     }
 
                     if (lostOne) { tx.RollBack(); row.Replaced = 0; }
-                    else if (row.Replaced > 0) tx.Commit();
+                    else if (row.Replaced > 0)
+                    {
+                        // a rolled-back family replaced nothing; it reports as REFUSED below
+                        if (!StingTx.TryCommit(tx, null, out string why)) { refused.Add($"{row.FamilyName}: {why}"); row.Replaced = 0; StingLog.Warn(why); }
+                    }
                     else tx.RollBack();
                 }
 

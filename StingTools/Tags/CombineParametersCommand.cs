@@ -140,14 +140,21 @@ namespace StingTools.Tags
             // seqCounters and existingTags persist across batches for collision detection.
             const int BatchSize = 200;
             int batchStart = 0;
+            // ELEC-32: a batch Revit rolled back stops the run; earlier batches stay committed.
+            string rolledBack = null;
+            int batchNum = 0;
 
             try
             {
-            while (batchStart < elements.Count)
+            while (batchStart < elements.Count && rolledBack == null)
             {
                 int batchEnd = Math.Min(batchStart + BatchSize, elements.Count);
                 var batch = elements.GetRange(batchStart, batchEnd - batchStart);
                 batchStart = batchEnd;
+                batchNum++;
+                // Counts before this batch, restored if Revit rolls it back.
+                int elementsBefore = totalElements, writesBefore = totalWrites, skippedBefore = skippedNoDisc;
+                var groupWritesBefore = new Dictionary<string, int>(writesPerGroup);
 
                 using (Transaction tx = new Transaction(doc, "STING Combine Parameters"))
                 {
@@ -193,7 +200,16 @@ namespace StingTools.Tags
                             {
                                 tx.RollBack();
                                 progress.Close();
-                                TaskDialog.Show("STING", $"Combine cancelled after {totalElements} elements.\n{totalWrites} container writes completed before cancellation.");
+                                // The cancelled batch was undone: report only the committed batches,
+                                // and persist the SEQ counters they used (the cancel returned before
+                                // the post-loop save, so the next run could reuse those numbers).
+                                totalElements = elementsBefore;
+                                totalWrites = writesBefore;
+                                ComplianceScan.InvalidateCache();
+                                StingAutoTagger.InvalidateContext();
+                                try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+                                catch (Exception ssEx) { StingLog.Warn($"CombineParams SaveSeqSidecar (cancel): {ssEx.Message}"); }
+                                TaskDialog.Show("STING", $"Combine cancelled after {totalElements} elements.\n{totalWrites} container writes completed before cancellation (the batch in progress was undone).");
                                 return Result.Cancelled;
                             }
                         }
@@ -280,7 +296,18 @@ namespace StingTools.Tags
                             writesPerGroup["UNIVERSAL"] += tag7Writes;
                     }
 
-                    tx.Commit();
+                    if (!StingTx.TryCommit(tx, null, out string batchWhy))
+                    {
+                        // ELEC-32: the batch's writes were undone — take them out of the counts
+                        // and stop. The SEQ counters keep its allocations and are saved below,
+                        // so those numbers are skipped, never reused.
+                        totalElements = elementsBefore;
+                        totalWrites = writesBefore;
+                        skippedNoDisc = skippedBefore;
+                        foreach (var kv in groupWritesBefore) writesPerGroup[kv.Key] = kv.Value;
+                        rolledBack = batchWhy;
+                        StingLog.Warn($"CombineParameters: batch {batchNum} rolled back — run stopped; batches 1-{batchNum - 1} stay committed");
+                    }
                 }
             } // end batched loop
             }
@@ -296,7 +323,15 @@ namespace StingTools.Tags
             TagConfig.CheckComplianceGate(doc, "CombineParameters");
             // Build report
             var report = new StringBuilder();
-            report.AppendLine("Combine Parameters Complete");
+            if (rolledBack != null)
+            {
+                report.AppendLine(rolledBack);
+                report.AppendLine($"Stopped at batch {batchNum}: Revit rolled it back and later batches were not run. " +
+                    (batchNum > 1 ? $"Batches 1-{batchNum - 1} stay committed; " : "Nothing was committed; ") +
+                    "the counts below are the committed batches only.");
+                report.AppendLine();
+            }
+            report.AppendLine(rolledBack != null ? "Combine Parameters Stopped" : "Combine Parameters Complete");
             report.AppendLine(new string('═', 50));
             report.AppendLine($"  Elements processed:  {totalElements}");
             report.AppendLine($"  Parameters written:  {totalWrites}");
@@ -315,14 +350,16 @@ namespace StingTools.Tags
             }
 
             TaskDialog td = new TaskDialog("Combine Parameters");
-            td.MainInstruction = $"Combined {totalWrites} parameters across {totalElements} elements";
+            td.MainInstruction = rolledBack != null
+                ? $"ROLLED BACK at batch {batchNum} — stopped; {totalWrites} parameters combined across {totalElements} elements in committed batches"
+                : $"Combined {totalWrites} parameters across {totalElements} elements";
             td.MainContent = report.ToString();
             td.Show();
 
             StingLog.Info($"CombineParameters: {totalElements} elements, {totalWrites} writes, " +
                 $"{activeGroups.Length} groups");
 
-            return Result.Succeeded;
+            return rolledBack != null ? Result.Failed : Result.Succeeded;
         }
     }
 

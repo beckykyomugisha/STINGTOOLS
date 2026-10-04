@@ -580,7 +580,13 @@ namespace StingTools.Core.Placement
 
                 if (!dryRun)
                 {
-                    tx.Commit();
+                    if (!StingTx.TryCommit(tx, null, out string commitWhy))
+                    {
+                        // the whole run rolled back: nothing it placed is in the model
+                        StingLog.Warn(commitWhy);
+                        result.Warnings.Add(commitWhy);
+                        result.PlacedIds.Clear();
+                    }
 
                     // Phase 139.26 — POST-COMMIT VERIFICATION.
                     // The IFailuresPreprocessor catches predictable

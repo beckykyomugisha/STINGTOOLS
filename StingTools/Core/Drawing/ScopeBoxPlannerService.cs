@@ -182,7 +182,7 @@ namespace StingTools.Core.Drawing
             {
                 tx.Start();
                 made = ScopeBoxRevit.Create(doc, res.Boxes, report);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             // DTW-90: record each code's level UniqueId, so a later rename or inserted level
             // cannot move the code (and orphan the boxes named with it).
@@ -221,7 +221,7 @@ namespace StingTools.Core.Drawing
             {
                 tx.Start();
                 r = ScopeBoxRevit.Colour(doc, views, style, mode, plan, report);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             var head = mode == ScopeBoxColourMode.Off
                 ? $"Cleared STING colours on {r.Cleared} box/view pair(s) in {views.Count} view(s)."
@@ -262,7 +262,7 @@ namespace StingTools.Core.Drawing
                     if (levels.Count > 0 && (m.ZMinFt > levels.Min(l => l.Elevation) || m.ZMaxFt < levels.Max(l => l.Elevation)))
                         report.Add($"'{name}' does not span every level; its copies will not be offered to plans on the levels it misses. Make it taller.");
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             return $"Registered {done} seed(s)." + (report.Count > 0 ? "\n• " + string.Join("\n• ", report) : "");
         }
@@ -297,7 +297,7 @@ namespace StingTools.Core.Drawing
                 {
                     tx.Start();
                     n = ScopeBoxRevit.ImportSeeds(source, target, report);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 return $"Imported {n} seed(s) from {Path.GetFileName(path)}." + (report.Count > 0 ? "\n• " + string.Join("\n• ", report) : "");
             }

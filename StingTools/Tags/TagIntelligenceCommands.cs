@@ -421,7 +421,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             var report = new StringBuilder();
@@ -1253,7 +1253,7 @@ namespace StingTools.Tags
                     if (any) propagated++;
                 }
 
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             TaskDialog.Show("Tag Propagation",
@@ -1588,7 +1588,7 @@ namespace StingTools.Tags
                     if (any) applied++;
                 }
 
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             TaskDialog.Show("Smart Tag Suggest",

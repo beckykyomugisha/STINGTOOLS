@@ -170,8 +170,9 @@ namespace StingTools.Model
             using (var t = new Transaction(doc, "STING MEP CAD: Remove previous conversion"))
             {
                 t.Start();
-                try { doc.Delete(ids.Where(id => doc.GetElement(id) != null).ToList()); t.Commit(); }
-                catch (Exception ex) { t.RollBack(); StingLog.Warn($"Remove previous conversion: {ex.Message}"); }
+                try { doc.Delete(ids.Where(id => doc.GetElement(id) != null).ToList()); }
+                catch (Exception ex) { t.RollBack(); StingLog.Warn($"Remove previous conversion: {ex.Message}"); return; }
+                StingTx.Commit(t); // a rollback throws to RunConversion, which rolls the group back and reports it
             }
         }
 
@@ -182,7 +183,7 @@ namespace StingTools.Model
             {
                 t.Start();
                 foreach (var id in ids) { var el = doc.GetElement(id); if (el != null) StingMepCadStampSchema.Stamp(el, key); }
-                t.Commit();
+                StingTx.Commit(t);
             }
         }
 

@@ -470,7 +470,7 @@ namespace StingTools.UI
                     }
                     catch (Exception ex) { StingLog.Warn($"DataImport row {row}: {ex.Message}"); skipped++; }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             ComplianceScan.InvalidateCache();

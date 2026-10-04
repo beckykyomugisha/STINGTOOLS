@@ -108,7 +108,7 @@ namespace StingTools.Commands.Hvac
                         }
                         catch (Exception ex) { StingLog.Warn($"IduSelect stamp {sp.Id}: {ex.Message}"); }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 var panel = StingResultPanel.Create("HVAC — IDU Select");

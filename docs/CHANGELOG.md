@@ -2,6 +2,20 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (ELEC-32 — no rolled-back transaction is reported as success, plugin-wide, 2026-10-04)
+
+`Transaction.Commit()` returns `RolledBack` when a failure handler or the user cancelling Revit's error dialog undoes the work. 856 commits in 300 files ignored it and went on to report counts ("Tagged 1,204", "Created 12 sheets") for work that was not in the model.
+
+- **`Core/StingTx`** (one implementation; `ElecTx` delegates): `Commit` throws `TransactionRolledBackException` so the success report is never reached and every dispatcher shows "ROLLED BACK (…): … Revit reported: <error>"; `TryCommit` returns false + reason for per-item loops, background handlers (updaters, Idling, DocumentChanged, MCP) and helpers that return a result; `RollBackIfOpen` for catches. The reason comes from `TxFailureLog`, filled by a **read-only** `FailuresProcessing` listener registered at startup (it never resolves or deletes a failure).
+- **Migration**: 8 batches by folder, each site classified by reading the code (single run → `Commit`; per item → `TryCommit` with that item failed and success counters moved after the commit or compensated). Builds 0/0 for Revit 2025 / 2026 / 2027 after every batch.
+- **Review pass** (behaviour the migration exposed):
+  - Per-batch tagging (AutoTag, Tag New Only, Batch Tag, Format Migration, Combine, Resolve All) stops at a rolled-back batch, restores the counts (`TaggingStatsSnapshot`) and **still saves the SEQ counters** — the undone batch's numbers are skipped, never reused. Combine's cancel path skipped that save. The auto-tagger undoes its in-memory hashes / processed ids after a rollback.
+  - Counts, id lists and caches from a transaction that did not commit are undone across MEP auto-size / sleeves / fill / balance, fabricators, ISO symbols, auto drops, MEP CAD builders, MEP symbols (a rolled-back run read Succeeded), Excel Link (rolled-back changes were logged Applied), CAD-to-model element ids, material-creation caches.
+  - Secondary steps after the main commit (legends, SetDisc's SYS/FUNC) warn instead of failing the command; progress windows close on every path; Sheet Manager failures return Failed; the dispatcher no longer swallows a module's rollback (it could fall through and re-run the command).
+  - Pre-existing defects found on the way: `TransactionHelper.TryRunInScope` returned true on a rollback; the symbol-standard switch swapped every tag twice (merge leftover) and counted model restyles as tags; the acoustic fallback claimed walls were stamped.
+- **Gates**: `tools/check_unchecked_commits.py` (CI step in Validate data files; zero tolerance, no baseline) and `TxReportTests.No_transaction_commit_discards_its_status` — red at 856 before the migration, green after. `TxReportTests`, `TaggingStatsSnapshotTests` (red with a no-op restore).
+- **Not run in Revit.** A rollback can only be produced in Revit (e.g. an element owned by another user, then Cancel on Revit's error dialog).
+
 #### Completed (ELEC-27 to ELEC-31 closed + follow-up sweep, 2026-10-04)
 
 Branch `claude/electrical-defect-review-ea67f1`. Builds 0/0 against Revit **2025, 2026 and 2027**; Tags 5,763/5,763. **Not run in Revit.**

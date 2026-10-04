@@ -726,7 +726,9 @@ namespace StingTools.UI
                         }
                         catch (Exception ex) { StingLog.Warn($"STING stamps on system {id}: {ex.Message}"); }
                     }
-                    tx.Commit();
+                    // the outer catch only logs, so show a rollback here instead of the success report
+                    if (!StingTx.TryCommit(tx, null, out string why))
+                    { TaskDialog.Show("STING Electrical", why); return; }
                 }
                 try { StingTools.Core.ComplianceScan.InvalidateCache(); }
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
@@ -869,7 +871,8 @@ namespace StingTools.UI
                 {
                     try { view.SetElementOverrides(id, blank); n++; } catch { }
                 }
-                tx.Commit();
+                // the catch only logs, so surface a rollback in the panel instead of "Cleared"
+                if (!StingTx.TryCommit(tx, null, out string why)) { FlashRefreshed(why); return; }
                 FlashRefreshed($"Cleared overrides on {n} elements");
             }
             catch (Exception ex) { StingLog.Warn($"ClearActiveViewOverrides: {ex.Message}"); }

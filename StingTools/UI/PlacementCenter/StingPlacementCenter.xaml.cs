@@ -1372,7 +1372,7 @@ namespace StingTools.UI.PlacementCenter
                     t.Start();
                     AvfHeatmapEngine.Clear(_doc.ActiveView);
                     int n = AvfHeatmapEngine.Paint(_doc.ActiveView, new ComplianceHeatmapAdapter());
-                    t.Commit();
+                    StingTx.Commit(t);
                     VM.Status = $"Heat-map painted · {n} primitive(s) on '{_doc.ActiveView.Name}'";
                     UpdateStatus();
                 }
@@ -1557,7 +1557,7 @@ namespace StingTools.UI.PlacementCenter
                 {
                     t.Start();
                     StingTools.Core.Storage.StingViewPresetSchema.Write(view, presetName, "");
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
                 VM.Status = $"Saved preset '{presetName}' on view '{view.Name}'";
                 UpdateStatus();
@@ -2343,7 +2343,7 @@ namespace StingTools.UI.PlacementCenter
                 {
                     txn.Start();
                     result = svc.PlaceAll(_doc, txn);
-                    txn.Commit();
+                    StingTx.Commit(txn);
                 }
                 _runResultIds  = result.PlacementResult?.PlacedIds ?? new List<ElementId>();
                 _runReportText = result.ReportText();
@@ -2402,7 +2402,7 @@ namespace StingTools.UI.PlacementCenter
                     txn.Start();
                     var router = new PlumbingFixtureRouter();
                     router.RouteAll(_doc, fixtures, txn);
-                    txn.Commit();
+                    StingTx.Commit(txn);
                 }
                 _runReportText = $"Routed drainage for {fixtures.Count} plumbing fixture(s).";
                 ShowInlineResult($"✓ Routing complete — {fixtures.Count} fixture(s)", new[] { $"Fixtures: {fixtures.Count}" },

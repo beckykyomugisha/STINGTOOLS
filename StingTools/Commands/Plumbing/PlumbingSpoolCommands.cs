@@ -144,7 +144,7 @@ namespace StingTools.Commands.Plumbing
                         }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var panel = StingResultPanel.Create("Plumbing Spool Generation");
@@ -246,7 +246,7 @@ namespace StingTools.Commands.Plumbing
                 }
                 catch { }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // Activate the schedule view outside the transaction

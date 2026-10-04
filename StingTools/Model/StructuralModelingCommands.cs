@@ -1426,7 +1426,7 @@ namespace StingTools.Model
                     {
                         tx.Start();
                         StructuralSystemClassifier.WriteBack(uidoc.Document, result);
-                        tx.Commit();
+                        if (!StingTx.TryCommit(tx, null, out string why)) StingLog.Warn(why);
                     }
                 }
                 catch (Exception exTx) { StingLog.Warn($"SystemClass stamp: {exTx.Message}"); }
@@ -1510,7 +1510,8 @@ namespace StingTools.Model
                     {
                         tx.Start();
                         (beamsStamped, slabsStamped) = DeflectionChecker.AnalyseModel(uidoc.Document);
-                        tx.Commit();
+                        // a rollback stamps nothing — the report must not claim it did
+                        if (!StingTx.TryCommit(tx, null, out string why)) { StingLog.Warn(why); beamsStamped = slabsStamped = 0; }
                     }
                 }
                 catch (Exception exTx) { StingLog.Warn($"Deflection stamp: {exTx.Message}"); }
@@ -1589,7 +1590,8 @@ namespace StingTools.Model
                     {
                         tx.Start();
                         (psInspected, psStamped) = PunchingShearOrchestrator.AnalyseModel(uidoc.Document);
-                        tx.Commit();
+                        // a rollback stamps nothing — the report must not claim it did
+                        if (!StingTx.TryCommit(tx, null, out string why)) { StingLog.Warn(why); psStamped = 0; }
                     }
                 }
                 catch (Exception exTx) { StingLog.Warn($"Punching stamp: {exTx.Message}"); }
@@ -1663,7 +1665,8 @@ namespace StingTools.Model
                     {
                         tx.Start();
                         (wInsp, wStamp) = WindLoadOrchestrator.AnalyseModel(uidoc.Document);
-                        tx.Commit();
+                        // a rollback stamps nothing — the report must not claim it did
+                        if (!StingTx.TryCommit(tx, null, out string why)) { StingLog.Warn(why); wStamp = 0; }
                     }
                 }
                 catch (Exception exTx) { StingLog.Warn($"Wind stamp: {exTx.Message}"); }
@@ -1965,7 +1968,8 @@ namespace StingTools.Model
                     {
                         tx.Start();
                         (fMembers, fStamped, fSummary) = FrameAnalysisOrchestrator.AnalyseModel(uidoc.Document);
-                        tx.Commit();
+                        // a rollback stamps nothing — the report must not claim it did
+                        if (!StingTx.TryCommit(tx, null, out string why)) { StingLog.Warn(why); fStamped = 0; }
                     }
                 }
                 catch (Exception exTx) { StingLog.Warn($"Frame analysis: {exTx.Message}"); }
@@ -2152,7 +2156,8 @@ namespace StingTools.Model
                     {
                         tx.Start();
                         stamped = ProgressiveCollapseChecker.WriteBack(uidoc.Document, result);
-                        tx.Commit();
+                        // a rollback stamps nothing — the report must not claim it did
+                        if (!StingTx.TryCommit(tx, null, out string why)) { StingLog.Warn(why); stamped = 0; }
                     }
                 }
                 catch (Exception exTx) { StingLog.Warn($"Robustness stamp: {exTx.Message}"); }
@@ -2234,7 +2239,8 @@ namespace StingTools.Model
                             {
                                 tx.Start();
                                 (swapped, stamped) = AutoMemberSizer.Apply(uidoc.Document, result);
-                                tx.Commit();
+                                // a rollback swaps and stamps nothing — the report must not claim it did
+                                if (!StingTx.TryCommit(tx, null, out string why)) { StingLog.Warn(why); swapped = stamped = 0; }
                             }
                         }
                         catch (Exception exTx) { StingLog.Warn($"AutoMemberSizer.Apply: {exTx.Message}"); }
@@ -2323,7 +2329,8 @@ namespace StingTools.Model
                         tx.Start();
                         (colsStamped, beamsStamped, slabsStamped) =
                             FireResistanceCalculator.WriteBack(uidoc.Document, rating);
-                        tx.Commit();
+                        // a rollback stamps nothing — the report must not claim it did
+                        if (!StingTx.TryCommit(tx, null, out string why)) { StingLog.Warn(why); colsStamped = beamsStamped = slabsStamped = 0; }
                     }
                 }
                 catch (Exception exTx) { StingLog.Warn($"FireRes stamp: {exTx.Message}"); }
@@ -2410,7 +2417,7 @@ namespace StingTools.Model
                     tx.Start();
                     var result = StructuralMaterialEngine.ApplyToAllStructural(
                         uidoc.Document, grade, steel);
-                    tx.Commit();
+                    StingTx.Commit(tx);
 
                     TaskDialog.Show("STRUCT — Materials Applied", result.Summary);
                 }
@@ -2910,7 +2917,8 @@ namespace StingTools.Model
                     {
                         tx.Start();
                         stamped = LoadPathTracer.WriteBack(uidoc.Document, result);
-                        tx.Commit();
+                        // a rollback stamps nothing — the report must not claim it did
+                        if (!StingTx.TryCommit(tx, null, out string why)) { StingLog.Warn(why); stamped = 0; }
                     }
                 }
                 catch (Exception exTx) { StingLog.Warn($"Load-path writeback: {exTx.Message}"); }
@@ -3926,7 +3934,7 @@ namespace StingTools.Model
                 {
                     tx.Start();
                     var id = CurtainWallEngine.Create(uidoc.Document, p1, p2, level, 3600);
-                    if (id != ElementId.InvalidElementId) tx.Commit(); else { tx.RollBack(); return Result.Failed; }
+                    if (id != ElementId.InvalidElementId) StingTx.Commit(tx); else { tx.RollBack(); return Result.Failed; }
                 }
 
                 TaskDialog.Show("ARCH — Curtain Wall", spec.Summary);
@@ -3960,7 +3968,7 @@ namespace StingTools.Model
                 {
                     tx.Start();
                     OpeningEngine.CreateWallOpening(uidoc.Document, sel, point, 900, 2100);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 TaskDialog.Show("ARCH", "Opening created: 900×2100mm");
                 return Result.Succeeded;
@@ -4099,7 +4107,7 @@ namespace StingTools.Model
                 {
                     tx.Start();
                     (beams, cols) = RCDesignOrchestrator.AnalyseModel(uidoc.Document);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 TaskDialog.Show("STRUCT — RC Design (EC2)",
                     $"Reinforcement detail computed and stamped:\n" +

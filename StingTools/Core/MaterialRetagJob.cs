@@ -67,7 +67,7 @@ namespace StingTools.Core
                         }
                         catch (Exception ex) { StingLog.WarnRateLimited("Retag.El", $"Retag {elId}: {ex.Message}"); }
                     }
-                    t.Commit();
+                    if (!StingTx.TryCommit(t, null, out string why)) StingLog.Warn(why);
                 }
             }
             catch (Exception ex) { StingLog.Warn($"MaterialRetagJob outer: {ex.Message}"); }

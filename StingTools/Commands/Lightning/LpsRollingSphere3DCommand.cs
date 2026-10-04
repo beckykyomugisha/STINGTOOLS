@@ -136,7 +136,7 @@ namespace StingTools.Commands.Lightning
                     {
                         if (PlaceMarker(doc, P)) markersPlaced++;
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                     try
                     {
                         var uidoc = app?.ActiveUIDocument;

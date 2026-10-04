@@ -94,7 +94,7 @@ namespace StingTools.Commands.Plumbing
             {
                 tx.Start();
                 r = InvertLevelEngine.Calculate(ctx.Doc, writeBack: write);
-                if (write) tx.Commit(); else tx.RollBack();
+                if (write) StingTx.Commit(tx); else tx.RollBack();
             }
 
             var rows = r.Rows.Select(row => new DrainageInvertRow

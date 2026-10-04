@@ -185,7 +185,7 @@ namespace StingTools.Commands.Placement
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // Build result message.

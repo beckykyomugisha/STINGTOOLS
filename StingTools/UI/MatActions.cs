@@ -115,7 +115,7 @@ namespace StingTools.UI
                     }
                     catch (Exception ex) { StingLog.Warn($"MAT apply {id}: {ex.Message}"); }
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
             MaterialAuditLogger.Log(doc, "MAT_Apply", m.Name, new Dictionary<string, object>
             {
@@ -234,7 +234,7 @@ namespace StingTools.UI
                 {
                     t.Start();
                     ok = MaterialLayerInspector.WriteLayerTag(doc, host, tag);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
                 if (ok)
                 {
@@ -520,7 +520,7 @@ namespace StingTools.UI
                 {
                     t.Start();
                     ok = DuplicateAndRepoint(doc, mat, kind, srcId);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
                 MaterialAuditLogger.Log(doc, "MAT_AssetDetach", mat.Name,
                     new Dictionary<string, object> { ["kind"] = kind, ["srcAssetId"] = srcId.Value, ["ok"] = ok });
@@ -582,7 +582,7 @@ namespace StingTools.UI
                 {
                     t.Start();
                     ok = RepointAssetTo(doc, mat, kind, AssetIdForKind(target, kind));
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
                 MaterialAuditLogger.Log(doc, "MAT_AssetRepoint", mat.Name,
                     new Dictionary<string, object>

@@ -167,7 +167,7 @@ namespace StingTools.Commands.Drawing
                             }
                         }
 
-                        t.Commit();
+                        StingTx.Commit(t);
                     }
                     tg.Assimilate();
                 }

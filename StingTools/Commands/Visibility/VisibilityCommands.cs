@@ -173,7 +173,7 @@ namespace StingTools.Commands.Visibility
                     try { doc.Delete(f.Id); deleted++; }
                     catch (Exception ex) { StingLog.Error($"Purge filter '{f.Name}'", ex); }
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             StingTools.UI.VisibilityCenter.VisibilityBadge.Refresh(doc, view);
@@ -224,7 +224,7 @@ namespace StingTools.Commands.Visibility
             {
                 t.Start();
                 result = VisibilityEngine.Apply(doc, tpl, plan);
-                if (result.Ok) t.Commit(); else t.RollBack();
+                if (result.Ok) StingTx.Commit(t); else t.RollBack();
             }
 
             VisibilityCommandHelper.Report($"Applied to template '{tpl.Name}'", result);

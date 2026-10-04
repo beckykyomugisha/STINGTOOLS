@@ -761,7 +761,7 @@ namespace StingTools.Temp
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Dynamic Bindings",
@@ -3131,7 +3131,7 @@ namespace StingTools.Temp
                         notFound++;
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Excel BOQ Import",
@@ -3532,7 +3532,7 @@ namespace StingTools.Temp
                     // Bold header row — make first row's horizontal lines thicker
                     // (handled by bold text styling in the TextNote)
 
-                    t.Commit();
+                    StingTx.Commit(t);
 
                     TaskDialog.Show("STING Excel Import",
                         $"Excel data imported to drafting view.\n\n" +
@@ -3786,7 +3786,7 @@ namespace StingTools.Temp
                             notFound++;
                         }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 TaskDialog.Show("STING Batch Sticky Import",

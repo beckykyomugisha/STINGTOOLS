@@ -67,7 +67,7 @@ namespace StingTools.Docs
                     fields.AddSortGroupField(sortGroupField);
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Sheet Index",

@@ -170,7 +170,7 @@ namespace StingTools.UI
                             }
                             catch (Exception ex) { StingLog.Warn($"BatchRename mat '{m?.Name}' in '{rfa}': {ex.Message}"); }
                         }
-                        if (renamed > 0) t.Commit(); else t.RollBack();
+                        if (renamed > 0) StingTx.Commit(t); else t.RollBack(); // a rollback lands in this family's catch below
                     }
                     if (renamed > 0)
                     {

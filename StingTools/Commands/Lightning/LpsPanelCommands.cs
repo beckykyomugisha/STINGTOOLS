@@ -124,7 +124,7 @@ namespace StingTools.Commands.Lightning
                         ParameterHelpers.SetString(doc.ProjectInformation,
                             StingTools.Core.Fabrication.LpsParams.CLASS_TXT,
                             result.RecommendedClass, true);
-                        t.Commit();
+                        StingTx.Commit(t);
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"Stamp class: {ex.Message}"); }

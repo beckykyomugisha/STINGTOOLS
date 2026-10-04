@@ -144,7 +144,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // FIX-WR08: Invalidate caches after token writes so dashboard/auto-tagger reflect changes
@@ -248,7 +248,14 @@ namespace StingTools.Tags
                                     ParameterHelpers.SetString(el, ParamRegistry.FUNC, newFunc, overwrite: true);
                                 updated++;
                             }
-                            tx.Commit();
+                            // DISC is already committed; a rolled-back follow-up must be reported, not
+                            // swallowed by the catch below (which only logs).
+                            if (!StingTx.TryCommit(tx, null, out string sysWhy))
+                            {
+                                TaskDialog.Show("STING — Update SYS/FUNC",
+                                    $"The discipline was set, but SYS/FUNC were not updated.\n\n{sysWhy}");
+                                return result;
+                            }
                             StingLog.Info($"SetDisc: updated SYS/FUNC on {updated} elements");
                             // TAG-M-02: Invalidate caches after SYS/FUNC downstream commit so the
                             // compliance dashboard and auto-tagger see the updated tokens immediately.
@@ -414,7 +421,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // FIX-WR07: Save SEQ sidecar + invalidate caches after sequence assignment
@@ -495,7 +502,7 @@ namespace StingTools.Tags
                     if (ok) built++;
                     else skipped++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // FIX-WR04: Save SEQ sidecar + invalidate caches after tag building
@@ -663,7 +670,9 @@ namespace StingTools.Tags
                             Footer = "STING Tools — ISO 19650 Completeness Dashboard",
                         };
                         LegendBuilder.CreateLegendView(doc, legendEntries, legendConfig);
-                        ltx.Commit();
+                        // The dashboard has been shown; a rolled-back legend must not fail the command.
+                        if (!StingTx.TryCommit(ltx, null, out string legendWhy))
+                            TaskDialog.Show("Legend Not Created", $"The compliance legend was not created.\n\n{legendWhy}");
                     }
                 }
             }
@@ -729,7 +738,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 written = NativeParamMapper.MapSheets(doc);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // GAP-A1 fix: Invalidate caches so compliance dashboard and auto-tagger
@@ -866,7 +875,7 @@ namespace StingTools.Tags
                         sheetsProcessed++;
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 finally
                 {

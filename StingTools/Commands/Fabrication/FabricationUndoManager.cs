@@ -110,7 +110,7 @@ namespace StingTools.Commands.Fabrication
                             }
                             catch (Exception ex) { StingLog.Warn($"UndoLast sheet {id}: {ex.Message}"); }
                         }
-                        t.Commit();
+                        StingTx.Commit(t);
                     }
                     using (var t = new Transaction(doc, "Undo fab assemblies"))
                     {
@@ -124,7 +124,7 @@ namespace StingTools.Commands.Fabrication
                             }
                             catch (Exception ex) { StingLog.Warn($"UndoLast assembly {id}: {ex.Message}"); }
                         }
-                        t.Commit();
+                        StingTx.Commit(t);
                     }
                     tg.Assimilate();
                 }

@@ -2399,7 +2399,7 @@ namespace StingTools.Commands.Interop
                 result.Warnings.AddRange(lvlWarn);
                 result.LevelsMatched = parser.Storeys.Count(s => s.RevitLevelId >= 0 && !s.WasCreated);
                 result.LevelsCreated = parser.Storeys.Count(s => s.WasCreated);
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             using (var t = new Transaction(doc, "STING — Create ArchiCAD Elements"))
@@ -2417,7 +2417,7 @@ namespace StingTools.Commands.Interop
                     if (++n % 200 == 0)
                         StingLog.Info($"  {n}/{parser.Elements.Count} elements");
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             result.Native             = em.CreatedNative;

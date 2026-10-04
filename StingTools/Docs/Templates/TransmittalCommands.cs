@@ -78,7 +78,7 @@ namespace Planscape.Docs.Templates
                 using var tx = new Transaction(doc, "STING — Create Transmittal");
                 tx.Start();
                 var result = TransmittalOrchestrator.Create(doc, req);
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 if (!result.Ok)
                 {
@@ -157,7 +157,7 @@ namespace Planscape.Docs.Templates
                         }
                         catch { fail++; }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 TaskDialog.Show("Bulk Issue", $"Issued OK: {ok}, failed: {fail}");
                 return Result.Succeeded;

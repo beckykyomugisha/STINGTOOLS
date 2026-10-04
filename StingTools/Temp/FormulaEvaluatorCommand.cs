@@ -269,7 +269,7 @@ namespace StingTools.Temp
                 if (cancelled)
                     tx.RollBack();
                 else
-                    tx.Commit();
+                    StingTx.Commit(tx);
             }
 
             var report = new StringBuilder();

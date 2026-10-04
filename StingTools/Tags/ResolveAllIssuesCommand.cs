@@ -112,6 +112,9 @@ namespace StingTools.Tags
             // SmartSortElements calls GetMepSystemAwareSysCode() per element (MEP
             // connector traversal) which can take several seconds on large models.
             bool cancelled = false;
+            // ELEC-32: a batch Revit rolled back stops the run; earlier batches stay committed.
+            string rolledBack = null;
+            int rolledBackBatch = 0;
             // HC-003: Configurable batch size from project_config.json (default 500)
             int BatchSize = TagConfig.ResolveBatchSize;
             int processed = 0;
@@ -159,10 +162,14 @@ namespace StingTools.Tags
 
             for (int batchStart = 0; batchStart < sorted.Count; batchStart += BatchSize)
             {
-                if (cancelled) break;
+                if (cancelled || rolledBack != null) break;
 
                 int batchEnd = Math.Min(batchStart + BatchSize, sorted.Count);
                 int batchNum = (batchStart / BatchSize) + 1;
+                // Counts before this batch, restored if Revit rolls it back.
+                var statsBeforeBatch = TaggingStatsSnapshot.Take(stats);
+                int populatedBefore = populated, statusBefore = statusFixed, revBefore = revFixed;
+                int rebuiltBefore = tagsRebuilt, containersBefore = containersWritten, processedBefore = processed;
 
                 using (Transaction tx = new Transaction(doc, $"STING Resolve Issues Batch {batchNum}"))
                 {
@@ -277,9 +284,20 @@ namespace StingTools.Tags
                         tx.RollBack();
                         StingLog.Info($"ResolveAllIssues: batch {batchNum} rolled back (user cancelled)");
                     }
+                    else if (!StingTx.TryCommit(tx, null, out string batchWhy))
+                    {
+                        // ELEC-32: take the rolled-back batch out of the counts and stop.
+                        // The SEQ counters keep its allocations and are saved below, so
+                        // those numbers are skipped, never reused.
+                        statsBeforeBatch?.Restore();
+                        populated = populatedBefore; statusFixed = statusBefore; revFixed = revBefore;
+                        tagsRebuilt = rebuiltBefore; containersWritten = containersBefore; processed = processedBefore;
+                        rolledBack = batchWhy;
+                        rolledBackBatch = batchNum;
+                        StingLog.Warn($"ResolveAllIssues: batch {batchNum} rolled back — run stopped; batches 1-{batchNum - 1} stay committed");
+                    }
                     else
                     {
-                        tx.Commit();
                         StingLog.Info($"ResolveAllIssues: batch {batchNum} committed");
                     }
                 }
@@ -372,7 +390,15 @@ namespace StingTools.Tags
 
             // Phase 5: Rich report
             var report = new StringBuilder();
-            report.AppendLine("Resolve All Issues — Complete");
+            if (rolledBack != null)
+            {
+                report.AppendLine(rolledBack);
+                report.AppendLine($"Stopped at batch {rolledBackBatch}: Revit rolled it back and later batches were not run. " +
+                    (rolledBackBatch > 1 ? $"Batches 1-{rolledBackBatch - 1} stay committed; " : "Nothing was committed; ") +
+                    "the ACTIONS counts are the committed batches only (BEFORE/AFTER are model scans).");
+                report.AppendLine();
+            }
+            report.AppendLine(rolledBack != null ? "Resolve All Issues — Stopped" : "Resolve All Issues — Complete");
             report.AppendLine(new string('=', 55));
             report.AppendLine();
             report.AppendLine("BEFORE:");
@@ -419,12 +445,15 @@ namespace StingTools.Tags
                 $"postIssues={postTotalIssues}, elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
             TaskDialog td = new TaskDialog("Resolve All Issues");
-            td.MainInstruction = postTotalIssues == 0
+            td.MainInstruction = rolledBack != null
+                ? $"ROLLED BACK at batch {rolledBackBatch} — stopped; {totalIssues - postTotalIssues:N0} of {totalIssues:N0} issues resolved by committed batches"
+                : postTotalIssues == 0
                 ? $"100% Compliance — All {postTotalTaggable:N0} elements fully resolved"
                 : $"Resolved {totalIssues - postTotalIssues:N0} of {totalIssues:N0} issues ({complianceRate:F1}%)";
             td.MainContent = report.ToString();
             td.Show();
 
+            if (rolledBack != null) { message = rolledBack; return Result.Failed; }
             return Result.Succeeded;
         }
     }

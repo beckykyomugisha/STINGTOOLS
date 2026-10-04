@@ -83,7 +83,7 @@ namespace StingTools.Commands.Hvac
                         }
                         catch (Exception ex) { StingLog.Warn($"StaleClear {sp.Id}: {ex.Message}"); }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 TaskDialog.Show("STING HVAC", $"Cleared HVC_LOAD_STALE_BOOL on {cleared} spaces ({skipped} already clean).");
                 try { StingHvacPanel.Instance?.PushRunRow($"Stale clear ({cleared} spaces)", "⬤"); }

@@ -446,7 +446,7 @@ namespace StingTools.Commands.Validation
                     if (ParameterHelpers.SetString(el, ParamRegistry.LOD_VERIFIED, ms.Id, overwrite: true))
                         stamped++;
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             new TaskDialog("LOD Stamp")

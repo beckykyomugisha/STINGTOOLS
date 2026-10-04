@@ -201,7 +201,7 @@ namespace StingTools.Tags
                     tx.Start();
                     PlaceTagsCore(doc, view, tagSymbol, useTag7Narrative,
                         hostFilter, cfg, progress, r);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
             }
             else

@@ -51,7 +51,7 @@ namespace StingTools.Core
                         try
                         {
                             action(t);
-                            t.Commit();
+                            StingTx.Commit(t);
                         }
                         catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); if (t.HasStarted() && !t.HasEnded()) t.RollBack();
                             throw; }
@@ -102,7 +102,7 @@ namespace StingTools.Core
                 try
                 {
                     action(t);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); if (t.HasStarted() && !t.HasEnded()) t.RollBack();
                     throw; }

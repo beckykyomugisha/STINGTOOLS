@@ -155,7 +155,8 @@ namespace StingTools.Core.Storage
                 {
                     if (t.Start() != TransactionStatus.Started) return false;
                     bool ok = Write(doc, rel);
-                    if (ok) t.Commit(); else t.RollBack();
+                    if (ok) { if (!StingTx.TryCommit(t, null, out string why)) { StingLog.Warn(why); return false; } }
+                    else t.RollBack();
                     return ok;
                 }
             }

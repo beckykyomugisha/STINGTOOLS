@@ -1925,7 +1925,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 legendView = LegendBuilder.CreateLegendView(doc, entries, config);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             if (legendView != null)
@@ -2272,7 +2272,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             if (created > 0)
@@ -2398,7 +2398,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 legendView = LegendBuilder.CreateLegendView(doc, entries, config);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             if (legendView != null)
@@ -2561,7 +2561,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 Viewport vp = LegendBuilder.PlaceLegendOnSheet(doc, sheet, selected, position);
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 if (vp != null)
                 {
@@ -2668,7 +2668,7 @@ namespace StingTools.Tags
                     LegendBuilder.PlaceLegendOnSheet(doc, sheet, legendView, "BottomRight");
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             if (legendView != null)
@@ -2772,6 +2772,9 @@ namespace StingTools.Tags
             int skipped = 0;
             var legendProgress = StingProgressDialog.Show("Place Legend on Sheets", sheets.Count);
 
+            // try/finally: a rolled-back commit throws, and the progress window must still close.
+            try
+            {
             using (Transaction tx = new Transaction(doc, "STING Place Legend on All Sheets"))
             {
                 tx.Start();
@@ -2791,9 +2794,13 @@ namespace StingTools.Tags
                     else skipped++;
                 }
 
-                if (legendProgress.IsCancelled) tx.RollBack(); else tx.Commit();
+                if (legendProgress.IsCancelled) tx.RollBack(); else StingTx.Commit(tx);
             }
+            }
+            finally
+            {
             try { legendProgress.Close(); } catch (Exception ex) { StingLog.Warn($"Legend progress close: {ex.Message}"); }
+            }
 
             TaskDialog.Show("Place Legend on All Sheets",
                 $"Placed '{selectedLegend.Name}' on {placed} sheets.\n" +
@@ -2870,6 +2877,9 @@ namespace StingTools.Tags
             int sheetIdx = 0;
             var bscProgress = StingProgressDialog.Show("Batch Sheet Legends", sheets.Count);
 
+            // try/finally: a rolled-back commit throws, and the progress window must still close.
+            try
+            {
             using (Transaction tx = new Transaction(doc, "STING Batch Sheet Context Legends"))
             {
                 tx.Start();
@@ -2913,9 +2923,13 @@ namespace StingTools.Tags
                     }
                 }
 
-                if (cancelled) tx.RollBack(); else tx.Commit();
+                if (cancelled) tx.RollBack(); else StingTx.Commit(tx);
             }
+            }
+            finally
+            {
             try { bscProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchSheetLegends progress close: {ex.Message}"); }
+            }
 
             string legendMsg = cancelled ? $"CANCELLED — created {created} of {sheets.Count} legends.\n" :
                 $"Created {created} sheet-specific legends.\n";
@@ -3055,7 +3069,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 legendView = LegendBuilder.CreateTagLegendView(doc, entries, title, groupBy);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             if (legendView != null)
@@ -3158,7 +3172,7 @@ namespace StingTools.Tags
                 {
                     Viewport vp = LegendBuilder.PlaceLegendOnSheet(doc, sheet, legendView, position);
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
 
                     TaskDialog.Show("Sheet Tag Legend",
                         $"Tag legend created and placed on sheet {sheet.SheetNumber}.\n\n" +
@@ -3267,7 +3281,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                if (cancelled) tx.RollBack(); else tx.Commit();
+                if (cancelled) tx.RollBack(); else StingTx.Commit(tx);
             }
 
             string tagLegendMsg = cancelled ? $"CANCELLED — created {created} of {sheets.Count} tag legends.\n" :
@@ -3510,7 +3524,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Update Legend",
@@ -3631,7 +3645,7 @@ namespace StingTools.Tags
                         catch (Exception ex2) { StingLog.Warn($"DeleteStaleLegend: failed to delete '{v.Name}': {ex2.Message}"); }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Delete Stale Legends", $"Deleted {deleted} legend views.");
@@ -3776,7 +3790,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var resultReport = new StringBuilder();
@@ -4629,7 +4643,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 var legendView = LegendBuilder.CreateLegendView(doc, entries, config);
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 if (legendView != null)
                 {
@@ -4746,7 +4760,7 @@ namespace StingTools.Tags
                 {
                     tx.Start();
                     var legendView = LegendBuilder.CreateLegendView(doc, entries, config);
-                    tx.Commit();
+                    StingTx.Commit(tx);
 
                     if (legendView != null)
                     {
@@ -4889,7 +4903,7 @@ namespace StingTools.Tags
                         });
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 TaskDialog.Show("Component Legend",
                     $"Created legend for {selectedCat}:\n" +
@@ -4943,7 +4957,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 var view = LegendBuilder.CreateLegendView(doc, entries, config);
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 if (view != null)
                 {
@@ -5168,7 +5182,7 @@ namespace StingTools.Tags
                             catch (Exception ex2) { StingLog.Warn($"Cannot delete legend '{legend.Name}': {ex2.Message}"); }
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 TaskDialog.Show("Legend Sync",
@@ -5246,7 +5260,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 var view = LegendBuilder.CreateLegendView(doc, entries, config);
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 if (view != null)
                     TaskDialog.Show("Status Legend",
@@ -5314,7 +5328,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 var view = LegendBuilder.CreateLegendView(doc, entries, config);
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 if (view != null)
                     TaskDialog.Show("Workset Legend",
@@ -6053,7 +6067,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 legendView = LegendBuilder.CreateLegendView(doc, entries, config);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             if (legendView != null)
@@ -6109,7 +6123,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 legendView = LegendBuilder.CreateLegendView(doc, entries, config);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             if (legendView != null)
@@ -6164,7 +6178,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 legendView = LegendBuilder.CreateLegendView(doc, entries, config);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             if (legendView != null)
@@ -6220,7 +6234,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 legendView = LegendBuilder.CreateLegendView(doc, entries, config);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             if (legendView != null)
@@ -6276,7 +6290,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 legendView = LegendBuilder.CreateLegendView(doc, entries, config);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             if (legendView != null)
@@ -6642,7 +6656,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // Build final report
@@ -6988,7 +7002,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 legendView = LegendBuilder.CreateLegendView(doc, entries, config);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             if (legendView != null)
@@ -7134,7 +7148,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 legendView = LegendBuilder.CreateLegendView(doc, allEntries, config);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             if (legendView != null)
@@ -7196,7 +7210,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 legendView = LegendBuilder.CreateLegendView(doc, entries, config);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             if (legendView != null)
@@ -7263,6 +7277,9 @@ namespace StingTools.Tags
             int tmplIdx = 0;
             var btlProgress = StingProgressDialog.Show("Batch Template Legends", templates.Count);
 
+            // try/finally: a rolled-back commit throws, and the progress window must still close.
+            try
+            {
             using (Transaction tx = new Transaction(doc, "STING Batch Template Legends"))
             {
                 tx.Start();
@@ -7320,9 +7337,13 @@ namespace StingTools.Tags
                     else skipped++;
                 }
 
-                if (cancelled) tx.RollBack(); else tx.Commit();
+                if (cancelled) tx.RollBack(); else StingTx.Commit(tx);
             }
+            }
+            finally
+            {
             try { btlProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchTemplateLegends progress close: {ex.Message}"); }
+            }
 
             string btlMsg = cancelled ? $"CANCELLED — created {created} of {templates.Count} template legends.\n" :
                 $"Created {created} template legends.\n";

@@ -267,7 +267,7 @@ namespace StingTools.Temp
                     zoneSummary[zone] = zc + 1;
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var sb = new StringBuilder();
@@ -399,7 +399,7 @@ namespace StingTools.Temp
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var roomCount = new FilteredElementCollector(doc)
@@ -635,7 +635,7 @@ namespace StingTools.Temp
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Room Param Push",

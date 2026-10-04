@@ -237,7 +237,7 @@ namespace StingTools.Commands.TagStudio
                             StingLog.Warn($"TagSchedulePlacer: delete previous sheet '{sheet.Name}' — {ex.Message}");
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {
@@ -259,6 +259,8 @@ namespace StingTools.Commands.TagStudio
             Document doc, List<ViewSchedule> list, ElementId titleBlockId, TagSchedulePlacementResult result)
         {
             var placed = new List<(ScheduleSheetInstance, ViewSheet, ViewSchedule)>();
+            // restored in the catch: a rolled-back pass placed nothing
+            int placedBefore = result.Placed, sheetsBefore = result.SheetsCreated, sheetIdsBefore = result.SheetIds.Count;
 
             using (var tx = new Transaction(doc, "STING Place Tag Schedules On Sheets"))
             {
@@ -288,7 +290,7 @@ namespace StingTools.Commands.TagStudio
                             result.Failed++;
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {
@@ -296,6 +298,10 @@ namespace StingTools.Commands.TagStudio
                     result.Warnings.Add($"Placing schedules failed: {ex.Message}");
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
                     placed.Clear();
+                    result.Placed = placedBefore;
+                    result.SheetsCreated = sheetsBefore;
+                    if (result.SheetIds.Count > sheetIdsBefore)
+                        result.SheetIds.RemoveRange(sheetIdsBefore, result.SheetIds.Count - sheetIdsBefore);
                 }
             }
 
@@ -436,7 +442,7 @@ namespace StingTools.Commands.TagStudio
                         cursorTop -= s.Height + gap;
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                     result.Compacted = true;
                 }
                 catch (Exception ex)

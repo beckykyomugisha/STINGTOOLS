@@ -71,9 +71,9 @@ namespace StingTools.UI
                     var p = mat.get_Parameter(bip);
                     if (p == null || p.IsReadOnly || p.StorageType != StorageType.Double) { t.RollBack(); return; }
                     p.Set(nv);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
-                catch (Exception ex) { StingLog.Warn($"Commit {fieldKey}: {ex.Message}"); try { t.RollBack(); } catch { } return; }
+                catch (Exception ex) { StingLog.Warn($"Commit {fieldKey}: {ex.Message}"); StingTx.RollBackIfOpen(t); return; }
             }
             MaterialAuditLogger.Log(doc, auditAction, mat.Name,
                 new Dictionary<string, object>
@@ -185,12 +185,12 @@ namespace StingTools.UI
                         }
                         catch (Exception ex) { StingLog.WarnRateLimited("BumpRate.El", $"BumpRate {elId}: {ex.Message}"); }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
                 catch (Exception ex)
                 {
                     StingLog.Warn($"BumpRateConfidence outer: {ex.Message}");
-                    try { t.RollBack(); } catch { }
+                    StingTx.RollBackIfOpen(t);
                     return;
                 }
                 if (touched > 0)
@@ -220,9 +220,9 @@ namespace StingTools.UI
                         return;
                     }
                     p.Set(nv);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
-                catch (Exception ex) { StingLog.Warn($"Commit {fieldKey}: {ex.Message}"); try { t.RollBack(); } catch { } return; }
+                catch (Exception ex) { StingLog.Warn($"Commit {fieldKey}: {ex.Message}"); StingTx.RollBackIfOpen(t); return; }
             }
             MaterialAuditLogger.Log(doc, auditAction, mat.Name,
                 new Dictionary<string, object> { ["old"] = oldValue, ["new"] = nv });
@@ -259,9 +259,9 @@ namespace StingTools.UI
                 try
                 {
                     mat.MaterialClass = nv;
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
-                catch (Exception ex) { StingLog.Warn($"Commit class: {ex.Message}"); try { t.RollBack(); } catch { } return; }
+                catch (Exception ex) { StingLog.Warn($"Commit class: {ex.Message}"); StingTx.RollBackIfOpen(t); return; }
             }
             MaterialAuditLogger.Log(doc, "MAT_EditClass", mat.Name,
                 new Dictionary<string, object> { ["old"] = oldVal, ["new"] = nv });

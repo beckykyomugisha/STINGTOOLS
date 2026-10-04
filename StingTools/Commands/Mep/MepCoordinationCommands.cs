@@ -67,7 +67,7 @@ namespace StingTools.Commands.Mep
                     // DTW-217: Presentation.Apply may just have given the view a managed
                     // template that controls V/G filters; the filters go where they show.
                     res = MepCoordinationEngine.ApplyThroughHost(doc, view);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 var panel = StingResultPanel.Create("MEP — Apply Coordination to View");

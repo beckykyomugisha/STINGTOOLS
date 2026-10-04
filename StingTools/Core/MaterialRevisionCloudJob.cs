@@ -103,7 +103,8 @@ namespace StingTools.Core
                         }
                         catch (Exception ex) { StingLog.Warn($"MaterialRevisionCloudJob {elId}: {ex.Message}"); }
                     }
-                    t.Commit();
+                    // rolled back: no cloud was created
+                    if (!StingTx.TryCommit(t, null, out string why)) { StingLog.Warn(why); created = 0; }
                 }
                 if (created > 0)
                     StingLog.Info($"MaterialRevisionCloudJob: created {created} cloud(s) for material change(s).");

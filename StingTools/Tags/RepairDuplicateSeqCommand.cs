@@ -105,7 +105,7 @@ namespace StingTools.Tags
                         }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // FIX-05: Save SEQ sidecar + invalidate caches after repair

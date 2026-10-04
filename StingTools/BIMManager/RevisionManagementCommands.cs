@@ -792,7 +792,7 @@ namespace StingTools.BIMManager
 
                     rev.Visibility = RevisionVisibility.CloudAndTagVisible;
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
 
                     PresetDialog.Show("StingTools Revision",
                         $"Revision created successfully.\n\n" +
@@ -891,7 +891,7 @@ namespace StingTools.BIMManager
                                 if (ParameterHelpers.SetString(el, "ASS_REV_TXT", prefix, overwrite: true))
                                     revUpdated++;
                             }
-                            revTx.Commit();
+                            StingTx.Commit(revTx);
                         }
                         StingLog.Info($"GAP-R9: Propagated REV '{prefix}' to {revUpdated} tagged elements");
                     }
@@ -1247,7 +1247,7 @@ namespace StingTools.BIMManager
                         }
                         catch (Exception clEx) { cloudsSkipped++; Core.StingLog.Warn($"RevCloud creation: {clEx.Message}"); }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 string narrative = RevisionEngine.BuildChangeNarrative(changes);
@@ -1791,7 +1791,7 @@ namespace StingTools.BIMManager
                             nextRev.Description = $"WIP — opened after issue of {revNum}";
                             try { nextRev.IssuedBy = Environment.UserName; }
                             catch (Exception nibEx) { StingLog.Warn($"Next revision IssuedBy: {nibEx.Message}"); }
-                            nx.Commit();
+                            StingTx.Commit(nx);
 
                             string nextNum = "";
                             try { nextNum = nextRev.RevisionNumber; } catch (Exception nnEx) { StingLog.Warn($"Next revision number read: {nnEx.Message}"); }
@@ -1930,7 +1930,7 @@ namespace StingTools.BIMManager
                         }
                     }
                     if (fixed_ > 0)
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     else
                         tx.RollBack();
                 }
@@ -2071,7 +2071,7 @@ namespace StingTools.BIMManager
                             tagsRebuilt++;
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 TaskDialog.Show("StingTools Revision Tag Integration",
@@ -2161,7 +2161,7 @@ namespace StingTools.BIMManager
                             StingLog.Warn($"BulkRevisionStamp: Cannot write element {id.Value}: {elEx.Message}");
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 string stampMsg = $"Stamped {stamped} elements with revision code '{revCode}'.";
@@ -2471,7 +2471,7 @@ namespace StingTools.BIMManager
                     // Stamp affected elements with revision code + update STATUS
                     stamped = RevisionEngine.StampAffectedElements(doc, changes, revCode);
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 RevisionEngine.SaveSnapshot(doc, currentSnapshot, $"post_auto_rev_{nextSeq}");
@@ -2613,7 +2613,7 @@ namespace StingTools.BIMManager
                         }
                         catch (Exception suEx) { StingLog.Warn($"Approval suitability stamp: {suEx.Message}"); }
                         latest.Issued = true;
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
 
                     BIMCoordinationCenterCommand.RefreshBccIfOpen(doc);
@@ -2640,7 +2640,7 @@ namespace StingTools.BIMManager
                             newRev.IssuedTo = string.IsNullOrWhiteSpace(revSuit) ? "S3" : revSuit;
                         }
                         catch (Exception suEx) { StingLog.Warn($"Review revision suitability stamp: {suEx.Message}"); }
-                        tx.Commit();
+                        StingTx.Commit(tx);
 
                         BIMCoordinationCenterCommand.RefreshBccIfOpen(doc);
                         TaskDialog.Show("Revision Approval",
@@ -3107,7 +3107,7 @@ namespace StingTools.BIMManager
                     }
                     catch (Exception kEx) { StingLog.Warn($"Purge seed reset: {kEx.Message}"); }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 // 6. Optionally clear the sidecar tag-snapshot history.
@@ -3381,7 +3381,7 @@ namespace StingTools.BIMManager
                     }
                     catch (Exception rdEx) { StingLog.Warn($"Delete revisions: {rdEx.Message}"); }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 // 5. Re-sync so title-block boxes reflect what remains.

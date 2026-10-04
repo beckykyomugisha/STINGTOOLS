@@ -446,7 +446,7 @@ namespace StingTools.Tags
                         skipped++;
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var report = new StringBuilder();
@@ -943,7 +943,7 @@ namespace StingTools.Tags
                     }
                     catch (Exception ex) { StingLog.Warn($"Apply style preset to tag {tag.Id}: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Load Style Preset",
@@ -1617,7 +1617,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Apply Param-Driven Styles",
@@ -1778,7 +1778,7 @@ namespace StingTools.Tags
                     colorsCleared++;
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Clear Param-Driven Styles",
@@ -1852,6 +1852,9 @@ namespace StingTools.Tags
             var distribution = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
             var batchStyleProgress = StingProgressDialog.Show("Batch Param-Driven Styles", allElements.Count);
+            // try/finally: a rolled-back commit throws, and the progress window must still close.
+            try
+            {
             using (Transaction tx = new Transaction(doc, "STING Batch Param-Driven Styles"))
             {
                 tx.Start();
@@ -1887,9 +1890,13 @@ namespace StingTools.Tags
                     catch (Exception ex) { StingLog.Warn($"Batch apply param-driven style to element: {ex.Message}"); }
                 }
 
-                if (batchStyleProgress.IsCancelled) tx.RollBack(); else tx.Commit();
+                if (batchStyleProgress.IsCancelled) tx.RollBack(); else StingTx.Commit(tx);
             }
+            }
+            finally
+            {
             try { batchStyleProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchStyle progress close: {ex.Message}"); }
+            }
 
             TaskDialog.Show("Batch Apply Param-Driven Styles",
                 ParamDrivenStyleEngine.FormatStyleReport(

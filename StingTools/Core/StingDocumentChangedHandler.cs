@@ -157,7 +157,8 @@ namespace StingTools.Core
                             {
                                 t.Start();
                                 ApplyCascade(doc, el, item.Kind);
-                                t.Commit();
+                                // one item's rollback counts as that item failing; the rest still drain
+                                if (!StingTx.TryCommit(t, null, out string why)) { StingLog.Warn(why); continue; }
                             }
                             lock (_recentlyProcessed) _recentlyProcessed.Add(item.ElementId.Value);
                             drained++;

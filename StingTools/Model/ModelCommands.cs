@@ -1214,7 +1214,7 @@ namespace StingTools.Model
                             catch (Exception ex) { StingLog.Warn($"Floor slope: {ex.Message}"); }
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 // Auto-tag created elements
@@ -1299,7 +1299,7 @@ namespace StingTools.Model
                             }
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 var canopyResult = new ModelResult { Success = true, Message = $"Canopy created: {3000}mm × {1500}mm at {2700}mm height" };

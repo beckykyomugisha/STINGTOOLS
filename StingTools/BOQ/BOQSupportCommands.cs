@@ -39,7 +39,7 @@ namespace StingTools.BOQ
                     tx.Start();
                     BOQCostManager.WriteElementParameters(ctx.Doc, boq.AllItems);
                     BOQCostManager.WriteProjectParameters(ctx.Doc, boq);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 StingLog.Info($"BOQ refreshed: {boq.AllItems.Count} items, grand UGX {boq.GrandTotalUGX:N0}");
                 return Result.Succeeded;
@@ -684,7 +684,7 @@ namespace StingTools.BOQ
                             else if (p.StorageType == StorageType.String) p.Set(budget.ToString("F0", CultureInfo.InvariantCulture));
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 TagConfig.SetConfigValue("PROJECT_BUDGET_UGX", budget.ToString("F0", CultureInfo.InvariantCulture));
                 StingLog.Info($"Project budget set: UGX {budget:N0}");
@@ -715,7 +715,7 @@ namespace StingTools.BOQ
                     tx.Start();
                     BOQCostManager.WriteElementParameters(ctx.Doc, boq.AllItems);
                     BOQCostManager.WriteProjectParameters(ctx.Doc, boq);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 // CST_BOQ_SNAPSHOT_REF requires its own transaction — SaveSnapshot
                 // mutates the element parameters.
@@ -731,7 +731,7 @@ namespace StingTools.BOQ
                         catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                         ParameterHelpers.SetString(el, "CST_BOQ_SNAPSHOT_REF", label, overwrite: true);
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 TaskDialog.Show("STING BOQ", $"Snapshot saved as '{label}' ({type}).\n\n{Path.GetFileName(path)}");
                 return Result.Succeeded;
@@ -955,7 +955,7 @@ namespace StingTools.BOQ
                                 skipped++;
                             }
                         }
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
                     BOQCostManager.SaveManualRows(ctx.Doc, manualStore.ManualRows, manualStore.ProjectBudgetUGX);
                     TaskDialog.Show("STING BOQ", $"Matched: {matched}\nUpdated: {updated}\nSkipped (no match): {skipped}\nManual rows preserved: {manualAdded}");
@@ -1080,7 +1080,7 @@ namespace StingTools.BOQ
                         ParameterHelpers.SetInt(el, "CST_PROVISIONAL_SUM", 0, overwrite: true);
                         ParameterHelpers.SetString(el, "CST_RATE_SOURCE", "PromotedFromPS", overwrite: true);
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 UI.StingResultPanel.Create("Reconcile Provisionals")
                     .AddSection("RESULT")
@@ -1228,7 +1228,7 @@ namespace StingTools.BOQ
                     ParameterHelpers.SetString(el, "CST_RATE_SOURCE", "Override", overwrite: true);
                     // Note writeback intentionally omitted — no CST_BOQ_NOTE parameter
                     // is registered; keep the edited note on the manual-store side only.
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 StingCommandHandler.ClearExtraParam("BOQEditElementId");

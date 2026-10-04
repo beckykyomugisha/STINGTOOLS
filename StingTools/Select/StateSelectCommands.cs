@@ -449,7 +449,7 @@ namespace StingTools.Select
                             skipped++;
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var sb = new StringBuilder();
@@ -521,7 +521,7 @@ namespace StingTools.Select
                     if (result.StatusDetected) statusDetected++;
                     if (result.RevSet) revSet++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // GAP-BA: Invalidate caches after bulk populate
@@ -574,7 +574,7 @@ namespace StingTools.Select
                     catch (Exception ex) { StingLog.Warn($"BulkClear STALE flag: {ex.Message}"); }
                     if (any) cleared++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
@@ -620,7 +620,7 @@ namespace StingTools.Select
                         StingLog.Warn($"BulkRetag failed for element {id}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             // Save SEQ sidecar + invalidate caches after bulk re-tag
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }

@@ -372,7 +372,7 @@ namespace StingTools.Commands.Rooms
             {
                 t.Start();
                 written = RoomNumberingEngine.Apply(doc, plan, out failures);
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             // A room number feeds LOC/ZONE derivation, so the cached index is now stale.

@@ -144,7 +144,7 @@ namespace StingTools.Commands.Materials
                         }
                         catch (Exception ex) { failed.Add(kv.Value.MaterialName + " — " + ex.Message); }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 var res = new StringBuilder("Stamped " + done + " of " + todo.Count + " material(s).");

@@ -292,7 +292,8 @@ namespace StingTools.Tags
                             // SkippedExists / Failed: no-op (Failed already logged by the injector).
                         }
                     }
-                    tx.Commit();
+                    // a rolled-back bind added nothing
+                    if (!StingTx.TryCommit(tx, null, out string whyBind)) { result.Warnings.Add(whyBind); added = 0; }
                 }
             }
             catch (Exception ex)
@@ -393,7 +394,7 @@ namespace StingTools.Tags
                         result.Warnings.Add($"SetFormula('{paramName}') failed: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
         }
 
@@ -430,12 +431,12 @@ namespace StingTools.Tags
                             // dimension is not label-capable; behaviour matches
                             // the existing TryRebindLabel.
                             d.FamilyLabel = tagParam;
-                            tx.Commit();
+                            if (!StingTx.TryCommit(tx, null, out string whyRebind)) { result.Warnings.Add(whyRebind); return false; }
                             return true;
                         }
                         catch { /* try next dimension */ }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
             }
             catch (Exception ex)

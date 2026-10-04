@@ -1364,7 +1364,7 @@ namespace StingTools.Temp
                 if (cancelled)
                     tx.RollBack();
                 else
-                    tx.Commit();
+                    StingTx.Commit(tx);
             }
 
             var report = new StringBuilder();
@@ -1847,7 +1847,7 @@ namespace StingTools.Temp
                 if (cancelled)
                     tx.RollBack();
                 else
-                    tx.Commit();
+                    StingTx.Commit(tx);
             }
 
             report.AppendLine($"\n{new string('─', 55)}");
@@ -1939,7 +1939,7 @@ namespace StingTools.Temp
                 if (cancelled)
                     tx.RollBack();
                 else
-                    tx.Commit();
+                    StingTx.Commit(tx);
             }
 
             string syncMsg = cancelled ? $"CANCELLED — changes rolled back" :
@@ -2012,7 +2012,7 @@ namespace StingTools.Temp
                     }
                     catch (Exception ex) { StingLog.Warn($"Fill pattern '{name}': {ex.Message}"); skipped++; }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             LegacyResultAdapter.Publish("CreateFillPatterns", "Create Fill Patterns", doc, $"Created {created} fill patterns.\nSkipped {skipped}.\nTotal defined: {TemplateManager.FillPatternDefs.Length}", created: created, skipped: skipped, failed: 0);
@@ -2075,7 +2075,7 @@ namespace StingTools.Temp
                     }
                     catch (Exception ex2) { StingLog.Warn($"Line style '{name}': {ex2.Message}"); skipped++; }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             LegacyResultAdapter.Publish("CreateLineStyles", "Create Line Styles", doc,
@@ -2125,7 +2125,7 @@ namespace StingTools.Temp
                     }
                     catch (Exception ex) { StingLog.Warn($"Object style '{cat}': {ex.Message}"); skipped++; }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             LegacyResultAdapter.Publish("CreateObjectStyles", "Configure Object Styles", doc,
@@ -2193,7 +2193,7 @@ namespace StingTools.Temp
                     }
                     catch (Exception ex) { StingLog.Warn($"Text style '{name}': {ex.Message}"); skipped++; }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             LegacyResultAdapter.Publish("CreateTextStyles", "Create Text Styles", doc,
@@ -2277,7 +2277,7 @@ namespace StingTools.Temp
                     }
                     catch (Exception ex2) { StingLog.Warn($"Dim style '{name}': {ex2.Message}"); failed++; problems.Add($"{name}: {ex2.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             string summary = $"Created {created} dimension types.\nSkipped {skipped} (already present).\n" +
@@ -2680,7 +2680,7 @@ namespace StingTools.Temp
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             string scope = targets.Count == 1 && !targets[0].IsTemplate
@@ -2929,7 +2929,7 @@ namespace StingTools.Temp
                 if (cancelled)
                     tx.RollBack();
                 else
-                    tx.Commit();
+                    StingTx.Commit(tx);
             }
 
             // Build coverage report
@@ -3324,7 +3324,15 @@ namespace StingTools.Temp
                                 failedFormulas++; }
                         }
 
-                        tx.Commit();
+                        // one family's rollback counts as that family failing; its adds are not counted
+                        if (!StingTx.TryCommit(tx, null, out string famWhy))
+                        {
+                            paramsAdded -= familyAdded;
+                            formulasApplied -= familyFormulas;
+                            perFamilyResults.Add($"[FAIL] {fileName} — {famWhy}");
+                            famDoc.Close(false);
+                            continue;
+                        }
                     }
 
                     // ── Backup and save ──────────────────────────────────────
@@ -3640,7 +3648,7 @@ namespace StingTools.Temp
                             }
                         }
 
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
 
                     if (familyAdded == 0 && familyFixed == 0)
@@ -3948,7 +3956,7 @@ namespace StingTools.Temp
                         skipped++;
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // ── TPL_SCHEDULE_METADATA.csv integration ──
@@ -4073,7 +4081,7 @@ namespace StingTools.Temp
                             StingLog.Warn("TPL metadata: No Generic Model family symbol found.");
                         }
 
-                        tplTx.Commit();
+                        StingTx.Commit(tplTx);
                     }
 
                     if (tplInstances > 0)
@@ -4561,7 +4569,7 @@ namespace StingTools.Temp
                     ViewTemplatesCommand.ConfigureTemplateVG(clone, targetDisc,
                         filterLookup, solidFill, dl);
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
 
                     LegacyResultAdapter.Publish("CloneTemplate", "Clone Template", doc,
                         $"Template cloned successfully.\n\nSource: {sourceTemplate.Name}\nClone: {cloneName}\nDiscipline: {targetLabel} ({targetDisc})\nDetail level: {dl}\n\nVG overrides re-configured for target discipline.\nUse 'Auto-Assign Templates' to apply to views.",
@@ -4572,7 +4580,7 @@ namespace StingTools.Temp
                 }
                 catch (Exception ex2)
                 {
-                    if (tx.HasStarted()) tx.RollBack();
+                    StingTx.RollBackIfOpen(tx);
                     StingLog.Error("Clone Template failed", ex2);
                     TaskDialog.Show("Clone Template", $"Clone failed: {ex2.Message}");
                     return Result.Failed;
@@ -4716,7 +4724,7 @@ namespace StingTools.Temp
                     if (phaseCancelled)
                         tx.RollBack();
                     else
-                        tx.Commit();
+                        StingTx.Commit(tx);
                 }
             }
 
@@ -4808,7 +4816,7 @@ namespace StingTools.Temp
                     if (phaseCancelled)
                         tx.RollBack();
                     else
-                        tx.Commit();
+                        StingTx.Commit(tx);
                 }
             }
 

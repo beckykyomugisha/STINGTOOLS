@@ -145,7 +145,7 @@ namespace StingTools.Commands.Interop
                         written++;
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
             }
             finally { progress.Close(); }

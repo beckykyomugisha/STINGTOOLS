@@ -227,7 +227,7 @@ namespace StingTools.Commands.TagStudio
                         fm, variants, TagTypeVariantWriter.BuildArrowheadLookup(famDoc));
                     result.UnstyledTypes = TagTypeVariantWriter.LastUnstyledTypes.Count;
 
-                    tx.Commit();
+                    StingTx.Commit(tx); // a rollback lands in the catch below as this family's error
                 }
 
                 // Save to the family's stored path if known, else a temp file next to the plugin.
@@ -254,7 +254,7 @@ namespace StingTools.Commands.TagStudio
                         try { doc.LoadFamily(savePath, new TagFamilyLoadOptions(), out _); }
                         catch (Exception loadEx) { StingLog.Warn($"Reload {fam.Name}: {loadEx.Message}"); }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 result.Success = true;

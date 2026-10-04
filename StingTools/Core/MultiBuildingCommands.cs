@@ -107,7 +107,7 @@ namespace StingTools.Core
                         CreateVerticalGrid(doc, $"{code}-{x}", (x - 1) * bayMm / 304.8 /* mm→ft */, ref gridsCreated);
                     for (int y = 0; y < gridsY && y < letters.Length; y++)
                         CreateHorizontalGrid(doc, $"{code}-{letters[y]}", y * bayMm / 304.8, ref gridsCreated);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 StingResultPanel.Create($"Seeded Building: {code}")
@@ -211,7 +211,7 @@ namespace StingTools.Core
                 {
                     tx.Start();
                     ParameterHelpers.SetString(doc.ProjectInformation, "PRJ_VOLUME_CODE", code, overwrite: true);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 TagConfig.SetConfigValue("PRJ_VOLUME_CODE", code);
                 StingLog.Info($"PRJ_VOLUME_CODE set to {code} from filename '{fn}'.");

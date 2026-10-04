@@ -150,7 +150,7 @@ namespace StingTools.Commands.DesignOptions
                     }
                     if (didSomething) viewsTouched++;
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             var sb = new StringBuilder();

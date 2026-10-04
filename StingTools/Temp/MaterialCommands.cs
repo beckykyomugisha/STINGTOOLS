@@ -1096,6 +1096,25 @@ namespace StingTools.Temp
 
                 int batchEnd = Math.Min(batchStart + MaterialBatchSize, rows.Count);
                 int batchNum = (batchStart / MaterialBatchSize) + 1;
+                int createdAtBatchStart = created, duplicatedAtBatchStart = duplicated, skippedAtBatchStart = skipped;
+                // What this batch adds to the in-memory caches. A rolled-back batch's materials
+                // (and duplicated appearance assets) no longer exist, so its entries must go too —
+                // otherwise later batches skip them as "existing" or reference deleted ids.
+                var batchAddedNames = new List<string>();
+                var assetKeysAtBatchStart = new HashSet<string>(assetCache.Keys, StringComparer.OrdinalIgnoreCase);
+                void UndoBatch()
+                {
+                    created = createdAtBatchStart;
+                    duplicated = duplicatedAtBatchStart;
+                    skipped = skippedAtBatchStart;
+                    foreach (string n in batchAddedNames)
+                    {
+                        existingNames.Remove(n);
+                        baseMaterialCache.Remove(n);
+                    }
+                    foreach (string k in assetCache.Keys.Where(k => !assetKeysAtBatchStart.Contains(k)).ToList())
+                        assetCache.Remove(k);
+                }
 
                 using (Transaction tx = new Transaction(doc,
                     $"STING Materials batch {batchNum}"))
@@ -1128,6 +1147,7 @@ namespace StingTools.Temp
                                     created++;
                                     existingNames.Add(matName);
                                     baseMaterialCache[matName] = newMat;
+                                    batchAddedNames.Add(matName);
                                 }
                             }
                             catch (Exception ex)
@@ -1136,15 +1156,21 @@ namespace StingTools.Temp
                             }
                         }
 
-                        tx.Commit();
-                        StingLog.Info($"{dialogTitle}: batch {batchNum} committed ({created} created so far)");
+                        // a rolled-back batch counts as a batch error and its materials as not created
+                        if (StingTx.TryCommit(tx, null, out string why))
+                            StingLog.Info($"{dialogTitle}: batch {batchNum} committed ({created} created so far)");
+                        else
+                        {
+                            batchErrors++;
+                            UndoBatch();
+                        }
                     }
                     catch (Exception ex)
                     {
                         batchErrors++;
                         StingLog.Error($"{dialogTitle}: batch {batchNum} failed, rolling back batch", ex);
-                        if (tx.HasStarted() && !tx.HasEnded())
-                            tx.RollBack();
+                        StingTx.RollBackIfOpen(tx);
+                        UndoBatch();
                     }
                 }
             }

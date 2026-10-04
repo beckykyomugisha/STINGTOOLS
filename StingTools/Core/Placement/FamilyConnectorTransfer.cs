@@ -172,7 +172,7 @@ namespace StingTools.Core.Placement
                     {
                         t.Start();
                         StingTools.Core.Symbols.SymbolLibraryCreator.AddConnectors(tgt, seedDef, scr);
-                        t.Commit();
+                        StingTx.Commit(t);
                     }
                     foreach (var w in scr.Warnings) res.Warnings.Add(w);
 
@@ -437,7 +437,7 @@ namespace StingTools.Core.Placement
                 ReplayParameters(ce, spec, res);
             }
 
-            t.Commit();
+            StingTx.Commit(t);
         }
 
         private static List<PlanarFace> CollectPlanarFaces(Document tgt, Options opt)

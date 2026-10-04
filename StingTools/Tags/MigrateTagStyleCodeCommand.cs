@@ -75,7 +75,7 @@ namespace StingTools.Tags
                         }
                         catch (Exception exEl) { StingLog.Warn($"MigrateTagStyleCode el {el.Id}: {exEl.Message}"); }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 TaskDialog.Show("TAG-01 Migration Complete",

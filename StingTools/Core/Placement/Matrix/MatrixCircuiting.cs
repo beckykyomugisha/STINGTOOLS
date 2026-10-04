@@ -101,7 +101,7 @@ namespace StingTools.Core.Placement.Matrix
                     if (sys != null) { res.Circuits++; res.DevicesCircuited += g.Count; }
                     if (mcr.Warnings.Count > 0) res.Warnings.AddRange(mcr.Warnings);
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             res.Messages.Add($"Created {res.Circuits} circuit(s) for {res.DevicesCircuited} device(s) on panel '{panel.Name}' ({grouping}).");

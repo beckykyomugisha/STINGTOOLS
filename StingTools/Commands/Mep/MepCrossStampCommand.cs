@@ -39,7 +39,7 @@ namespace StingTools.Commands.Mep
                 {
                     tx.Start();
                     r = MepCrossStampOrchestrator.AnalyseModel(ctx.Doc);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 var panel = StingResultPanel.Create("MEP Cross-Discipline Stamps");

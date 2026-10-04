@@ -93,7 +93,7 @@ namespace StingTools.Tags
 
                     var res = RefreshDisplayInScope(doc, scope, mask, TagConfig.EffectiveSeqPad);
                     updated = res.updated; skippedNoTag = res.skippedNoTag;
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 StingLog.Info($"RefreshTagDisplay: mask={mask} updated={updated} skippedNoTag={skippedNoTag}");

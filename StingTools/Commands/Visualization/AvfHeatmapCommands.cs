@@ -59,7 +59,7 @@ namespace StingTools.Commands.Visualization
                 {
                     t.Start();
                     AvfHeatmapEngine.Clear(ctx.Doc.ActiveView);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
                 return Result.Succeeded;
             }
@@ -81,7 +81,7 @@ namespace StingTools.Commands.Visualization
                     t.Start();
                     AvfHeatmapEngine.Clear(ctx.Doc.ActiveView);
                     n = AvfHeatmapEngine.Paint(ctx.Doc.ActiveView, adapter);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
                 TaskDialog.Show("STING Heat-map",
                     $"{adapter.MetricName}\n\nRendered {n} primitive(s) on '{ctx.Doc.ActiveView.Name}'.\n\n" +

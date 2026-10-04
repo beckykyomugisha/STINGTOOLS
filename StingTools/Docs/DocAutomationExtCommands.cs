@@ -780,7 +780,7 @@ namespace StingTools.Docs
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             sw.Stop();
@@ -900,7 +900,7 @@ namespace StingTools.Docs
                 {
                     activateTx.Start();
                     defaultTitleBlock.Activate();
-                    activateTx.Commit();
+                    StingTx.Commit(activateTx);
                 }
             }
 
@@ -1057,7 +1057,7 @@ namespace StingTools.Docs
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var report = new StringBuilder();
@@ -1240,7 +1240,7 @@ namespace StingTools.Docs
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Create Dependent Views",
@@ -1417,7 +1417,7 @@ namespace StingTools.Docs
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var report = new StringBuilder();
@@ -1604,7 +1604,7 @@ namespace StingTools.Docs
                         }
                     }
 
-                    tx1.Commit();
+                    StingTx.Commit(tx1);
                 }
 
                 // Phase 2: Create Sheets and Place Views
@@ -1675,7 +1675,7 @@ namespace StingTools.Docs
                         }
                     }
 
-                    tx2.Commit();
+                    StingTx.Commit(tx2);
                 }
 
             sw.Stop();
@@ -1857,7 +1857,7 @@ namespace StingTools.Docs
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Batch Create Sections",
@@ -2054,7 +2054,7 @@ namespace StingTools.Docs
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Batch Create Elevations",
@@ -2451,7 +2451,7 @@ namespace StingTools.Docs
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Project Browser Organizer",
@@ -2651,7 +2651,7 @@ namespace StingTools.Docs
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Revision Cloud Auto-Create",

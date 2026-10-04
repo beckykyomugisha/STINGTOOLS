@@ -53,7 +53,7 @@ namespace StingTools.Commands.Fabrication
                             .Cast<ViewSchedule>()
                             .FirstOrDefault(s => string.Equals(s.Name, ScheduleName, StringComparison.OrdinalIgnoreCase));
                         if (prior != null) doc.Delete(prior.Id);
-                        t1.Commit();
+                        StingTx.Commit(t1);
                     }
 
                     ViewSchedule vs = null;
@@ -104,8 +104,8 @@ namespace StingTools.Commands.Fabrication
                         AddSharedField(sd, doc, "ASS_WEIGHT_KG",         r);
                         AddSharedField(sd, doc, "ASS_WELD_COUNT_NR",     r);
 
-                        r.ScheduleId = vs.Id;
-                        t2.Commit();
+                        StingTx.Commit(t2);
+                        r.ScheduleId = vs.Id;   // only a committed schedule is reported
                     }
                     tg.Assimilate();
                 }

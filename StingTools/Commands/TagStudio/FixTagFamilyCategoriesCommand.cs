@@ -404,7 +404,14 @@ namespace StingTools.Commands.TagStudio
                         StingLog.Warn($"FixTagFamilyCategories: '{row.FamilyName}' → {target.Name} REFUSED: {row.Detail}");
                         return row;
                     }
-                    tx.Commit();
+                    // a rolled-back category change is this family's error, not a pass
+                    if (!StingTx.TryCommit(tx, null, out string why))
+                    {
+                        row.Verdict = "ERROR";
+                        row.Detail = why;
+                        StingLog.Warn(why);
+                        return row;
+                    }
                 }
 
                 // Read it back before saving. Revit can accept the assignment and land

@@ -258,7 +258,7 @@ namespace StingTools.Tags
                     return Result.Cancelled;
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             // FIX-N09: Invalidate caches after successful token population
             ComplianceScan.InvalidateCache();

@@ -213,7 +213,8 @@ namespace StingTools.Mcp
                             StingLog.Warn($"MCP AutoTag element {el?.Id}: {ex.Message}");
                         }
                     }
-                    tx.Commit();
+                    // throws on rollback: RunInTransactionGroup rolls back, McpJobBridge returns it as an error
+                    StingTx.Commit(tx);
                 }
             });
 
@@ -309,7 +310,8 @@ namespace StingTools.Mcp
                             StingLog.Warn($"MCP TagScheme_Render {el?.Id}: {ex.Message}");
                         }
                     }
-                    tx.Commit();
+                    // throws on rollback: RunInTransactionGroup rolls back, McpJobBridge returns it as an error
+                    StingTx.Commit(tx);
                 }
             });
 

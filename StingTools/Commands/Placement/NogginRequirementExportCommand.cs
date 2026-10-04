@@ -138,9 +138,9 @@ namespace StingTools.Commands.Placement
                             }
                             catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                         }
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
-                    catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack(); }
+                    catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack(); markersPlaced = 0; /* nothing reached the model */ }
                 }
             }
             return markersPlaced;

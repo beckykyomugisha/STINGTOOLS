@@ -185,7 +185,7 @@ namespace StingTools.Temp
                     }
                 }
             }
-            t.Commit();
+            StingTx.Commit(t);
             return (loaded, skipped, failed);
         }
     }

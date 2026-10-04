@@ -229,7 +229,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 int updated = TagStyleEngine.ApplyTagStyle(doc, preset);
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 var diag = TagStyleEngine.LastApplyDiagnostics;
                 var body = new System.Text.StringBuilder();
@@ -368,7 +368,7 @@ namespace StingTools.Tags
                 if (scheme.DisciplineTagStyles.Count > 0)
                     styled = TagStyleEngine.ApplyDisciplineTagStyles(doc, scheme);
 
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 string note = TagStyleEngine.ViewSchemeNote(view, scheme.Name);
                 TaskDialog.Show("Color Scheme Applied",
@@ -411,7 +411,7 @@ namespace StingTools.Tags
                     styled = sc.DisciplineTagStyles.Count > 0 ? TagStyleEngine.ApplyDisciplineTagStyles(doc, sc) : 0;
                     description = sc.Description;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
                 string note = TagStyleEngine.ViewSchemeNote(view, canonical);
                 TaskDialog.Show("Color Scheme Applied",
                     $"Scheme: {canonical}\n{description}\n\nElements colored: {colored}\nTag styles switched: {styled}" +
@@ -460,7 +460,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 int cleared = TagStyleEngine.ClearColorScheme(doc, view);
-                tx.Commit();
+                StingTx.Commit(tx);
                 TaskDialog.Show("Clear Color Scheme", $"Cleared overrides from {cleared} elements.");
             }
 
@@ -534,7 +534,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 int updated = TagStyleEngine.SetParagraphDepth(doc, maxTier, warn);
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 TaskDialog.Show("Paragraph Depth",
                     $"Depth: Tier .{maxTier:D2} of .10\n" +
@@ -728,7 +728,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
                 int updated = TagStyleEngine.ApplyDisciplineTagStyles(doc, scheme);
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 TaskDialog.Show("Discipline Tag Styles",
                     $"Applied discipline-aware tag styles:\n" +
@@ -807,7 +807,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 TaskDialog.Show("Batch Color Scheme",
                     $"{(clearMode ? "Cleared" : $"Scheme: {schemeName}")}\n" +
@@ -877,7 +877,7 @@ namespace StingTools.Tags
                 if (doBoxes && scheme.ValueBoxColors.Count > 0)
                     boxed = TagStyleEngine.ApplyBoxColorsByVariable(doc, view, scheme);
 
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 var report = new System.Text.StringBuilder();
                 report.AppendLine($"Variable: {scheme.Variable}");
@@ -1151,7 +1151,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
                 TaskDialog.Show("Box Color", $"Updated {updated} elements.");
             }
 
@@ -1401,7 +1401,7 @@ namespace StingTools.Tags
                     StingLog.Error("SetViewTagStyle", ex);
                     resultMsg = $"Failed: {ex.Message}";
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             if (resultMsg != null)
                 TaskDialog.Show("STING", resultMsg);

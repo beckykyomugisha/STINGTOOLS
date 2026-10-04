@@ -120,7 +120,7 @@ namespace StingTools.Commands.Drawing
                     else
                         foreach (var c in headLoop) fam.FamilyCreate.NewDetailCurve(view, c);
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 fam.SaveAs(path, new SaveAsOptions { OverwriteExistingFile = true });
             }

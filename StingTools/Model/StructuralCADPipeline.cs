@@ -1549,7 +1549,7 @@ namespace StingTools.Model
                                     CurrentConfig.ConnectionMomentDemand_kNm);
                                 foreach (var sr in synResults)
                                     totalResult.Warnings.AddRange(sr.Warnings);
-                                txConn.Commit();
+                                StingTx.Commit(txConn);
                                 StingLog.Info($"ConnectionDetailSynthesizer: {synResults.Count} connections synthesized in {activeView.Name}");
                             }
                         }
@@ -1657,7 +1657,7 @@ namespace StingTools.Model
                     }
                     if (count % 10 == 0 && EscapeChecker.IsEscapePressed()) { cancelled = true; break; }
                 }
-                if (cancelled) tx.RollBack(); else tx.Commit();
+                if (cancelled) tx.RollBack(); else StingTx.Commit(tx);
             }
             result.Warnings.AddRange(fh.CapturedWarnings);
             return count;
@@ -1720,7 +1720,7 @@ namespace StingTools.Model
                     }
                     catch (Exception ex) { result.Warnings.Add($"Rect column: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             result.Warnings.AddRange(fh.CapturedWarnings);
             return count;
@@ -1805,7 +1805,7 @@ namespace StingTools.Model
                     }
                     catch (Exception ex) { result.Warnings.Add($"Beam: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             result.Warnings.AddRange(fh.CapturedWarnings);
             return count;
@@ -1888,7 +1888,7 @@ namespace StingTools.Model
                     }
                     catch (Exception ex) { result.Warnings.Add($"Slab: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             return count;
         }
@@ -1936,7 +1936,7 @@ namespace StingTools.Model
                     if (count % 10 == 0 && EscapeChecker.IsEscapePressed()) { cancelled = true; break; }
                 }
 
-                if (cancelled) tx.RollBack(); else tx.Commit();
+                if (cancelled) tx.RollBack(); else StingTx.Commit(tx);
             }
             result.Warnings.AddRange(fh.CapturedWarnings);
             return count;
@@ -1963,7 +1963,7 @@ namespace StingTools.Model
                     }
                     catch (Exception ex) { result.Warnings.Add($"Grid: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
         }
 
@@ -2458,7 +2458,7 @@ namespace StingTools.Model
                                             catch (Exception ex) { StingLog.Warn($"Wall join: {ex.Message}"); }
                                         }
                                     }
-                                    tx.Commit();
+                                    StingTx.Commit(tx);
                                 }
                                 if (joined > 0) StingLog.Info($"  Joined {joined} wall pairs");
                             }
@@ -2642,7 +2642,7 @@ namespace StingTools.Model
                                     config.ConnectionMomentDemand_kNm);
                                 foreach (var sr in synResults)
                                     totalResult.Warnings.AddRange(sr.Warnings);
-                                txConn.Commit();
+                                StingTx.Commit(txConn);
                                 StingLog.Info($"  Connection details: {synResults.Count} synthesized in {activeView.Name}");
                             }
                         }
@@ -2888,7 +2888,7 @@ namespace StingTools.Model
                 try
                 {
                     var r = body();
-                    tx.Commit();
+                    StingTx.Commit(tx);
                     return r;
                 }
                 catch (Exception ex)
@@ -2965,7 +2965,7 @@ namespace StingTools.Model
                     catch (Exception ex) { result.Warnings.Add($"Column (soffit): {ex.Message}"); }
                     if (count % 50 == 0 && EscapeChecker.IsEscapePressed()) { cancelled = true; break; }
                 }
-                if (cancelled) tx.RollBack(); else tx.Commit();
+                if (cancelled) tx.RollBack(); else StingTx.Commit(tx);
             }
             result.Warnings.AddRange(fh.CapturedWarnings);
             return count;
@@ -3046,7 +3046,7 @@ namespace StingTools.Model
                     }
                     catch (Exception ex) { result.Warnings.Add($"Rect column (soffit): {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             result.Warnings.AddRange(fh.CapturedWarnings);
             return count;
@@ -3202,7 +3202,7 @@ namespace StingTools.Model
                     catch (Exception ex) { result.Warnings.Add($"Pad fdn: {ex.Message}"); }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             return count;
         }
@@ -3291,7 +3291,7 @@ namespace StingTools.Model
                     catch (Exception ex) { result.Warnings.Add($"Foundation block: {ex.Message}"); }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             return count;
         }
@@ -3382,7 +3382,7 @@ namespace StingTools.Model
                     if (count % 50 == 0 && EscapeChecker.IsEscapePressed()) { cancelled = true; break; }
                 }
 
-                if (cancelled) tx.RollBack(); else tx.Commit();
+                if (cancelled) tx.RollBack(); else StingTx.Commit(tx);
             }
             result.Warnings.AddRange(fh.CapturedWarnings);
             return count;
@@ -3468,7 +3468,7 @@ namespace StingTools.Model
                         catch (Exception ex) { result.Warnings.Add($"Cantilever mark: {ex.Message}"); }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             if (offsetApplied > 0)

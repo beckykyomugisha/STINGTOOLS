@@ -93,7 +93,7 @@ namespace StingTools.Commands.Materials
                             }
                             catch (Exception ex) { failed.Add($"{plan[i].MaterialName}: {w.Field} — {ex.Message}"); }
                         }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 var res = new StringBuilder(MaterialIdentityPlanner.Summary(plan, applied: true));

@@ -283,7 +283,8 @@ namespace StingTools.Mcp
                                 StingLog.Warn($"MCP set_parameter {el.Id.Value}: {ex.Message}");
                             }
                         }
-                        tx.Commit();
+                        // throws on rollback: RunInTransactionGroup rolls back, McpJobBridge returns it as an error
+                        StingTx.Commit(tx);
                     }
                 });
 

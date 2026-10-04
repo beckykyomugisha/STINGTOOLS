@@ -67,7 +67,7 @@ namespace StingTools.Core.Clash
                         SetCountParam(doc, id, 0);
                     }
                 }
-                t.Commit();
+                if (!StingTx.TryCommit(t, null, out string why)) StingLog.Warn(why);
             }
             catch (Exception ex) { StingLog.Warn($"LiveClashFlag.ApplyWithCounts: {ex.Message}"); }
         }

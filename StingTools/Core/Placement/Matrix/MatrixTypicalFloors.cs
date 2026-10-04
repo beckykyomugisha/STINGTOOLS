@@ -88,9 +88,15 @@ namespace StingTools.Core.Placement.Matrix
                         {
                             t.Start();
                             var copied = ElementTransformUtils.CopyElements(doc, srcIds, doc, xform, new CopyPasteOptions());
+                            // one level's rollback counts as that level's copy failing; counted only after commit
+                            if (!StingTx.TryCommit(t, null, out string why))
+                            {
+                                StingLog.Warn(why);
+                                res.Warnings.Add($"{lvl.Name}: copy failed — {why}");
+                                continue;
+                            }
                             res.Copied += copied?.Count ?? 0;
                             res.CopiedByLevel[lvl.Name] = copied?.Count ?? 0;
-                            t.Commit();
                         }
                     }
                     catch (Exception ex)

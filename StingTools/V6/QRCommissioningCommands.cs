@@ -50,7 +50,7 @@ namespace StingTools.V6
                         };
                         results.Add((el.UniqueId, QRCommissioningWorkflow.Advance(doc, scan)));
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 int ok = results.Count(x => x.r.Ok);

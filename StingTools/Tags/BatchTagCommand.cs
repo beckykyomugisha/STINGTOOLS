@@ -187,6 +187,9 @@ namespace StingTools.Tags
             using var _perfOp = PerformanceTracker.Track("BatchTag");
 
             bool cancelled = false;
+            // ELEC-32: a batch Revit rolled back stops the run; earlier batches stay committed.
+            string rolledBack = null;
+            int rolledBackBatch = 0;
             const int TagBatchSize = 500;
 
             // ENH-001: Show progress dialog with cancel support
@@ -198,10 +201,11 @@ namespace StingTools.Tags
             {
             for (int batchStart = 0; batchStart < sorted.Count; batchStart += TagBatchSize)
             {
-                if (cancelled) break;
+                if (cancelled || rolledBack != null) break;
 
                 int batchEnd = Math.Min(batchStart + TagBatchSize, sorted.Count);
                 int batchNum = (batchStart / TagBatchSize) + 1;
+                var statsBeforeBatch = TaggingStatsSnapshot.Take(stats);
 
                 using (Transaction tx = new Transaction(doc, $"STING Batch Tag #{batchNum}"))
                 {
@@ -248,9 +252,20 @@ namespace StingTools.Tags
                     {
                         tx.RollBack();
                     }
+                    else if (!StingTx.TryCommit(tx, null, out string batchWhy))
+                    {
+                        // ELEC-32: take the rolled-back batch out of the counts and stop.
+                        // The SEQ counters keep the numbers this batch allocated: saving them
+                        // skips those numbers (safe); restoring them could reuse a number.
+                        statsBeforeBatch?.Restore();
+                        rolledBack = batchWhy;
+                        rolledBackBatch = batchNum;
+                        try { TagConfig.SaveSeqSidecar(doc, sequenceCounters); }
+                        catch (Exception ssEx) { StingLog.Warn($"BatchTag SaveSeqSidecar: {ssEx.Message}"); }
+                        StingLog.Warn($"Batch Tag: batch {batchNum} rolled back — run stopped; batches 1-{batchNum - 1} stay committed");
+                    }
                     else
                     {
-                        tx.Commit();
                         // P6: Save SEQ sidecar after each committed batch
                         TagConfig.SaveSeqSidecar(doc, sequenceCounters);
                         StingLog.Info($"Batch Tag: batch {batchNum} committed");
@@ -279,7 +294,15 @@ namespace StingTools.Tags
 
             // Step 4: Rich reporting
             var report = new StringBuilder();
-            report.AppendLine("Batch Tagging Complete");
+            if (rolledBack != null)
+            {
+                report.AppendLine(rolledBack);
+                report.AppendLine($"Stopped at batch {rolledBackBatch}: Revit rolled it back and later batches were not run. " +
+                    (rolledBackBatch > 1 ? $"Batches 1-{rolledBackBatch - 1} stay committed; " : "Nothing was committed; ") +
+                    "the counts below are the committed batches only.");
+                report.AppendLine();
+            }
+            report.AppendLine(rolledBack != null ? "Batch Tagging Stopped" : "Batch Tagging Complete");
             report.AppendLine(new string('=', 50));
             report.AppendLine($"  Mode:         {collisionMode}");
             report.AppendLine($"  Duration:     {sw.Elapsed.TotalSeconds:F1}s");
@@ -299,12 +322,15 @@ namespace StingTools.Tags
             }
 
             TaskDialog td = new TaskDialog("Batch Tag");
-            td.MainInstruction = $"Tagged {stats.TotalTagged:N0} of {totalTaggable:N0} elements";
+            td.MainInstruction = rolledBack != null
+                ? $"ROLLED BACK at batch {rolledBackBatch} — stopped; {stats.TotalTagged:N0} of {totalTaggable:N0} elements tagged in committed batches"
+                : $"Tagged {stats.TotalTagged:N0} of {totalTaggable:N0} elements";
             td.MainContent = report.ToString();
             td.Show();
 
             // Phase 165 follow-up — explicit batch teardown.
             TokenAutoPopulator.PopulationContext.EndSession();
+            if (rolledBack != null) { message = rolledBack; return Result.Failed; }
             return Result.Succeeded;
         }
 
@@ -560,9 +586,12 @@ namespace StingTools.Tags
             // seqCounters and tagIndex carry across batch boundaries for collision-free SEQ.
             var mfProgress = StingProgressDialog.Show("Tag Format Migration", tagged.Count);
             bool mfCancelled = false;
+            // ELEC-32: a batch Revit rolled back stops the migration; earlier batches stay committed.
+            string mfRolledBack = null;
+            int mfBatchNum = 0;
             const int MfBatchSize = 200;
             int mfBatchStart = 0;
-            while (mfBatchStart < tagged.Count)
+            while (mfBatchStart < tagged.Count && mfRolledBack == null)
             {
                 if (EscapeChecker.IsEscapePressed())
                 {
@@ -573,6 +602,9 @@ namespace StingTools.Tags
                 int mfBatchEnd = Math.Min(mfBatchStart + MfBatchSize, tagged.Count);
                 var mfBatch = tagged.GetRange(mfBatchStart, mfBatchEnd - mfBatchStart);
                 mfBatchStart = mfBatchEnd;
+                mfBatchNum++;
+                int migratedBeforeBatch = migrated;
+                var mfStatsBefore = TaggingStatsSnapshot.Take(stats);
 
                 using (Transaction tx = new Transaction(doc, "STING Tag Format Migration"))
                 {
@@ -607,7 +639,15 @@ namespace StingTools.Tags
                         }
                     }
 
-                    tx.Commit();
+                    if (!StingTx.TryCommit(tx, null, out string mfWhy))
+                    {
+                        // ELEC-32: the batch's elements were not migrated. The SEQ counters
+                        // keep its allocations (saved below): skipping numbers is safe.
+                        migrated = migratedBeforeBatch;
+                        mfStatsBefore?.Restore();
+                        mfRolledBack = mfWhy;
+                        StingLog.Warn($"TagFormatMigration: batch {mfBatchNum} rolled back — migration stopped");
+                    }
                 }
                 // TAG-H-04: Save sidecar after each batch so partial progress survives a crash.
                 try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
@@ -621,6 +661,16 @@ namespace StingTools.Tags
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
             string mfCancelNote = mfCancelled ? " (cancelled — partial)" : "";
+            if (mfRolledBack != null)
+            {
+                TaskDialog.Show("Tag Format Migration",
+                    $"{mfRolledBack}\n\nStopped at batch {mfBatchNum}: Revit rolled it back and later batches were not run.\n\n" +
+                    $"  Scope:    {mfScopeLabel}\n  Migrated: {migrated} (committed batches only)\n  Total:    {tagged.Count}");
+                StingLog.Warn($"Tag format migration: stopped at batch {mfBatchNum} (rolled back), {migrated}/{tagged.Count} tags reformatted");
+                TokenAutoPopulator.PopulationContext.EndSession();
+                message = mfRolledBack;
+                return Result.Failed;
+            }
             TaskDialog.Show("Tag Format Migration",
                 $"Migration{mfCancelNote} complete.\n\n  Scope:    {mfScopeLabel}\n  Migrated: {migrated}\n  Total:    {tagged.Count}");
             StingLog.Info($"Tag format migration: {migrated}/{tagged.Count} tags reformatted");
@@ -926,7 +976,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             // Save SEQ sidecar once + invalidate caches after delta update
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }

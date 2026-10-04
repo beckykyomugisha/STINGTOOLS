@@ -147,7 +147,7 @@ namespace StingTools.Core.Placement.Matrix
                     if (oc.Placed > 0) touchedRooms.Add(w.room.UniqueId);
                     log?.Invoke($"{w.room.Name}: {w.col.DisplayLabel()} -> {oc.Placed}/{oc.Requested}");
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             res.TotalPlaced = res.Cells.Sum(c => c.Placed);

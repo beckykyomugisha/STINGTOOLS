@@ -1561,7 +1561,7 @@ namespace StingTools.Model
                     TrySetParam(footing, BuiltInParameter.STRUCTURAL_FOUNDATION_WIDTH, Units.Mm(depthMm));
 
                     ModelWorksetAssigner.Assign(_doc, footing);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 var result = new StructuralModelResult
@@ -1624,7 +1624,7 @@ namespace StingTools.Model
                     strip = Wall.Create(_doc, line, typeResult.TypeId,
                         level.Id, Units.Mm(depthMm), -Units.Mm(depthMm), false, true);
                     ModelWorksetAssigner.Assign(_doc, strip);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 double lengthMm = startPt.DistanceTo(endPt) * Units.FeetToMm;
@@ -1739,7 +1739,7 @@ namespace StingTools.Model
                         structParam.Set(1);
 
                     ModelWorksetAssigner.Assign(_doc, slab);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 double areaSqM = (widthMm / 1000.0) * (depthMm / 1000.0);
@@ -1876,7 +1876,7 @@ namespace StingTools.Model
                         }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 string suggestion = BeamSystemGenerator.SuggestSteelSection(
@@ -1964,7 +1964,7 @@ namespace StingTools.Model
                         }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 var result = new StructuralModelResult
@@ -2059,7 +2059,7 @@ namespace StingTools.Model
                         }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 var result = new StructuralModelResult
@@ -2135,7 +2135,7 @@ namespace StingTools.Model
                     }
 
                     ModelWorksetAssigner.Assign(_doc, wall);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 double lengthMm = startPt.DistanceTo(endPt) * Units.FeetToMm;
@@ -2347,6 +2347,7 @@ namespace StingTools.Model
                         for (int s = 1; s <= storeyCount; s++)
                         {
                             double z = Units.Mm(storeyHeightMm * s) + level.Elevation;
+                            int beamsAtStorey = totalResult.BeamsCreated, idsAtStorey = totalResult.CreatedIds.Count;
 
                             using (var tx = new Transaction(_doc, $"STING STRUCT: Beams Storey {s}"))
                             {
@@ -2408,7 +2409,13 @@ namespace StingTools.Model
                                     }
                                 }
 
-                                tx.Commit();
+                                // one storey's rollback un-counts that storey's beams; the next storey still runs
+                                if (!StingTx.TryCommit(tx, null, out string storeyWhy))
+                                {
+                                    totalResult.BeamsCreated = beamsAtStorey;
+                                    totalResult.CreatedIds.RemoveRange(idsAtStorey, totalResult.CreatedIds.Count - idsAtStorey);
+                                    totalResult.Warnings.Add(storeyWhy);
+                                }
                             }
                         }
 
@@ -2882,7 +2889,7 @@ namespace StingTools.Model
                         }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 totalResult.Warnings.AddRange(fh.CapturedWarnings);

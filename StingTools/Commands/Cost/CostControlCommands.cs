@@ -120,7 +120,7 @@ namespace StingTools.Commands.Cost
                             catch (Exception ex) { StingLog.WarnRateLimited("PctComplete.Set", $"set %-complete on {item.RevitElementId}: {ex.Message}"); missing++; }
                         }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 string note = missing > 0 && stamped == 0

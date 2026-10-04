@@ -228,7 +228,7 @@ namespace StingTools.Commands.Drawing
 
                     if (wrote > 0) changed++; else unchanged++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             StingLog.Info($"TB PushFields: from {source.SheetNumber}, {values.Count} field(s), "

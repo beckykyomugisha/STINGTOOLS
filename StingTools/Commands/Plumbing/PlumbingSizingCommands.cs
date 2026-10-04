@@ -37,7 +37,7 @@ namespace StingTools.Commands.Plumbing
             {
                 tx.Start();
                 r = FixtureUnitScanner.Scan(ctx.Doc, writeBack: true, flushValveMajority: cfg.FlushValveMajority);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var supplyRows = r.Rows.Select(row => new SupplyFixtureScanRow
@@ -115,7 +115,7 @@ namespace StingTools.Commands.Plumbing
             {
                 tx.Start();
                 r = WaterSupplySizer.Analyse(ctx.Doc, writeBack: !dryRun, cfg);
-                if (dryRun) tx.RollBack(); else tx.Commit();
+                if (dryRun) tx.RollBack(); else StingTx.Commit(tx);
             }
 
             var rows = r.Results.Select(p => new SupplySizingRow
@@ -187,7 +187,7 @@ namespace StingTools.Commands.Plumbing
                 // writeBack=true stamps PLM_DFU_COUNT_INT per pipe.
                 dfuMap = FixtureUnitAggregator.BuildDfuMap(ctx.Doc, writeBack: true);
                 sizing = DrainageSizer.AnalyseAndSize(ctx.Doc, dfuMap.PipeDfu, writeBack: true, dryRun: false);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var rows = sizing.Results.Select(res => new DrainageSizingRow
@@ -392,7 +392,7 @@ namespace StingTools.Commands.Plumbing
                         ((int)Math.Round(r.VTankL)).ToString(), overwrite: false);
                     ParameterHelpers.SetString(fi, "Comments",
                         $"STING auto-placed · {r.RecommendedFamily} · sized for {r.SystemVolumeL:F0} L sys @ ΔT {r.DeltaTC:F0}°C", overwrite: false);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 TaskDialog.Show("STING Expansion Vessel",
                     $"Placed {sym.Family.Name} : {sym.Name} at {pt.X:F1},{pt.Y:F1},{pt.Z:F1}.");

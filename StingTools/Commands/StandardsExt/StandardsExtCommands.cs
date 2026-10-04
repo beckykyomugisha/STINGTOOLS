@@ -222,7 +222,8 @@ namespace StingTools.Commands.StandardsExt
                             p.Set(picked);
                             paramWritten = true;
                         }
-                        t.Commit();
+                        // a rolled-back write is not "written"
+                        if (!StingTx.TryCommit(t, null, out string why)) { paramWritten = false; StingLog.Warn(why); }
                     }
                 }
             }

@@ -317,7 +317,7 @@ namespace StingTools.Commands.Classification
                     ParameterHelpers.SetString(el, ParamRegistry.CSI_TITLE, rule.Title, overwrite: true);
                     if (w1) assigned++;
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             var sb = new StringBuilder();

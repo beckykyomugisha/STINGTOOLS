@@ -87,7 +87,7 @@ namespace StingTools.BIMManager
                             created++;
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 return CollaborationResult.Succeeded(

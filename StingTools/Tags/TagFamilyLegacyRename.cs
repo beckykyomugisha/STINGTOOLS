@@ -104,7 +104,7 @@ namespace StingTools.Tags
                 {
                     tx.Start();
                     RenameAll();
-                    if (outcome.Renamed.Count > 0) tx.Commit(); else tx.RollBack();
+                    if (outcome.Renamed.Count > 0) StingTx.Commit(tx); else tx.RollBack();
                 }
             }
             catch (Exception ex)

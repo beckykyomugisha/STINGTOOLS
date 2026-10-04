@@ -676,7 +676,7 @@ namespace StingTools.Commands.Baseline
             {
                 tx.Start();
                 mint = BaselineMinter.Apply(doc, baseline, audit, inventory);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // AFTER the commit, and deliberately not inside it: Document.EditFamily

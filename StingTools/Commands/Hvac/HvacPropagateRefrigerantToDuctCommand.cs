@@ -109,7 +109,7 @@ namespace StingTools.Commands.Hvac
                         }
                         catch (Exception ex) { StingLog.Warn($"PropagateRefrig {idu.Id}: {ex.Message}"); }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 var panel = StingResultPanel.Create("HVAC — Propagate Refrigerant → Duct");

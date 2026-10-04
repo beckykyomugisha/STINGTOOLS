@@ -214,7 +214,7 @@ namespace StingTools.Commands.Drawing
                                 report.AppendLine($"  ✗ {hit.SheetNumber}  {ex.Message}");
                             }
                         }
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
                 }
                 tg.Assimilate();
@@ -271,7 +271,8 @@ namespace StingTools.Commands.Drawing
                     {
                         tx.Start();
                         var ok = doc.LoadFamily(c, new StingTools.Core.Drawing.TitleBlockLoadOptions(), out Family fam);
-                        tx.Commit();
+                        // a rolled-back load falls through to the next candidate
+                        if (!StingTx.TryCommit(tx, null, out string loadWhy)) { StingLog.Warn(loadWhy); continue; }
                         if (fam != null) return fam;
                         if (ok) return FindLoadedFamily(doc, name);
                     }
