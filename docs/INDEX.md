@@ -170,6 +170,7 @@ CI rather than reaching an issue.
 
 | Doc | Status |
 |---|---|
+| [`KUT_SMOKE_TEST_LISTS_2026-10-02.md`](KUT_SMOKE_TEST_LISTS_2026-10-02.md) | ✅ **Current, dated 2026-10-02.** Smoke lists for the KUT live build `d43a7a9b9`: tagging (TAGACC-18..26, TAGFAM-3/7/9/10, SEQ range, #1048 config fixes) and the ACC changes the setup doc's S1–S13 do not exercise (R / E / F / P / NW-1). |
 | [`KUT_ACC_SETUP_AND_SMOKE_TEST.md`](KUT_ACC_SETUP_AND_SMOKE_TEST.md) | ✅ **Current, dated 2026-10-01.** The ordered to-do list: Autodesk/ACC setup, plugin sign-in and settings, server env + webhooks (+ optional SSA), then the 13-step smoke test with pass/fail signs. Every name and route checked against the code. |
 | [`ACC_AUTOMATION_RESEARCH_2026-10.md`](ACC_AUTOMATION_RESEARCH_2026-10.md) | ✅ **Current, dated 2026-10-01.** Every APS/ACC call the plugin and server make, what the official APS docs say each API can do (with URLs), the top-10 automation ranking for the fortnightly cycle, what was built (AUT-1 to AUT-7) and what remains. |
 | [`NAVISWORKS_INTEGRATION_2026-10.md`](NAVISWORKS_INTEGRATION_2026-10.md) | ✅ **Current, dated 2026-10-01.** Navisworks Manage ↔ STING ↔ ACC: what is possible (sourced), what is not, the recommended ACC-as-hub workflow, and NW-1..NW-7. |

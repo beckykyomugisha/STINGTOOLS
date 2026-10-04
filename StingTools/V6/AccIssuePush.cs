@@ -94,9 +94,6 @@ namespace StingTools.V6
 
     public static class AccIssuePush
     {
-        /// <summary>Fields a push may write. Everything else in OwnedFields is report-only.</summary>
-        public static readonly IReadOnlyCollection<string> PushableFields = new[] { "status", "assigned_to" };
-
         /// <summary>Canonical STING status → the ACC Issues v1 status that maps BACK to it.
         /// Null when no ACC status round-trips (see the file header).</summary>
         public static string ToAccStatus(string canonical)
@@ -177,6 +174,8 @@ namespace StingTools.V6
                     continue;
                 }
 
+                // The only fields a push writes are status and assignee; this switch is
+                // the single place that decides it (everything else is report-only).
                 switch (ch.Field)
                 {
                     case "status":
