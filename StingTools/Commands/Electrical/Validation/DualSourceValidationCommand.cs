@@ -256,7 +256,7 @@ namespace StingTools.Commands.Electrical.Validation
                     }
                 }
 
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             try { ComplianceScan.InvalidateCache(); } catch { }

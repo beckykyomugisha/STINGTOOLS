@@ -74,7 +74,7 @@ namespace StingTools.Commands.Electrical
                         errors++;
                     }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }

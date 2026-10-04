@@ -220,7 +220,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
                         EquipmentClass = cls.ToString()
                     });
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             LastResults = results;
             LastResultsDocKey = ElecResultScope.Key(doc.PathName, doc.Title);

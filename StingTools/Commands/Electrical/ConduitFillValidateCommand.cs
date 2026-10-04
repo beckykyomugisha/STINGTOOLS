@@ -112,7 +112,7 @@ namespace StingTools.Commands.Electrical
                     }
                     catch (Exception ex2) { StingLog.Warn($"Fill compute: {ex2.Message}"); }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             StingElectricalCommandHandler.LastConduitFills = results;
             StingElectricalCommandHandler.LastConduitFillsDocKey = StingTools.Core.Electrical.ElecResultScope.Key(doc.PathName, doc.Title);
@@ -171,7 +171,7 @@ namespace StingTools.Commands.Electrical
                             }
                             catch (Exception ex2) { StingLog.Warn($"AutoUpsize loop: {ex2.Message}"); }
                         }
-                        txUp.Commit();
+                        StingTools.Core.Electrical.ElecTx.Commit(txUp, null);
                     }
 
                     // Re-validate after upsize
@@ -197,7 +197,7 @@ namespace StingTools.Commands.Electrical
                                 }
                                 catch { }
                             }
-                            txRecheck.Commit();
+                            StingTools.Core.Electrical.ElecTx.Commit(txRecheck, null);
                         }
                         TaskDialog.Show("STING Auto-Upsize",
                             $"Upsized {upsized} conduit(s).\nNow passing: {passedAfter}  |  Still failing: {failedAfter}");
@@ -222,7 +222,7 @@ namespace StingTools.Commands.Electrical
                         {
                             txSumm.Start();
                             summP.Set($"Checked:{results.Count} Fail:{overFillCount} Avg:{avgFill:0.1}% @ {DateTime.Now:yyyy-MM-dd HH:mm}");
-                            txSumm.Commit();
+                            StingTools.Core.Electrical.ElecTx.Commit(txSumm, null);
                         }
                     }
                 }

@@ -276,7 +276,7 @@ namespace StingTools.Commands.Electrical.VoltageDrop
                     }
                     catch (Exception ex) { StingLog.Warn($"Flag VD: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             PresetDialog.Show("STING Voltage Drop",
                 $"Flagged {flagged} element(s) on {results.Count(r => r.ExceedsThreshold)} circuit(s).", ref message);

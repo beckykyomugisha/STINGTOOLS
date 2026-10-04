@@ -400,7 +400,7 @@ namespace StingTools.Commands.Electrical
             {
                 tx.Start();
                 report = WireStampHelper.WriteToConduit(conduit, wsd);
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             ConduitCircuitIndex.Invalidate(); // clear cache after write
@@ -492,7 +492,7 @@ namespace StingTools.Commands.Electrical
                     }
                     progress?.Increment(conduit.Name ?? "conduit");
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             finally { progress?.Close(); }
 
@@ -570,7 +570,7 @@ namespace StingTools.Commands.Electrical
                 }
                 catch (Exception ex) { StingLog.Warn($"VD sync {el.Id}: {ex.Message}"); }
             }
-            tx.Commit();
+            StingTools.Core.Electrical.ElecTx.Commit(tx, null);
 
             var msg = new System.Text.StringBuilder($"Updated VD on {updated} conduit(s).");
             if (bounded > 0) msg.Append($"\n{bounded} are upper bounds (A4-MAX): the conduit carries no complete cable record " +
@@ -717,7 +717,7 @@ namespace StingTools.Commands.Electrical
                 }
                 catch (Exception ex) { StingLog.Warn($"CableSizerSync {el.Id}: {ex.Message}"); }
             }
-            tx.Commit();
+            StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             StingLog.Info($"WireCableSizerSync: {sized} sized, {refused} refused, {noParam} CSA not writable");
 
             // KUT-7 - a refusal is REPORTED, not folded into the "sized" count and not
@@ -793,7 +793,7 @@ namespace StingTools.Commands.Electrical
             using var tx = new Transaction(doc, "STING Home-Run Full Arrow");
             tx.Start();
             PlaceSimpleArrow(doc, view, panelEndPt, run.Last());
-            tx.Commit();
+            StingTools.Core.Electrical.ElecTx.Commit(tx, null);
 
             TaskDialog.Show("Home-Run Full",
                 $"Home-run arrow placed for run of {run.Count} segment(s).\n"
@@ -970,7 +970,7 @@ namespace StingTools.Commands.Electrical
                 }
                 catch (Exception ex) { StingLog.Warn($"CpcSizer {el.Id}: {ex.Message}"); }
             }
-            tx.Commit();
+            StingTools.Core.Electrical.ElecTx.Commit(tx, null);
 
             TaskDialog.Show("CPC Sizer",
                 $"CPC/Earth sized on {sized} conduit(s) per BS 7671 Table 54.7.\n"
@@ -1138,7 +1138,7 @@ namespace StingTools.Commands.Electrical
                 }
                 catch (Exception ex) { StingLog.Warn($"CoordStamp {panel.Id}: {ex.Message}"); }
             }
-            tx.Commit();
+            StingTools.Core.Electrical.ElecTx.Commit(tx, null);
 
             TaskDialog.Show("Coord Stamp",
                 $"ELC_SEL_COORD_OK = 1 (proven selective) on {passed} panel(s).\n"

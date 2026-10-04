@@ -191,10 +191,10 @@ namespace StingTools.Commands.Electrical.Reports
                 {
                     StingLog.Error($"DrawingLegend create: {ex.Message}", ex);
                     msg = ex.Message;
-                    tx.RollBack();
+                    StingTools.Core.Electrical.ElecTx.RollBackIfOpen(tx);
                     return Result.Failed;
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             if (legendView == null)

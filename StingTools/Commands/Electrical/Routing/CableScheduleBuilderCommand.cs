@@ -148,12 +148,12 @@ namespace StingTools.Commands.Electrical.Routing
                                 }
                                 catch { }
                             }
-                            txSched.Commit();
+                            StingTools.Core.Electrical.ElecTx.Commit(txSched, null);
                             StingLog.Info($"ViewSchedule '{vs.Name}' created (id={vs.Id.Value}).");
                         }
                         catch (Exception exSched)
                         {
-                            txSched.RollBack();
+                            StingTools.Core.Electrical.ElecTx.RollBackIfOpen(txSched);
                             StingLog.Warn($"Phase 183 schedule create failed: {exSched.Message}");
                         }
                     }
@@ -444,7 +444,7 @@ namespace StingTools.Commands.Electrical.Routing
             }
             catch { }
 
-            tx.Commit();
+            StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             StingLog.Info($"Cable schedule view '{scheduleName}' created/refreshed.");
         }
 

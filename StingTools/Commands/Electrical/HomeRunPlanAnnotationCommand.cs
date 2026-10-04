@@ -164,7 +164,7 @@ namespace StingTools.Commands.Electrical
                     annotated++;
                 }
 
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             TaskDialog.Show("STING Home-Run Annotation",
@@ -301,7 +301,7 @@ namespace StingTools.Commands.Electrical
                     try { doc.Delete(id); deleted++; }
                     catch (Exception ex) { StingLog.Warn($"ClearHomeRun delete {id}: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             TaskDialog.Show("STING Clear Home-Run",

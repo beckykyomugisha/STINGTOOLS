@@ -221,7 +221,7 @@ namespace StingTools.Commands.Panels
             {
                 tx.Start();
                 c = SlotOps.FillEmpty(doc, psv, addSpare);
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             try { ActionAuditLog.Record($"PanelSchedule_FillSlots_{action}",
@@ -297,11 +297,11 @@ namespace StingTools.Commands.Panels
                         try
                         {
                             c = SlotOps.FillEmpty(doc, psv, addSpare: true);
-                            tx.Commit();
+                            StingTools.Core.Electrical.ElecTx.Commit(tx, null);
                         }
                         catch (Exception ex)
                         {
-                            tx.RollBack();
+                            StingTools.Core.Electrical.ElecTx.RollBackIfOpen(tx);
                             schedulesSkipped++;
                             perSchedule.Add($"{psv.Name}: rolled back ({ex.Message})");
                             StingLog.Warn($"Fill all - rollback {psv.Name}: {ex.Message}");
@@ -364,7 +364,7 @@ namespace StingTools.Commands.Panels
             {
                 tx.Start();
                 result = SlotOps.ConvertSpacesToSpares(psv);
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             try { ActionAuditLog.Record("PanelSchedule_SpacesToSpares",
@@ -412,7 +412,7 @@ namespace StingTools.Commands.Panels
             {
                 tx.Start();
                 result = SlotOps.ClearSparesAndSpaces(psv);
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             try { ActionAuditLog.Record("PanelSchedule_ClearSparesSpaces",

@@ -78,7 +78,7 @@ namespace StingTools.Commands.Electrical.Photometric
                                     registryStamped++;
                                 }
                             }
-                            rtx.Commit();
+                            StingTools.Core.Electrical.ElecTx.Commit(rtx, null);
                         }
                         if (registryStamped > 0)
                         {
@@ -129,7 +129,7 @@ namespace StingTools.Commands.Electrical.Photometric
                     StampType(symbol, file);
                     stamped++;
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Photometric",

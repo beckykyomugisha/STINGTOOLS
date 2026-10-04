@@ -116,7 +116,7 @@ namespace StingTools.Commands.Electrical
                         skipped++;
                     }
                 }
-                if (reassigned == 0) tx.RollBack(); else tx.Commit();
+                if (reassigned == 0) tx.RollBack(); else StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }

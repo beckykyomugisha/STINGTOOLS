@@ -104,7 +104,7 @@ namespace StingTools.Commands.Electrical.Lighting
                             try { ParameterHelpers.SetString(doc.GetElement(new ElementId(f)),
                                 "LTG_CTRL_TYPE_TXT", $"Z{z.ZoneId:D3}", overwrite: true); } catch { }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             string outDir = Path.Combine(OutputLocationHelper.GetRoutedDirectory(doc, "Schedule", "E") ?? "", "electrical");

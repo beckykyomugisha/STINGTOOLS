@@ -193,7 +193,7 @@ namespace StingTools.Commands.Electrical
                 }
                 catch (Exception ex)
                 {
-                    tx.RollBack();
+                    StingTools.Core.Electrical.ElecTx.RollBackIfOpen(tx);
                     message = $"Could not create filter: {ex.Message}";
                     return Result.Failed;
                 }
@@ -253,7 +253,7 @@ namespace StingTools.Commands.Electrical
                 try { ParameterHelpers.SetString(view, "STING_CIRCUIT_FILTER_TXT", filterName, overwrite: true); }
                 catch { /* shared param may not be bound */ }
 
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             TaskDialog.Show("STING Circuit Filter",

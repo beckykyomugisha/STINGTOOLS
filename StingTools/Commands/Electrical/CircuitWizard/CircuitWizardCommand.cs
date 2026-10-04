@@ -96,7 +96,7 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                             catch (Exception ex)
                             {
                                 failed.Add($"{proposal.ProposedLabel}: ElectricalSystem.Create failed — {ex.Message}");
-                                tx.RollBack();
+                                StingTools.Core.Electrical.ElecTx.RollBackIfOpen(tx);
                                 continue;
                             }
                             if (sys == null) { failed.Add($"{proposal.ProposedLabel}: ElectricalSystem.Create returned null"); tx.RollBack(); continue; }
@@ -123,7 +123,7 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                             catch (Exception ex)
                             {
                                 failed.Add($"{proposal.ProposedLabel}: SelectPanel failed — {ex.Message}");
-                                tx.RollBack();
+                                StingTools.Core.Electrical.ElecTx.RollBackIfOpen(tx);
                                 continue;
                             }
 
@@ -169,14 +169,14 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                                 catch (Exception exRecalc) { StingLog.Warn($"RecalculateCircuit post-create: {exRecalc.Message}"); }
                             }
 
-                            tx.Commit();
+                            StingTools.Core.Electrical.ElecTx.Commit(tx, null);
                             created++;
                         }
                         catch (Exception ex2)
                         {
                             StingLog.Error($"Create circuit {proposal.ProposedLabel}: {ex2.Message}", ex2);
                             failed.Add($"{proposal.ProposedLabel}: {ex2.Message}");
-                            try { if (tx.HasStarted()) tx.RollBack(); } catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); }
+                            StingTools.Core.Electrical.ElecTx.RollBackIfOpen(tx);
                         }
                     }
                 }

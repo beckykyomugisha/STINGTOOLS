@@ -102,7 +102,7 @@ namespace StingTools.Commands.Electrical.Lighting
                         Status         = status
                     });
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             StingElectricalCommandHandler.LastEmergAudit = rows;
             StingElectricalCommandHandler.LastEmergAuditDocKey = StingTools.Core.Electrical.ElecResultScope.Key(doc.PathName, doc.Title);
@@ -280,7 +280,7 @@ namespace StingTools.Commands.Electrical.Lighting
                     }
                     catch (Exception ex) { StingLog.Warn($"MarkEmerg: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             TaskDialog.Show("STING Emergency Lighting", $"Marked {marked} emergency fixture(s) in view.");
             return Result.Succeeded;

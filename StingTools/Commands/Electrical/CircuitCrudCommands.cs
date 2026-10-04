@@ -80,11 +80,11 @@ namespace StingTools.Commands.Electrical
                             catch (Exception ex) { StingLog.Info($"AddSpare probe [{r},{c}] on '{psv.Name}': {ex.Message}"); }
                         }
                     }
-                    tx.Commit();
+                    StingTools.Core.Electrical.ElecTx.Commit(tx, null);
                 }
                 catch (Exception ex)
                 {
-                    tx.RollBack(); msg = ex.Message;
+                    StingTools.Core.Electrical.ElecTx.RollBackIfOpen(tx); msg = ex.Message;
                     StingLog.Error($"CircuitCreate on {panelName}", ex);
                     return Result.Failed;
                 }
@@ -158,7 +158,7 @@ namespace StingTools.Commands.Electrical
                     }
                     catch (Exception ex) { StingLog.Warn($"CircuitDelete scan {psv.Name}: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             try { ComplianceScan.InvalidateCache(); } catch { }
             TaskDialog.Show("STING Circuit",
@@ -237,11 +237,11 @@ namespace StingTools.Commands.Electrical
                 try
                 {
                     srcSystem.SelectPanel(destPanel);
-                    tx.Commit();
+                    StingTools.Core.Electrical.ElecTx.Commit(tx, null);
                 }
                 catch (Exception ex)
                 {
-                    tx.RollBack();
+                    StingTools.Core.Electrical.ElecTx.RollBackIfOpen(tx);
                     msg = ex.Message;
                     StingLog.Error("CircuitMove", ex);
                     TaskDialog.Show("STING Circuit",
@@ -353,7 +353,7 @@ namespace StingTools.Commands.Electrical
                         catch (Exception ex) { StingLog.Info($"CircuitSort {sorted[i].Id?.Value}: {ex.Message}"); }
                     }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             try { ComplianceScan.InvalidateCache(); } catch { }
             StingLog.Info($"CircuitSort: {updated} changed, {readOnly} read-only");

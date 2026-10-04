@@ -115,7 +115,7 @@ namespace StingTools.Commands.Electrical.Lighting
                         Status      = status
                     });
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             LastRows = rows;
             StingElectricalCommandHandler.LastLpdRows = rows;
@@ -226,7 +226,7 @@ namespace StingTools.Commands.Electrical.Lighting
                     ogs.SetProjectionLineWeight(5);
                     try { view.SetElementOverrides(r.Id, ogs); colored++; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             TaskDialog.Show("STING LPD", $"Re-coloured {colored} room(s) in view.");
             return Result.Succeeded;

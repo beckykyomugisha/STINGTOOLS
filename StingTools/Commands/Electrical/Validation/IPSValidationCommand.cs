@@ -167,7 +167,7 @@ namespace StingTools.Commands.Electrical.Validation
                             "NFPA 99 §7.2.2.3.3 requires a LIM on all IPS circuits.");
                 }
 
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             try { ComplianceScan.InvalidateCache(); } catch { }

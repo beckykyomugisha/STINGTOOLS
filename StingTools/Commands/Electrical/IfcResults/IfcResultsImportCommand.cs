@@ -140,7 +140,7 @@ namespace StingTools.Commands.Electrical.IfcResults
                     // whether luminaire identity survived the round trip.
                     if (fixtureGuids.Contains(fix.GlobalId)) matchedFixtures++;
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 

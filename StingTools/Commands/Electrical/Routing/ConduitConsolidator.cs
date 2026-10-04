@@ -195,7 +195,7 @@ namespace StingTools.Commands.Electrical.Routing
                             }
                         }
                     }
-                    tx.Commit();
+                    StingTools.Core.Electrical.ElecTx.Commit(tx, null);
                 }
                 tg.Assimilate();
             }

@@ -59,7 +59,7 @@ namespace StingTools.Commands.Electrical.Reports
                 AddVDFields(doc, view);
                 AddSortPanelCircuit(view);
                 StampDrawingType(view, drawingTypeId);
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             int fail = results.Count(r => r.ExceedsThreshold);
             int possible = results.Count(r => r.PossiblyExceeds);

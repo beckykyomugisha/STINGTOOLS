@@ -77,7 +77,7 @@ namespace StingTools.Commands.Electrical.Busbar
                     }
                     catch (Exception ex2) { StingLog.Warn($"BusbarModeling {tray.Name}: {ex2.Message}"); }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
 

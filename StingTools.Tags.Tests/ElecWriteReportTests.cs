@@ -27,6 +27,46 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
+        public void A_rolled_back_step_says_so_and_voids_its_counts()
+        {
+            string s = ElecWriteReport.RolledBack("STING Batch Home-Run Arrows", "RolledBack");
+            Assert.StartsWith("ROLLED BACK (RolledBack): STING Batch Home-Run Arrows", s);
+            Assert.Contains("nothing from this step was kept", s);
+            Assert.Contains("counts it would have reported are void", s);
+            Assert.StartsWith("ROLLED BACK (not committed): the change", ElecWriteReport.RolledBack(null, null));
+        }
+
+        /// <summary>ELEC-28: no electrical Transaction is committed without reading the status.</summary>
+        [Fact]
+        public void No_electrical_transaction_commits_without_reading_the_status()
+        {
+            var dir = new System.IO.DirectoryInfo(System.AppContext.BaseDirectory);
+            while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir.FullName, "StingTools.addin"))) dir = dir.Parent;
+            Assert.NotNull(dir);
+            var hits = new System.Collections.Generic.List<string>();
+            foreach (var r in new[] { "Commands/Electrical", "Commands/Panels", "Core/Electrical", "Core/Panels", "Core/SLD" })
+            {
+                string d = System.IO.Path.Combine(dir.FullName, "StingTools", r.Replace('/', System.IO.Path.DirectorySeparatorChar));
+                foreach (var f in System.IO.Directory.EnumerateFiles(d, "*.cs", System.IO.SearchOption.AllDirectories))
+                {
+                    string src = System.IO.File.ReadAllText(f);
+                    var txVars = new System.Collections.Generic.HashSet<string>();
+                    foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(src,
+                                 @"\b(?:var|Transaction)\s+(\w+)\s*=\s*new\s+Transaction\("))
+                        txVars.Add(m.Groups[1].Value);
+                    var lines = System.IO.File.ReadAllLines(f);
+                    for (int i = 0; i < lines.Length; i++)
+                    {
+                        var m = System.Text.RegularExpressions.Regex.Match(lines[i], @"(?:^|[;{}]|\belse)\s*(\w+)\.Commit\(\)\s*;");
+                        if (m.Success && txVars.Contains(m.Groups[1].Value) && !lines[i].TrimStart().StartsWith("//"))
+                            hits.Add($"{System.IO.Path.GetFileName(f)}:{i + 1}: {lines[i].Trim()}");
+                    }
+                }
+            }
+            Assert.True(hits.Count == 0, "Commit() status discarded (use ElecTx.Commit or read the status):\n" + string.Join("\n", hits));
+        }
+
+        [Fact]
         public void Rolled_back_with_no_writes_still_says_rolled_back()
             => Assert.Equal("ROLLED BACK (not committed): 0 verdicts.", ElecWriteReport.Landed("verdicts", 0, committed: false));
     }

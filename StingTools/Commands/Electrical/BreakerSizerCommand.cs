@@ -227,7 +227,7 @@ namespace StingTools.Commands.Electrical
                     }
                     catch (Exception ex) { StingLog.Warn($"BreakerApply: {ex.Message}"); skipped++; }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             PresetDialog.Show("STING Electrical",

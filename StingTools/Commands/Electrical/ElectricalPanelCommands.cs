@@ -218,7 +218,7 @@ namespace StingTools.Commands.Electrical
                 Put("IP rating (legacy)", ParamRegistry.ELC_IP_RATING, snap.IpRating);
                 Put("Manufacturer", ParamRegistry.MFR, snap.Manufacturer);
                 Put("Fault kA", ParamRegistry.ELC_PNL_FAULT_KA, snap.FaultKA);
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string board = panel.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)?.AsString();
@@ -334,7 +334,7 @@ namespace StingTools.Commands.Electrical
                 foreach (var s in PanelCircuits(doc, panelId))
                     if (before.TryGetValue(s.Id.Value, out var old) && old != SafeNumber(s)) changed++;
 
-                if (changed == 0) tx.RollBack(); else tx.Commit();
+                if (changed == 0) tx.RollBack(); else StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             StingLog.Info($"ElecCircuitRenumber: panel {panelId.Value} — {moved} moved, {changed} numbers changed, {refused} refused");
@@ -458,7 +458,7 @@ namespace StingTools.Commands.Electrical
                     AddField(schedule, "Level", BuiltInParameter.SCHEDULE_LEVEL_PARAM);
                 }
                 catch (Exception ex) { StingLog.Warn($"Lighting schedule: {ex.Message}"); }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             TaskDialog.Show("STING Electrical", "Created 'STING - Lighting Fixtures' schedule.");
             return Result.Succeeded;

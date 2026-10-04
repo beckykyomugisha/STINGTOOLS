@@ -229,7 +229,7 @@ namespace StingTools.Commands.Electrical.Schematics
                 var view = StingTools.Core.Drawing.SchematicViewFactory.CreateOrReplace(doc, viewName, out string viewError);
                 if (view == null)
                 {
-                    tx.RollBack();
+                    StingTools.Core.Electrical.ElecTx.RollBackIfOpen(tx);
                     message = "Could not make the drafting view: " + viewError;
                     if (!PresetDialog.Quiet) TaskDialog.Show("STING Panel Door Diagram", message);
                     return Result.Failed;
@@ -237,7 +237,7 @@ namespace StingTools.Commands.Electrical.Schematics
 
                 DrawPanelLayout(doc, view, panelName, ratingInfo, slotCount, circuitBySlot);
 
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
 
                 // Onto a sheet of the drawing type routing gives E / PANEL_DOOR_DIAGRAM —
                 // one sheet per board (the context tag), so boards do not replace each other.

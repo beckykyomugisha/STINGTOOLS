@@ -43,7 +43,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
                     try { doc.Delete(previous.Id); }
                     catch (Exception ex)
                     {
-                        tx.RollBack();
+                        StingTools.Core.Electrical.ElecTx.RollBackIfOpen(tx);
                         message = $"The previous '{ViewName}' could not be replaced: {ex.Message}";
                         StingLog.Warn(message);
                         if (!PresetDialog.Quiet) TaskDialog.Show("STING Arc Flash Schedule", message);
@@ -65,7 +65,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 AddByName(def, doc, "ELC_ARC_FLASH_LABEL_TXT", "Label / Basis");
 
                 StampDrawingType(view, drawingTypeId);
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             // Onto its drawing type's sheet (found again by stamp; a re-run's schedule replaces it).

@@ -271,7 +271,7 @@ namespace StingTools.Commands.Electrical
                         StingLog.Warn($"BatchAssignCircuits '{a.SystemName}' → '{a.PanelName}': {ex2.Message}");
                     }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             try { ActionAuditLog.Record("Circuit_AssignAuto",

@@ -199,7 +199,7 @@ namespace StingTools.Core.SLD
 
                     StampViewStandard(view, standardId);
                     StampDrawingType(doc, view);
-                    tx.Commit();
+                    StingTools.Core.Electrical.ElecTx.Commit(tx, null);
 
                     result.Success = true;
                     result.SLDView = view;
@@ -328,7 +328,7 @@ namespace StingTools.Core.SLD
                         var p = sldSymbol.LookupParameter("STING_SYMBOL_LABEL_ID");
                         if (p != null && !p.IsReadOnly) p.Set(newLabelId.Value.ToString());
                     }
-                    tx.Commit();
+                    StingTools.Core.Electrical.ElecTx.Commit(tx, null);
                 }
                 return true;
             }
@@ -361,7 +361,7 @@ namespace StingTools.Core.SLD
                     try { doc.Delete(id); }
                     catch (Exception ex) { StingLog.Warn($"Rebuild del {id}: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             // (roots scanned above, with the same scope as generation, so a
@@ -387,7 +387,7 @@ namespace StingTools.Core.SLD
                     if (layout.TotalWidth > 0)
                         xOffset += layout.TotalWidth + layoutOpts.RootGapMm / 304.8;
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
         }
 

@@ -57,7 +57,7 @@ namespace StingTools.Commands.Electrical.Coordination
                             passes ? "1" : "0", overwrite: true); }
                     catch (Exception ex) { StingLog.Warn($"Coord stamp {p.Name}: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             StingLog.Info($"SelectiveCoord: {pairs.Count} pair(s); " +
                 string.Join(", ", pairs.GroupBy(r => r.Result.Verdict).Select(g => $"{g.Key} {g.Count()}")) +

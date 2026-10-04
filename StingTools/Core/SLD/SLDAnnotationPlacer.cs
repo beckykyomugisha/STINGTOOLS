@@ -309,7 +309,7 @@ namespace StingTools.Core.SLD
                     tx.Start();
                     StampBadgesRecursive(doc, view, root, tnt, badgeOffsetFt,
                         violatingLabels, nodeToInstance);
-                    tx.Commit();
+                    StingTools.Core.Electrical.ElecTx.Commit(tx, null);
                 }
             }
             catch (Exception ex)

@@ -91,7 +91,7 @@ namespace StingTools.Commands.Electrical.Photometric
                         matched++;
                     }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Photometric",
@@ -132,7 +132,7 @@ namespace StingTools.Commands.Electrical.Photometric
                     }
                     catch (Exception ex) { StingLog.Warn($"PhotoEstimate room: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Photometric Estimate",
