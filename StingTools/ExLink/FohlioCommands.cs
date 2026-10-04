@@ -163,7 +163,10 @@ namespace StingTools.ExLink
             string curHeader  = map.Columns.FirstOrDefault(c => string.Equals(c.Param, ParamRegistry.FOHLIO_CURRENCY, StringComparison.OrdinalIgnoreCase))?.Header;
             string qtyHeader  = map.Columns.FirstOrDefault(c => string.Equals(c.Param, "$FohlioQty", StringComparison.OrdinalIgnoreCase))?.Header;
             string leadHeader = map.Columns.FirstOrDefault(c => string.Equals(c.Param, "$FohlioLeadDays", StringComparison.OrdinalIgnoreCase))?.Header;
-            writeCols = writeCols.Where(c => !string.Equals(c.Param, ParamRegistry.FOHLIO_UNIT_COST, StringComparison.OrdinalIgnoreCase)).ToList();
+            // The currency is written only WITH a price that parsed (L2-FOH-1): on the text path a
+            // "UGX" row beside a "TBC" price relabelled a USD 1,250 item as UGX 1,250.
+            writeCols = writeCols.Where(c => !string.Equals(c.Param, ParamRegistry.FOHLIO_UNIT_COST, StringComparison.OrdinalIgnoreCase)
+                                          && !string.Equals(c.Param, ParamRegistry.FOHLIO_CURRENCY, StringComparison.OrdinalIgnoreCase)).ToList();
 
             var changes = new List<ProposedChange>();
             var snapshots = new Dictionary<long, (string fref, Dictionary<string, string> snap)>();
@@ -203,7 +206,14 @@ namespace StingTools.ExLink
                     cost = 0;
                 }
                 string curRaw = curHeader != null && row.TryGetValue(curHeader, out string cv) ? (cv ?? "").Trim() : "";
-                string cur = FohlioMoney.NormalizeCurrency(curRaw) ?? cellCur;
+                string colCur = FohlioMoney.NormalizeCurrency(curRaw);
+                if (cost > 0 && cellCur != null && colCur != null && !string.Equals(cellCur, colCur, StringComparison.OrdinalIgnoreCase))
+                {
+                    // "USD 1,250" in a row whose Currency column says UGX: one of them is wrong (L2-FOH-3).
+                    costProblems.Add($"{label}: price '{costRaw}' is in {cellCur} but the currency column says {colCur}");
+                    cost = 0;
+                }
+                string cur = colCur ?? cellCur;
                 if (cost > 0 && cur == null)
                 {
                     costProblems.Add($"{label}: price {costRaw} has no recognisable currency ('{curRaw}')");
@@ -304,8 +314,12 @@ namespace StingTools.ExLink
                     if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
                     var held = kv.Value.snap.Keys.ToDictionary(k => k, k => ParameterHelpers.GetString(el, k));
                     costData.TryGetValue(kv.Key, out var cd);
+                    // The price and currency the model now holds, not the file's: under fill-empty a
+                    // declined price was recorded and later read as the item's cost (L2-FOH-4).
+                    double heldCost = ParameterHelpers.GetDouble(el, ParamRegistry.FOHLIO_UNIT_COST);
+                    string heldCur = ParameterHelpers.GetString(el, ParamRegistry.FOHLIO_CURRENCY);
                     if (StingFohlioSnapshotSchema.Write(el, kv.Value.fref, JsonConvert.SerializeObject(held), DateTime.UtcNow,
-                            cd.cost, cd.cur, cd.qty, cd.lead))
+                            heldCost, heldCur, cd.qty, cd.lead))
                         snapshotsStored++;
                 }
                 t.Commit();
@@ -358,7 +372,7 @@ namespace StingTools.ExLink
             }
             else
             {
-                var lines = File.ReadAllLines(path);
+                var lines = FohlioCsv.ReadUtf8Lines(path);
                 if (lines.Length < 2) return rows;
                 var hdrFields = StingToolsApp.ParseCsvLine(lines[0]);
                 var hdr = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -425,12 +439,11 @@ namespace StingTools.ExLink
                     try { snapVals = JsonConvert.DeserializeObject<Dictionary<string, string>>(snap.SnapshotJson); }
                     catch { }
                     snapVals = snapVals ?? new Dictionary<string, string>();
-                    foreach (var p in writeParams)
-                    {
-                        snapVals.TryGetValue(p, out string snapV);
-                        string cur = ParameterHelpers.GetString(el, p);
-                        if (!string.Equals(cur, snapV ?? "", StringComparison.Ordinal)) { isStale = true; break; }
-                    }
+                    var heldCost = ParameterHelpers.GetDouble(el, ParamRegistry.FOHLIO_UNIT_COST);
+                    var heldCur = ParameterHelpers.GetString(el, ParamRegistry.FOHLIO_CURRENCY);
+                    isStale = FohlioStale.IsStale(writeParams, p => ParameterHelpers.GetString(el, p),
+                        heldCost, heldCur, snapVals, snap.UnitCost, snap.Currency,
+                        ParamRegistry.FOHLIO_UNIT_COST, ParamRegistry.FOHLIO_CURRENCY);
                     if (isStale) { stale++; if (staleSamples.Count < 10) staleSamples.Add($"{el.Id} [{cat}]"); }
                     else current++;
                 }

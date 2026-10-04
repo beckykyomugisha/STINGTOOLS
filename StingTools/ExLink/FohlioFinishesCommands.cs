@@ -251,7 +251,7 @@ namespace StingTools.ExLink
             }
             else
             {
-                var lines = File.ReadAllLines(path);
+                var lines = FohlioCsv.ReadUtf8Lines(path);
                 if (lines.Length < 2) return rows;
                 var hf = StingToolsApp.ParseCsvLine(lines[0]);
                 var hdr = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);

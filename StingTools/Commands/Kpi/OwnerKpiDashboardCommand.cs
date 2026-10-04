@@ -122,7 +122,13 @@ namespace StingTools.Commands.Kpi
             try
             {
                 var map = FohlioMap.Load(doc);
-                var ffeCats = new HashSet<string>(map.Categories ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+                // No project map = this project procures nothing through Fohlio: the corporate
+                // default categories are not a statement that it does, so FF&E is n/a, not 0 %
+                // (L2-FOH-6). A map that failed to load is the same, and is logged.
+                if (!string.IsNullOrEmpty(map.LoadError)) StingLog.Warn("Owner KPI: fohlio_map.json unreadable — FF&E not assessed: " + map.LoadError);
+                var ffeCats = map.LoadedFromProject && string.IsNullOrEmpty(map.LoadError)
+                    ? new HashSet<string>(map.Categories ?? new List<string>(), StringComparer.OrdinalIgnoreCase)
+                    : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 var writeParams = map.Columns.Where(c => c.WriteBack && !FohlioMap.IsPseudo(c.Param)).Select(c => c.Param).ToList();
 
                 var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
@@ -150,11 +156,13 @@ namespace StingTools.Commands.Kpi
                             Dictionary<string, string> sv = null;
                             try { sv = JsonConvert.DeserializeObject<Dictionary<string, string>>(snap.SnapshotJson); } catch { }
                             sv = sv ?? new Dictionary<string, string>();
-                            foreach (var p in writeParams)
-                            {
-                                sv.TryGetValue(p, out string snapV);
-                                if (!string.Equals(ParameterHelpers.GetString(el, p), snapV ?? "", StringComparison.Ordinal)) { ffeStale++; break; }
-                            }
+                            bool isStale;
+                            var heldCost = ParameterHelpers.GetDouble(el, ParamRegistry.FOHLIO_UNIT_COST);
+                            var heldCur = ParameterHelpers.GetString(el, ParamRegistry.FOHLIO_CURRENCY);
+                            isStale = FohlioStale.IsStale(writeParams, p => ParameterHelpers.GetString(el, p),
+                                heldCost, heldCur, sv, snap.UnitCost, snap.Currency,
+                                ParamRegistry.FOHLIO_UNIT_COST, ParamRegistry.FOHLIO_CURRENCY);
+                            if (isStale) ffeStale++;
                         }
                     }
                 }

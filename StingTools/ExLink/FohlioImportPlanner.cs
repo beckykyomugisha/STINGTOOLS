@@ -121,7 +121,18 @@ namespace StingTools.ExLink
                 else if (useFohlioRef && fref.Length > 0 && byRef.TryGetValue(fref, out var refHits))
                 {
                     if (refHits.Count == 1) { hit = refHits[0]; by = "Fohlio ref"; }
-                    else reason = $"Fohlio ref '{fref}' is on {refHits.Count} elements in the model";
+                    else
+                    {
+                        // A Fohlio ref is item-level: 40 chairs share "CH-01". After the first
+                        // import every instance carries it, so refusing here meant a priced item
+                        // could never be updated again (L2-FOH-2). Narrow by the row's key.
+                        var narrowed = key.Length == 0 ? new List<FohlioCandidate>()
+                            : refHits.Where(c => string.Equals(Norm(c.Key), key, StringComparison.OrdinalIgnoreCase)).ToList();
+                        if (narrowed.Count == 1
+                            && !(keyCountInFile.TryGetValue(key, out int nk) && nk > 1))
+                        { hit = narrowed[0]; by = "Fohlio ref + key"; }
+                        else reason = $"Fohlio ref '{fref}' is on {refHits.Count} elements in the model, and the row's key does not pick one";
+                    }
                 }
                 else if (key.Length == 0)
                 {
@@ -262,11 +273,77 @@ namespace StingTools.ExLink
                     if (!groups.Skip(1).All(g => g.Length == 3)) return false;
                     normalised = num.Replace(".", "");
                 }
+                else if (groups.Length == 2 && groups[1].Length == 3)
+                {
+                    // "1.250" / "450.000": thousands in EUR- and UGX-formatted exports, a
+                    // three-place decimal elsewhere. Reading it either way can be 1000x wrong,
+                    // so it is reported, not guessed (L2-FOH-5).
+                    return false;
+                }
                 else normalised = num;
             }
 
             return double.TryParse(normalised, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out value)
                    && value >= 0;
+        }
+    }
+
+    /// <summary>
+    /// Is a linked element out of step with what the last Fohlio import left on it? One rule for
+    /// the Fohlio audit and the Owner KPI (L2-FOH-4). Text columns compare with the snapshot's
+    /// recorded text; the unit cost compares as a NUMBER with the snapshot's cost and the currency
+    /// with the snapshot's currency — the old text comparison read a NUMBER as "" on both sides,
+    /// so a price edited after import never showed as stale.
+    /// </summary>
+    public static class FohlioStale
+    {
+        public static bool IsStale(IEnumerable<string> writeParams, Func<string, string> heldText,
+                                   double heldCost, string heldCurrency,
+                                   IDictionary<string, string> snapshotText, double snapCost, string snapCurrency,
+                                   string costParam, string currencyParam)
+        {
+            foreach (var p in writeParams ?? Enumerable.Empty<string>())
+            {
+                if (string.Equals(p, costParam, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (Math.Abs(heldCost - snapCost) > 0.005) return true;
+                }
+                else if (string.Equals(p, currencyParam, StringComparison.OrdinalIgnoreCase))
+                {
+                    string a = FohlioMoney.NormalizeCurrency(heldCurrency) ?? (heldCurrency ?? "").Trim();
+                    string b = FohlioMoney.NormalizeCurrency(snapCurrency) ?? (snapCurrency ?? "").Trim();
+                    if (!string.Equals(a, b, StringComparison.OrdinalIgnoreCase)) return true;
+                }
+                else
+                {
+                    string snapV = snapshotText != null && snapshotText.TryGetValue(p, out var v) ? v ?? "" : "";
+                    if (!string.Equals(heldText(p) ?? "", snapV, StringComparison.Ordinal)) return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Reads a CSV the user may have re-saved in Excel. Export writes UTF-8; Excel's plain "CSV"
+    /// save is Windows-1252, which decoded as UTF-8 turns "600×600 – matt" into replacement
+    /// characters that then overwrite the model as a "change" (L2-FOH-7). Refused, with the fix.
+    /// </summary>
+    public static class FohlioCsv
+    {
+        public static string[] ReadUtf8Lines(string path)
+        {
+            byte[] bytes = System.IO.File.ReadAllBytes(path);
+            int start = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? 3 : 0;
+            string text;
+            try { text = new System.Text.UTF8Encoding(false, true).GetString(bytes, start, bytes.Length - start); }
+            catch (System.Text.DecoderFallbackException)
+            {
+                throw new System.IO.InvalidDataException(
+                    "The file is not UTF-8 (it was probably re-saved in Excel as plain 'CSV'). Nothing was imported. " +
+                    "Save it again as 'CSV UTF-8 (Comma delimited)' and re-run.");
+            }
+            return text.Replace("\r\n", "\n").Split('\n').Where((l, i) => l.Length > 0 || i == 0).ToArray();
         }
     }
 }

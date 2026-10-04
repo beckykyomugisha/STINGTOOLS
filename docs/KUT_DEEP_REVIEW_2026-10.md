@@ -124,8 +124,18 @@ KUT document gate (153 assertions) and workflow gate OK. Nothing was run in Revi
 ## Loop 2 *(interrupted)*
 
 Nine read-only reviewers were launched on 2026-10-04 with the loop-1 record and an instruction to
-go deeper. **All nine stopped before reporting** — the account hit its usage limit (HTTP 429,
-resets 19:40 EAT). No loop-2 finding exists yet, so **the stop rule is not met**: loop 2 has to be
+go deeper. **Eight stopped before reporting** — the account hit its usage limit (HTTP 429,
+resets 19:40 EAT). Only the Fohlio reviewer reported (7 findings, all verified and fixed below), so **the stop rule is not met**: loop 2 has to be
 re-run, then at least loop 3. Done in the meantime: both corporate tag-scheme examples carry SYS
 (`EveryShippedCorporateSchemeCarriesTheSeqGroup`, red on the previous file, green now).
+
+| Finding | Sev | Fix | Test |
+|---|---|---|---|
+| L2-FOH-1 | High | The currency column was still written on the text path, apart from the price: a "UGX" row beside a "TBC" price relabelled USD 1,250 as UGX 1,250. Currency now travels only with a parsed price. | `FohlioLoop2Tests` |
+| L2-FOH-2 | High | An item-level Fohlio ref shared by many instances was refused after the first import, so prices could never be updated again. Narrowed by the row's key. | `L2Foh2_*` |
+| L2-FOH-3 | Med | "USD 1,250" in a row whose currency column says UGX was written as UGX. Now reported, not written. | source guard |
+| L2-FOH-4 | Med | Price drift was invisible to the audit and the KPI (a NUMBER read as "" on both sides), and the snapshot recorded a declined price. One `FohlioStale` rule; snapshot records held values. | `L2Foh4_*` |
+| L2-FOH-5 | Med | "€ 1.250" / "UGX 450.000" parsed as 1.25 / 450. Ambiguous single-dot thousands now refused. | `L2Foh5_*` |
+| L2-FOH-6 | Med | With no project Fohlio map the KPI counted corporate default categories as FF&E and showed a red 0 %. Now n/a. | source guard |
+| L2-FOH-7 | Med | A CSV re-saved in Excel as ANSI decoded to replacement characters that overwrote finishes. Refused with the fix. | `L2Foh7_*` |
 
