@@ -10,7 +10,7 @@
 | **Date** | [FILL: yyyy-mm-dd] |
 
 > **Purpose:** the decisions to take *before* the first wall is drawn, the order to model in, and the data discipline that makes the BOQ come out accurate and correctly named — across all six KUT buildings.
-> **Scope:** the Kampala Uganda Temple. Six buildings, each modelled separately with its own setting-out point and federated on a single site: **Temple (TE, 2,449 m²)**, **Meetinghouse (MH, 1,312 m²)**, **Housing/Ancillary (HS, 2,554 m²)**, **Grounds Building (GB, 93 m²)**, **Utility Building (UB, 166 m²)**, **Guard House (GH, 23 m²)**. Total ≈ **6,597 m²** on ≈ **six acres** in Kampala's central business district. Developed from the Owner prototype (engineering references the **1–40F prototype**). Concept and schematic complete.
+> **Scope:** the Kampala Uganda Temple. Six buildings, each modelled separately with its own setting-out point and federated on a single site: **Temple (BLD1, 2,449 m²)**, **Meetinghouse (BLD2, 1,312 m²)**, **Housing/Ancillary (BLD3, 2,554 m²)**, **Grounds Building (BLD4, 93 m²)**, **Utility Building (BLD5, 166 m²)**, **Guard House (BLD6, 23 m²)**. Total ≈ **6,597 m²** on ≈ **six acres** in Kampala's central business district. Developed from the Owner prototype (engineering references the **1–40F prototype**). Concept and schematic complete.
 > **Status of this file:** internal working guide. It names the private automation this team uses to work faster — **STINGTOOLS** (the Revit plugin for tagging, QA/validation, BOQ and batch production) and **Speckle** (interoperability + web viewer). Those tools are *ours*; they are never named in contractual project documents. The contractual project stack is Revit, ACC, Navisworks Manage, Fohlio, RIB SpecLink, Microsoft Teams and Niagara. Tool gaps found during review are listed in Part 8.
 
 ---
@@ -43,19 +43,21 @@ Read from what has been issued, not assumed. Where a fact is not yet in hand it 
 | Incoming CAD | **Consultant AutoCAD sets** (per discipline) + the prototype. Request native `.dwg`, not PDF, for anything you will measure or set out from. |
 | Site | Kampala CBD, ≈ **six acres**. Urban context. |
 | Site survey | `[FILL: confirm — topographic survey in DWG/CSV, coordinate system, vertical datum, number of levelled points, level range/fall]` |
-| Buildings | Six: TE, MH, HS, GB, UB, GH (areas above). Each is its **own** building with its own footprint, level set and setting-out point. |
+| Buildings | Six: BLD1, BLD2, BLD3, BLD4, BLD5, BLD6 (areas above). Each is its **own** building with its own footprint, level set and setting-out point. |
 
 ### The building programme
 
-| Volume | Building | Area | Note |
+| Tag location · container volume | Building | Area | Note |
 |---|---|---|---|
-| **TE** | Temple | 2,449 m² | The lead building. Roof-led / architecturally driven; heaviest specification. `[FILL: confirm spire/steeple design]` — if a spire exists it is a roof-led element (see Part 5). |
-| **MH** | Meetinghouse | 1,312 m² | Assembly building; from the meetinghouse prototype. |
-| **HS** | Housing / Ancillary | 2,554 m² | Largest by area; residential/ancillary accommodation. |
-| **GB** | Grounds Building | 93 m² | Small ancillary. |
-| **UB** | Utility Building | 166 m² | Services / plant. Services-heavy for its size. |
-| **GH** | Guard House | 23 m² | Smallest structure; perimeter/security. |
+| **BLD1** · `01` | Temple | 2,449 m² | The lead building. Roof-led / architecturally driven; heaviest specification. `[FILL: confirm spire/steeple design]` — if a spire exists it is a roof-led element (see Part 5). |
+| **BLD2** · `02` | Meetinghouse | 1,312 m² | Assembly building; from the meetinghouse prototype. |
+| **BLD3** · `03` | Housing / Ancillary | 2,554 m² | Largest by area; residential/ancillary accommodation. |
+| **BLD4** · `04` | Grounds Building | 93 m² | Small ancillary. |
+| **BLD5** · `05` | Utility Building | 166 m² | Services / plant. Services-heavy for its size. |
+| **BLD6** · `06` | Guard House | 23 m² | Smallest structure; perimeter/security. |
 | — | External works | — | Roads, parking, paths, boundary/perimeter, landscaping, drainage, water and power reticulation across the six-acre site. |
+
+> The old site codes TE, MH, HS, GB, UB and GH are withdrawn. Element tags use the location `BLD1`–`BLD6` (`EXT` for site-wide); container names use the volume `01`–`06` (`00` site-wide, `ZZ` all volumes). See `KUT_NAMING_MIGRATION_MAP.md` §1.
 
 ### Glossary — the abbreviations used throughout
 
@@ -82,7 +84,7 @@ A supplier or prototype code carries no meaning outside its origin, and a type l
 |---|---|---|
 | **Revit Type Name** | *our* standard, enforced | `DR-SGL-TIMBER-0900x2100-FD30` |
 | `ASS_LEGACY_REF_TXT` (or Type Comments) | the consultant/prototype original code, preserved verbatim | `[FILL: incoming code]` |
-| Door/window **Mark** | the instance number only | `TE-D-001` |
+| Door/window **Mark** | the instance number only | `BLD1-D-001` |
 
 That way the bill, the schedules and the type library all speak our language, and you can still cross-reference any line back to the incoming drawing or the prototype — which is what you need at an RFI or a valuation.
 
@@ -199,16 +201,16 @@ Six distinct buildings on one shared site, each with its own setting-out point, 
 
 | Model | Contents |
 |---|---|
-| `KUT-[ORG]-ZZ-ZZ-M3-A` (site) | Toposolid, boundary/perimeter, roads, parking, paths, retaining, external drainage, reticulation. Hosts all links. |
-| `KUT-[ORG]-TE-ZZ-M3-A` | Temple |
-| `KUT-[ORG]-MH-ZZ-M3-A` | Meetinghouse |
-| `KUT-[ORG]-HS-ZZ-M3-A` | Housing / Ancillary |
-| `KUT-[ORG]-GB-ZZ-M3-A` | Grounds Building |
-| `KUT-[ORG]-UB-ZZ-M3-A` | Utility Building |
-| `KUT-[ORG]-GH-ZZ-M3-A` | Guard House |
+| `KUT-[ORG]-00-ZZ-M3-A` (site) | Toposolid, boundary/perimeter, roads, parking, paths, retaining, external drainage, reticulation. Hosts all links. |
+| `KUT-[ORG]-01-ZZ-M3-A` | Temple |
+| `KUT-[ORG]-02-ZZ-M3-A` | Meetinghouse |
+| `KUT-[ORG]-03-ZZ-M3-A` | Housing / Ancillary |
+| `KUT-[ORG]-04-ZZ-M3-A` | Grounds Building |
+| `KUT-[ORG]-05-ZZ-M3-A` | Utility Building |
+| `KUT-[ORG]-06-ZZ-M3-A` | Guard House |
 | `KUT-[ORG]-ZZ-ZZ-M3-A` (federated) | Federation / coordination model — links only, no native geometry |
 
-Each building carries its own discipline models (A, S, M, E, P, F, C) as separate `.rvt` where the discipline split warrants it; the table above shows the architectural spine.
+Each building carries its own discipline models (roles A, S, M, E, P, C, and Y for fire protection and low voltage) as separate `.rvt` where the discipline split warrants it; the table above shows the architectural spine.
 
 **Why links and not groups, specifically here:**
 - Groups misbehave when instances sit on different levels — and each building sits on its own platform at its own FFL.
@@ -226,10 +228,10 @@ Maintain one table in the site model as a Revit schedule (or key schedule), repr
 
 | Building | Easting | Northing | Rotation | FFL (mAOD) | Platform cut/fill |
 |---|---|---|---|---|---|
-| TE | … | … | … | `[FILL]` | … |
-| MH | … | … | … | `[FILL]` | … |
-| HS | … | … | … | `[FILL]` | … |
-| GB / UB / GH | … | … | … | `[FILL]` | … |
+| BLD1 | … | … | … | `[FILL]` | … |
+| BLD2 | … | … | … | `[FILL]` | … |
+| BLD3 | … | … | … | `[FILL]` | … |
+| BLD4 / BLD5 / BLD6 | … | … | … | `[FILL]` | … |
 
 Each building model is authored with **±0.000 = its own FFL**. The link carries the real elevation. That way each building model stays clean and only the table changes.
 
@@ -286,7 +288,7 @@ Anything in the right-hand column enters the bill as a **measured addition** or 
 
 Two layers, both cheap at family/type creation, expensive retro-fitted:
 
-1. **STING ISO 19650 tag** — the 8-segment `DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ` asset tag. Your identity spine; it drives the auto-tagger, validation and handover data. On KUT: `LOC` = the building (`TE`, `MH`, `HS`, `GB`, `UB`, `GH`), `ZONE` = functional wing/area within the building.
+1. **STING ISO 19650 tag** — the 8-segment `DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ` asset tag. Your identity spine; it drives the auto-tagger, validation and handover data. On KUT: `LOC` = the building (`BLD1`, `BLD2`, `BLD3`, `BLD4`, `BLD5`, `BLD6`), `ZONE` = functional wing/area within the building.
 2. **A commercial classification** — **Uniclass 2015 `Ss` (systems) and `Pr` (products)**. `Ss` maps almost one-to-one onto how a QS groups measured work. Assign it at the **Type**, never the instance. STING can also write CSI MasterFormat if the Owner asks.
 
 Do **not** rely on Revit's Assembly Code / Uniformat unless the QS asks — it is a US table and will not match a Ugandan bill.
@@ -308,28 +310,28 @@ DR-SGL-TIMBER-0900x2100 Single leaf timber door 900x2100
 WN-CSMT-ALU-1500x1200   Aluminium casement window
 RF-XXX                  [FILL: roof covering — pending specification]
 ```
-**Rooms:** `TE-01 Foyer`, `MH-05 Hall`, `HS-12 Unit 3 Living`. Prefix with the building. Never rely on Revit's auto-number.
+**Rooms:** `BLD1-01 Foyer`, `BLD2-05 Hall`, `BLD3-12 Unit 3 Living`. Prefix with the building. Never rely on Revit's auto-number.
 
 **Views:** let the drawing-type engine name them from the template so the sheet number and view name cannot drift apart.
 
 ### The one-page naming standard for KUT
 
-`KUT` is the project code; `TE, MH, HS, GB, UB, GH` are the LOC codes; `ZZ` = project-wide/site, `XX` = none. Use the same LOC code in all seven places below — that single consistency is what makes the automation work.
+`KUT` is the project code; `BLD1, BLD2, BLD3, BLD4, BLD5, BLD6` are the LOC codes and `EXT` is site-wide; `XX` = none. (In a container NAME the same buildings are the volumes `01`–`06`, `00` site-wide and `ZZ` all volumes — a different field.) Use the same LOC code in all seven places below — that single consistency is what makes the automation work.
 
 | Thing | Pattern | Example |
 |---|---|---|
 | **Model file** (ISO 19650) | `PROJ-ORIG-VOL-LVL-TYPE-ROLE-NUM` | `KUT-[ORG]-01-ZZ-M3-A-0001.rvt` |
 | **Drawing file** | same, `TYPE=DR` | `KUT-[ORG]-01-GF-DR-A-1001.pdf` |
 | **Sheet number (the Number field)** | 4 digits: type band + sequence — never typed by hand | `1001` (plan), `3001` (section), `6001` (schedule) |
-| **Scope box** | `STING::<drawing-type-id>::<level>::<tag>` — **hard regex, no spaces** | `STING::arch-plan-A1-1to100::GF::TE` |
+| **Scope box** | `STING::<drawing-type-id>::<level>::<tag>` — **hard regex, no spaces** | `STING::arch-plan-A1-1to100::GF::BLD1` |
 | **Level** | plain, parseable prose — **not** prefixed | `Ground`, `Level 01`, `Roof`, `Basement 1` |
 | **Grid** | per building model | `A`–`…`, `1`–`…` |
-| **Room** | `<LOC>-<nn> <Name>` | `TE-01 Foyer` |
+| **Room** | `<LOC>-<nn> <Name>` | `BLD1-01 Foyer` |
 | **Wall type** | `WL-<core>-<thk>-<finish>` | `WL-BLK-200-PL2` |
 | **Floor type** | `FL-<material>-<thk>` | `FL-RC-150`, `FL-SCR-50`, `FL-FIN-TILE-10` |
 | **Door / window type** | `DR-<code>-<w>x<h>` / `WN-<code>-<w>x<h>` | `DR-SGL-TIMBER-0900x2100` |
 | **Material** | ALL-CAPS, `<TYPE> <QUALIFIER> <SIZE>` — chosen so the right carbon/waste keyword fires first (Part 4A) | `STANDARD CEMENT SCREED 50MM` |
-| **View** | generated by the drawing type | `STING - arch-plan-A1-1to100 - TE` |
+| **View** | generated by the drawing type | `STING - arch-plan-A1-1to100 - BLD1` |
 | **Workset** | discipline only | `A-Architecture`, `S-Structure`, `M-Mechanical` |
 | **Asset tag** | the 8-segment STING tag, auto-built | `M-BLD1-Z01-GF-HVAC-SUP-AHU-0001` |
 
@@ -368,11 +370,11 @@ Every sheet STING produces carries the seven segments individually (`PRJ_SHEET_P
 
 **3. Drop `-{suit}-{rev}` from the shipped pattern** if you do not want `…-S2-P01` appended — remove them from the *pattern*, not just from `isoNaming`, or they render as trailing `--`.
 
-> **The trap — `{lvl}` has no profile fallback.** `vol`, `type` and `role` fall back to `IsoNaming`; `{lvl}` does not, because `IsoNaming` has no Level field. The producing command must pass the level code. If it passes nothing you get `KUT-[ORG]-TE--DR-A-1001` with an empty segment and no warning (gap K-7).
+> **The trap — `{lvl}` has no profile fallback.** `vol`, `type` and `role` fall back to `IsoNaming`; `{lvl}` does not, because `IsoNaming` has no Level field. The producing command must pass the level code. If it passes nothing you get `KUT-[ORG]-01--DR-A-1001` with an empty segment and no warning (gap K-7).
 
 **On level codes:** the KUT numbering convention standardises on **`GF`, `01`, `02`, `RF`, `B1`** (not the ISO Annex numeric `00`). **Use `GF` throughout — in both the file/sheet name and the STING tag** — because the house standard already fixes this. That neutralises most of the five-vocabularies level gap (Part 1B) for KUT; you still must name levels as plain prose the parser can read and keep the building code out of the level name.
 
-Because each building needs its own volume code, you need **one drawing-type variant per building** (`arch-plan-TE`, `arch-plan-MH`, …) differing only in `isoNaming.volume`. Tedious but honest; the alternative is a code change to source `{vol}` from the element's LOC (gap F-7).
+Because each building needs its own volume code, you need **one drawing-type variant per building** (`arch-plan-01`, `arch-plan-02`, …) differing only in `isoNaming.volume`. Tedious but honest; the alternative is a code change to source `{vol}` from the element's LOC (gap F-7).
 
 ### Door and window marks — controlled tokens, thin marks
 
@@ -382,7 +384,7 @@ Keep the Mark thin; put the detail in the schedule.
 
 | Carries | Where | Example |
 |---|---|---|
-| Instance identity only | **Mark** | `TE-D-001` |
+| Instance identity only | **Mark** | `BLD1-D-001` |
 | Function / system / product codes | STING tokens | `ARC`, `FIT`, `DR` |
 | Type, size, fire rating, ironmongery, finish | **type parameters, shown in the schedule** | `DR-SGL-TIMBER-0900x2100` |
 | The consultant's original code | `ASS_LEGACY_REF_TXT` | `[FILL]` |
@@ -409,7 +411,7 @@ A-BLD1-Z01-GF-ARC-FIT-DR-0001
 │ │  │   │  └────────── SYS   ARC
 │ │  │   └───────────── LVL   GF
 │ │  └───────────────── ZONE  Z01
-│ └──────────────────── LOC   TE
+│ └──────────────────── LOC   BLD1
 └────────────────────── DISC  A
 ```
 
@@ -418,7 +420,7 @@ And a mechanical worked example (matches the KUT tag grammar): a supply AHU in t
 **On making tokens read-only — you cannot.** Revit does not allow a project shared parameter to be read-only in the palette. `ASS_TOKEN_LOCK_TXT` exists but is **snapshot-and-restore, not prevention**: it records the value before auto-population, lets everything overwrite it, then writes it back. Comma-separated token list, e.g. `LVL,SYS,PROD`. Nine tokens lockable (`DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, STATUS, REV`); `SEQ` is not. It only snapshots **non-empty** values, and there is **no UI** — type it by hand. `BatchTagCommand`'s own lock check is dead code (gap K-9); use `TagAndCombine`.
 
 **Two things to keep straight:**
-- The **level code** is derived from the level *name* by a parser. Name levels so the parser can read them, and never put the building code in the level name — `TE-L01-FFL` misparses.
+- The **level code** is derived from the level *name* by a parser. Name levels so the parser can read them, and never put the building code in the level name — `BLD1-L01-FFL` misparses.
 - The **`{vol}`** field in ISO file names comes from the *drawing type's* JSON profile, not from the element's LOC (gap F-7).
 
 ---
@@ -435,13 +437,13 @@ A **nested link** (a building linked into an intermediate model, which is then l
 ### The structure to use
 
 ```
-KUT-[ORG]-ZZ-ZZ-M3-A (site, host)
-├── KUT-[ORG]-TE   × 1
-├── KUT-[ORG]-MH   × 1
-├── KUT-[ORG]-HS   × 1
-├── KUT-[ORG]-GB   × 1
-├── KUT-[ORG]-UB   × 1
-├── KUT-[ORG]-GH   × 1
+KUT-[ORG]-00-ZZ-M3-A (site, host)
+├── KUT-[ORG]-01   × 1
+├── KUT-[ORG]-02   × 1
+├── KUT-[ORG]-03   × 1
+├── KUT-[ORG]-04   × 1
+├── KUT-[ORG]-05   × 1
+├── KUT-[ORG]-06   × 1
 └── survey DWG
 ```
 
@@ -463,7 +465,7 @@ This is a real inconsistency in the tool, not a misunderstanding.
 
 So the same level would be `00` in a file name and `GF` in a tag — five level vocabularies in the tree, and a name the parser cannot read becomes a 12-character passthrough that then fails STING's own 4-character validator (gaps F-4, F-6).
 
-**What to do on KUT:** the **KUT numbering convention already standardises on `GF`** for both file names and tags, so use `GF` everywhere and the gap barely bites. Name levels as plain prose the parser can read (`Ground`, `Level 01`, `Roof`), and keep the building code out of the level name. `[FILL: confirm the level set per building — HS is multi-storey; TE/MH per prototype.]`
+**What to do on KUT:** the **KUT numbering convention already standardises on `GF`** for both file names and tags, so use `GF` everywhere and the gap barely bites. Name levels as plain prose the parser can read (`Ground`, `Level 01`, `Roof`), and keep the building code out of the level name. `[FILL: confirm the level set per building — BLD3 is multi-storey; BLD1/BLD2 per prototype.]`
 
 ---
 
@@ -473,7 +475,7 @@ So the same level would be `00` in a file name and `GF` in a tag — five level 
 
 | Axis | Answers | On KUT |
 |---|---|---|
-| **Volume / Location** (`LOC`) | *Which building?* | `TE, MH, HS, GB, UB, GH` |
+| **Volume / Location** (`LOC`) | *Which building?* | `BLD1, BLD2, BLD3, BLD4, BLD5, BLD6`, `EXT` (container volume `01`–`06`, `00`) |
 | **Level** (`LVL`) | *Which storey?* | `GF, 01, 02, RF, B1` |
 | **Zone** (`ZONE`) | *Which functional or management area?* | see below |
 
@@ -491,14 +493,14 @@ A zone is a **management** boundary, not a geometric one. You zone so that a per
 
 ### The zoning for KUT
 
-Zone identifies the **functional wing/area within a building** (which is what the tag grammar `…-TE-Z01-…` expresses). Deliberately few — a zone you cannot explain in one sentence is a zone you do not need.
+Zone identifies the **functional wing/area within a building** (which is what the tag grammar `…-BLD1-Z01-…` expresses). Deliberately few — a zone you cannot explain in one sentence is a zone you do not need.
 
 | Building | Suggested zones | Notes |
 |---|---|---|
-| **TE** (Temple) | `Z01`…`Zn` `[FILL: from the Temple plan / prototype — e.g. entry/foyer, ordinance areas, baptistry, support]` | The Temple has clearly distinct functional zones; confirm them from the prototype before tagging. |
-| **MH** (Meetinghouse) | `Z01` assembly/chapel, `Z02` classrooms/offices `[FILL: confirm]` | |
-| **HS** (Housing) | `Z01`…`Zn` per unit/block `[FILL: confirm]` | |
-| **GB / UB / GH** | usually a single zone each (`Z01`) | Small buildings — one zone. |
+| **BLD1** (Temple) | `Z01`…`Zn` `[FILL: from the Temple plan / prototype — e.g. entry/foyer, ordinance areas, baptistry, support]` | The Temple has clearly distinct functional zones; confirm them from the prototype before tagging. |
+| **BLD2** (Meetinghouse) | `Z01` assembly/chapel, `Z02` classrooms/offices `[FILL: confirm]` | |
+| **BLD3** (Housing) | `Z01`…`Zn` per unit/block `[FILL: confirm]` | |
+| **BLD4 / BLD5 / BLD6** | usually a single zone each (`Z01`) | Small buildings — one zone. |
 
 **At the site/federated level**, use zone (or the LOC + a package key) to separate what you want reported as a *package*: BOQ grouping by package, per-package carbon, per-package programme.
 
@@ -538,15 +540,15 @@ Regex-enforced. Legal characters inside a segment are **letters, digits, `.`, `_
 
 ```
 STING::arch-site-A1-1to500::ZZ::SITE
-STING::arch-setting-out-A1-1to100::GF::TE
-STING::arch-setting-out-A1-1to100::GF::MH
-STING::arch-plan-A1-1to100::GF::HS
-STING::arch-plan-A1-1to100::GF::GB
+STING::arch-setting-out-A1-1to100::GF::BLD1
+STING::arch-setting-out-A1-1to100::GF::BLD2
+STING::arch-plan-A1-1to100::GF::BLD3
+STING::arch-plan-A1-1to100::GF::BLD4
 ```
 
 The middle segment is the **drawing type id** and must exist in `STING_DRAWING_TYPES.json` — an unknown id is warned and skipped, not guessed. `DrawingTypes_FromScopeBoxes` is **idempotent** (indexes by `(drawingTypeId, scopeBoxId)` and updates rather than duplicating); `DrawingTypes_SuggestFromScopeBoxes` is the dry run — use it first.
 
-> A plain `SB-TE` name is fine for a purely manual workflow but does nothing in STING. If you are going to use the automation, use the `STING::` form from the start.
+> A plain `SB-BLD1` name is fine for a purely manual workflow but does nothing in STING. If you are going to use the automation, use the `STING::` form from the start.
 
 Inside each **building model**, you generally do not need scope boxes — the building is the extent.
 
@@ -565,7 +567,7 @@ Inside each **building model**, you generally do not need scope boxes — the bu
 
 5. In the first `.rvt`: set **Project Number `KUT` and Name** → **save** → **close and reopen** so the root gets its ES stamp (D1).
 6. Run **`CreateFolders`** and pick **CdeFirst** explicitly. Confirm the code-suffix setting.
-7. Add **all three** LOC keys — `LOC_CODES`, `CUSTOM_VALID_LOC`, `LOC_CODES_EXTRA` — to `project_config.json` with the same six building codes (`TE, MH, HS, GB, UB, GH`) plus `ZZ`/`XX`, *before* anything is tagged (Part 6).
+7. Add **all three** LOC keys — `LOC_CODES`, `CUSTOM_VALID_LOC`, `LOC_CODES_EXTRA` — to `project_config.json` with the same codes (`BLD1, BLD2, BLD3, BLD4, BLD5, BLD6, EXT`), *before* anything is tagged (Part 6). The KUT overlay pack's `_BIM_COORD/project_config.json` already carries all three; check that no older `project_config.json` sits beside the `.rvt`, because that copy takes precedence.
 8. Run **`LoadSharedParams`.** Everything downstream depends on it, and `SetString` silently no-ops on unbound parameters.
 9. Fill the **`PRJ_ORG_*`** parameters in Project Information by hand.
 10. Run the **`ProjectSetup`** wizard for levels, grids, disciplines, standards.
@@ -583,7 +585,7 @@ Inside each **building model**, you generally do not need scope boxes — the bu
 
 ### Stage D — The lead building (the Temple)
 
-19. Model **TE completely and correctly first** — it is the specification benchmark for the site.
+19. Model **BLD1 completely and correctly first** — it is the specification benchmark for the site.
     - Grids per prototype/consultant CAD.
     - External and internal walls, one wall each, cores identified.
     - Doors and windows as typed families with our type names.
@@ -591,15 +593,15 @@ Inside each **building model**, you generally do not need scope boxes — the bu
     - Rooms, with finish codes from the specification.
     - Sanitaryware, mechanical and FF&E as scheduled families, not decoration.
     - Full parameter/type naming per D10 as you go — *not* as a clean-up pass.
-20. Run the **tagging and validation pass on TE alone.** Fix every warning. Only then move on.
-21. Link TE into the site model, position and rotate per the setting-out schedule.
+20. Run the **tagging and validation pass on BLD1 alone.** Fix every warning. Only then move on.
+21. Link BLD1 into the site model, position and rotate per the setting-out schedule.
 
 ### Stage E — The other five buildings
 
-22. **Meetinghouse (MH)** — from the meetinghouse prototype.
-23. **Housing / Ancillary (HS)** — largest by area; the repeated unit/block, if any, is a candidate for a group *inside* that one model where rooms share a level.
-24. **Utility Building (UB)** — the most services-heavy for its size; coordinate mechanical/electrical/plumbing extract, plant and drainage early against the 1–40F prototype.
-25. **Grounds Building (GB)** and **Guard House (GH)** — small; model to the same standard.
+22. **Meetinghouse (BLD2)** — from the meetinghouse prototype.
+23. **Housing / Ancillary (BLD3)** — largest by area; the repeated unit/block, if any, is a candidate for a group *inside* that one model where rooms share a level.
+24. **Utility Building (BLD5)** — the most services-heavy for its size; coordinate mechanical/electrical/plumbing extract, plant and drainage early against the 1–40F prototype.
+25. **Grounds Building (BLD4)** and **Guard House (BLD6)** — small; model to the same standard.
 
 ### Stage F — Federate and check (Navisworks)
 
@@ -671,7 +673,7 @@ Do not model *ahead* of the LOD the gate requires — LOD 300 detail at Delivera
 | Floor plans (all six buildings) | `.dwg` | `[FILL: have as… — request native DWG]` |
 | Sections | `.dwg` | `[FILL]` |
 | Elevations | `.dwg` | `[FILL]` |
-| Roof / spire design | `.dwg` + detail | `[FILL — likely blocking for TE]` |
+| Roof / spire design | `.dwg` + detail | `[FILL — likely blocking for BLD1]` |
 | Outline specification | RIB SpecLink / `.pdf` | `[FILL]` |
 | Door & window schedule | `.xlsx` | `[FILL]` |
 | Finishes schedule | `.xlsx` | `[FILL]` |
@@ -875,7 +877,7 @@ For each building, decide the **SOP** — one unambiguous, permanent point (a na
 
 | Building | SOP description | Easting | Northing | Rotation | FFL (mAOD) |
 |---|---|---|---|---|---|
-| TE | grid A/1 intersection | … | … | … | `[FILL]` |
+| BLD1 | grid A/1 intersection | … | … | … | `[FILL]` |
 
 That table is a deliverable — it is what the setting-out engineer works from on site.
 
@@ -1091,7 +1093,7 @@ The Temple is a roof-led / architecturally driven building, and `[FILL: confirm 
 - the thing that determines wall heights, and therefore all the wall areas
 - often the last piece of the incoming information to arrive
 
-**Do not model wall heights speculatively.** Get the roof/spire design first, or model to an explicitly stated assumed height and label every affected quantity as provisional. If you guess, every wall area, plaster area, paint area and roof area in the bill is wrong by the same unknown factor. This applies to all six buildings but bites hardest on TE.
+**Do not model wall heights speculatively.** Get the roof/spire design first, or model to an explicitly stated assumed height and label every affected quantity as provisional. If you guess, every wall area, plaster area, paint area and roof area in the bill is wrong by the same unknown factor. This applies to all six buildings but bites hardest on BLD1.
 
 ---
 
@@ -1100,7 +1102,7 @@ The Temple is a roof-led / architecturally driven building, and `[FILL: confirm 
 - **KUT is a tight, urban, six-acre CBD site with six separate buildings.** External works — access, parking, boundary/perimeter security, drainage and reticulation between buildings — are a real package. Model retaining, steps, paths, parking and surface drainage at the same LOD as the buildings.
 - **Site levels and falls:** `[FILL: confirm from the KUT topographic survey.]` Foul drainage runs downhill and water supply runs uphill — check falls, invert levels and the plant/tank locations early; they are site-planning decisions, not services details.
 - **Existing site features:** `[FILL: confirm existing structures, trees, and services to retain/demolish/divert on the CBD plot — each changes the demolition bill and phasing.]`
-- **You have more buildings than STING's default location vocabulary allows, and extending it takes THREE config keys, not one.** `ASS_LOC_TXT` ships with generic `BLD1…`. You need six codes (`TE, MH, HS, GB, UB, GH`) plus `ZZ`/`XX`. Set all three keys in `project_config.json`, with identical content, before tagging anything:
+- **You have more buildings than STING's default location vocabulary allows, and extending it takes THREE config keys, not one.** `ASS_LOC_TXT` ships with only `BLD1`–`BLD3` and `EXT`. KUT needs `BLD1`–`BLD6` and `EXT`; the overlay pack carries them. Set all three keys in `project_config.json`, with identical content, before tagging anything:
 
   | Key | Who honours it |
   |---|---|
@@ -1110,9 +1112,9 @@ The Temple is a roof-led / architecturally driven building, and `[FILL: confirm 
 
   Setting only `LOC_CODES_EXTRA` leaves the validator and the Excel importer rejecting your codes, and logs an "unknown config key" warning on every load (gap F-1).
 
-- **⚠ Untagged elements are silently filed under your first building.** When LOC is empty or `XX`, STING rewrites it to the first non-`XX` LOC code. On KUT that means **every element STING cannot place lands in `TE`** (or whichever code is first in the list) — with no warning. The Temple will appear to cost more than it should and you will spend a day looking for the difference. Run `PreTagAudit` and check the LOC distribution before you believe any per-building cost split.
+- **⚠ Untagged elements are silently filed under your first building.** When LOC is empty or `XX`, STING rewrites it to the first non-`XX` LOC code. On KUT that means **every element STING cannot place lands in `BLD1`** (or whichever code is first in the list) — with no warning. The Temple will appear to cost more than it should and you will spend a day looking for the difference. Run `PreTagAudit` and check the LOC distribution before you believe any per-building cost split.
 - **Do not let `BuildingCodeSeed` name your levels.** It produces `<CODE>-L01-FFL`, which the level-code parser then misreads (it strips the prefix, extracts digits, and returns the wrong code). Name levels as plain prose the parser can read (`Level 01`, `Ground`, `Roof`, `Basement 1`) and carry the building code in the model/LOC, not the level name.
-- **`BuildingCodeSeed`** will generate per-building levels and grids — useful for HS (multi-storey) and the Utility Building; for the single-storey ancillaries it is optional.
+- **`BuildingCodeSeed`** will generate per-building levels and grids — useful for BLD3 (multi-storey) and the Utility Building; for the single-storey ancillaries it is optional.
 - **`BuildingAwareCDEFolders`** creates `<state>\<LOC>\{MODELS,DRAWINGS,SCHEDULES,BOQ,COBie,REPORTS}` per CDE state — run it after settling the LOC vocabulary for per-building issue folders in ACC.
 - **Phases are audit-only** in STING (an API limitation) — create phases in Revit yourself. Demolished elements are correctly excluded from tagging and BOQ.
 - **Bespoke elements need a project takeoff rule.** Anything with no matching rule falls through to the discipline default section. `[FILL: identify KUT bespoke elements — e.g. specialist Temple fit-out, water features, plant — and author project takeoff rules for them in _BIM_COORD\takeoff_rules.json before they land in the wrong bill section.]`
@@ -1125,7 +1127,7 @@ The Temple is a roof-led / architecturally driven building, and `[FILL: confirm 
 | # | Query | Blocks |
 |---|---|---|
 | RFI-01 | Survey in DWG/CSV with the coordinate system and vertical datum stated | Everything. Highest priority |
-| RFI-02 | Roof / spire design and construction for the Temple (and roof design for MH/HS) | TE/MH/HS models, all wall/roof quantities |
+| RFI-02 | Roof / spire design and construction for the Temple (and roof design for BLD2/BLD3) | BLD1/BLD2/BLD3 models, all wall/roof quantities |
 | RFI-03 | Sections and elevations for each of the six buildings | Building models, all vertical quantities |
 | RFI-04 | Outline / prototype specification: wall build-ups, slab, screed, roof covering, foundations | Type naming, BOQ, rates |
 | RFI-05 | Finished floor level intended for each of the six building platforms | Setting out, platforms, cut/fill |

@@ -26725,3 +26725,59 @@ Build 0/0. Not run in Revit.
   `KUT_DOCS_WORKING/issued/`, `SMB` references, all five documents, DRAFT status) corrected.
 
 Gate: 146 assertions, OK. Only the BEP and playbook regenerated; the others are byte-identical.
+
+#### Completed (KUT: element discipline codes are their own list, not the container roles, branch `claude/kut-fix3-asset-discipline-codes`)
+
+- **The KUT owner-standards audit rejected what the tagging writes.** `discipline-code-valid` checks
+  the element tag's discipline field, and its list was the ISO 19650 container role codes
+  (A C E I M P Q S W X Y). The tagger writes FP (sprinklers, fire alarm devices, fire-protection
+  pipework), LV (data, communications, security, audio-visual) and G (generic models, specialty
+  equipment, model groups), so every one of those elements failed the audit at Deliverable B, C and
+  every gate audit, and the asset tags handed over would carry codes the pack called withdrawn.
+- **Decision: separate lists, as the pack already does for volume `01` vs location `BLD1`.** ISO 19650
+  defines the container role (the discipline of the organisation that produced the file) and no
+  element code. `tools/kut_naming.py` gains `ASSET_DISCIPLINES` (A S M E P FP LV G), each with the role
+  it is normally issued under (FP and LV under Y; G under whichever model it is in), as guidance only.
+  The tagger is untouched, so no other project changes.
+- `tools/build_kut_owner_standards.py` derives the rule's list from `ASSET_DISCIPLINES`, and its
+  self-check now asserts FP, LV and G are rejected as container roles. Rule descriptions rewritten;
+  the sheet rule's stale "role is one or two characters (FP, LV)" note is gone.
+- BEP 4.2.2, playbook 4.7 and Document Control Standard 2.4 state the separation and carry the
+  element-discipline table. Two stale statements in the same passages were corrected: the BEP said an
+  element code is "one of the eight" roles (there are eleven), and the Document Control Standard said
+  interiors issue under A and cost under Z, while its own role table lists I and Q.
+- The document gate holds the rule to `ASSET_DISCIPLINES` and refuses a container-only role (Z) in it.
+- **Non-circular test.** `KutElementDisciplineTests` reads the tagger's category map from
+  `TagConfig.Defaults.cs` and calls `CategoryTokenDefaults.SystemAwareDisc`, and requires the KUT rule
+  to accept every code they can produce (healthcare-only H/MG/RP excluded) and to allow nothing they
+  cannot. All three failed on the previous overlay. `KutSheetPatternTests.EveryAuthorisedDisciplineCodeIsAValidRole`
+  encoded the withdrawn premise and is replaced by `ElementOnlyDisciplineCodesAreNotContainerRoles`.
+
+Gate OK (100 assertions); overlay `--check` current; 37 KUT tests pass. Not run in Revit.
+- **The hand-edited KUT sources were only half-migrated, though the README called them corrected.**
+  The Modelling Playbook used the old building codes `TE`…`GH` throughout, including the step that
+  puts them into `project_config.json` (contradicting the shipped `BLD1`–`BLD6` overlay). The
+  Manager Playbook used `KUT-PLNS-TE-…`. The Managing Playbook and Numbering Convention listed roles
+  `F` (Facilities Manager in the standard) and `L` (Landscape Architect), and types `DC`/`BQ`/`TR`.
+  All corrected per `KUT_NAMING_MIGRATION_MAP.md`: element tags `BLD1`–`BLD6`/`EXT`, container
+  volumes `01`–`06`/`00`/`ZZ`, NA.3 roles, NA.2 types, and the element-discipline split. The
+  migration map now says `FP`, `LV` and `G` stay valid as element codes, and records that it and
+  `kut_naming.SHEET_BANDS` disagree on number bands `8` and `9` (a kickoff decision, not changed).
+- **New gate check `check_hand_edited_sources`** reads `KUT_DOCS_WORKING/source/` (migration map
+  exempt) and fails on a retired building code or a four-character originator. 131 findings on the
+  previous sources, 0 now. Added to the gate's CI path filter.
+- **One sheet-banding proposal, not two.** `kut_naming.SHEET_BANDS` put 3D views in band `8` and
+  reserved `9`; the site convention (migration map, Numbering Convention) follows the US National
+  CAD Standard: `6` schedules and diagrams, `7`/`8` user-defined, `9` 3D. The pack now follows the
+  NCS order. Banding stays "proposed, confirm at kickoff" (BEP 15.2). The gate compares the 3D band
+  across the pack and both hand-edited tables; red on the previous `SHEET_BANDS`.
+- **Internal BIM Manager playbook (.docx) corrected and now checked (MOB-7, partial).** Part I item 5
+  still advised the four-character `PLNS` and widening the originator rule; the Week 1 decision and
+  the risk row still framed originator length as open; the overlay steps listed four of seven files
+  and omitted `project_config.json`. Eight paragraphs edited in place (formatting untouched; Word
+  opens it). `check_hand_edited_sources` now reads the .docx too; red on the previous file.
+- **The Numbering Convention is a superseded working note, and says so.** It claimed document
+  number `RP-Z-0004`, which the Mobilisation Information Request also carries, and the Managing
+  Playbook called it "the authoritative source" although the issued Document Control Standard
+  (`RP-Z-0003`) states that it supersedes it. Its header and both Managing Playbook references now
+  point at the Document Control Standard. In the project folder its June `.docx` was retired.

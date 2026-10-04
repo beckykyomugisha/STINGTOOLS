@@ -321,17 +321,18 @@ This is what you set up at mobilisation and audit at every share. The full writt
 Every information container (model, drawing, schedule, document) is named with the ISO 19650 field convention. No legacy or numeric drawing-number scheme.
 
 ```
-KUT - PLNS - TE - GF - DR - E - 0001
- |     |      |    |    |    |    +- Number (4-digit sequence)
- |     |      |    |    |    +------ Role / discipline (A,S,M,E,P,F,C,I,Q,Z)
- |     |      |    |    +----------- Type (M3 model, DR drawing, SH schedule, SP spec, RP report...)
- |     |      |    +---------------- Level / Location (B1, GF, 01, 02, RF, ZZ, XX)
- |     |      +--------------------- Volume / System = building (see codes)
- |     +---------------------------- Originator (PLNS Planscape; one 4-char code per firm)
- +---------------------------------- Project (KUT)
+KUT - SMB - 01 - GF - DR - E - 0001
+ |     |     |    |    |    |    +- Number (4 digits; sheets banded by first digit)
+ |     |     |    |    |    +------ Role = discipline of the ORIGINATING organisation
+ |     |     |    |    |              (UK NA Table NA.3: A C E I M P Q S W X Y, Z for federated)
+ |     |     |    |    +----------- Type (UK NA Table NA.2: M3 model, DR drawing, SH schedule, SP spec, RP report...)
+ |     |     |    +---------------- Level (B1, GF, 01, 02, RF, ZZ all, XX n/a)
+ |     |     +--------------------- Volume (01-06 per building, 00 site-wide, ZZ all, XX n/a)
+ |     +--------------------------- Originator (3 characters, from the originator register; SMB is the example)
+ +--------------------------------- Project (KUT)
 ```
 
-**Volume (building) codes:** `TE` Temple · `MH` Meetinghouse · `HS` Housing/Ancillary · `GB` Grounds · `UB` Utility · `GH` Guard House · `ZZ` project-wide · `XX` none/external.
+**Volume (building) codes:** `01` Temple · `02` Meetinghouse · `03` Housing/Ancillary · `04` Grounds · `05` Utility · `06` Guard House · `00` site-wide · `ZZ` all volumes · `XX` not applicable. The old site codes `TE`, `MH`, `HS`, `GB`, `UB`, `GH` are withdrawn (`KUT_NAMING_MIGRATION_MAP.md`). Fire protection and low voltage issue under role `Y`; `F` is Facilities Manager in the standard.
 Two metadata fields travel with every file but are not in the name: **suitability** (S2…) and **revision** (P01…). The register template builds this reference automatically from the fields.
 
 ## 6.2 Element / asset tagging — the ISO eight-segment tag
@@ -339,13 +340,13 @@ Every **element inside a model** (a duct, a panel, a door, an air-handling unit)
 
 ```
 DISC - LOC - ZONE - LVL - SYS - FUNC - PROD - SEQ
-  M  - TE  - Z01  - GF  - HVAC - SUP  - AHU - 0001
+  M  - BLD1 - Z01 - GF  - HVAC - SUP  - AHU - 0001
 ```
 
 | Segment | Meaning | Example codes |
 |---|---|---|
-| **DISC** | Discipline | M, E, P, A, S, F, C |
-| **LOC** | Location / building | TE, MH, HS, GB, UB, GH, EXT |
+| **DISC** | Element discipline — **not** the container role | A, S, M, E, P, FP, LV, G (`tools/kut_naming.py` ASSET_DISCIPLINES) |
+| **LOC** | Location / building | BLD1–BLD6, EXT (container volume 01–06, 00 — a different field) |
 | **ZONE** | Zone within the building | Z01–Z04, ZZ |
 | **LVL** | Level | B1, GF, 01, 02, RF |
 | **SYS** | System | HVAC, DCW, DHW, SAN, RWD, LV, FP |
@@ -525,9 +526,9 @@ You are judged on whether the **team** can follow the system, not just you. Keep
 
 ## 9.3 How to teach the two naming systems (the part people get wrong)
 Teach them as two different things, with one test:
-- **File name = the box the information comes in.** Seven fields. Example `KUT-PLNS-TE-GF-DR-E-0001`. Use the register template — it builds the name from the fields, so they cannot get it wrong.
+- **File name = the box the information comes in.** Seven fields. Example `KUT-SMB-01-GF-DR-E-0001`. Use the register template — it builds the name from the fields, so they cannot get it wrong.
 - **Element tag = the label on each thing inside the model.** Eight segments. Example `M-BLD1-Z01-GF-HVAC-SUP-AHU-0001`. It lives in shared parameters and carries the data to schedules and handover.
-> **The one-line test to give them:** *"If it's a file, seven fields. If it's a thing inside the model, eight segments."*
+> **The one-line test to give them:** *"If it's a file, seven fields. If it's a thing inside the model, eight segments."* And the codes differ: a sprinkler head in the mechanical engineer's model is an `FP` element in a container with role `M`.
 
 ## 9.4 How to teach publishing in ACC
 1. Save your WIP.

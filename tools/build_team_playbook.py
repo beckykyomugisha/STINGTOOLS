@@ -331,7 +331,7 @@ h2('4.7  Asset identifier')
 para('Every modelled element carries an eight-field identifier assembled from the data held on the element.')
 c.mono('M - BLD1 - Z01 - L02 - HVAC - SUP - AHU - 0003', 12)
 table(['Field', 'Content', 'Source'],
-      [['Discipline', 'Role code (Section 4.3)', 'Element category and discipline'],
+      [['Discipline', 'Element discipline code (table below) — not the role code', 'Element category and system'],
        ['Location', 'Volume code (Section 2.3)', 'Room, workset or project information'],
        ['Zone', 'Zone code', 'Room or zone assignment'],
        ['Level', 'Level code (Section 4.5)', 'Element level'],
@@ -340,6 +340,14 @@ table(['Field', 'Content', 'Source'],
        ['Product', 'Product code', 'Family and type'],
        ['Sequence', 'Four digits', 'Assigned in sequence within the volume']],
       widths=[3.0, 6.0, 7.6])
+
+para('The discipline field is not the role field of a container name. The role (Section 4.3) is the '
+     'discipline of the organisation that produced the file; the element discipline says what the element '
+     'is. A sprinkler head in the mechanical engineer\'s model is an FP element in a container with role M.')
+table(['Element discipline', 'Meaning', 'Normally issued under role'],
+      [[code, meaning, role or 'The role of whichever model it is in']
+       for code, meaning, role in N.ASSET_DISCIPLINES],
+      widths=[3.2, 9.0, 4.4])
 
 h3('What the task team must do')
 para('The identifier is assembled from data already present in a correctly built model. It is not typed. '
