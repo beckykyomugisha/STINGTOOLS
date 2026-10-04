@@ -66,7 +66,9 @@ namespace StingTools.Commands.Electrical
                         ZtotalMohm = r.ZtotalMohm,
                         FaultKa = r.FaultKa,
                         AicRequiredKa = r.AicRequiredKa,
-                        Status = r.AicRequiredKa > 0 && r.FaultKa > r.AicRequiredKa ? "EXCEEDS_AIC" : "OK"
+                        // 0 = no standard tier covers the board (or none loaded) — never "OK".
+                        Status = r.FaultKa > 0 && r.AicRequiredKa <= 0 ? "NO_AIC_TIER"
+                               : r.AicRequiredKa > 0 && r.FaultKa > r.AicRequiredKa ? "EXCEEDS_AIC" : "OK"
                     }).ToList();
                 snap.ConduitFills = StingTools.UI.StingElectricalCommandHandler.LastConduitFills;
                 snap.EmergAudit   = StingTools.UI.StingElectricalCommandHandler.LastEmergAudit;

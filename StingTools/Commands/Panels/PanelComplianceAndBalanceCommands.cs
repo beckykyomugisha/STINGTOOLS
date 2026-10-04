@@ -85,6 +85,7 @@ namespace StingTools.Commands.Panels
                 catch (Exception ex) { StingLog.Warn($"Check view scope: {ex.Message}"); colourView = false; }
             }
 
+            TransactionStatus status;
             using (var tx = new Transaction(doc, "STING Circuit Compliance Check"))
             {
                 tx.Start();
@@ -113,8 +114,10 @@ namespace StingTools.Commands.Panels
                             catch (Exception ex) { StingLog.Info($"Check colour {el.Id}: {ex.Message}"); }
                         }
                 }
-                tx.Commit();
+                status = tx.Commit();
             }
+            // A rolled-back run kept no verdict and no colour; never report them as written.
+            bool kept = status == TransactionStatus.Committed;
 
             string xlsx = WriteWorkbook(doc, rows);
 
@@ -127,13 +130,16 @@ namespace StingTools.Commands.Panels
                  .MetricError("Failing circuits", fail.ToString())
                  .MetricHighlight("Fully verified OK", full.ToString())
                  .MetricWarn("Unverified (no failure, but not every rule could run)", partial.ToString())
-                 .Metric("Written to " + CheckParam, written.ToString(),
+                 .Metric("Written to " + CheckParam, ElecWriteReport.Kept(written, kept).ToString(),
                          unbound > 0 ? $"{unbound} circuit(s) lack the parameter — run Load Params" : null);
+            if (!kept)
+                panel.MetricError("Transaction", ElecWriteReport.Landed("verdict(s) written", written, false, status.ToString()),
+                                  "the results below were worked out but nothing was kept in the model");
             if (writeFailed > 0)
                 panel.MetricError("Writes refused", writeFailed.ToString(), "see the STING log");
             panel
-                 .Metric("Devices coloured red", coloured.ToString(), colourView ? $"in '{view.Name}'" : "open a plan to colour devices")
-                 .Metric("Devices cleared (no longer failing)", cleared.ToString());
+                 .Metric("Devices coloured red", ElecWriteReport.Kept(coloured, kept).ToString(), colourView ? $"in '{view.Name}'" : "open a plan to colour devices")
+                 .Metric("Devices cleared (no longer failing)", ElecWriteReport.Kept(cleared, kept).ToString());
             if (fail > 0)
             {
                 panel.AddSection("FAILURES");
@@ -155,7 +161,7 @@ namespace StingTools.Commands.Panels
                  .Text(string.IsNullOrEmpty(xlsx) ? "Workbook not written — see the STING log." : "Workbook: " + xlsx);
             // Modal outside a preset; inside one the report goes to the log and the step message.
             PresetDialog.Show(panel, ref message);
-            return Result.Succeeded;
+            return kept ? Result.Succeeded : Result.Failed;
         }
 
         private const string IzSummary = "the tabulated It of the cable recorded on the circuit (method, insulation, cable type, stamped when a size is applied); without a complete record, the highest It for the size in any shipped copper table. Both at 30 °C, ungrouped, so a pass leaves derating unchecked";

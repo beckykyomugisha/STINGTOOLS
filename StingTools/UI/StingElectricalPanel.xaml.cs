@@ -943,7 +943,7 @@ namespace StingTools.UI
         public string CsaDisplay   => $"{FeederCsaMm2:0.#}";
         public string ZDisplay     => $"{ZtotalMohm:0.0}";
         public string FaultDisplay => $"{FaultKa:0.00}";
-        public string AicDisplay   => $"{AicRequiredKa:0}";
+        public string AicDisplay   => AicRequiredKa > 0 ? $"{AicRequiredKa:0}" : "none";
     }
     public class ConduitFillData
     {

@@ -164,6 +164,8 @@ namespace StingTools.Commands.Electrical.FaultCurrent
 
             if (node.IsPanel && node.ElementId != null)
             {
+                string noTier = AicTier.NoTierReason(thisFaultKa, aicTiers);
+                if (noTier != null) notes.Add("AIC: " + noTier);
                 results[node.ElementId.Value] = new FaultPropagationResult
                 {
                     PanelId       = node.ElementId,
@@ -184,15 +186,13 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                 PropagateNode(child, thisFaultKa, vLL, phases, voltageAssumed, wireTables, supplyOf, aicTiers, results);
         }
 
-        /// <summary>Look up the next AIC tier ≥ <paramref name="faultKa"/> × (1 + safetyMargin).</summary>
-        public static double NextAicTierKa(double faultKa, double[] tiers, double safetyMarginPct = 10.0)
-        {
-            if (tiers == null || tiers.Length == 0) return faultKa;
-            double target = faultKa * (1.0 + safetyMarginPct / 100.0);
-            foreach (double t in tiers.OrderBy(x => x))
-                if (t >= target) return t;
-            return tiers.Last();
-        }
+        /// <summary>
+        /// The next AIC tier ≥ <paramref name="faultKa"/> × (1 + safetyMargin); 0 when no
+        /// tier is large enough or none is loaded (see <see cref="AicTier"/>). It used to
+        /// return the largest tier — below the fault — when the fault exceeded them all.
+        /// </summary>
+        public static double NextAicTierKa(double faultKa, double[] tiers, double safetyMarginPct = AicTier.DefaultMarginPct)
+            => AicTier.Next(faultKa, tiers, safetyMarginPct);
     }
 
     /// <summary>
