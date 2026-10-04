@@ -242,7 +242,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
     <div class="sb-section-label">Core Systems</div>
     <a class="sb-link" href="#iso-tagging">ISO 19650 Tagging Engine</a>
     <a class="sb-link sub" href="#tag-format">Tag Format & Segments</a>
-    <a class="sb-link sub" href="#tag-containers">Tag Containers (36)</a>
+    <a class="sb-link sub" href="#tag-containers">Tag Containers (182)</a>
     <a class="sb-link sub" href="#tag7">TAG7 Rich Narrative</a>
     <a class="sb-link" href="#auto-tagger">Real-Time Auto-Tagger</a>
     <a class="sb-link" href="#workflow-engine">Workflow Automation</a>
@@ -254,7 +254,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
     <a class="sb-link" href="#sheet-manager">Sheet Manager (24 cmds)</a>
     <a class="sb-link" href="#drawing-types">Drawing Template Manager</a>
     <a class="sb-link sub" href="#view-style-packs">View Style Packs (11)</a>
-    <a class="sb-link sub" href="#aec-filters">AEC Filter Library (199)</a>
+    <a class="sb-link sub" href="#aec-filters">AEC Filter Library (287)</a>
     <a class="sb-link" href="#template-engine">Template Engine v1.1</a>
     <a class="sb-link" href="#template-manager">Template Manager (18 cmds)</a>
     <a class="sb-link" href="#panel-schedules">Panel Schedules (9 cmds)</a>
@@ -291,9 +291,9 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
   <h1 class="hero-title">⚡ <span>StingTools</span> for Autodesk Revit</h1>
   <p class="hero-desc">The definitive reference for StingTools — a unified C# Revit plugin consolidating ISO 19650-compliant asset tagging, document management, BIM coordination, healthcare compliance, drawing automation, and fabrication workflows into a single compiled assembly for Revit 2025, 2026, and 2027.</p>
   <div class="hero-stats">
-    <div class="hero-stat"><div class="hero-stat-num">1,106+</div><div class="hero-stat-label">IExternalCommands</div></div>
+    <div class="hero-stat"><div class="hero-stat-num">1,700+</div><div class="hero-stat-label">IExternalCommands</div></div>
     <div class="hero-stat"><div class="hero-stat-num">9</div><div class="hero-stat-label">Dock Panel Tabs</div></div>
-    <div class="hero-stat"><div class="hero-stat-num">199</div><div class="hero-stat-label">AEC Filters</div></div>
+    <div class="hero-stat"><div class="hero-stat-num">287</div><div class="hero-stat-label">AEC Filters</div></div>
   </div>
   <div class="hero-badges">
     <span class="badge badge-gold">ISO 19650 Compliant</span>
@@ -315,7 +315,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
     <div class="card card-accent">
       <div class="card-icon">🏷️</div>
       <div class="card-title">ISO 19650 Tagging Engine</div>
-      <div class="card-desc">Automated 8-segment tag derivation across 1,106+ element categories. Real-time IUpdater auto-tagging with collision avoidance, 36 discipline containers, and TAG7 rich narrative system.</div>
+      <div class="card-desc">Automated 8-segment tag derivation across every tagged Revit category. Real-time IUpdater auto-tagging with collision avoidance, 182 container parameters in 33 groups, and TAG7 rich narrative system.</div>
     </div>
     <div class="card card-blue">
       <div class="card-icon">📋</div>
@@ -325,7 +325,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
     <div class="card card-green">
       <div class="card-icon">📐</div>
       <div class="card-title">Drawing Template Manager</div>
-      <div class="card-desc">40 corporate drawing types, 11 view style packs, 199 AEC filters, scope-box binding, drift detection, and SyncStyles — all from a single JSON-driven registry with project overrides.</div>
+      <div class="card-desc">114 corporate drawing types, 42 view style packs, 287 AEC filters, scope-box binding, drift detection, and SyncStyles — all from a single JSON-driven registry with project overrides.</div>
     </div>
     <div class="card card-violet">
       <div class="card-icon">📄</div>
@@ -351,7 +351,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
       <tbody>
         <tr><td><strong>Performance</strong></td><td>Python interpreted, slow on large models</td><td>Compiled C# — 6× faster execution</td></tr>
         <tr><td><strong>Tagging</strong></td><td>Manual per-element, no real-time update</td><td>IUpdater auto-tags on element add</td></tr>
-        <tr><td><strong>Parameters</strong></td><td>Hardcoded names, no registry</td><td>2,555 params in JSON registry, hot-reload</td></tr>
+        <tr><td><strong>Parameters</strong></td><td>Hardcoded names, no registry</td><td>3,668 shared parameters, registry hot-reload</td></tr>
         <tr><td><strong>Templates</strong></td><td>TaskDialog prompts, no rendering</td><td>MiniWord/ClosedXML pipeline, 16 templates</td></tr>
         <tr><td><strong>Sheets</strong></td><td>Manual placement, no bin-packing</td><td>MaxRects algorithm, 24 sheet commands</td></tr>
         <tr><td><strong>Compliance</strong></td><td>No audit trail</td><td>SHA-256 tamper-evident JSONL audit log</td></tr>
@@ -408,8 +408,8 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
           <thead><tr><th>Interface</th><th>Class</th><th>Role</th></tr></thead>
           <tbody>
             <tr><td><code>IExternalApplication</code></td><td><strong>StingToolsApp</strong></td><td>Startup, ribbon, dockable panel, event subscription</td></tr>
-            <tr><td><code>IExternalEventHandler</code></td><td><strong>StingCommandHandler</strong></td><td>Dispatches 1,100+ button tags to command classes on API thread</td></tr>
-            <tr><td><code>IDockablePaneProvider</code></td><td><strong>StingDockPanelProvider</strong></td><td>Registers 9-tab WPF panel (Right dock, 320×400 min)</td></tr>
+            <tr><td><code>IExternalEventHandler</code></td><td><strong>StingCommandHandler</strong></td><td>Dispatches the dock panel's button tags to command classes on the API thread</td></tr>
+            <tr><td><code>IDockablePaneProvider</code></td><td><strong>StingDockPanelProvider</strong></td><td>Registers the 10-tab WPF panel (Right dock, 320×400 min)</td></tr>
             <tr><td><code>IUpdater</code></td><td><strong>StingAutoTagger</strong></td><td>Real-time tag writing on element addition</td></tr>
             <tr><td><code>IUpdater</code></td><td><strong>StingStaleMarker</strong></td><td>Stale detection on geometry changes</td></tr>
             <tr><td><code>IFailuresPreprocessor</code></td><td><strong>FailureHandler</strong></td><td>Suppresses non-critical Revit warnings in batch ops</td></tr>
@@ -436,14 +436,14 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
       <pre>StingTools/
 ├── Core/          ← Infrastructure (17 files)
 │   ├── StingToolsApp.cs   ← Entry point
-│   ├── ParamRegistry.cs   ← 2,555-param registry
+│   ├── ParamRegistry.cs   ← parameter registry
 │   ├── TagConfig.cs       ← ISO 19650 lookup tables
 │   ├── StingAutoTagger.cs ← IUpdater engine
 │   └── WorkflowEngine.cs  ← Preset orchestration
 ├── Select/        ← 4 files, 32+ commands
 ├── UI/            ← 40 C# + 3 XAML, ~35,000 lines
-│   ├── StingDockPanel.xaml    ← 9-tab WPF UI
-│   └── StingCommandHandler.cs ← 1,100+ tag dispatcher
+│   ├── StingDockPanel.xaml    ← 10-tab WPF UI
+│   └── StingCommandHandler.cs ← button-tag dispatcher
 ├── Tags/          ← 28 files, 140+ commands
 ├── Organise/      ← 1 file, 47 commands
 ├── Docs/          ← 20 files, 55+ commands
@@ -472,7 +472,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
     <div class="card">
       <div class="card-icon">📋</div>
       <div class="card-title">Parameter Registry</div>
-      <div class="card-desc"><code>PARAMETER_REGISTRY.json</code> — single source of truth for 2,555 parameters. Hot-reload via <code>ParamRegistry.Reload()</code>. SharedParamGuids.cs is a backwards-compatible facade.</div>
+      <div class="card-desc"><code>PARAMETER_REGISTRY.json</code> — single source of truth for parameter names, GUIDs and tag containers (3,668 shared parameters in MR_PARAMETERS.txt). Hot-reload via <code>ParamRegistry.Reload()</code>. SharedParamGuids.cs is a backwards-compatible facade.</div>
     </div>
     <div class="card">
       <div class="card-icon">🏷️</div>
@@ -482,7 +482,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
     <div class="card">
       <div class="card-icon">📐</div>
       <div class="card-title">Drawing Type JSON</div>
-      <div class="card-desc"><code>STING_DRAWING_TYPES.json</code> — 40 corporate types + 43 routing rules. SHA-256 lock on corporate entries. Project overrides layered from <code>_BIM_COORD/drawing_types.json</code>.</div>
+      <div class="card-desc"><code>STING_DRAWING_TYPES.json</code> — 114 corporate types + 143 routing rules. SHA-256 lock on corporate entries. Project overrides layered from <code>_BIM_COORD/drawing_types.json</code>.</div>
     </div>
     <div class="card">
       <div class="card-icon">🔄</div>
@@ -514,6 +514,10 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
         </table>
       </div>
 
+      <div class="callout callout-green">
+        <span class="callout-icon">✅</span>
+        <div class="callout-text">Supported route: close Revit and the Planscape Companion tray app, then run <code>deploy.bat</code> from the checkout you want live. It builds Release into that checkout's <code>CompiledPlugin\</code> and points the add-in manifest at it. <code>build.bat</code> builds without touching Revit. Confirm what Revit will load with <code>grep -h "&lt;Assembly&gt;" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin | sort -u</code>; copying files into a folder the manifest does not name has no effect. The manual steps below are for machines without the repository.</div>
+      </div>
       <h3>Manual Installation</h3>
       <div class="step-list">
         <div class="step">
@@ -552,7 +556,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
           <thead><tr><th>Page</th><th>What It Does</th></tr></thead>
           <tbody>
             <tr><td><strong>1 · Project Info</strong></td><td>Sets PRJ_ORG_* shared parameters: company, client, project code, originator, phase</td></tr>
-            <tr><td><strong>2 · Shared Parameters</strong></td><td>2-pass binding of all 2,555 shared parameters from <code>MR_PARAMETERS.txt</code></td></tr>
+            <tr><td><strong>2 · Shared Parameters</strong></td><td>2-pass binding of the shared parameters (3,668) from <code>MR_PARAMETERS.txt</code></td></tr>
             <tr><td><strong>3 · Worksets</strong></td><td>Creates 35 standard worksets from CSV definitions</td></tr>
             <tr><td><strong>4 · Filters</strong></td><td>Creates 28+ parametric filters for view control</td></tr>
             <tr><td><strong>5 · View Templates</strong></td><td>Creates 23 standard STING view templates with VG configuration</td></tr>
@@ -585,15 +589,19 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
     <div class="step"><div class="step-num">1</div><div><div class="step-content-title">Open STING Panel</div><div class="step-content-desc">Click the <strong>STING Panel</strong> button in the ribbon (or use View → User Interface → STING Tools). Dock it to the right side of Revit.</div></div></div>
     <div class="step"><div class="step-num">2</div><div><div class="step-content-title">Run Project Setup Wizard</div><div class="step-content-desc">TEMP tab → <strong>★ Project Setup Wizard</strong>. Complete the 7 pages (takes ~5 minutes for a typical project). This binds parameters, creates worksets and filters.</div></div></div>
     <div class="step"><div class="step-num">3</div><div><div class="step-content-title">Auto-Populate Tokens</div><div class="step-content-desc">CREATE tab → <strong>Family-Stage Populate</strong>. This pre-fills all 7 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD) from Revit spatial data without creating tags yet.</div></div></div>
-    <div class="step"><div class="step-num">4</div><div><div class="step-content-title">Tag & Combine</div><div class="step-content-desc">CREATE tab → <strong>Tag & Combine</strong>. One click: auto-detect + populate + ISO 19650 tag + write to all 36 discipline containers. Check the post-run stats dialog.</div></div></div>
+    <div class="step"><div class="step-num">4</div><div><div class="step-content-title">Tag & Combine</div><div class="step-content-desc">CREATE tab → <strong>Tag & Combine</strong>. One click: auto-detect + populate + ISO 19650 tag + write to every applicable tag container. Check the post-run stats dialog.</div></div></div>
     <div class="step"><div class="step-num">5</div><div><div class="step-content-title">Validate</div><div class="step-content-desc">CREATE tab → <strong>Validate</strong>. See per-token compliance breakdown. Fix missing DISC/SYS codes and re-run. Target >80% for Green RAG status.</div></div></div>
-    <div class="step"><div class="step-num">6</div><div><div class="step-content-title">Enable Auto-Tagger (optional)</div><div class="step-content-desc">TAGS tab → <strong>Toggle Auto-Tagger</strong>. New elements placed in Revit will be auto-tagged in real time without manual intervention.</div></div></div>
+    <div class="step"><div class="step-num">6</div><div><div class="step-content-title">Enable Auto-Tagger (optional)</div><div class="step-content-desc">SETUP tab → <strong>AutoTag</strong> (each click toggles it). New elements placed in Revit will be auto-tagged in real time without manual intervention.</div></div></div>
   </div>
 </section>
 <!-- ═══════════════ TAB COMMAND REFERENCE ═══════════════ -->
 <section class="section" id="tab-select">
-  <div class="section-label">9-Tab Dock Panel · Tab 1</div>
+  <div class="section-label">Command Reference · Group 1</div>
   <h2 class="section-title">SELECT Tab</h2>
+  <div class="callout callout-green">
+    <span class="callout-icon">🧭</span>
+    <div class="callout-text">The command groups in this reference keep the original nine-group layout. The dock panel today has ten tabs: SELECT, TAGGING, DOCS, SETUP, CREATE TAGS, MODEL, BIM, TAG STUDIO, INTEROP and HEALTHCARE. Tagging commands (Batch Tag, Tag Rules, Tag &amp; Combine, Validate) are on TAGGING; the auto-tagger switch is on SETUP; Project Cfg is on CREATE TAGS. Labels such as <code>Tags.BatchTag</code> are descriptive names, not the button tags the dispatcher uses.</div>
+  </div>
   <p class="section-desc">The SELECT tab consolidates all element selection and graphic override commands. Fourteen category selectors, five state selectors, spatial selectors, bulk parameter write, and a full color-by-parameter system.</p>
 
   <h3>Category Selectors</h3>
@@ -659,7 +667,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
 </section>
 <!-- ═══════════════ ORGANISE TAB ═══════════════ -->
 <section class="section" id="tab-organise">
-  <div class="section-label">9-Tab Dock Panel · Tab 2</div>
+  <div class="section-label">Command Reference · Group 2</div>
   <h2 class="section-title">ORGANISE Tab</h2>
   <p class="section-desc">47 tag management commands covering tag operations, leader management, analysis/QA, annotation color, and tag appearance. The most comprehensive Revit annotation management toolset available.</p>
 
@@ -729,7 +737,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
 </section>
 <!-- ═══════════════ DOCS TAB ═══════════════ -->
 <section class="section" id="tab-docs">
-  <div class="section-label">9-Tab Dock Panel · Tab 3</div>
+  <div class="section-label">Command Reference · Group 3</div>
   <h2 class="section-title">DOCS Tab</h2>
   <p class="section-desc">The DOCS tab is the hub for all sheet, view, and document management. It encompasses 55+ commands across sheet organisation, viewport control, doc automation, sheet templates, and the comprehensive 24-command Sheet Manager system.</p>
 
@@ -796,7 +804,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
 
 <!-- ═══════════════ TEMP TAB ═══════════════ -->
 <section class="section" id="tab-temp">
-  <div class="section-label">9-Tab Dock Panel · Tab 4</div>
+  <div class="section-label">Command Reference · Group 4</div>
   <h2 class="section-title">TEMP Tab</h2>
   <p class="section-desc">The TEMP tab covers project setup, material creation, family type creation, schedule management, template automation, and the comprehensive data pipeline. 73 commands across 9 pulldown groups.</p>
 
@@ -804,7 +812,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
     <div>
       <h3>Setup Group (4 commands)</h3>
       <div class="cmd-grid">
-        <div class="cmd-item"><div class="cmd-tag">Temp.CreateParameters</div><div class="cmd-name">Create Parameters</div><div class="cmd-desc">2-pass shared parameter binding of all 2,555 parameters from MR_PARAMETERS.txt.</div></div>
+        <div class="cmd-item"><div class="cmd-tag">Temp.CreateParameters</div><div class="cmd-name">Create Parameters</div><div class="cmd-desc">2-pass shared parameter binding of the 3,668 parameters in MR_PARAMETERS.txt.</div></div>
         <div class="cmd-item"><div class="cmd-tag">Temp.CheckData</div><div class="cmd-name">Check Data Files</div><div class="cmd-desc">Inventory of all 49+ data files with SHA-256 checksums — verifies data integrity.</div></div>
         <div class="cmd-item"><div class="cmd-tag">Temp.MasterSetup</div><div class="cmd-name">Master Setup</div><div class="cmd-desc">One-click 15-step project setup: params → worksets → filters → templates → materials → families → schedules.</div></div>
         <div class="cmd-item"><div class="cmd-tag">Temp.ProjectSetup</div><div class="cmd-name">★ Project Setup Wizard</div><div class="cmd-desc">7-page WPF wizard for comprehensive first-time project configuration including PRJ_ORG_* parameters.</div></div>
@@ -827,7 +835,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
             <tr><td><strong>Full Auto-Populate</strong></td><td>Zero-input schedule automation: creates + populates + exports all 168 schedule definitions</td></tr>
             <tr><td><strong>Batch Create</strong></td><td>Creates all 168 schedule types from MR_SCHEDULES.csv without populating data</td></tr>
             <tr><td><strong>Auto-Populate (Tokens)</strong></td><td>Populates token fields only (DISC/SYS/FUNC) in existing schedules</td></tr>
-            <tr><td><strong>Evaluate Formulas</strong></td><td>Runs the 199-formula engine across all elements — cost, flow, area, and environmental calculations</td></tr>
+            <tr><td><strong>Evaluate Formulas</strong></td><td>Runs the formula engine (303 formulas in FORMULAS_WITH_DEPENDENCIES.csv) across all elements — cost, flow, area, and environmental calculations</td></tr>
             <tr><td><strong>Export CSV</strong></td><td>Exports all selected schedules to CSV files in the output directory</td></tr>
             <tr><td><strong>Corporate Title Block Schedule</strong></td><td>Creates the STING corporate title block parameter schedule</td></tr>
             <tr><td><strong>Drawing Register Schedule</strong></td><td>Creates the ISO 19650 drawing register schedule</td></tr>
@@ -880,7 +888,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
 </section>
 <!-- ═══════════════ CREATE TAB ═══════════════ -->
 <section class="section" id="tab-create">
-  <div class="section-label">9-Tab Dock Panel · Tab 5</div>
+  <div class="section-label">Command Reference · Group 5</div>
   <h2 class="section-title">CREATE Tab</h2>
   <p class="section-desc">The CREATE tab is the primary tagging interface — all tagging commands, token writers, combine operations, legend builders, and tag family management. This is where the ISO 19650 compliance workflow begins.</p>
 
@@ -889,8 +897,9 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
       <h3>Core Tagging Commands</h3>
       <div class="cmd-grid">
         <div class="cmd-item"><div class="cmd-tag">Tags.AutoTag</div><div class="cmd-name">Auto Tag</div><div class="cmd-desc">Tags all untagged elements in the active view. Spatial auto-detect for LOC/ZONE, collision mode selection (Skip/Overwrite/AutoIncrement), full 9-step pipeline.</div></div>
-        <div class="cmd-item"><div class="cmd-tag">Tags.BatchTag</div><div class="cmd-name">Batch Tag</div><div class="cmd-desc">Tags all elements in the entire project across all categories. Shows StingProgressDialog with ETA and per-element stats. Escape key cancellation supported.</div></div>
-        <div class="cmd-item"><div class="cmd-tag">Tags.TagAndCombine</div><div class="cmd-name">Tag &amp; Combine</div><div class="cmd-desc">The master one-click command: auto-detect LOC/ZONE → populate all tokens → tag → write to all 36 discipline containers. Reports complete stats.</div></div>
+        <div class="cmd-item"><div class="cmd-tag">Tags.BatchTag</div><div class="cmd-name">Batch Tag</div><div class="cmd-desc">Tags all elements in the entire project across all categories. The mode picker offers Skip, Overwrite (sequence numbers kept where still unique) and Overwrite and renumber (this run only), and its status line says whether moved elements update their tags. Shows StingProgressDialog with ETA and per-element stats. Escape key cancellation supported.</div></div>
+        <div class="cmd-item"><div class="cmd-tag">TagBehaviour</div><div class="cmd-name">Tag Rules</div><div class="cmd-desc">Shows and switches the tagging behaviour, one click each, saved to project_config.json beside the model: tags update or stay fixed when elements move (RETAG_MOVED_ELEMENTS), keep or renumber sequence numbers on Overwrite (RENUMBER_ON_OVERWRITE), STATUS from phase, and how shared models allocate numbers (SEQ_LOCK_MODE block / warn / off).</div></div>
+        <div class="cmd-item"><div class="cmd-tag">Tags.TagAndCombine</div><div class="cmd-name">Tag &amp; Combine</div><div class="cmd-desc">The master one-click command: auto-detect LOC/ZONE → populate all tokens → tag → write to every applicable tag container. Reports complete stats.</div></div>
         <div class="cmd-item"><div class="cmd-tag">Tags.TagNewOnly</div><div class="cmd-name">Tag New Only</div><div class="cmd-desc">Tags only new/untagged elements. Checks ASS_TAG_1 for emptiness before running the full pipeline — faster for ongoing coordination.</div></div>
         <div class="cmd-item"><div class="cmd-tag">Tags.PreTagAudit</div><div class="cmd-name">Pre-Tag Audit</div><div class="cmd-desc">Dry-run before committing: predicts tag assignments, collision counts, and ISO violations. No changes made to the model.</div></div>
         <div class="cmd-item"><div class="cmd-tag">Tags.FamilyStagePopulate</div><div class="cmd-name">Family-Stage Populate</div><div class="cmd-desc">Pre-populates all 7 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD) from spatial and category data without building tags. Safe first step.</div></div>
@@ -904,8 +913,8 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
         <div class="cmd-item"><div class="cmd-tag">Tags.SetStatus</div><div class="cmd-name">Set Status</div><div class="cmd-desc">Sets STATUS (EXISTING, NEW, DEMOLISHED, TEMPORARY) on selected elements — construction phase tracking.</div></div>
         <div class="cmd-item"><div class="cmd-tag">Tags.AssignNumbers</div><div class="cmd-name">Assign Numbers</div><div class="cmd-desc">Sequential numbering by DISC/SYS/LVL grouping. Continues from the maximum existing SEQ to avoid gaps.</div></div>
         <div class="cmd-item"><div class="cmd-tag">Tags.BuildTags</div><div class="cmd-name">Build Tags</div><div class="cmd-desc">Rebuilds ASS_TAG_1 from existing tokens without re-deriving — useful after manual token corrections.</div></div>
-        <div class="cmd-item"><div class="cmd-tag">Tags.CombineParameters</div><div class="cmd-name">Combine Parameters</div><div class="cmd-desc">Interactive multi-mode combine into all 36 discipline-specific tag containers simultaneously.</div></div>
-        <div class="cmd-item"><div class="cmd-tag">Tags.SetSeqScheme</div><div class="cmd-name">Set SEQ Scheme</div><div class="cmd-desc">Configures the sequencing scheme: DISC only, DISC+LVL, DISC+SYS, DISC+SYS+LVL, or project-wide. Affects all future number assignments.</div></div>
+        <div class="cmd-item"><div class="cmd-tag">Tags.CombineParameters</div><div class="cmd-name">Combine Parameters</div><div class="cmd-desc">Interactive multi-mode combine into the discipline-specific tag containers.</div></div>
+        <div class="cmd-item"><div class="cmd-tag">Tags.SetSeqScheme</div><div class="cmd-name">Set SEQ Scheme</div><div class="cmd-desc">Chooses how the sequence number is written: numeric (0001) or alphabetic. Numbers are always counted per DISC + SYS + LVL group; ZONE and LOC can be added to the group in project_config.json.</div></div>
       </div>
     </div>
 
@@ -953,7 +962,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
 
 <!-- ═══════════════ VIEW TAB ═══════════════ -->
 <section class="section" id="tab-view">
-  <div class="section-label">9-Tab Dock Panel · Tab 6</div>
+  <div class="section-label">Command Reference · Group 6</div>
   <h2 class="section-title">VIEW Tab</h2>
   <p class="section-desc">The VIEW tab hosts view template management, the 18-command Template Manager engine, style creation commands, and presentation mode control. This is the graphic standards hub for the project.</p>
 
@@ -1027,7 +1036,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
 </section>
 <!-- ═══════════════ MODEL TAB ═══════════════ -->
 <section class="section" id="tab-model">
-  <div class="section-label">9-Tab Dock Panel · Tab 7</div>
+  <div class="section-label">Command Reference · Group 7</div>
   <h2 class="section-title">MODEL Tab</h2>
   <p class="section-desc">130+ commands for automated BIM element creation and DWG-to-BIM conversion. Covers architectural, structural, and MEP modeling with comprehensive structural analysis engines and DWG import pipelines.</p>
 
@@ -1093,7 +1102,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
 
 <!-- ═══════════════ BIM TAB ═══════════════ -->
 <section class="section" id="tab-bim">
-  <div class="section-label">9-Tab Dock Panel · Tab 8</div>
+  <div class="section-label">Command Reference · Group 8</div>
   <h2 class="section-title">BIM Tab</h2>
   <p class="section-desc">The complete ISO 19650 BIM management workflow: BEP generation, CDE documents, issues (BCF 2.1), COBie export, transmittals, 4D/5D scheduling, Excel exchange, and platform integration. 120+ commands across 14 files.</p>
 
@@ -1191,7 +1200,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
 </section>
 <!-- ═══════════════ TAGS STUDIO TAB ═══════════════ -->
 <section class="section" id="tab-tags">
-  <div class="section-label">9-Tab Dock Panel · Tab 9</div>
+  <div class="section-label">Command Reference · Group 9</div>
   <h2 class="section-title">TAGS Studio Tab</h2>
   <p class="section-desc">The Tag Studio is the advanced tagging intelligence centre with 6 sub-tabs: Placement, Leader, Style, Tokens, Tools, and Scale. Includes the 16-position placement compass, collision scoring, NLP command processor, and the Tag Intelligence command suite.</p>
 
@@ -1298,7 +1307,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
   </section>
 
   <section id="tag-containers">
-  <h3>Tag Containers — 36 Discipline-Specific Parameters</h3>
+  <h3>Tag Containers — 182 Parameters in 33 Groups</h3>
   <p>Every tag is written to all applicable discipline containers simultaneously. The 36 containers cover universal, HVAC, electrical, plumbing, fire/safety, comms/LV, and material categories.</p>
   <div class="tbl-wrap">
     <table>
@@ -1385,9 +1394,9 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
         <div class="step"><div class="step-num">2</div><div><div class="step-content-title">TypeTokenInherit</div><div class="step-content-desc">Copies non-empty token values from family TYPE to instance — instance always wins on conflict</div></div></div>
         <div class="step"><div class="step-num">3</div><div><div class="step-content-title">PopulateAll</div><div class="step-content-desc">Derives all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV) with guaranteed defaults</div></div></div>
         <div class="step"><div class="step-num">4</div><div><div class="step-content-title">NativeParamMapper</div><div class="step-content-desc">Maps 30+ Revit built-in parameters (Width, Height, Flow, etc.) to STING shared params</div></div></div>
-        <div class="step"><div class="step-num">5</div><div><div class="step-content-title">FormulaEngine</div><div class="step-content-desc">Evaluates 199 dependency-ordered formulas: cost rates, flow calculations, area calculations, environmental metrics</div></div></div>
+        <div class="step"><div class="step-num">5</div><div><div class="step-content-title">FormulaEngine</div><div class="step-content-desc">Evaluates the dependency-ordered formulas (303 rows in FORMULAS_WITH_DEPENDENCIES.csv): cost rates, flow calculations, area calculations, environmental metrics</div></div></div>
         <div class="step"><div class="step-num">6</div><div><div class="step-content-title">BuildAndWriteTag</div><div class="step-content-desc">Assembles 8-segment ISO 19650 tag with collision detection (Skip/Overwrite/AutoIncrement mode)</div></div></div>
-        <div class="step"><div class="step-num">7</div><div><div class="step-content-title">WriteContainers</div><div class="step-content-desc">Writes the tag to all 36 applicable discipline-specific container parameters</div></div></div>
+        <div class="step"><div class="step-num">7</div><div><div class="step-content-title">WriteContainers</div><div class="step-content-desc">Writes the tag to every container parameter that applies to the element's category</div></div></div>
         <div class="step"><div class="step-num">8</div><div><div class="step-content-title">WriteTag7All</div><div class="step-content-desc">Builds TAG7 rich narrative for all 6 sub-sections (A–F) from element data</div></div></div>
         <div class="step"><div class="step-num">9</div><div><div class="step-content-title">GetGridRef</div><div class="step-content-desc">Auto-detects nearest structural grid intersection and writes GRID_REF parameter</div></div></div>
       </div>
@@ -1456,21 +1465,31 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
     </div>
 
     <div>
-      <h3>Conditional Step Operators (19)</h3>
+      <h3>Step Conditions and Options (19)</h3>
+      <p>A gate whose value cannot be read (an unknown day name, a time that is not HH:mm) skips the step and says why in the run report.</p>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Operator</th><th>Description</th></tr></thead>
+          <thead><tr><th>Key</th><th>Effect</th></tr></thead>
           <tbody>
-            <tr><td><code>maxCompliancePct</code></td><td>Skip step if compliance already exceeds this threshold</td></tr>
-            <tr><td><code>minCompliancePct</code></td><td>Skip step if compliance is below this threshold</td></tr>
-            <tr><td><code>requiresStaleElements</code></td><td>Skip step if no stale elements detected (avoids unnecessary runs)</td></tr>
-            <tr><td><code>requiresWorkshared</code></td><td>Only run on workshared (central file) models</td></tr>
-            <tr><td><code>requiresPhase</code></td><td>Only run when project is in a specified RIBA/ISO phase</td></tr>
-            <tr><td><code>requiresMinElements</code></td><td>Skip if fewer than N elements are tagged</td></tr>
-            <tr><td><code>requiresIssueCount</code></td><td>Run only if open issue count exceeds threshold</td></tr>
-            <tr><td><code>onWeekday</code></td><td>Run only on specified day(s) of the week</td></tr>
-            <tr><td><code>afterTime</code></td><td>Run only after a specified time of day</td></tr>
-            <tr><td><code>beforeTime</code></td><td>Run only before a specified time of day</td></tr>
+            <tr><td><code>condition</code></td><td>One named condition (has_untagged, has_stale, has_open_issues, has_warnings, has_links, compliance_below_50 and others); the step is skipped when it does not hold</td></tr>
+            <tr><td><code>conditions + conditionLogic</code></td><td>Several named conditions combined with AND (default) or OR</td></tr>
+            <tr><td><code>maxCompliancePct</code></td><td>Skip if tag compliance is above this percentage</td></tr>
+            <tr><td><code>minCompliancePct</code></td><td>Skip if tag compliance is below this percentage</td></tr>
+            <tr><td><code>requiresStaleElements</code></td><td>Skip if no element is flagged stale</td></tr>
+            <tr><td><code>requiresWorksharedModel</code></td><td>Skip unless the model is workshared</td></tr>
+            <tr><td><code>minElementCount / maxElementCount</code></td><td>Skip if the model's element count is outside this range</td></tr>
+            <tr><td><code>requiresMinElements</code></td><td>Skip if fewer than N elements carry a tag</td></tr>
+            <tr><td><code>requiresIssueCount</code></td><td>Skip unless at least N issues are open</td></tr>
+            <tr><td><code>requiresPhase</code></td><td>Skip unless PRJ_ORG_PHASE_TXT is one of the listed codes, e.g. "DE" or "DE,CO"; a project with no phase skips</td></tr>
+            <tr><td><code>onWeekday</code></td><td>Run only on the listed days, e.g. "Mon,Fri"</td></tr>
+            <tr><td><code>afterTime / beforeTime</code></td><td>Run only inside a local-time window, 24-hour "HH:mm"; afterTime later than beforeTime means an overnight window</td></tr>
+            <tr><td><code>minWarningHealthScore</code></td><td>Skip if the warning health score is above this value</td></tr>
+            <tr><td><code>minDataDrop</code></td><td>Skip if the model has not reached this data drop (1–4)</td></tr>
+            <tr><td><code>skipIfPreviousSkipped</code></td><td>Skip if the step before was skipped</td></tr>
+            <tr><td><code>skipIfDataUnchanged</code></td><td>Skip if the STING data files have not changed since the last run</td></tr>
+            <tr><td><code>retryCount / retryDelayMs</code></td><td>Retry a failed step up to 3 times</td></tr>
+            <tr><td><code>fallbackStep</code></td><td>Command to run if this step fails</td></tr>
+            <tr><td><code>timeoutSeconds</code></td><td>Time limit for the step (default 300 s)</td></tr>
           </tbody>
         </table>
       </div>
@@ -1604,7 +1623,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
 <section class="section" id="drawing-types">
   <div class="section-label">Feature Module</div>
   <h2 class="section-title">Drawing Template Manager</h2>
-  <p class="section-desc">A single-source engine for how every drawing is produced — sheet size, title block, scale, view template, annotation rules, crop strategy, and section marker families. 40 corporate drawing types, routing table, 8-step apply pipeline, and a full WPF editor.</p>
+  <p class="section-desc">A single-source engine for how every drawing is produced — sheet size, title block, scale, view template, annotation rules, crop strategy, and section marker families. 114 corporate drawing types, routing table, 8-step apply pipeline, and a full WPF editor.</p>
 
   <div class="grid-2">
     <div>
@@ -1651,7 +1670,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
     </div>
 
     <div>
-      <h3>40 Corporate Drawing Types</h3>
+      <h3>Corporate Drawing Types (114)</h3>
       <p>Shipped in <code>Data/STING_DRAWING_TYPES.json</code> covering the full AEC/FM lifecycle:</p>
       <div class="tbl-wrap">
         <table>
@@ -1669,7 +1688,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
         </table>
       </div>
 
-      <h3>Drawing Routing Table (43 rules)</h3>
+      <h3>Drawing Routing Table (143 rules)</h3>
       <p>First-match-wins rules mapping <code>(discipline, phase, docType)</code> → <code>drawingTypeId</code>. Presentation rules match on <code>phase: PRESENTATION</code> — same discipline routes to production or presentation type based on the active phase.</p>
 
       <h3>Drift Detection & SyncStyles</h3>
@@ -1685,8 +1704,8 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
       </div>
 
       <section id="view-style-packs">
-      <h3>View Style Packs — 11 Corporate Packs</h3>
-      <p>ViewStylePacks factor graphic overrides / filters / VG overrides / text+dim styles out of individual DrawingTypes so all 40 profiles share from ~11 visual packs. The <code>Extends</code> field supports inheritance chains.</p>
+      <h3>View Style Packs — 42 Corporate Packs</h3>
+      <p>ViewStylePacks factor graphic overrides / filters / VG overrides / text+dim styles out of individual DrawingTypes so the 114 drawing types share 42 visual packs. The <code>Extends</code> field supports inheritance chains.</p>
       <div class="grid-2">
         <div class="card"><div class="card-title">corp-base</div><div class="card-desc">Foundation pack inherited by all others — basic line weights and text styles</div></div>
         <div class="card"><div class="card-title">corp-standard-plan</div><div class="card-desc">Standard floor plan graphic standards including phase, fire-rated walls, accessibility, escape routes</div></div>
@@ -1700,7 +1719,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
   </div>
 
   <section id="aec-filters">
-  <h3>AEC Filter Library — 199 Parametric Filters</h3>
+  <h3>AEC Filter Library — 287 Parametric Filters</h3>
   <p>A complete corporate <code>ParameterFilterElement</code> library covering every discipline an AEC/FM firm produces drawings for. Previously, filters had to be created manually — now they are JSON-defined and lazy-created on demand when a ViewStylePack references them.</p>
   <div class="tbl-wrap">
     <table>
@@ -1778,7 +1797,7 @@ code{background:var(--bg-raised);color:var(--accent-cyan);padding:1px 5px;border
           <tbody>
             <tr><td><strong>Issue Deliverable</strong></td><td>Renders A01 cover, writes revision history, starts <code>deliverable_issue_default</code> workflow, appends SHA-256 audit entry</td></tr>
             <tr><td><strong>Re-Issue Deliverable</strong></td><td>Bumps revision letter (A→B→C…), re-renders A01 with updated revision block</td></tr>
-            <tr><td><strong>Publish Deliverable</strong></td><td>Promotes document to S4 / PUBLISHED CDE container with date-stamped published flag</td></tr>
+            <tr><td><strong>Publish Deliverable</strong></td><td>Promotes the document to the PUBLISHED CDE state with an authorised suitability code (A1 by default)</td></tr>
             <tr><td><strong>Cancel Deliverable</strong></td><td>Renders A02 cancellation notice, archives to _BIM_COORD/cancelled/ folder</td></tr>
             <tr><td><strong>Supersede Deliverable</strong></td><td>Mints new document number, renders A03 superseded notice, cross-links via doc.supersedes</td></tr>
             <tr><td><strong>Replace Deliverable</strong></td><td>Renders A04 replacing notice, cross-links the replacement document reference</td></tr>
@@ -1861,7 +1880,7 @@ ORG_AI_EXTRACT_ENABLED</pre>
       </div>
       <div class="callout callout-amber">
         <span class="callout-icon">⚠️</span>
-        <div class="callout-text"><strong>API Limits:</strong> <code>PanelScheduleSheetInstance.Create</code> is broken in Revit 2024–2026 — STING does NOT attempt programmatic sheet placement. Users drag the schedule onto a sheet manually. Template cell layout, column order, and formulas remain read-only per Revit API design.</div>
+        <div class="callout-text"><strong>API Limits:</strong> <code>PanelScheduleSheetInstance.Create</code> is broken in Revit 2024–2026 — STING does NOT attempt programmatic sheet placement. Users drag the schedule onto a sheet manually. Templates themselves can be created and edited (PanelScheduleTemplate.Create, GetTableData / SetTableData): Panel_TemplatesCreate builds the STING templates and Panel_TemplateInspect lists their cells.</div>
       </div>
 
       <h3>Drawing Type</h3>
@@ -1989,7 +2008,7 @@ ORG_AI_EXTRACT_ENABLED</pre>
       <tr><td><code>elec-lighting-A1-1to100</code></td><td>A1 · 1:100</td><td>Lighting layout plan — luminaire positions, circuit groups, emergency escape routes</td></tr>
       <tr><td><code>elec-fire-alarm-A1-1to100</code></td><td>A1 · 1:100</td><td>Fire alarm detection and suppression — detector zones, call points, sounders, FACPs</td></tr>
       <tr><td><code>elec-panel-schedule-A3</code></td><td>A3 · NTS</td><td>Individual panel schedule sheet — stamped by BatchPanelSchedules, tracked by Browser Organizer</td></tr>
-      <tr><td><code>elec-riser-A2-1to100</code></td><td>A2 · 1:100</td><td>Electrical riser diagram — vertical distribution from main switchboard to sub-boards</td></tr>
+      <tr><td><code>elec-riser-A3-1to200</code></td><td>A3 · 1:200</td><td>Electrical riser diagram — vertical distribution from main switchboard to sub-boards</td></tr>
     </tbody>
   </table></div>
   </section>
@@ -2480,17 +2499,15 @@ ORG_AI_EXTRACT_ENABLED</pre>
 
     <div>
       <h3>Document Register — CDE State Machine</h3>
-      <p>Full ISO 19650-2 CDE (Common Data Environment) state machine with 6 states:</p>
+      <p>ISO 19650-2 CDE states. The suitability code is the input and the state follows from it (<code>Iso19650Suitability</code>):</p>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>CDE State</th><th>Code</th><th>Description</th></tr></thead>
+          <thead><tr><th>CDE State</th><th>Suitability codes</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><strong>Work in Progress</strong></td><td>S0</td><td>Being produced — not shared</td></tr>
-            <tr><td><strong>Shared</strong></td><td>S2</td><td>Available for reference — not yet approved</td></tr>
-            <tr><td><strong>Shared for Review</strong></td><td>S3</td><td>Under formal review/approval process</td></tr>
-            <tr><td><strong>Published</strong></td><td>S4</td><td>Formally authorised for construction/FM</td></tr>
-            <tr><td><strong>Archived</strong></td><td>S5</td><td>Superseded or withdrawn but retained</td></tr>
-            <tr><td><strong>Void</strong></td><td>S6</td><td>Cancelled — no longer valid</td></tr>
+            <tr><td><strong>Work in Progress</strong></td><td>S0</td><td>Being produced, not shared</td></tr>
+            <tr><td><strong>Shared</strong></td><td>S1–S7 (default S3)</td><td>Shared for coordination, review, comment or estimating; not authorised</td></tr>
+            <tr><td><strong>Published</strong></td><td>A1–A5, B1–B5, CR (default A1)</td><td>Authorised (A) or partially authorised (B); CR is the as-constructed record</td></tr>
+            <tr><td><strong>Archive</strong></td><td>AB, AR (default AR)</td><td>Superseded, withdrawn or archived, retained for the record</td></tr>
           </tbody>
         </table>
       </div>
@@ -2710,7 +2727,7 @@ npx expo start</pre>
     <div class="step"><div class="step-num">4</div><div><div class="step-content-title">Family-Stage Populate</div><div class="step-content-desc">CREATE tab → Family-Stage Populate. Run across the whole project to pre-fill DISC/LOC/ZONE/LVL/SYS/FUNC/PROD. No tags are built yet — this seeds the data for step 5.</div></div></div>
     <div class="step"><div class="step-num">5</div><div><div class="step-content-title">Tag &amp; Combine</div><div class="step-content-desc">CREATE tab → Tag &amp; Combine. Runs the full 9-step pipeline across the project. Watch the progress dialog for completion stats. Accept the post-run stats dialog.</div></div></div>
     <div class="step"><div class="step-num">6</div><div><div class="step-content-title">Validate &amp; Fix</div><div class="step-content-desc">CREATE tab → Validate. Review per-token compliance breakdown. For each red token, use the appropriate setter command (Set Discipline, Set Location, etc.) to fix outliers, then re-run Validate.</div></div></div>
-    <div class="step"><div class="step-num">7</div><div><div class="step-content-title">Enable Auto-Tagger</div><div class="step-content-desc">TAGS tab → Toggle Auto-Tagger. From now on, new elements placed in Revit are automatically tagged. No further manual runs needed for ongoing coordination.</div></div></div>
+    <div class="step"><div class="step-num">7</div><div><div class="step-content-title">Enable Auto-Tagger</div><div class="step-content-desc">SETUP tab → AutoTag (each click toggles it). From now on, new elements placed in Revit are automatically tagged. No further manual runs needed for ongoing coordination.</div></div></div>
   </div>
 
   <div class="divider"></div>
@@ -2764,7 +2781,7 @@ npx expo start</pre>
       <h3>Status Bar Display</h3>
       <div class="callout callout-green">
         <span class="callout-icon">📊</span>
-        <div class="callout-text">The status bar always shows: <strong>[RAG] Tag 87% | Rev 62% | 45 untagged</strong>. Green when compliant, amber when partial, red when below 50%. Clicking the status bar opens the Completeness Dashboard.</div>
+        <div class="callout-text">The status line reads, for example, <strong>GREEN 87% tagged | 62% REV | 45 untagged</strong>, with extra items (stale elements, untagged sheets, tag scheme coverage) when they apply. The RAG word combines tag and revision completeness: GREEN at 80 % or more, AMBER from 50 %, RED below.</div>
       </div>
       <h3>Compliance Gate</h3>
       <p>The <code>StageComplianceGate</code> command blocks progression to the next RIBA/ISO stage if compliance is below the configured threshold. Configured via <code>COMPLIANCE_GATE_PCT</code> in project_config.json (default: 95% for issue stages, 80% for coordination).</p>
@@ -2789,7 +2806,7 @@ npx expo start</pre>
       <div class="card-desc">
         <ul style="list-style:none;padding:0;line-height:2;font-size:13px">
           <li>✅ 3 named Revit seats</li>
-          <li>✅ All 1,106+ commands</li>
+          <li>✅ All 1,700+ commands</li>
           <li>✅ Cloud sync</li>
           <li>✅ Mobile app</li>
           <li>✅ ISO 19650 tagging</li>
@@ -2927,7 +2944,7 @@ npx expo start</pre>
         <tr><td><strong>COBie 2.4 Export</strong></td><td><span class="tag tag-green">✅ 22 presets, 19 sheets</span></td><td><span class="tag tag-amber">⚡ Basic</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-amber">⚡ Limited</span></td><td><span class="tag tag-muted">❌</span></td></tr>
         <tr><td><strong>BCF 2.1 Issues</strong></td><td><span class="tag tag-green">✅ Full (import+export)</span></td><td><span class="tag tag-amber">⚡ Partial</span></td><td><span class="tag tag-green">✅ Full</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-green">✅ Full</span></td></tr>
         <tr><td><strong>Sheet Manager</strong></td><td><span class="tag tag-green">✅ 24 commands + MaxRects</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-muted">❌</span></td></tr>
-        <tr><td><strong>Drawing Types (40)</strong></td><td><span class="tag tag-green">✅ JSON-driven registry</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-muted">❌</span></td></tr>
+        <tr><td><strong>Drawing Types (114)</strong></td><td><span class="tag tag-green">✅ JSON-driven registry</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-muted">❌</span></td></tr>
         <tr><td><strong>Healthcare Compliance</strong></td><td><span class="tag tag-green">✅ HTM/HBN/NFPA 99</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-muted">❌</span></td></tr>
         <tr><td><strong>Fabrication (ISO 6412)</strong></td><td><span class="tag tag-green">✅ Spool drawings</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-muted">❌</span></td></tr>
         <tr><td><strong>Document Templates (16)</strong></td><td><span class="tag tag-green">✅ MiniWord rendered</span></td><td><span class="tag tag-amber">⚡ Basic forms</span></td><td><span class="tag tag-muted">❌</span></td><td><span class="tag tag-amber">⚡ Basic forms</span></td><td><span class="tag tag-muted">❌</span></td></tr>
@@ -2995,7 +3012,7 @@ npx expo start</pre>
   <div style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:8px">⚡ StingTools</div>
   <div style="font-size:12px;color:var(--text-muted)">Complete Software Guide v2.2 &nbsp;·&nbsp; ISO 19650 &nbsp;·&nbsp; Revit 2025–2027 &nbsp;·&nbsp; .NET 8.0</div>
   <div style="font-size:11px;color:var(--text-muted);margin-top:8px">Planscape Limited · Kampala, Uganda · planscape.io</div>
-  <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Generated from CLAUDE.md — Phase 174 baseline. Last updated: 2026-05-14</div>
+  <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Generated from CLAUDE.md — Phase 174 baseline; figures and behaviour corrected against the code on 2026-10-04</div>
 </footer>
 
 </main>

@@ -99,6 +99,33 @@ namespace StingTools.Core
         [JsonProperty("maxElementCount")]
         public int? MaxElementCount { get; set; }
 
+        /// <summary>Skip unless at least this many elements carry a tag (complete or not).
+        /// Evaluated by WorkflowStepGates.</summary>
+        [JsonProperty("requiresMinElements")]
+        public int? RequiresMinElements { get; set; }
+
+        /// <summary>Skip unless the project has at least this many open issues.</summary>
+        [JsonProperty("requiresIssueCount")]
+        public int? RequiresIssueCount { get; set; }
+
+        /// <summary>Skip unless PRJ_ORG_PHASE_TXT is one of these codes ("DE" or "DE,CO").
+        /// A project with no phase set skips the step.</summary>
+        [JsonProperty("requiresPhase")]
+        public string RequiresPhase { get; set; }
+
+        /// <summary>Run only on these days ("Mon,Fri" or "Monday"). An unreadable day skips.</summary>
+        [JsonProperty("onWeekday")]
+        public string OnWeekday { get; set; }
+
+        /// <summary>Run only at or after this local time, 24-hour "HH:mm".</summary>
+        [JsonProperty("afterTime")]
+        public string AfterTime { get; set; }
+
+        /// <summary>Run only before this local time, 24-hour "HH:mm". With afterTime later
+        /// than beforeTime the window runs overnight (afterTime 22:00, beforeTime 06:00).</summary>
+        [JsonProperty("beforeTime")]
+        public string BeforeTime { get; set; }
+
         /// <summary>Phase 39: Timeout in seconds for this step (default 300 = 5 min).</summary>
         [JsonProperty("timeoutSeconds")]
         public int TimeoutSeconds { get; set; } = 300;
