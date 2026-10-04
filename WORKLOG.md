@@ -6,7 +6,9 @@ Standing task (2026-10-01): unattended loop — resume → research → record �
 1. The user runs docs/KUT_ACC_SETUP_AND_SMOKE_TEST.md. Act on the FAIL lines they send back first.
 2. KUT live is at `e95e08d43` (deployed 14:45 2026-10-01). Next redeploy: only when the user says so; merge origin/main first.
 3. Navisworks NW-3/4/5 are waiting on sample XMLs from the team's Navisworks (search set, clash test, clash report). Then do NW-2.
-4. Open review items: ROADMAP "ACC second review" (P2, P3, P6/P7, P8, S2, S5, S9, S11, S12); then ACC-AUT-8/9 and ACC-LOCK-1.
+4. **When PR #1048 is on main and main is merged here:** register `StingTools/Data/WORKFLOW_KUT_FortnightlyIssue.json` in `tools/data_schemas.json` (`python tools/validate_data_schemas.py --scaffold "StingTools/Data/WORKFLOW_KUT_FortnightlyIssue.json"`). #1048's schema gate fails on it in the combined build (measured 2026-10-02 on `d43a7a9b9`); it cannot be done before, because the registry does not exist on this branch. The other combined-build failure (`AccIssuePush.PushableFields`, never read) was removed 2026-10-04.
+5. Smoke lists for the live build: `docs/KUT_SMOKE_TEST_LISTS_2026-10-02.md` (live = `47cd237f5` on 2026-10-04: this branch + #1048 + #1053 + #1054).
+6. Open review items: ROADMAP "ACC second review" (P2, P3, P6/P7, P8, S2, S5, S9, S11, S12); then ACC-AUT-8/9 and ACC-LOCK-1.
 
 ## Branches
 - **Integration branch:** `claude/acc-work-review-gaps-7e2ac7` (worktree `.claude/worktrees/acc-work-review-gaps-7e2ac7`). Not pushed.
