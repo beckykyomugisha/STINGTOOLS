@@ -2624,6 +2624,9 @@ Discipline, Warm, Cool, Red, Yellow, Blue, Mono, Dark — each maps discipline c
 ```bash
 # Windows — set Revit API path and build
 dotnet build StingTools/StingTools.csproj -p:RevitApiPath="C:\Program Files\Autodesk\Revit 2025"
+# Revit 2026 / 2027: point RevitApiPath at that install and use -t:Rebuild when switching year.
+# 2027 targets net10.0-windows (its API is .NET 10); version-specific code uses REVIT2026_OR_GREATER /
+# REVIT2027_OR_GREATER and Core/BipCompat, Core/CurveCompat (ROADMAP ELEC-29).
 ```
 
 ### Deployment

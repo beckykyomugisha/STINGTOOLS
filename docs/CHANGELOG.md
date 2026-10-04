@@ -2,6 +2,19 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (ELEC-27 to ELEC-31 closed + follow-up sweep, 2026-10-04)
+
+Branch `claude/electrical-defect-review-ea67f1`. Builds 0/0 against Revit **2025, 2026 and 2027**; Tags 5,763/5,763. **Not run in Revit.**
+
+- **ELEC-29 — Revit 2026 / 2027 builds.** 2026 renamed `UNIFORMAT_*` → `ASSEMBLY_*`, `OMNICLASS_*` → `CLASSIFICATION_*` and a Rebar argument; 2027 removed `Curve.Intersect(out …)`, `Zone.Volume`, `ANALYTICAL_HEAT_TRANSFER_COEFFICIENT` and ships a .NET 10 API. `Core/BipCompat` (by-name resolution), `Core/CurveCompat`, version symbols and a `net10.0-windows` target for 2027 in `StingTools.csproj`. The .NET 10 analyzers also caught an inexact `FileStream.Read` in the project-log tail (fixed).
+- **ELEC-28 — rollbacks.** All 84 remaining electrical commits go through `ElecTx.Commit`, which throws on a rollback so no success count is printed; batch annotators count a rolled-back item as failed. Conduit auto-route no longer reports junction boxes / penetrations that were undone, and now saves the junction-box ids it adds to the cable manifest (they were never saved).
+- **ELEC-27 — kW is true power.** Board connected load is the sum of the fed circuits' true power, not apparent power under a kW name. Batch Panel Schedules also stopped writing the schedule view name as the board designation.
+- **ELEC-30 — numbers in text.** `Core/NumberText` behind `GetDouble` and the electrical parsers: `"2,5"` is 2.5 (was 25); thousands groups unchanged.
+- **ELEC-31 — stale panel rows.** PNLS Save, SLD Zoom and Open Schedule refuse rows read from another model (Save could write location / manufacturer onto an unrelated element).
+- **Sweep:** Circuit View Filter built a Panel-Name rule from type names (matched nothing, reported N); the ElecCalc seed export wrote type names as circuit panels; the cable-schedule SKU varied with the machine culture.
+- Logged: ELEC-32 (≈838 unchecked commits outside electrical); a 2027 deploy needs its own build output and manifest.
+- Tests: `RevitVersionCompatTests`, `NumberTextTests`, `PanelConnectedLoadTests`, ELEC-28 / ELEC-31 / sweep guards in `ElecWriteReportTests`, `ElecResultScopeTests`, `ElectricalGlueRegressionTests` — each red against the code before its fix.
+
 #### Completed (Electrical defect review — 7 rounds, 2026-10-04)
 
 Review of the electrical module (everything since PR #976 / #977, branch `claude/electrical-defect-review-ea67f1`), seven rounds: correctness, silent failure, integration, Revit version / fragility, cross-document state (×2), and a review of the round fixes themselves. Build 0/0 (Revit 2025); Tags 5,687+ / Routing 80 / Mep 87 green. **Not run in Revit.**
