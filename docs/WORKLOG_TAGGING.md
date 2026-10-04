@@ -7,29 +7,32 @@ gates + CI; never weaken a test; never renumber/overwrite a real model.
 
 ## Resume here
 
-1. Merge #1038 (TAGACC-26, project_config key registry) when CI is green; merge `origin/main` in first if
-   CHANGELOG / ROADMAP conflict (keep both, rows in numeric order).
-2. **Decision for Sting — TAGACC-25:** six `DISCIPLINE_PROFILES` settings are parsed and applied by nothing
-   (`CollisionMode`, `SeqScheme`, `DefaultZone`, `DefaultLoc`, `SeqIncludeZone`, `SeqPadWidth`). Implement
-   (changes token/SEQ building) or remove. Interim warning is live.
-3. **NEEDS REVIT CHECK** below — the live KUT build carries main through at least #1028; #1 (pyRevit Size
-   Copies) unblocks the last three specialist `.rfa` files (then re-stamp the manifest); TAGACC-12 Part A/B
-   can run on the KUT build.
-4. Next research seams (same shape as TAGACC-23/24/26 — config that loads but does nothing): other
-   `TryDeserialize` sections of `project_config.json` whose POCOs have no `JsonProperty` names
-   (`CATEGORY_VISUAL_POLICY`, `CATEGORY_TOKEN_OVERRIDES`, `SLA_THRESHOLDS`, `SHEET_MARGINS`); then the
-   AnnotationRunner auto-load enhancement; then TAGFAM-7.
+Session `tag-families-setup-976ed0` closed 2026-10-04 with nothing open: every branch it made is merged
+(through #1050) and the TAGACC-25 / TAGFAM-7 / -9 / -10 decisions are implemented. Start a new pass from
+`origin/main` with:
 
-## State (2026-10-01, pass 3)
+1. **TAGFAM-9 follow-up writers** — colour schemes, *Switch Tag Style by Discipline*, the scale tiers
+   (`ScaleTierCommands`) and `TokenProfileApplier` still set only the `TAG_*_BOOL` switches, never
+   `TAG_STYLE_CODE_TXT`, so a new family (no switches) gets no style from them (ROADMAP TAGFAM-9).
+2. **DRAW-9 remaining provenance stamp sites** — AnnotationRunner grid/level chains, match-line frames,
+   `MatchLineEngine` captions, `MEPDimensioner` (ROADMAP DRAW-9).
+3. **Spot-slope smoke test** — `SpotSlope_WithNoSlopeType_Blocks_PlacesNothing` is inconclusive on every run:
+   the metric template refuses deletion of its spot-slope type. Needs a fixture that builds a project with
+   no slope type, not a code fix.
+4. Next research seams (config that loads but does nothing): `CATEGORY_VISUAL_POLICY`,
+   `CATEGORY_TOKEN_OVERRIDES`, `SLA_THRESHOLDS`, `SHEET_MARGINS` POCOs without `JsonProperty` names; then the
+   AnnotationRunner auto-load enhancement.
+5. Re-time TAGFAM-9 on a quiet machine before quoting seconds per family.
 
-- Merged today: #1019, #1020, #1022–#1037 (TAGACC-18…25-interim, TAGFAM-5…8, protocol, worklogs).
-- Open: #1038 TAGACC-26.
-- Spun off (outside tagging): `cost_rates_5d.csv` fails `tools/validate_data_schemas.py` on main, and no CI
-  job runs that validator — offered as a separate task.
-- Live Revit build `C:\Dev\STING_KUT_LIVE` is maintained by the ACC-review session (redeployed at `57c3b236e`
-  with main through #1028; it picks up later PRs as they merge).
-- All work happens in worktree `.claude/worktrees/tag-families-setup-976ed0` (the session hook refuses
-  writes to other worktrees); switch branches there, one branch per change from `origin/main`.
+## State (2026-10-04, pass 4 — session close)
+
+- Merged this session: #1019, #1020, #1022–#1039, #1041–#1047, #1049, #1050.
+- **Full tag test on main `c2c79e054`:** `StingTools.Tags.Tests` 5,626 passed / 0 failed; in-Revit smoke
+  (`tools/run_revit_smoke.ps1`, Revit 2025) 11/13 — all 4 tagging-accuracy tests pass, harness, invert and
+  flow-arrow pass; the 2 failures are the one spot-slope case above (reported twice), inconclusive setup.
+- Headless Revit (`pyrevit run`, scripts in `tools/pyrevit/headless/`) replaces computer-use for family work.
+- Live Revit build `C:\Dev\STING_KUT_LIVE` belongs to the KUT/ACC session; the smoke harness moves its
+  add-in manifest aside for the run and restores it.
 
 ## Hand configuration done in the Revit UI (reproducible record)
 
@@ -71,7 +74,7 @@ second Revit; the Claude desktop window can sit over Revit and swallow clicks.
    moved aside for the run and restored): **all 4 tagging-accuracy tests pass**, harness integrity passes. 4 annotation
    smoke tests did not; the two real ones (drainage invert, wall-length) were fixed in #1043 (DRAW-9) and the re-run on
    `f39abffa1` passed **11/13** — only the 2 spot-slope tests remain, inconclusive because the metric template's slope type
-   cannot be applied / deleted. Part B (two users on a central model) still needs two people.
+   cannot be applied / deleted. Part B (two users on a central model) still needs two people. Re-run 2026-10-04 on `c2c79e054`: same 11/13.
 4. ~~TAGFAM-6 timing~~ **Measured 2026-10-01**: 124 s per door tag, ~0.78 s per parameter in Revit's `AddParameter`;
    see TAGFAM-6 / TAGFAM-9.
 
