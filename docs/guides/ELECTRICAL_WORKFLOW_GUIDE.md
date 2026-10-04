@@ -194,7 +194,7 @@ are registered:
    - `elec-power-A1-1to100` (electrical power plan, A1, 1:100)
    - `elec-lighting-A1-1to100` (lighting layout, A1, 1:100)
    - `elec-fire-alarm-A1-1to100` (fire alarm drawing, A1, 1:100)
-   - `elec-riser-A2-1to100` (electrical riser, A2, 1:100)
+   - `elec-riser-A3-1to200` (electrical riser, A3, 1:200)
    - `elec-panel-schedule-A3` (panel schedule sheet, A3)
 
 If those five appear in the list, your drawing type registry is ready.
@@ -1398,12 +1398,12 @@ An electrical engineer uses the riser diagram to:
   distributed
 - Provide a schematic to accompany the panel schedules in the O&M manual
 
-### The elec-riser-A2-1to100 drawing type
+### The elec-riser-A3-1to200 drawing type
 
-Riser diagrams in STING use the drawing type `elec-riser-A2-1to100`:
-- Paper size: A2
-- Scale: 1:100
-- Orientation: typically landscape
+Riser diagrams in STING use the drawing type `elec-riser-A3-1to200`:
+- Paper size: A3 (title block `STING_TB_SHEET_A3`)
+- Scale: 1:200
+- Orientation: landscape
 - View type: **Drafting View** (not a floor plan) — because a riser diagram is a 2D
   schematic, not a model view
 
@@ -1415,7 +1415,7 @@ Drafting Views with 2D detail components:
 1. In the Revit ribbon, go to **View → Drafting View**. Give it a meaningful name
    such as "Electrical Riser Diagram — Ground Floor to Roof."
 2. In the STING panel, go to the **DOCS** tab.
-3. Click **Inspect Drawing Types** and confirm `elec-riser-A2-1to100` is in the list.
+3. Click **Inspect Drawing Types** and confirm `elec-riser-A3-1to200` is in the list.
 4. With your new Drafting View open, go to the **DOCS** tab.
 5. In the **Drawing Types** section, click **Sync Styles**. This applies the correct
    view style (line weights, annotation standards) to the active view based on its
@@ -1541,7 +1541,7 @@ validation chain:
 | `elec-power-A1-1to100` | A1 | 1:100 | Electrical power distribution plan | Shows panel locations, socket layout, circuit routes |
 | `elec-lighting-A1-1to100` | A1 | 1:100 | Lighting layout plan | Shows fitting positions, emergency designation, lux zones |
 | `elec-fire-alarm-A1-1to100` | A1 | 1:100 | Fire detection and alarm plan | Shows detector, call point, sounder, and panel locations |
-| `elec-riser-A2-1to100` | A2 | 1:100 | Electrical riser / schematic diagram | Shows supply hierarchy from incoming to final boards |
+| `elec-riser-A3-1to200` | A3 | 1:200 | Electrical riser / schematic diagram | Shows supply hierarchy from incoming to final boards |
 | `elec-panel-schedule-A3` | A3 | n/a (schedule) | Panel schedule sheet | One sheet per distribution board |
 
 ### Producing electrical drawings

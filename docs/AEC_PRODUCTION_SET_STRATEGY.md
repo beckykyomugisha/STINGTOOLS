@@ -103,7 +103,7 @@ discipline codes follow ISO 19650-2 § A.5.
 | Lighting layout | `elec-lighting-A1-1to100` | `corp-construction` | 1:100 | Plan |
 | Fire alarm | `elec-fire-alarm-A1-1to100` | `corp-construction` | 1:100 | Plan |
 | Containment (cable tray) | `elec-containment-A1-1to100` | `corp-construction` | 1:100 | Plan |
-| LV riser diagram | `elec-riser-A2-1to100` | `corp-construction` | 1:100 | Riser schematic |
+| LV riser diagram | `elec-riser-A3-1to200` | `corp-construction` | 1:200 | Riser schematic |
 | Single-line diagram | `elec-sld-A1` | `corp-construction` | NTS | Schematic |
 | **Plumbing / Public health** |
 | DCW / DHW plans | `plumb-water-A1-1to100` | `corp-construction` | 1:100 | Plan |

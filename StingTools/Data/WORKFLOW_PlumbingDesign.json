@@ -26,8 +26,7 @@
       "id": 4, "label": "Size Cold + Hot Water Supply",
       "commandTag": "Plumb_SizeSupply",
       "label": "BS EN 806-3 / Hunter pipe sizing for DCW and DHW systems. Writes PLM_SUP_QD, PLM_SUP_VEL, PLM_SUP_DN_REQ.",
-      "optional": true,
-      "condition": { "type": "hasSupplySystem" }
+      "optional": true
     },
     {
       "id": 5, "label": "Size Drainage",
@@ -75,8 +74,7 @@
       "id": 12, "label": "Pump Selection",
       "commandTag": "Plumb_PumpSelect",
       "label": "Calculates duty head + flow from critical path. Matches to pump catalogue. Writes PLM_PUMP_DUTY_HEAD_M, PLM_PUMP_MODEL_TXT.",
-      "optional": true,
-      "condition": { "type": "hasPumpElement" }
+      "optional": true
     },
     {
       "id": 13, "label": "Expansion Vessel Sizing",
