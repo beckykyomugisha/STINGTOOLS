@@ -55,9 +55,9 @@ LEVELS = (
 )
 
 # ── roles ───────────────────────────────────────────────────────────────────
-# The role field of a container name. ROLES are also the asset discipline codes
-# validated on every element; CONTAINER_ONLY exists in a container name and
-# never on an element, which is why owner_standards.json does not list it.
+# The role field of a container name. ROLES are NOT the element discipline codes:
+# those are ASSET_DISCIPLINES, below, and the two are related there rather than
+# confused -- the same split as volume 01 (container) and location BLD1 (element).
 # ── role codes ──────────────────────────────────────────────────────────────
 # BS EN ISO 19650-2 UK National Annex, Table NA.3. The role field states the
 # DISCIPLINE OF THE ORIGINATOR, not the subject of the container, and the codes
@@ -90,6 +90,39 @@ CONTAINER_ONLY_ROLES = (
     ('Z', 'General — multi-discipline, federated and management containers'),
 )
 ALL_ROLES = ROLES + CONTAINER_ONLY_ROLES
+
+# ── element (asset) discipline codes ───────────────────────────────────────
+# The DISCIPLINE field of the eight-field element tag. ISO 19650 does not define
+# this field: the standard's role code (above) states the discipline of the
+# ORGANISATION that produced a container, and says nothing about what letter an
+# element inside it carries. This project once declared the role codes to be the
+# element codes too. That was a project choice, not the standard, and it could
+# not be met: the tagging that produces these identifiers writes FP for fire
+# protection, LV for low voltage and communications, and G for general elements
+# (generic models, specialty equipment, model groups), and the owner-standards
+# audit then failed every sprinkler, detector, data outlet and item of specialty
+# equipment -- baptistry plant included.
+#
+# (code, meaning, the container role such elements are normally issued under)
+# The third field is guidance for a reader, never a rule: a container's role is
+# its originator's discipline, so a sprinkler head drawn in the mechanical
+# engineer's model is in a container with role M. None means "whichever model the
+# element is in".
+#
+# owner_standards.json's discipline-code-valid list is derived from this table by
+# tools/build_kut_owner_standards.py, and StingTools.Tags.Tests holds it to the
+# codes the tagger can actually write.
+ASSET_DISCIPLINES = (
+    ('A', 'Architecture -- including interiors, FF&E and finishes', 'A'),
+    ('S', 'Structure', 'S'),
+    ('M', 'Mechanical -- including heating, cooling and ventilation pipework', 'M'),
+    ('E', 'Electrical -- power and lighting', 'E'),
+    ('P', 'Public health -- plumbing, drainage and gas', 'P'),
+    ('FP', 'Fire protection -- sprinklers, suppression and fire alarm devices', 'Y'),
+    ('LV', 'Low voltage -- data, communications, security and audio-visual', 'Y'),
+    ('G', 'General -- generic models, specialty equipment and model groups', None),
+)
+ASSET_DISCIPLINE_CODES = [c for c, _m, _r in ASSET_DISCIPLINES]
 
 # ── type codes ──────────────────────────────────────────────────────────────
 # BS EN ISO 19650-2 UK National Annex, Table NA.2.

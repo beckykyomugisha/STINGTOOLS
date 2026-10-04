@@ -26651,3 +26651,32 @@ Reviewed `docs/StingTools_Complete_Guide.html` (Phase 174 baseline) against the 
 
 Not compiled here (the .NET SDK download is blocked in this sandbox); CI builds and runs the tests.
 Not yet run in Revit.
+
+#### Completed (KUT: element discipline codes are their own list, not the container roles, branch `claude/kut-fix3-asset-discipline-codes`)
+
+- **The KUT owner-standards audit rejected what the tagging writes.** `discipline-code-valid` checks
+  the element tag's discipline field, and its list was the ISO 19650 container role codes
+  (A C E I M P Q S W X Y). The tagger writes FP (sprinklers, fire alarm devices, fire-protection
+  pipework), LV (data, communications, security, audio-visual) and G (generic models, specialty
+  equipment, model groups), so every one of those elements failed the audit at Deliverable B, C and
+  every gate audit, and the asset tags handed over would carry codes the pack called withdrawn.
+- **Decision: separate lists, as the pack already does for volume `01` vs location `BLD1`.** ISO 19650
+  defines the container role (the discipline of the organisation that produced the file) and no
+  element code. `tools/kut_naming.py` gains `ASSET_DISCIPLINES` (A S M E P FP LV G), each with the role
+  it is normally issued under (FP and LV under Y; G under whichever model it is in), as guidance only.
+  The tagger is untouched, so no other project changes.
+- `tools/build_kut_owner_standards.py` derives the rule's list from `ASSET_DISCIPLINES`, and its
+  self-check now asserts FP, LV and G are rejected as container roles. Rule descriptions rewritten;
+  the sheet rule's stale "role is one or two characters (FP, LV)" note is gone.
+- BEP 4.2.2, playbook 4.7 and Document Control Standard 2.4 state the separation and carry the
+  element-discipline table. Two stale statements in the same passages were corrected: the BEP said an
+  element code is "one of the eight" roles (there are eleven), and the Document Control Standard said
+  interiors issue under A and cost under Z, while its own role table lists I and Q.
+- The document gate holds the rule to `ASSET_DISCIPLINES` and refuses a container-only role (Z) in it.
+- **Non-circular test.** `KutElementDisciplineTests` reads the tagger's category map from
+  `TagConfig.Defaults.cs` and calls `CategoryTokenDefaults.SystemAwareDisc`, and requires the KUT rule
+  to accept every code they can produce (healthcare-only H/MG/RP excluded) and to allow nothing they
+  cannot. All three failed on the previous overlay. `KutSheetPatternTests.EveryAuthorisedDisciplineCodeIsAValidRole`
+  encoded the withdrawn premise and is replaced by `ElementOnlyDisciplineCodesAreNotContainerRoles`.
+
+Gate OK (100 assertions); overlay `--check` current; 37 KUT tests pass. Not run in Revit.

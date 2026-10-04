@@ -142,14 +142,18 @@ c.table(['Code', 'Type', 'Code', 'Type'],
 
 c.h2('2.4  Roles')
 c.table(['Code', 'Role'], [[c_, m] for c_, m in N.ROLES], widths=[3.0, 13.6])
-c.para('Interiors is carried under A, and lighting under E. Cost information is issued under %s with the '
-       'quantity surveyor as originator.' % N.CONTAINER_ONLY_ROLES[0][0])
+c.para('The role is the discipline of the organisation that produced the container. Interiors issue under I, '
+       'lighting under E, cost information under Q, and fire protection and low voltage specialists under Y.')
 c.table(['Code', 'Role'], [[c_, m] for c_, m in N.CONTAINER_ONLY_ROLES], widths=[3.0, 13.6])
-c.callout('The role field of a container name and the discipline code carried on an element are separate. '
-          'Container roles include %s for federated and multi-discipline containers; element discipline '
-          'codes are limited to the eight above and are validated on every element. A container produced by '
-          'one organisation for two disciplines takes one originator code and two role codes.'
+c.callout('The role field of a container name and the discipline code carried on an element are separate '
+          'fields with separate code lists. Container roles include %s for federated and multi-discipline '
+          'containers; element discipline codes are the list below and are validated on every element. A '
+          'container has one role, its originator\'s, whatever disciplines its elements carry.'
           % N.CONTAINER_ONLY_ROLES[0][0], 'Roles and disciplines are not the same field')
+c.table(['Element discipline', 'Meaning', 'Normally issued under role'],
+        [[code, meaning, role or 'The role of whichever model it is in']
+         for code, meaning, role in N.ASSET_DISCIPLINES],
+        widths=[3.2, 9.0, 4.4])
 
 # ── 3 ───────────────────────────────────────────────────────────────────────
 c.h1('3  Sheet numbering')

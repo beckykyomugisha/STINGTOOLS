@@ -123,13 +123,14 @@ namespace StingTools.Tags.Tests
         public void Rejects(string name, string why)
             => Assert.False(Shipped().IsMatch(name), $"pattern accepted {name} — {why}");
 
-        /// <summary>Every discipline code the overlay authorises must be usable as a role in
-        /// a container name. These are two rules in one file, and they contradicted each
-        /// other once already — the pattern's role field was a single <c>[A-Z]</c> while the
-        /// discipline list carried FP and LV, so every fire-protection and low-voltage sheet
-        /// would have been reported non-compliant against a standard that permits them.</summary>
+        /// <summary>The element discipline list and the container role list are separate
+        /// (BEP 4.2.2). This test used to assert the opposite — every element discipline
+        /// had to be a valid container role — which forced the list down to the ISO roles
+        /// and made the audit reject FP, LV and G, the codes the tagging writes. Now: an
+        /// element discipline that is not also a role must be REJECTED in a container
+        /// name, so an element code cannot leak into a file name.</summary>
         [Fact]
-        public void EveryAuthorisedDisciplineCodeIsAValidRole()
+        public void ElementOnlyDisciplineCodesAreNotContainerRoles()
         {
             string path = Path.Combine(RepoRoot(), "project-templates", "KUT", "_BIM_COORD", "owner_standards.json");
             var doc = JObject.Parse(File.ReadAllText(path));
@@ -137,12 +138,12 @@ namespace StingTools.Tags.Tests
             Assert.True(values != null, "no discipline-code-valid rule");
 
             var rx = Shipped();
-            var rejected = values.Select(v => (string)v)
-                                 .Where(code => !rx.IsMatch(Name(role: code)))
-                                 .ToList();
-            Assert.True(rejected.Count == 0,
-                "the sheet pattern rejects discipline code(s) the same file authorises: " +
-                string.Join(", ", rejected));
+            foreach (var code in new[] { "FP", "LV", "G" })
+            {
+                Assert.Contains(code, values.Select(v => (string)v));
+                Assert.False(rx.IsMatch(Name(role: code)),
+                    "the sheet pattern accepts element discipline " + code + " as a container role");
+            }
         }
 
         /// <summary>The overlay must not authorise Z as an ELEMENT discipline. BEP 4.2.2

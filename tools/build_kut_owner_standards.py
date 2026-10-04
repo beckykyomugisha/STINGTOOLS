@@ -120,13 +120,15 @@ def build_pattern():
 
 
 def build_discipline_values():
-    """Asset discipline codes: ROLES, deliberately WITHOUT Z.
+    """Element (asset) discipline codes: ASSET_DISCIPLINES, not ROLES.
 
-    BEP 4.2.2 keeps container fields and asset-identifier fields apart. Z is a
-    container role only, so listing it here would authorise an element stamped
-    with a discipline that does not exist.
+    BEP 4.2.2 keeps container fields and asset-identifier fields apart. This list
+    used to be the container ROLES, which made the audit reject FP, LV and G --
+    the codes the tagging actually writes on sprinklers, fire alarm devices,
+    communications devices and specialty equipment. A role is the discipline of
+    the organisation that produced a file; ISO 19650 defines no element code.
     """
-    return [c for c, _m in N.ROLES]
+    return list(N.ASSET_DISCIPLINE_CODES)
 
 
 # ── self-checks on the generated pattern ────────────────────────────────────
@@ -187,6 +189,13 @@ def verify(pattern):
     rejects(_sample(originator='SM'), 'originator is %d characters' % N.ORIGINATOR_LENGTH)
     rejects(_sample() + '-S2', 'suitability is not part of the container name')
     rejects(N.example_name(), 'the SPACED form is presentation, not a container name')
+
+    # The separation, held from the container side: an ELEMENT discipline code that
+    # is not also a role (FP, LV, G) must never be accepted as a container role.
+    roles = {c for c, _m in N.ALL_ROLES}
+    for code in N.ASSET_DISCIPLINE_CODES:
+        if code not in roles:
+            rejects(_sample(role=code), 'element discipline %s is not a container role' % code)
 
     return bad
 
@@ -270,7 +279,8 @@ def _check_count():
     """How many accept/reject assertions verify() makes -- reported so a shrinking
     check set is visible rather than quiet."""
     return (len(N.VOLUMES) + len(N.LEVELS) + len(N.TYPES) + len(N.ALL_ROLES)
-            + 3 + 1 + 9)
+            + 3 + 1 + 9
+            + len(set(N.ASSET_DISCIPLINE_CODES) - {c for c, _m in N.ALL_ROLES}))
 
 
 if __name__ == '__main__':

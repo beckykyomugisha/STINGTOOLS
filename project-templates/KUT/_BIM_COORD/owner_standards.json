@@ -8,7 +8,7 @@
       "severity": "WARN",
       "enabled": true,
       "pattern": "^KUT-[A-Z0-9]{3}-(?:00|01|02|03|04|05|06|ZZ)-(?:B1|GF|RF|XX|ZZ|\\d{2})-(?:CO|CP|CR|DR|IE|M2|M3|MI|PP|PR|RD|RI|RP|SH|SN|SP|SU|VS)-(?:A|C|E|I|M|P|Q|S|W|X|Y|Z)-\\d{4}$",
-      "description": "Sheet numbers follow the ISO 19650 container form KUT-ZZZ-XX-XX-M3-A-0001. Enabled for KUT — adjust the originator/volume/level/type table to the confirmed Owner number register. The role field is one OR TWO characters: BEP 4.2 lists FP (fire protection) and LV (low voltage), and Z for federated and multi-discipline containers. A single-character role field rejected every fire-protection and low-voltage sheet the same standard authorises.",
+      "description": "Sheet numbers follow the ISO 19650 container form KUT-ZZZ-XX-XX-M3-A-0001. The role field is a single BS EN ISO 19650-2 UK NA Table NA.3 code, Z included for federated and multi-discipline containers. Element discipline codes such as FP and LV are not container roles and are rejected here. Derived from tools/kut_naming.py.",
       "source": "BEP 3.4 — ISO 19650-2 container naming (KUT-originator-volume-level-type-discipline-number)"
     },
     {
@@ -22,19 +22,16 @@
       ],
       "values": [
         "A",
-        "C",
-        "E",
-        "I",
-        "M",
-        "P",
-        "Q",
         "S",
-        "W",
-        "X",
-        "Y"
+        "M",
+        "E",
+        "P",
+        "FP",
+        "LV",
+        "G"
       ],
-      "description": "Discipline code must be one of the BS EN ISO 19650-2 UK National Annex Table NA.3 role codes used on KUT: A architect, C civil engineer, E electrical engineer, I interior designer, M mechanical engineer, P public health engineer, Q quantity surveyor, S structural engineer, W contractor, X sub-contractor, Y specialist designer. Z is reserved for federated and multi-discipline containers. Fire protection and low voltage are issued under Y, Specialist Designer, and distinguished by the Volume/System field: an invented role code is invalid on every downstream system that reads the standard, and silently so.",
-      "source": "Proposal 3.6 — model breakdown structure / design-team disciplines"
+      "description": "Element discipline code (the first field of the eight-field element tag) must be one of the KUT element disciplines: A architecture (incl. interiors and FF&E), S structure, M mechanical, E electrical, P public health, FP fire protection, LV low voltage and communications, G general (generic models, specialty equipment, model groups). These are NOT container role codes: ISO 19650 defines the role of a file (the discipline of the organisation that produced it) and defines no element code. FP and LV elements are normally issued under role Y; a role is never derived from the elements in a container. Derived from ASSET_DISCIPLINES in tools/kut_naming.py.",
+      "source": "BEP 4.2.2 -- element identifier, discipline field"
     },
     {
       "id": "ffe-fohlio-ref",

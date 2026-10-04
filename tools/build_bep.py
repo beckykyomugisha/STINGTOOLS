@@ -385,9 +385,15 @@ c.table(['Identifier', 'Identifies', 'Form', 'Allocated by', 'Example'],
         widths=[2.6, 3.6, 4.4, 3.0, 3.0], font=8)
 c.callout('**The volume field is not the same value in the first two.** A container name carries the '
           'numbering value (01); an element tag carries the location code (BLD1). Section 1.3 relates them. '
-          'Likewise the container ROLE field may be Z for a federated or multi-discipline container, while '
-          'an element DISCIPLINE code is always one of the eight and is validated on every element — there '
-          'is no such thing as a Z element.', 'Where the confusion starts')
+          'Likewise the container ROLE and the element DISCIPLINE are different fields with different code '
+          'lists. The role is the discipline of the organisation that produced the file (Section 4.2.1); the '
+          'element discipline says what the element is, from the list below, and is validated on every '
+          'element. ISO 19650 defines the first and not the second. A role is never derived from the '
+          'elements in a container, and there is no such thing as a Z element.', 'Where the confusion starts')
+c.table(['Element discipline', 'Meaning', 'Normally issued under role'],
+        [[code, meaning, role or 'The role of whichever model it is in']
+         for code, meaning, role in N.ASSET_DISCIPLINES],
+        widths=[3.2, 9.0, 4.4], font=8)
 c.para('Where the Appointing Party issues no asset reference, the element tag is used in its place, and '
        'Section 14 records that. Element tag uniqueness is guaranteed by the sequence being allocated '
        'within a volume, level and discipline; a tag repeated across two volumes is a defect, not a '

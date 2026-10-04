@@ -257,15 +257,23 @@ def check_naming_config(root: Path, bep_t, f: Findings, verbose: bool):
                 f.fail(str(path), "generated sheet pattern: %s" % bad)
             f.ok()
 
-    # Asset discipline codes are a SUBSET of container role codes: BEP 4.2.2
-    # keeps them distinct, and Z is deliberately a container role only.
+    # Element discipline codes are their own list (ASSET_DISCIPLINES), not the
+    # container roles: BEP 4.2.2 keeps the two apart. This used to require them to
+    # be a subset of the roles, which made the audit reject FP, LV and G -- the
+    # codes the tagging writes. Z stays a container role only.
     values = next((set(r.get("values", [])) for r in rules
                    if r.get("id") == "discipline-code-valid"), None)
-    if values is not None:
-        stray = sorted(values - roles)
-        if stray:
-            f.fail(str(path), "discipline-code-valid allows %s, which BEP 4.2 does not list"
-                              % ", ".join(stray))
+    if values is None:
+        f.fail(str(path), "has no discipline-code-valid rule")
+    else:
+        want = set(N.ASSET_DISCIPLINE_CODES)
+        if values != want:
+            f.fail(str(path), "discipline-code-valid allows %s; tools/kut_naming.py "
+                              "ASSET_DISCIPLINES defines %s"
+                   % (", ".join(sorted(values)), ", ".join(sorted(want))))
+        for code in sorted(values & {c for c, _ in N.CONTAINER_ONLY_ROLES}):
+            f.fail(str(path), "discipline-code-valid allows %s, which is a container "
+                              "role only -- there is no such thing as a %s element" % (code, code))
         f.ok()
 
     # The Document Control Standard states the same convention as a procedure.
