@@ -969,9 +969,8 @@ namespace StingTools.Core
                     case StorageType.Double: return p.AsDouble();
                     case StorageType.Integer: return p.AsInteger();
                     case StorageType.String:
-                        string s = p.AsString();
-                        return double.TryParse(s, System.Globalization.NumberStyles.Any,
-                            System.Globalization.CultureInfo.InvariantCulture, out double v) ? v : defaultValue;
+                        // NumberText: "2,5" is 2.5, not the 25 NumberStyles.Any made of it (ELEC-30).
+                        return NumberText.TryParse(p.AsString(), out double v) ? v : defaultValue;
                     default: return defaultValue;
                 }
             }

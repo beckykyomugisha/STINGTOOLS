@@ -97,7 +97,7 @@ namespace StingTools.Core.Electrical
                 {
                     if (p.StorageType == StorageType.Double) pct = p.AsDouble();
                     else if (p.StorageType == StorageType.String
-                             && double.TryParse(p.AsString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double v)) pct = v;
+                             && NumberText.TryParse(p.AsString(), out double v)) pct = v;
                 }
             }
             catch (Exception ex) { StingLog.Warn($"VD read {el.Id}: {ex.Message}"); }

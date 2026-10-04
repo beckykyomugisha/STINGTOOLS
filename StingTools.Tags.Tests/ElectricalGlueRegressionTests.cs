@@ -134,6 +134,15 @@ namespace StingTools.Tags.Tests
             Assert.True(hits.Count == 0, string.Join("\n", hits));
         }
 
+        /// <summary>ELEC-30: NumberStyles.Any + invariant reads "2,5" as 25; electrical text goes through NumberText.</summary>
+        [Fact]
+        public void Electrical_text_is_not_parsed_with_NumberStyles_Any()
+        {
+            var hits = ElectricalSources().SelectMany(f => File.ReadAllLines(f).Select((l, i) => (f, l, i)))
+                .Where(x => x.l.Contains("NumberStyles.Any")).Select(x => $"{Path.GetFileName(x.f)}:{x.i + 1}").ToList();
+            Assert.True(hits.Count == 0, string.Join("\n", hits));
+        }
+
         /// <summary>A TEXT conductor size read through GetDouble: "2,5" became 25 mm².</summary>
         [Fact]
         public void Text_conductor_sizes_are_not_read_with_GetDouble()

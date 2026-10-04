@@ -253,9 +253,9 @@ namespace StingTools.Commands.Electrical.Import
             return false;
         }
         private static string Attr(XElement el, string n) => el.Attribute(n)?.Value ?? el.Element(n)?.Value;
+        // NumberText: an export from a comma-decimal machine ("12,5") is 12.5, not 125.
         private static double? ParseD(string s) =>
-            double.TryParse(s, System.Globalization.NumberStyles.Any,
-                System.Globalization.CultureInfo.InvariantCulture, out double v) ? v : (double?)null;
+            StingTools.Core.NumberText.TryParse(s, out double v) ? v : (double?)null;
 
         private class AmtechRecord
         {

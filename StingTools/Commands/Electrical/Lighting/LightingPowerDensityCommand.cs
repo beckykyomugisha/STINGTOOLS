@@ -155,7 +155,7 @@ namespace StingTools.Commands.Electrical.Lighting
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
-        private static double ParseDouble(string s) => double.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double v) ? v : 0;
+        private static double ParseDouble(string s) => StingTools.Core.NumberText.TryParse(s, out double v) ? v : 0;
 
         public static LpdLimitTable LoadLpdLimits(string standardId)
         {

@@ -666,8 +666,7 @@ namespace StingTools.Core.SLD
             if (!string.IsNullOrEmpty(rating))
             {
                 string numStr = rating.Replace("A", "").Replace("a", "").Trim();
-                if (double.TryParse(numStr, System.Globalization.NumberStyles.Any,
-                        System.Globalization.CultureInfo.InvariantCulture, out double a) && a >= 125)
+                if (StingTools.Core.NumberText.TryParse(numStr, out double a) && a >= 125)
                     return "SLD_MCCB";
             }
 

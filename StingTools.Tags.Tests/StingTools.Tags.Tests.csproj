@@ -121,6 +121,7 @@
     <Compile Include="..\StingTools\Core\Electrical\ElecWriteReport.cs" Link="Core\Electrical\ElecWriteReport.cs" />
     <Compile Include="..\StingTools\Core\Electrical\ElecResultScope.cs" Link="Core\Electrical\ElecResultScope.cs" />
     <Compile Include="..\StingTools\Core\BipNames.cs" Link="Core\BipNames.cs" />
+    <Compile Include="..\StingTools\Core\NumberText.cs" Link="Core\NumberText.cs" />
     <Compile Include="..\StingTools\Core\Electrical\PowerFactorCorrection.cs" Link="Core\Electrical\PowerFactorCorrection.cs" />
     <Compile Include="..\StingTools\Core\Calc\VoltageDropSolver.cs" Link="Core\Calc\VoltageDropSolver.cs" />
     <Compile Include="..\StingTools\Commands\Electrical\Compliance\BS7671Thresholds.cs" Link="Commands\Electrical\Compliance\BS7671Thresholds.cs" />
