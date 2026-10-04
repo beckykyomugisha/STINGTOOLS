@@ -5059,7 +5059,11 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"MapZoneElement name on {el.Id}: {ex.Message}"); }
 
             written += WriteQuantity(el, zone.Area, sqFtToSqM, ParamRegistry.ROOM_AREA);
-            written += WriteQuantity(el, zone.Volume, cuFtToCuM, ParamRegistry.ROOM_VOLUME);
+            // ZONE_VOLUME (every version) rather than Zone.Volume (deprecated 2026, removed 2027).
+            double zoneVolumeFt3 = 0;
+            try { zoneVolumeFt3 = zone.get_Parameter(BuiltInParameter.ZONE_VOLUME)?.AsDouble() ?? 0; }
+            catch (Exception ex) { StingLog.Warn($"MapZoneElement volume on {el.Id}: {ex.Message}"); }
+            written += WriteQuantity(el, zoneVolumeFt3, cuFtToCuM, ParamRegistry.ROOM_VOLUME);
             return written;
         }
 
@@ -5360,16 +5364,18 @@ namespace StingTools.Core
                     ParamRegistry.KEYNOTE, el);
 
                 // Assembly Code (Uniformat)
-                written += MapBuiltIn(elType, BuiltInParameter.UNIFORMAT_CODE,
-                    ParamRegistry.UNIFORMAT, el);
+                // Renamed in Revit 2026 (UNIFORMAT_* → ASSEMBLY_*, OMNICLASS_* →
+                // CLASSIFICATION_*): resolved by name so one build serves both.
+                if (BipCompat.AssemblyCode is BuiltInParameter asmCode)
+                    written += MapBuiltIn(elType, asmCode, ParamRegistry.UNIFORMAT, el);
 
                 // Assembly Description
-                written += MapBuiltIn(elType, BuiltInParameter.UNIFORMAT_DESCRIPTION,
-                    ParamRegistry.UNIFORMAT_DESC, el);
+                if (BipCompat.AssemblyDescription is BuiltInParameter asmDesc)
+                    written += MapBuiltIn(elType, asmDesc, ParamRegistry.UNIFORMAT_DESC, el);
 
                 // OmniClass Title
-                written += MapBuiltIn(elType, BuiltInParameter.OMNICLASS_CODE,
-                    ParamRegistry.OMNICLASS, el);
+                if (BipCompat.ClassificationCode is BuiltInParameter clsCode)
+                    written += MapBuiltIn(elType, clsCode, ParamRegistry.OMNICLASS, el);
 
                 // Cost (if available)
                 written += MapBuiltIn(elType, BuiltInParameter.ALL_MODEL_COST,

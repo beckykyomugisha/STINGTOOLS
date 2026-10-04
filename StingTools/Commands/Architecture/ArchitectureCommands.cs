@@ -280,7 +280,7 @@ namespace StingTools.Commands.Architecture
                     if (string.IsNullOrWhiteSpace(fire)) fire = ParameterHelpers.GetString(el, "PER_FIRE_RATING_TXT");
                     if (string.IsNullOrWhiteSpace(fire)) missingFire++;
                     double u = 0;
-                    try { u = type?.get_Parameter(BuiltInParameter.ANALYTICAL_HEAT_TRANSFER_COEFFICIENT)?.AsDouble() ?? 0; }
+                    try { u = StingTools.Core.BipCompat.Get(type, StingTools.Core.BipCompat.HeatTransferCoefficient)?.AsDouble() ?? 0; }
                     catch (Exception ex) { StingLog.Warn($"CoverAudit U {el.Id}: {ex.Message}"); }
                     if (u <= 0) u = ParameterHelpers.GetDouble(el, "PER_THERM_U_VALUE_W_M2K");
                     if (u <= 0) missingU++;

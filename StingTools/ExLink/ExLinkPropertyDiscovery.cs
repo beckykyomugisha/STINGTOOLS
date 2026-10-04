@@ -347,8 +347,6 @@ namespace StingTools.ExLink
                 BuiltInParameter.ALL_MODEL_MANUFACTURER,
                 BuiltInParameter.ALL_MODEL_MODEL,
                 BuiltInParameter.ALL_MODEL_COST,
-                BuiltInParameter.UNIFORMAT_CODE,
-                BuiltInParameter.OMNICLASS_CODE,
                 BuiltInParameter.KEYNOTE_PARAM,
                 BuiltInParameter.ELEM_FAMILY_PARAM,
                 BuiltInParameter.ELEM_FAMILY_AND_TYPE_PARAM,
@@ -360,7 +358,10 @@ namespace StingTools.ExLink
                 BuiltInParameter.ELEM_PARTITION_PARAM,
                 BuiltInParameter.SYMBOL_NAME_PARAM,
                 BuiltInParameter.SYMBOL_FAMILY_NAME_PARAM,
-            };
+            }.ToList();
+            // Assembly / classification code: renamed in Revit 2026, resolved by name.
+            foreach (var renamed in new[] { BipCompat.AssemblyCode, BipCompat.ClassificationCode })
+                if (renamed is BuiltInParameter rb) commonBIPs.Add(rb);
 
             foreach (var bip in commonBIPs)
             {
