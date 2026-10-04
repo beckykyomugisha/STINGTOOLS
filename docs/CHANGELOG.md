@@ -26820,3 +26820,20 @@ Gate OK (100 assertions); overlay `--check` current; 37 KUT tests pass. Not run 
 - **Tests.** `StingTools.Acc.Tests`: 167/180 with the previous `AccIssueSync.cs`, 180/180 now.
   `Planscape.Tests` `AccIssueStatusMapServerTests`: 8/13 with the previous `MapStatus` (made
   `internal` for the run), 13/13 now; full server suite 1,047 passed, 19 skipped.
+
+#### Completed (KUT deep review — loop 1, branch `claude/kut-deep-review-2026-10`, 2026-10-04)
+
+- Nine-angle review of the KUT work (149 findings); 23 commits fix the verified critical / high /
+  medium ones, each with a Revit-free test shown red before and green after. Full table:
+  [`KUT_DEEP_REVIEW_2026-10.md`](KUT_DEEP_REVIEW_2026-10.md) § Loop 1.
+- Headlines: six Extensible Storage schemas could never register; the Fohlio round trip matched
+  by guesswork; the KUT LOD-500 gate could never pass; COBie dropped components and invented
+  dates; the Warranty Tracker, Asset Condition, Maintenance Schedule, Sensor Mapper and every
+  tagging run wrote values nobody recorded; transmittal ids collided across five allocators;
+  project overrides in the consolidated folder were invisible to ten readers; linked models
+  overwrote the host's tag config; the KPI health score rewarded a model never clash-tested;
+  ACC issue statuses are now mapped from the Issues v1 schema with unknowns reported.
+- Deferred items and owner decisions: ROADMAP § "KUT deep review" (KUTDR-2 … KUTDR-16); KUTDR-2
+  (project folder follows the local copy in worksharing) must be decided before KUT worksharing.
+- Verification: plugin 0 errors / 0 warnings; Tags 5,736 · Acc 181 · Boq 1,426 · Mep 87 ·
+  Planscape.Tests 1,047 passed (19 skipped); KUT document and workflow gates OK. **Not run in Revit.**

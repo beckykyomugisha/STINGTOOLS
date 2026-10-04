@@ -196,6 +196,9 @@ prove ACC, Niagara and Fohlio against the real tenant / station / designer, for 
 developer can close alone. Per item: who must act first, what they must supply, the steps, the
 **observable** proof, and what the failure actually looks like. The ACC section is overdue —
 mobilisation began the week of 25 August 2026 ·
+✅ [`KUT_DEEP_REVIEW_2026-10.md`](KUT_DEEP_REVIEW_2026-10.md) (started 2026-10-04) — the repeated
+nine-angle review of the KUT work: method, per-loop finding tables, every fix with its red/green
+test, rejected findings, and the deferred items logged as KUTDR-* in the ROADMAP ·
 [`PROMPT_ACC_UNATTENDED_OPERATION.md`](PROMPT_ACC_UNATTENDED_OPERATION.md) (work prompt,
 written 2026-09-10) — the third KUT/ACC pass, about operation rather than
 correctness: the fortnightly coordination cycle cannot run without a human clicking four
