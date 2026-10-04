@@ -57,6 +57,9 @@ namespace StingTools.UI
         public static List<StingTools.UI.ConduitFillData> LastConduitFills = new();
         public static List<StingTools.UI.EmergAuditRow> LastEmergAudit = new();
         public static List<StingTools.UI.LpdRow> LastLpdRows = new();
+        // The document each grid cache came from (ElecResultScope.Key): the rows carry element
+        // ids, so another model's rows must not appear in this model's grid.
+        public static string LastConduitFillsDocKey, LastEmergAuditDocKey, LastLpdRowsDocKey;
         public static List<StingTools.Commands.Electrical.Compliance.CircuitAuditResult> LastBs7671Results = new();
 
         private StingElectricalCommandHandler(StingElectricalPanel panel) { _panel = panel; }

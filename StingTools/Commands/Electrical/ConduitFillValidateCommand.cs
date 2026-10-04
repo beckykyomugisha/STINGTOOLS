@@ -115,6 +115,7 @@ namespace StingTools.Commands.Electrical
                 tx.Commit();
             }
             StingElectricalCommandHandler.LastConduitFills = results;
+            StingElectricalCommandHandler.LastConduitFillsDocKey = StingTools.Core.Electrical.ElecResultScope.Key(doc.PathName, doc.Title);
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
             string worstStr = string.IsNullOrEmpty(worstName) ? "—" : $"{worstName} ({worstFill:0.0}%)";
             TaskDialog.Show("STING Conduit Fill",

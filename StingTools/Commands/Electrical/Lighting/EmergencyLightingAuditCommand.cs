@@ -105,6 +105,7 @@ namespace StingTools.Commands.Electrical.Lighting
                 tx.Commit();
             }
             StingElectricalCommandHandler.LastEmergAudit = rows;
+            StingElectricalCommandHandler.LastEmergAuditDocKey = StingTools.Core.Electrical.ElecResultScope.Key(doc.PathName, doc.Title);
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             int none = rows.Count(r => r.Status == "NONE");
             int same = rows.Count(r => r.Status == "SAME_CIRCUIT");

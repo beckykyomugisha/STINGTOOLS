@@ -78,9 +78,12 @@ namespace StingTools.Commands.Electrical
                         Status = r.FaultKa > 0 && r.AicRequiredKa <= 0 ? "NO_AIC_TIER"
                                : r.AicRequiredKa > 0 && r.FaultKa > r.AicRequiredKa ? "EXCEEDS_AIC" : "OK"
                     }).ToList();
-                snap.ConduitFills = StingTools.UI.StingElectricalCommandHandler.LastConduitFills;
-                snap.EmergAudit   = StingTools.UI.StingElectricalCommandHandler.LastEmergAudit;
-                snap.LpdRows      = StingTools.UI.StingElectricalCommandHandler.LastLpdRows;
+                snap.ConduitFills = StingTools.Core.Electrical.ElecResultScope.Matches(StingTools.UI.StingElectricalCommandHandler.LastConduitFillsDocKey, docKey)
+                    ? StingTools.UI.StingElectricalCommandHandler.LastConduitFills : new List<StingTools.UI.ConduitFillData>();
+                snap.EmergAudit   = StingTools.Core.Electrical.ElecResultScope.Matches(StingTools.UI.StingElectricalCommandHandler.LastEmergAuditDocKey, docKey)
+                    ? StingTools.UI.StingElectricalCommandHandler.LastEmergAudit : new List<StingTools.UI.EmergAuditRow>();
+                snap.LpdRows      = StingTools.Core.Electrical.ElecResultScope.Matches(StingTools.UI.StingElectricalCommandHandler.LastLpdRowsDocKey, docKey)
+                    ? StingTools.UI.StingElectricalCommandHandler.LastLpdRows : new List<StingTools.UI.LpdRow>();
             }
             catch (Exception ex) { StingLog.Warn($"SnapshotBuilder: {ex.Message}"); }
             return snap;

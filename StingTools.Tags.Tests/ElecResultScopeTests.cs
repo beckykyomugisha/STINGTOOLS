@@ -55,5 +55,24 @@ namespace StingTools.Tags.Tests
             Assert.True(at >= 0, anchor);
             Assert.Contains("ElecResultScope.Matches", src.Substring(Math.Max(0, at - 2000), Math.Min(src.Length - Math.Max(0, at - 2000), 6000)));
         }
+
+        /// <summary>The panel grid's caches: the assignment itself is scoped to this document.</summary>
+        [Theory]
+        [InlineData("snap.Feeders")]
+        [InlineData("snap.FaultResults")]
+        [InlineData("snap.ConduitFills")]
+        [InlineData("snap.EmergAudit")]
+        [InlineData("snap.LpdRows")]
+        public void Panel_grid_caches_are_scoped_to_the_document(string assignment)
+        {
+            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            while (dir != null && !File.Exists(Path.Combine(dir.FullName, "StingTools.addin"))) dir = dir.Parent;
+            Assert.NotNull(dir);
+            string src = File.ReadAllText(Path.Combine(dir.FullName, "StingTools", "Commands", "Electrical", "ElectricalSnapshotBuilder.cs"));
+            var m = new Regex(Regex.Escape(assignment) + @"\s*=(?<rhs>[^;]*);", RegexOptions.Singleline).Match(src);
+            Assert.True(m.Success, assignment);
+            Assert.True(m.Groups["rhs"].Value.Contains("Matches") || m.Groups["rhs"].Value.Contains("Here"),
+                $"{assignment} is not scoped to the document: {m.Groups["rhs"].Value.Trim()}");
+        }
     }
 }

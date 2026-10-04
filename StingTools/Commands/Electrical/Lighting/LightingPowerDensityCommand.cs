@@ -119,6 +119,7 @@ namespace StingTools.Commands.Electrical.Lighting
             }
             LastRows = rows;
             StingElectricalCommandHandler.LastLpdRows = rows;
+            StingElectricalCommandHandler.LastLpdRowsDocKey = StingTools.Core.Electrical.ElecResultScope.Key(doc.PathName, doc.Title);
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             int pass = rows.Count(r => r.Status == "PASS");
             int fail = rows.Count(r => r.Status == "FAIL");
