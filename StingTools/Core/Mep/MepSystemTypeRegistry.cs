@@ -113,7 +113,7 @@ namespace StingTools.Core.Mep
                 if (doc != null && !string.IsNullOrEmpty(doc.PathName))
                 {
                     string projDir = Path.GetDirectoryName(doc.PathName) ?? "";
-                    string projPath = Path.Combine(projDir, ProjectOverrideRelPath);
+                    string projPath = (StingTools.Core.ProjectFolderEngine.ResolveProjectOverridePath(doc, ProjectOverrideRelPath) ?? "");
                     if (File.Exists(projPath))
                         Apply(JObject.Parse(File.ReadAllText(projPath)), rules);
                 }
