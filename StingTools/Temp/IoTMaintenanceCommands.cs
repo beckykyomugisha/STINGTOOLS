@@ -559,11 +559,9 @@ namespace StingTools.Temp
     [Regeneration(RegenerationOption.Manual)]
     public class WarrantyTrackerCommand : IExternalCommand
     {
-        internal static readonly Dictionary<string, int> WarrantyPeriods = new()
-        {
-            ["Mechanical Equipment"] = 5, ["Electrical Equipment"] = 3,
-            ["Plumbing Fixtures"] = 2, ["Lighting Fixtures"] = 5, ["Sprinklers"] = 10,
-        };
+        // KUT deep review MEP-3: the per-category default periods (5/3/2/5/10 years) and
+        // "today" as the start are gone. An expiry is computed only from a start date and a
+        // duration recorded on the element (WarrantyExpiry.Plan); anything else is reported.
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -572,9 +570,10 @@ namespace StingTools.Temp
                 var _ctx = ParameterHelpers.GetContext(commandData);
                 if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 var doc = _ctx.Doc;
-                var csvLines = new List<string> { "AssetTag,Category,Family,WarrantyYears,InstallDate,ExpiryDate,Status" };
-                string installDate = DateTime.Now.ToString("yyyy-MM-dd");
-                int total = 0;
+                var csvLines = new List<string> { "AssetTag,ElementId,Category,Family,WarrantyStart,Duration,ExpiryDate,State,Status,Detail" };
+                var counts = new Dictionary<WarrantyState, int>();
+                int written = 0, expired = 0, total = 0;
+                DateTime today = DateTime.Today;
 
                 using (var t = new Transaction(doc, "STING Warranty Tracker"))
                 {
@@ -590,16 +589,25 @@ namespace StingTools.Temp
 
                     foreach (var (cat, name) in catMap)
                     {
-                        int yrs = WarrantyPeriods.GetValueOrDefault(name, 2);
-                        string expiry = DateTime.Now.AddYears(yrs).ToString("yyyy-MM-dd");
                         var elems = new FilteredElementCollector(doc).OfCategory(cat).WhereElementIsNotElementType().ToList();
                         foreach (var el in elems)
                         {
-                            string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                            ParameterHelpers.SetString(el, "ASS_WARRANTY_TXT", $"{yrs} years", false);
-                            ParameterHelpers.SetString(el, "MNT_WARRANTY_EXPIRY_TXT", expiry, false);
-                            csvLines.Add($"{tag},{name},{ParameterHelpers.GetFamilyName(el)},{yrs},{installDate},{expiry},ACTIVE");
                             total++;
+                            string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                            string start = FirstNonEmpty(el, ParamRegistry.WARRANTY_START, ParamRegistry.INSTALL_DATE, "COM_INSTALL_DATE_TXT");
+                            string dur = FirstNonEmpty(el, ParamRegistry.WARR_DUR_PARTS, ParamRegistry.WARR_DUR_LABOR);
+                            string unit = ParameterHelpers.GetValueText(el, ParamRegistry.WARR_DUR_UNIT);
+                            string rec = ParameterHelpers.GetValueText(el, "MNT_WARRANTY_EXPIRY_TXT");
+
+                            var plan = WarrantyExpiry.Plan(rec, start, dur, unit, today);
+                            counts[plan.State] = counts.TryGetValue(plan.State, out int c) ? c + 1 : 1;
+                            if (plan.ShouldWrite && ParameterHelpers.SetString(el, "MNT_WARRANTY_EXPIRY_TXT", plan.Expiry, false))
+                                written++;
+                            if (plan.Expired == true) expired++;
+
+                            string status = plan.Expired == null ? "UNKNOWN" : plan.Expired.Value ? "EXPIRED" : "ACTIVE";
+                            csvLines.Add(string.Join(",", Csv(tag), el.Id.Value, Csv(name), Csv(ParameterHelpers.GetFamilyName(el)),
+                                Csv(plan.Start), Csv(dur), Csv(plan.Expiry), plan.State, status, Csv(plan.Detail)));
                         }
                     }
                     t.Commit();
@@ -609,8 +617,20 @@ namespace StingTools.Temp
                 string csvPath = Path.Combine(folder, "STING_WarrantyTracker.csv");
                 File.WriteAllLines(csvPath, csvLines);
 
-                TaskDialog.Show("Warranty Tracker", $"Tracked {total} assets.\nCSV: {csvPath}");
-                StingLog.Info($"Warranty: {total} assets tracked");
+                int Get(WarrantyState s) => counts.TryGetValue(s, out int n) ? n : 0;
+                string summary = total == 0
+                    ? "No Mechanical / Electrical / Plumbing / Lighting / Sprinkler elements in the model — nothing assessed."
+                    : $"Assets examined: {total}\n" +
+                      $"  Expiry already recorded: {Get(WarrantyState.Recorded)}\n" +
+                      $"  Expiry computed from start + duration: {Get(WarrantyState.Computed)} ({written} written)\n" +
+                      $"  MISSING start / installation date: {Get(WarrantyState.MissingStart)}\n" +
+                      $"  MISSING warranty duration: {Get(WarrantyState.MissingDuration)}\n" +
+                      $"  Unreadable value: {Get(WarrantyState.Unreadable)}\n" +
+                      $"  Expired: {expired}\n\n" +
+                      "No date or duration is assumed: record the warranty start (or installation date) and " +
+                      "the duration from the O&M data, then re-run.";
+                TaskDialog.Show("Warranty Tracker", summary + $"\n\nCSV: {csvPath}");
+                StingLog.Info($"Warranty: {total} examined, {written} expiries computed, {Get(WarrantyState.MissingStart) + Get(WarrantyState.MissingDuration)} missing data");
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -619,6 +639,22 @@ namespace StingTools.Temp
                 message = ex.Message;
                 return Result.Failed;
             }
+        }
+
+        private static string FirstNonEmpty(Element el, params string[] names)
+        {
+            foreach (var n in names)
+            {
+                string v = ParameterHelpers.GetValueText(el, n);
+                if (!string.IsNullOrWhiteSpace(v)) return v;
+            }
+            return "";
+        }
+
+        private static string Csv(string v)
+        {
+            v ??= "";
+            return v.IndexOfAny(new[] { ',', '"', '\n' }) >= 0 ? "\"" + v.Replace("\"", "\"\"") + "\"" : v;
         }
     }
 
