@@ -1047,7 +1047,7 @@ pattern. Examples relevant to electrical:
 | `elec-power-A1-1to100`          | Power layout — sockets, fixed equipment, busbars                       |
 | `elec-lighting-A1-1to100`       | Lighting layout — luminaires, switches, emergency lighting             |
 | `elec-fire-alarm-A1-1to100`     | Fire-alarm layout — detectors, sounders, call points, panels           |
-| `elec-riser-A2-1to100`          | Riser diagram — vertical column showing each floor's panels            |
+| `elec-riser-A3-1to200`          | Riser diagram — vertical column showing each floor's panels            |
 | `elec-panel-schedule-A3`        | Panel schedule (one per DB)                                            |
 
 ### 11.2 How to make a sheet
@@ -1099,7 +1099,7 @@ to get a perfect auto-layout, in roughly the order you'll meet them:
 | `purpose`            | Plan / RCP / Section / Schedule / Spool / Coord   | Drives the routing dispatch                              |
 | `discipline`         | `Electrical`, `Mechanical`, `*` wildcard          | Use `*` only for cross-disc legends                       |
 | `phase`              | `Construction` / `As-Built` / `Demolition` / `*`  | Routes a refurb model to the right type set              |
-| `paperSize`          | A0 / A1 / A2 / A3                                 | A1 for layouts, A3 for details, A2 for risers            |
+| `paperSize`          | A0 / A1 / A2 / A3                                 | A1 for layouts, A3 for details and risers              |
 | `titleBlockFamily`   | Specific `.rfa` family name                       | **Always declare** — fallback picks "first available"    |
 | `orientation`        | Landscape / Portrait                              | Landscape is standard, Portrait for risers               |
 | `scale`              | 1:50, 1:100, 1:200, 1:500                         | 1:100 layouts, 1:50 plant rooms, 1:200 site, 1:500 context |
@@ -1317,7 +1317,7 @@ Examples:
 STING::elec-lighting-A1-1to100::L02::west
 STING::elec-power-A1-1to100::L02::east
 STING::elec-fire-alarm-A1-1to100::GF
-STING::elec-riser-A2-1to100::ALL::main
+STING::elec-riser-A3-1to200::ALL::main
 ```
 
 Run `DrawingTypes_FromScopeBoxes`. STING:
@@ -1431,14 +1431,14 @@ when the override JSON loads, so project rules always have first crack.
 
 ### 11.19 Riser diagram — electrical-specific setup
 
-`elec-riser-A2-1to100` is portrait A2, scale 1:100, view template
+`elec-riser-A3-1to200` is landscape A3, scale 1:200, view template
 `STING - Electrical Riser`. To populate it:
 
 1. Create one **Section View** oriented vertically through the riser shaft.
 2. Set the section's *view range* to the full building height
    (`Top = Top of building`, `Bottom = Lowest level`).
 3. Apply the profile (`DrawingTypes_FromScopeBoxes` if a riser scope box
-   exists, else `Sheet Manager → Create From Template → elec-riser-A2-1to100`).
+   exists, else `Sheet Manager → Create From Template → elec-riser-A3-1to200`).
 4. STING:
    - Crops to the scope box.
    - Tags every panel and major piece of switchgear it crosses.

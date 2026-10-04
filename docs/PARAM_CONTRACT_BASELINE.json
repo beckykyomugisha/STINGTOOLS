@@ -1397,6 +1397,11 @@
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
+    "PRJ_ORG_PHASE_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Project phase code on Project Information, entered by a person; no C# writes it to the model (ParamRegistry.OrganisationDefaults seeds only the template manifest). Read by WorkflowStepGates for a step's requiresPhase gate, which skips the step while it is blank."
+    },
     "PRJ_ORG_PRESSURE_PROFILE_TXT": {
       "state": "read_only",
       "role": "input",

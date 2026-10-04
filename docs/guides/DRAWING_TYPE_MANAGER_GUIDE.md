@@ -136,7 +136,7 @@ Every recipe shipped in `StingTools/Data/STING_DRAWING_TYPES.json`. Use the `id`
 
 | id | Paper | Scale | Purpose |
 |---|---|---|---|
-| `elec-riser-A2-1to100` | A2 | 1:100 | Electrical riser |
+| `elec-riser-A3-1to200` | A3 | 1:200 | Electrical riser |
 | `elec-power-A1-1to100` | A1 | 1:100 | Power layout |
 | `elec-lighting-A1-1to100` | A1 | 1:100 | Lighting layout |
 | `elec-fire-alarm-A1-1to100` | A1 | 1:100 | Fire alarm |

@@ -277,7 +277,7 @@ This table shows which symbol standard and colour scheme apply to each STING dra
 | `plumb-drainage-A1-1to100` | CIBSE / BS6465 | BS 1710 (drainage=black) | Standard (1:100) |
 | `elec-power-A1-1to100` | IEC 60617-11 | CIBSE (elec=orange) | Standard (1:100) |
 | `elec-lighting-A1-1to100` | IEC 60617-11 | Corporate | Standard (1:100) |
-| `elec-riser-A2-1to100` | IEC 60617 | IEC (monochrome) | Diagram |
+| `elec-riser-A3-1to200` | IEC 60617 | IEC (monochrome) | Diagram |
 | `pipe-spool-A1-1to50` | ISO 6412 | Corporate | Standard (1:50) |
 | `duct-spool-A1-1to50` | ISO 6412 | Corporate | Standard (1:50) |
 | `arch-rcp-A1-1to100` | IEC 60617-11 | Corporate | Standard (1:100) |

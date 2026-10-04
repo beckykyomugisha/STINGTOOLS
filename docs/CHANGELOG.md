@@ -26616,3 +26616,38 @@ Build 0/0; Tags.Tests 5,530; `run_ci_gates.py --quick` 36/36; checksums OK. Not 
 
 Build 0/0; Tags.Tests 5,626; `run_ci_gates.py --quick` 36/36; checksums OK.
 
+
+#### Completed (Complete Guide review: workflow gates and stale facts, branch `claude/adoring-gates-hxmdln`)
+
+Reviewed `docs/StingTools_Complete_Guide.html` (Phase 174 baseline) against the code.
+
+- **Workflow step gates the guide documented now work.** `requiresPhase`, `requiresMinElements`,
+  `requiresIssueCount`, `onWeekday`, `afterTime` and `beforeTime` were documented but bound by
+  nothing, so Newtonsoft dropped them and the step always ran. They are now `WorkflowStep`
+  properties, evaluated by the new Revit-free `Core/WorkflowStepGates.cs` and called once per
+  step by `WorkflowEngine`. A value that cannot be read (an unknown day, a time that is not
+  HH:mm) skips the step and names the value.
+- **`minElementCount` / `maxElementCount` gate every step.** They were tested only inside the
+  `condition` block, so the two shipped steps that set them with no condition
+  (MorningHealthCheck step 7, WeeklyDataDrop step 5) ran on any model, and only the pre-flight
+  check mentioned them. Now evaluated by `WorkflowStepGates` for every step.
+- **Tests.** `StingTools.Tags.Tests/WorkflowStepGatesTests.cs`, including one that loads every
+  shipped `WORKFLOW_*.json` and asserts each `minElementCount` step is gated.
+- **`WORKFLOW_PlumbingDesign.json` loads again.** Two steps wrote `condition` as an object
+  (`{"type": "hasSupplySystem"}`, `{"type": "hasPumpElement"}`). `Condition` is a string, so
+  the engine's load threw, logged one warning and dropped the whole preset. Neither name is a
+  condition the engine evaluates; both steps are optional; the two keys are removed. A new test
+  parses every shipped preset the way the engine does.
+- **Guide corrected where it contradicted the code.** Counts (1,700+ commands, 10 tabs, 114
+  drawing types, 143 routing rules, 42 style packs, 287 filters, 3,668 shared parameters, 182
+  container parameters in 33 groups, 303 formulas); the step-condition table now lists the keys
+  `WorkflowStep` binds; the CDE table follows `Iso19650Suitability` (S0 / S1–S7 / A, B, CR /
+  AB, AR); Set SEQ Scheme is numeric or alphabetic, not a grouping choice; the auto-tagger
+  switch is on SETUP; the status-line format; panel schedule templates are editable; deploy via
+  `deploy.bat` plus the manifest check; Tag Rules and the Batch Tag renumber option added.
+- **`elec-riser-A2-1to100` never existed.** The shipped type is `elec-riser-A3-1to200` (A3,
+  1:200, `STING_TB_SHEET_A3`); the guide, CLAUDE.md and six docs named the other id, so a
+  `STING::elec-riser-A2-1to100::…` scope box resolved to nothing. Docs corrected.
+
+Not compiled here (the .NET SDK download is blocked in this sandbox); CI builds and runs the tests.
+Not yet run in Revit.
