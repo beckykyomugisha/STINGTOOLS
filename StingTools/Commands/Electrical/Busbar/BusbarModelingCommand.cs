@@ -67,9 +67,9 @@ namespace StingTools.Commands.Electrical.Busbar
                             ? BusbarSizerEngine.FillPercent(ductAreaMm2, result.CsaMm2, 3)
                             : 0;
 
-                        try { ParameterHelpers.SetString(tray, ParamRegistry.ELC_BUSBAR_CSA, $"{result.CsaMm2:0}", overwrite: true); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
-                        try { ParameterHelpers.SetString(tray, ParamRegistry.ELC_BUSBAR_RATING, $"{result.RatingA:0}", overwrite: true); } catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); }
-                        try { ParameterHelpers.SetString(tray, ParamRegistry.ELC_BUSBAR_FILL, $"{fillPct:0.0}", overwrite: true); } catch (Exception ex4) { StingLog.Warn($"Suppressed: {ex4.Message}"); }
+                        try { ParameterHelpers.SetString(tray, ParamRegistry.ELC_BUSBAR_CSA, (result.CsaMm2).ToString("0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
+                        try { ParameterHelpers.SetString(tray, ParamRegistry.ELC_BUSBAR_RATING, (result.RatingA).ToString("0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true); } catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); }
+                        try { ParameterHelpers.SetString(tray, ParamRegistry.ELC_BUSBAR_FILL, (fillPct).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true); } catch (Exception ex4) { StingLog.Warn($"Suppressed: {ex4.Message}"); }
 
                         if (fillPct > 80) ApplyRedOverride(doc, tray);
                         if (!result.Compliant) StingLog.Warn($"Busbar {tray.Name}: {result.Warning}");

@@ -41,20 +41,34 @@ namespace StingTools.Commands.Electrical
 
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
             string projLoc = SpatialAutoDetect.DetectProjectLoc(doc) ?? "";
-            int updated = 0;
+            int updated = 0, noWrite = 0;
+            var refused = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            TransactionStatus status;
 
             using (var tx = new Transaction(doc, "STING Electrical Param Sync"))
             {
                 tx.Start();
                 foreach (var p in panels)
                 {
+                    // A board counts as synced only when at least one value landed; a
+                    // refused write (unbound, read-only, wrong type) is tallied by parameter.
+                    int landed = 0;
+                    void Put(string param, string value, bool overwrite)
+                    {
+                        if (string.IsNullOrEmpty(value)) return;
+                        if (ParameterHelpers.SetString(p, param, value, overwrite)) landed++;
+                        else if (overwrite || string.IsNullOrEmpty(ParameterHelpers.GetValueText(p, param)))
+                            refused[param] = refused.TryGetValue(param, out int n) ? n + 1 : 1;
+                    }
                     try
                     {
-                        ParameterHelpers.SetString(p, ParamRegistry.ELC_PNL_NAME, p.Name, overwrite: true);
+                        // The board's designation is its Panel Name. p.Name is the family TYPE
+                        // name, shared by every board of that type — it stamped them all alike.
+                        Put(ParamRegistry.ELC_PNL_NAME,
+                            p.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)?.AsString(), overwrite: true);
 
-                        var voltageParam = p.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_SUPPLY_FROM_PARAM)?.AsString();
-                        if (!string.IsNullOrEmpty(voltageParam))
-                            ParameterHelpers.SetString(p, ParamRegistry.ELC_PNL_FED_FROM, voltageParam, overwrite: true);
+                        Put(ParamRegistry.ELC_PNL_FED_FROM,
+                            p.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_SUPPLY_FROM_PARAM)?.AsString(), overwrite: true);
 
                         // Voltage / phase — Revit-derived. Read by display name to stay
                         // version-agnostic (the BIP enum constant has changed between
@@ -67,48 +81,55 @@ namespace StingTools.Commands.Electrical
                             if (vp != null && vp.StorageType == StorageType.Double)
                             {
                                 double vDouble = StingTools.Core.Electrical.ElecUnits.ToSi(vp);
+                                // ELC_PNL_VOLTAGE is a NUMBER: "230V" was refused as not a number.
                                 if (vDouble > 0)
-                                    ParameterHelpers.SetString(p, ParamRegistry.ELC_PNL_VOLTAGE, $"{vDouble:0}V", overwrite: true);
+                                    Put(ParamRegistry.ELC_PNL_VOLTAGE,
+                                        vDouble.ToString("0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                             }
                         }
                         catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
-                        // Connected load (kW)
+                        // Connected load. RBS_ELEC_PANEL_TOTALLOAD_PARAM is APPARENT load (VA);
+                        // the target is named kW — see ROADMAP ELEC-27.
                         try
                         {
                             var loadVA = StingTools.Core.Electrical.ElecUnits.Read(p, BuiltInParameter.RBS_ELEC_PANEL_TOTALLOAD_PARAM);
                             if (loadVA > 0)
-                                ParameterHelpers.SetString(p, ParamRegistry.ELC_PNL_LOAD, $"{loadVA / 1000.0:0.0}", overwrite: true);
+                                Put(ParamRegistry.ELC_PNL_LOAD,
+                                    (loadVA / 1000.0).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                         }
                         catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                         // Location from spatial / project. Canonical: ASS_LOC_TXT
                         // (per MR_PARAMETERS — used by every other discipline's
                         // location stamp, no panel-specific param exists).
-                        string loc = SpatialAutoDetect.DetectLoc(doc, p, roomIndex, projLoc) ?? "";
-                        if (!string.IsNullOrEmpty(loc))
-                            ParameterHelpers.SetString(p, "ASS_LOC_TXT", loc, overwrite: false);
+                        Put("ASS_LOC_TXT", SpatialAutoDetect.DetectLoc(doc, p, roomIndex, projLoc), overwrite: false);
 
                         // Manufacturer / model from family-type native params.
                         // Canonical via ParamRegistry.MFR alias → ASS_MANUFACTURER_TXT.
                         try
                         {
-                            var mfg = p.Symbol?.get_Parameter(BuiltInParameter.ALL_MODEL_MANUFACTURER)?.AsString();
-                            if (!string.IsNullOrEmpty(mfg))
-                                ParameterHelpers.SetString(p, ParamRegistry.MFR, mfg, overwrite: false);
+                            Put(ParamRegistry.MFR,
+                                p.Symbol?.get_Parameter(BuiltInParameter.ALL_MODEL_MANUFACTURER)?.AsString(), overwrite: false);
                         }
                         catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-
-                        updated++;
                     }
                     catch (Exception ex) { StingLog.Warn($"ParamSync panel {p?.Name}: {ex.Message}"); }
+                    if (landed > 0) updated++; else noWrite++;
                 }
-                tx.Commit();
+                status = tx.Commit();
             }
 
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            TaskDialog.Show("STING Electrical", $"Synced parameters on {updated} panel(s).");
-            return Result.Succeeded;
+            bool kept = status == TransactionStatus.Committed;
+            string msg = StingTools.Core.Electrical.ElecWriteReport.Landed($"of {panels.Count} panel(s) synced", updated, kept, status.ToString());
+            if (kept && noWrite > 0) msg += $"\n{noWrite} panel(s): nothing written.";
+            if (refused.Count > 0)
+                msg += "\n\nNOT written (parameter unbound, read-only, or the value does not suit its type):\n  "
+                     + string.Join("\n  ", refused.Select(kv => $"{kv.Key}: {kv.Value} panel(s)"))
+                     + "\nRun Load Params if a parameter is unbound.";
+            TaskDialog.Show("STING Electrical", msg);
+            return kept ? Result.Succeeded : Result.Failed;
         }
     }
 

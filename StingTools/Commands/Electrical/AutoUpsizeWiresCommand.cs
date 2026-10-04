@@ -117,7 +117,7 @@ namespace StingTools.Commands.Electrical
                         var sys = doc.GetElement(p.CircuitId) as ElectricalSystem;
                         if (sys == null) continue;
                         ParameterHelpers.SetString(sys, ParamRegistry.ELC_CKT_CSA_MM2,
-                            $"{p.NewCsaMm2:0.#}", overwrite: true);
+                            (p.NewCsaMm2).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                         StingTools.Core.Electrical.CircuitVoltageDropModel.Stamp(sys, p.NewVd);
                         try
                         {

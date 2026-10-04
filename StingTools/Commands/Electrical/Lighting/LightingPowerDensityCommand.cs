@@ -87,9 +87,9 @@ namespace StingTools.Commands.Electrical.Lighting
                     try
                     {
                         ParameterHelpers.SetString(r, ParamRegistry.ELC_LPD_W_M2,
-                            $"{wPerM2:0.00}", overwrite: true);
+                            (wPerM2).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                         ParameterHelpers.SetString(r, ParamRegistry.ELC_LPD_LIMIT_W_M2,
-                            $"{limit:0.00}", overwrite: true);
+                            (limit).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                         ParameterHelpers.SetString(r, ParamRegistry.ELC_LPD_STATUS,
                             status, overwrite: true);
                     }

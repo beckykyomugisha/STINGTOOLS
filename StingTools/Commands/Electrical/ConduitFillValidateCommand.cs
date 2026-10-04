@@ -92,7 +92,7 @@ namespace StingTools.Commands.Electrical
                         if (report.CableCount == 0) { noCablesOnRecord++; continue; }
                         double pct = report.FillRatio * 100.0;
                         ParameterHelpers.SetString(el, ParamRegistry.ELC_CONDUIT_FILL_PCT,
-                            $"{pct:0.0}", overwrite: true);
+                            (pct).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                         results.Add(new ConduitFillData
                         {
                             ConduitId   = el.Id,
@@ -190,7 +190,7 @@ namespace StingTools.Commands.Electrical
                                     r.FillPct = report2.FillRatio * 100.0;
                                     r.Passes  = report2.PassesLimit;
                                     ParameterHelpers.SetString(el, ParamRegistry.ELC_CONDUIT_FILL_PCT,
-                                        $"{r.FillPct:0.0}", overwrite: true);
+                                        (r.FillPct).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                                     if (r.Passes) passedAfter++;
                                     else failedAfter++;
                                 }

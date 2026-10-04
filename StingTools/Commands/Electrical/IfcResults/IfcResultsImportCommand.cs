@@ -121,15 +121,15 @@ namespace StingTools.Commands.Electrical.IfcResults
 
                     if (lux > 0)
                     {
-                        ParameterHelpers.SetString(target, engineParam, $"{lux:0.00}", overwrite: true);
+                        ParameterHelpers.SetString(target, engineParam, (lux).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                         // Phase 178 ELC_PHOTO_LUX_CALC stays as the "headline" value; engine
                         // params let the aggregator break it down per engine.
-                        ParameterHelpers.SetString(target, ParamRegistry.ELC_PHOTO_LUX, $"{lux:0.00}", overwrite: true);
+                        ParameterHelpers.SetString(target, ParamRegistry.ELC_PHOTO_LUX, (lux).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                     }
                     if (ugr > 0)
-                        ParameterHelpers.SetString(target, ParamRegistry.ELC_PHOTO_UGR, $"{ugr:0.0}", overwrite: true);
+                        ParameterHelpers.SetString(target, ParamRegistry.ELC_PHOTO_UGR, (ugr).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                     if (uo > 0)
-                        ParameterHelpers.SetString(target, ParamRegistry.ELC_PHOTO_UNIFORMITY, $"{uo:0.00}", overwrite: true);
+                        ParameterHelpers.SetString(target, ParamRegistry.ELC_PHOTO_UNIFORMITY, (uo).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                     ParameterHelpers.SetString(target, ParamRegistry.ELC_PHOTO_LAST_ENGINE, engine, overwrite: true);
                     ParameterHelpers.SetString(target, ParamRegistry.ELC_PHOTO_LAST_CALC_DATE, nowIso, overwrite: true);
                 }

@@ -112,9 +112,9 @@ namespace StingTools.Commands.Electrical.FeederSizing
                         var panel = FindPanelByName(doc, r.PanelName);
                         if (panel == null) continue;
                         ParameterHelpers.SetString(panel, ParamRegistry.ELC_FEEDER_CSA,
-                            $"{r.ProposedCsaMm2:0.#}", overwrite: true);
+                            (r.ProposedCsaMm2).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                         ParameterHelpers.SetString(panel, ParamRegistry.ELC_FEEDER_RATING_A,
-                            $"{r.ProposedRatingA:0}", overwrite: true);
+                            (r.ProposedRatingA).ToString("0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                         // The sizer's own figure for the cable it chose, on the fed board: A4-SIZED on
                         // BS 7671 (Appendix 4 mV/A/m); on NEC the sizer's drop is conductor resistance.
                         StingTools.Core.Electrical.CircuitVoltageDropModel.StampForeign(panel, r.ActualVDPct,

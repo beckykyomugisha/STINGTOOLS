@@ -277,7 +277,12 @@ namespace StingTools.Core.Panels
             {
                 wrote += Try(panel, ParamRegistry.ELC_PNL_NAME, psv.Name);
                 wrote += Try(panel, ParamRegistry.ELC_PNL_VOLTAGE, ReadString(panel, "Panel Voltage"));
-                wrote += Try(panel, ParamRegistry.ELC_PNL_LOAD, ReadString(panel, "Total Connected"));
+                // Thousands of the native load (VA → kVA), as Param Sync writes it; the
+                // target is named kW but the source is apparent load — ROADMAP ELEC-27.
+                string va = ReadString(panel, "Total Connected");
+                wrote += Try(panel, ParamRegistry.ELC_PNL_LOAD,
+                    double.TryParse(va, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double vaNum)
+                        ? (vaNum / 1000.0).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) : null);
                 wrote += Try(panel, ParamRegistry.ELC_PNL_FED_FROM, ReadString(panel, "Panel Source") ?? ReadString(panel, "Source"));
                 wrote += Try(panel, ParamRegistry.ELC_MAIN_BRK, ReadString(panel, "Mains") ?? ReadString(panel, "Main Disconnect"));
                 wrote += Try(panel, ParamRegistry.ELC_WAYS, ReadInt(panel, "Number Of Circuits") ?? ReadInt(panel, "Number of Slots"));
@@ -325,8 +330,15 @@ namespace StingTools.Core.Panels
                 var p = el?.LookupParameter(nativeParam);
                 if (p == null) return null;
                 if (p.StorageType == StorageType.String) return p.AsString();
-                if (p.StorageType == StorageType.Double) return p.AsValueString();
-                if (p.StorageType == StorageType.Integer) return p.AsInteger().ToString();
+                // The targets (ELC_PNL_VOLTAGE, ELC_PNL_LOAD, ELC_MAIN_BRK) are NUMBER
+                // parameters, which refuse a display string such as "100 A" or "230 V".
+                // Hand over the SI number (V, VA, A) instead; a non-electrical spec is raw.
+                if (p.StorageType == StorageType.Double)
+                {
+                    double v = StingTools.Core.Electrical.ElecUnits.ToSi(p);
+                    return v > 0 ? v.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) : null;
+                }
+                if (p.StorageType == StorageType.Integer) return p.AsInteger().ToString(System.Globalization.CultureInfo.InvariantCulture);
             }
             catch (Exception ex) { StingLog.Warn($"ReadString {nativeParam}: {ex.Message}"); }
             return null;

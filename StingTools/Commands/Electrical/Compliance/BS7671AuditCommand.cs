@@ -122,10 +122,12 @@ namespace StingTools.Commands.Electrical.Compliance
             // verdict rests on it, so the report must say so.
             var assumed = new List<string>();
 
-            double phaseCsa = SafeDouble(sys, "ELC_FEEDER_CSA_MM2");
-            if (phaseCsa <= 0) phaseCsa = SafeDouble(sys, "ELC_CBL_SZ_MM");
+            // TEXT sizes: "2,5", "2.5 mm²" — WireSizeParser, not a culture-dependent parse
+            // that read "2.5" as 25 on a comma-decimal machine and passed a failing Zs.
+            double phaseCsa = CsaOf(sys, "ELC_FEEDER_CSA_MM2");
+            if (phaseCsa <= 0) phaseCsa = CsaOf(sys, "ELC_CBL_SZ_MM");
             if (phaseCsa <= 0) { phaseCsa = 2.5; assumed.Add("phase CSA 2.5 mm²"); }
-            double cpcCsa   = SafeDouble(sys, "ELC_CPC_SZ_MM");
+            double cpcCsa   = CsaOf(sys, "ELC_CPC_SZ_MM");
             if (cpcCsa <= 0)
             {
                 // BS 6004 twin & earth carries a reduced CPC; assuming CPC = phase
@@ -191,6 +193,15 @@ namespace StingTools.Commands.Electrical.Compliance
             return phaseCsa;
         }
 
+        private static double CsaOf(Element el, string name)
+        {
+            var p = el?.LookupParameter(name);
+            if (p == null || !p.HasValue) return 0;
+            return p.StorageType == StorageType.String
+                ? StingTools.Core.Electrical.WireSizeParser.ParseCsaMm2(p.AsString())
+                : SafeDouble(el, name);
+        }
+
         private static double SafeDouble(Element el, string name)
         {
             var p = el?.LookupParameter(name);
@@ -198,7 +209,8 @@ namespace StingTools.Commands.Electrical.Compliance
             try
             {
                 if (p.StorageType == StorageType.Double) return p.AsDouble();
-                if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out double v)) return v;
+                if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out double v)) return v;
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
             }
             catch { }
