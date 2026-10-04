@@ -79,28 +79,12 @@ namespace StingTools.Temp
                 }
                 report.AppendLine($"  Not assessed: {noCondition}");
 
-                // Set default condition for unassessed assets
+                // Unassessed assets are reported, not rated. This used to write "A - Good" and
+                // today's date onto every one — a condition survey nobody carried out, which
+                // then read as a fully assessed estate (KUT deep review MEP-14).
                 if (noCondition > 0)
-                {
-                    using (var t = new Transaction(doc, "STING Asset Condition"))
-                    {
-                        t.Start();
-                        int written = 0;
-                        foreach (var el in allEquipment)
-                        {
-                            string existing = ParameterHelpers.GetString(el, "ASS_CONDITION_TXT");
-                            if (string.IsNullOrEmpty(existing))
-                            {
-                                ParameterHelpers.SetString(el, "ASS_CONDITION_TXT", "A - Good", false);
-                                ParameterHelpers.SetString(el, "ASS_CONDITION_DATE_TXT",
-                                    DateTime.Now.ToString("yyyy-MM-dd"), false);
-                                written++;
-                            }
-                        }
-                        t.Commit();
-                        report.AppendLine($"\nDefault condition 'A - Good' set for {written} unassessed assets.");
-                    }
-                }
+                    report.AppendLine($"\n{noCondition} asset(s) have no condition recorded. Record ASS_CONDITION_TXT " +
+                                      "(and ASS_CONDITION_DATE_TXT) from a condition survey; nothing is assumed.");
 
                 TaskDialog.Show("Asset Condition", report.ToString());
                 StingLog.Info($"Asset condition: {allEquipment.Count} assets assessed");
@@ -122,18 +106,9 @@ namespace StingTools.Temp
     [Regeneration(RegenerationOption.Manual)]
     public class MaintenanceScheduleCommand : IExternalCommand
     {
-        internal static readonly Dictionary<string, int> MaintenanceIntervals = new()
-        {
-            ["Mechanical Equipment"] = 6,
-            ["Electrical Equipment"] = 12,
-            ["Plumbing Fixtures"] = 12,
-            ["Lighting Fixtures"] = 12,
-            ["Sprinklers"] = 6,
-            ["Fire Alarm Devices"] = 6,
-            ["Air Terminals"] = 12,
-            ["Ducts"] = 24,
-            ["Pipes"] = 24,
-        };
+        // KUT deep review MEP-14: the per-category default intervals (6 / 12 / 24 months) and
+        // "next due = today + interval" are gone. Interval = ASS_MAINTENANCE_FREQUENCY_MONTHS,
+        // else MNT_SERVICE_INTERVAL_TXT; next due = MNT_LAST_SERVICE_DATE_TXT + interval.
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -145,7 +120,8 @@ namespace StingTools.Temp
                 var report = new System.Text.StringBuilder();
                 report.AppendLine("═══ MAINTENANCE SCHEDULE ═══\n");
 
-                var csvLines = new List<string> { "AssetTag,Category,Family,Room,Interval_Months,NextDue,Condition" };
+                var csvLines = new List<string> { "AssetTag,Category,Family,Room,Interval_Months,LastService,NextDue,Condition,Missing" };
+                int noInterval = 0, noLast = 0, wroteNext = 0;
 
                 var categories = new[]
                 {
@@ -166,10 +142,7 @@ namespace StingTools.Temp
                             .OfCategory(cat).WhereElementIsNotElementType().ToList();
 
                         string catName = elems.FirstOrDefault()?.Category?.Name ?? "Unknown";
-                        int interval = MaintenanceIntervals.GetValueOrDefault(catName, 12);
-                        string nextDue = DateTime.Now.AddMonths(interval).ToString("yyyy-MM-dd");
-
-                        report.AppendLine($"── {catName} ({elems.Count}) — Every {interval} months ──");
+                        report.AppendLine($"── {catName} ({elems.Count}) ──");
 
                         foreach (var el in elems)
                         {
@@ -182,10 +155,18 @@ namespace StingTools.Temp
 
                             string condition = ParameterHelpers.GetString(el, "ASS_CONDITION_TXT");
 
-                            ParameterHelpers.SetString(el, "ASS_MAINT_INTERVAL_TXT", $"{interval} months", false);
-                            ParameterHelpers.SetString(el, "ASS_MAINT_NEXT_TXT", nextDue, false);
+                            int? interval = ServiceDue.IntervalMonths(
+                                ParameterHelpers.GetValueText(el, "ASS_MAINTENANCE_FREQUENCY_MONTHS"),
+                                ParameterHelpers.GetValueText(el, "MNT_SERVICE_INTERVAL_TXT"));
+                            string last = ParameterHelpers.GetValueText(el, "MNT_LAST_SERVICE_DATE_TXT");
+                            string nextDue = ServiceDue.NextDue(last, interval);
+                            var missing = new List<string>();
+                            if (interval == null) { noInterval++; missing.Add("interval"); }
+                            else ParameterHelpers.SetString(el, "ASS_MAINT_INTERVAL_TXT", $"{interval} months", false);
+                            if (string.IsNullOrEmpty(nextDue)) { if (interval != null) { noLast++; missing.Add("last service date"); } }
+                            else if (ParameterHelpers.SetString(el, "ASS_MAINT_NEXT_TXT", nextDue, false)) wroteNext++;
 
-                            csvLines.Add($"{tag},{catName},{family},{room},{interval},{nextDue},{condition}");
+                            csvLines.Add($"{tag},{catName},{family},{room},{interval?.ToString() ?? ""},{last},{nextDue},{condition},{string.Join("; ", missing)}");
                             totalAssets++;
                         }
                     }
@@ -196,7 +177,10 @@ namespace StingTools.Temp
                 string csvPath = Path.Combine(folder, "STING_MaintenanceSchedule.csv");
                 File.WriteAllLines(csvPath, csvLines);
 
-                report.AppendLine($"\nTotal: {totalAssets} assets scheduled");
+                report.AppendLine($"\nTotal: {totalAssets} assets examined; next-due written for {wroteNext}.");
+                report.AppendLine($"MISSING maintenance interval: {noInterval} (record ASS_MAINTENANCE_FREQUENCY_MONTHS).");
+                report.AppendLine($"MISSING last service date: {noLast} (record MNT_LAST_SERVICE_DATE_TXT).");
+                report.AppendLine("No interval or date is assumed.");
                 report.AppendLine($"CSV: {csvPath}");
 
                 TaskDialog.Show("Maintenance Schedule", report.ToString());
@@ -559,11 +543,9 @@ namespace StingTools.Temp
     [Regeneration(RegenerationOption.Manual)]
     public class WarrantyTrackerCommand : IExternalCommand
     {
-        internal static readonly Dictionary<string, int> WarrantyPeriods = new()
-        {
-            ["Mechanical Equipment"] = 5, ["Electrical Equipment"] = 3,
-            ["Plumbing Fixtures"] = 2, ["Lighting Fixtures"] = 5, ["Sprinklers"] = 10,
-        };
+        // KUT deep review MEP-3: the per-category default periods (5/3/2/5/10 years) and
+        // "today" as the start are gone. An expiry is computed only from a start date and a
+        // duration recorded on the element (WarrantyExpiry.Plan); anything else is reported.
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -572,9 +554,10 @@ namespace StingTools.Temp
                 var _ctx = ParameterHelpers.GetContext(commandData);
                 if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 var doc = _ctx.Doc;
-                var csvLines = new List<string> { "AssetTag,Category,Family,WarrantyYears,InstallDate,ExpiryDate,Status" };
-                string installDate = DateTime.Now.ToString("yyyy-MM-dd");
-                int total = 0;
+                var csvLines = new List<string> { "AssetTag,ElementId,Category,Family,WarrantyStart,Duration,ExpiryDate,State,Status,Detail" };
+                var counts = new Dictionary<WarrantyState, int>();
+                int written = 0, expired = 0, total = 0;
+                DateTime today = DateTime.Today;
 
                 using (var t = new Transaction(doc, "STING Warranty Tracker"))
                 {
@@ -590,16 +573,25 @@ namespace StingTools.Temp
 
                     foreach (var (cat, name) in catMap)
                     {
-                        int yrs = WarrantyPeriods.GetValueOrDefault(name, 2);
-                        string expiry = DateTime.Now.AddYears(yrs).ToString("yyyy-MM-dd");
                         var elems = new FilteredElementCollector(doc).OfCategory(cat).WhereElementIsNotElementType().ToList();
                         foreach (var el in elems)
                         {
-                            string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                            ParameterHelpers.SetString(el, "ASS_WARRANTY_TXT", $"{yrs} years", false);
-                            ParameterHelpers.SetString(el, "MNT_WARRANTY_EXPIRY_TXT", expiry, false);
-                            csvLines.Add($"{tag},{name},{ParameterHelpers.GetFamilyName(el)},{yrs},{installDate},{expiry},ACTIVE");
                             total++;
+                            string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                            string start = FirstNonEmpty(el, ParamRegistry.WARRANTY_START, ParamRegistry.INSTALL_DATE, "COM_INSTALL_DATE_TXT");
+                            string dur = FirstNonEmpty(el, ParamRegistry.WARR_DUR_PARTS, ParamRegistry.WARR_DUR_LABOR);
+                            string unit = ParameterHelpers.GetValueText(el, ParamRegistry.WARR_DUR_UNIT);
+                            string rec = ParameterHelpers.GetValueText(el, "MNT_WARRANTY_EXPIRY_TXT");
+
+                            var plan = WarrantyExpiry.Plan(rec, start, dur, unit, today);
+                            counts[plan.State] = counts.TryGetValue(plan.State, out int c) ? c + 1 : 1;
+                            if (plan.ShouldWrite && ParameterHelpers.SetString(el, "MNT_WARRANTY_EXPIRY_TXT", plan.Expiry, false))
+                                written++;
+                            if (plan.Expired == true) expired++;
+
+                            string status = plan.Expired == null ? "UNKNOWN" : plan.Expired.Value ? "EXPIRED" : "ACTIVE";
+                            csvLines.Add(string.Join(",", Csv(tag), el.Id.Value, Csv(name), Csv(ParameterHelpers.GetFamilyName(el)),
+                                Csv(plan.Start), Csv(dur), Csv(plan.Expiry), plan.State, status, Csv(plan.Detail)));
                         }
                     }
                     t.Commit();
@@ -609,8 +601,20 @@ namespace StingTools.Temp
                 string csvPath = Path.Combine(folder, "STING_WarrantyTracker.csv");
                 File.WriteAllLines(csvPath, csvLines);
 
-                TaskDialog.Show("Warranty Tracker", $"Tracked {total} assets.\nCSV: {csvPath}");
-                StingLog.Info($"Warranty: {total} assets tracked");
+                int Get(WarrantyState s) => counts.TryGetValue(s, out int n) ? n : 0;
+                string summary = total == 0
+                    ? "No Mechanical / Electrical / Plumbing / Lighting / Sprinkler elements in the model — nothing assessed."
+                    : $"Assets examined: {total}\n" +
+                      $"  Expiry already recorded: {Get(WarrantyState.Recorded)}\n" +
+                      $"  Expiry computed from start + duration: {Get(WarrantyState.Computed)} ({written} written)\n" +
+                      $"  MISSING start / installation date: {Get(WarrantyState.MissingStart)}\n" +
+                      $"  MISSING warranty duration: {Get(WarrantyState.MissingDuration)}\n" +
+                      $"  Unreadable value: {Get(WarrantyState.Unreadable)}\n" +
+                      $"  Expired: {expired}\n\n" +
+                      "No date or duration is assumed: record the warranty start (or installation date) and " +
+                      "the duration from the O&M data, then re-run.";
+                TaskDialog.Show("Warranty Tracker", summary + $"\n\nCSV: {csvPath}");
+                StingLog.Info($"Warranty: {total} examined, {written} expiries computed, {Get(WarrantyState.MissingStart) + Get(WarrantyState.MissingDuration)} missing data");
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -619,6 +623,22 @@ namespace StingTools.Temp
                 message = ex.Message;
                 return Result.Failed;
             }
+        }
+
+        private static string FirstNonEmpty(Element el, params string[] names)
+        {
+            foreach (var n in names)
+            {
+                string v = ParameterHelpers.GetValueText(el, n);
+                if (!string.IsNullOrWhiteSpace(v)) return v;
+            }
+            return "";
+        }
+
+        private static string Csv(string v)
+        {
+            v ??= "";
+            return v.IndexOfAny(new[] { ',', '"', '\n' }) >= 0 ? "\"" + v.Replace("\"", "\"\"") + "\"" : v;
         }
     }
 
@@ -698,7 +718,11 @@ namespace StingTools.Temp
     // ════════════════════════════════════════════════════════════════
     //  COMMAND 10: Sensor Point Mapper
     // ════════════════════════════════════════════════════════════════
-    [Transaction(TransactionMode.Manual)]
+    // KUT deep review MEP-14: this wrote "BMS/{type}/{tag}" into ASS_BMS_ADDRESS_TXT — a
+    // made-up string in the field that holds the real controller address, and the first of
+    // three sensor types won on mechanical equipment. It now writes nothing: the CSV lists a
+    // PROPOSED point name beside whatever address the element already records.
+    [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class SensorPointMapperCommand : IExternalCommand
     {
@@ -720,39 +744,37 @@ namespace StingTools.Temp
                 var _ctx = ParameterHelpers.GetContext(commandData);
                 if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 var doc = _ctx.Doc;
-                var csvLines = new List<string> { "SensorType,AssetTag,Category,Family,Room,BMS_Address" };
-                int sensorCount = 0;
+                var csvLines = new List<string> { "SensorType,AssetTag,Category,Family,Room,ProposedPointName,RecordedBmsAddress" };
+                int sensorCount = 0, withAddress = 0;
 
-                using (var t = new Transaction(doc, "STING Sensor Mapper"))
+                foreach (var (sensorType, cats) in SensorCategories)
                 {
-                    t.Start();
-                    foreach (var (sensorType, cats) in SensorCategories)
+                    foreach (var cat in cats)
                     {
-                        foreach (var cat in cats)
+                        foreach (var el in new FilteredElementCollector(doc).OfCategory(cat).WhereElementIsNotElementType())
                         {
-                            foreach (var el in new FilteredElementCollector(doc).OfCategory(cat).WhereElementIsNotElementType())
-                            {
-                                string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                                if (string.IsNullOrEmpty(tag)) continue;
-                                string family = ParameterHelpers.GetFamilyName(el);
-                                string room = "";
-                                var roomEl = ParameterHelpers.GetRoomAtElement(doc, el);
-                                if (roomEl != null) room = roomEl.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? "";
-                                string bmsAddr = $"BMS/{sensorType}/{tag}";
-                                ParameterHelpers.SetString(el, "ASS_BMS_ADDRESS_TXT", bmsAddr, false);
-                                csvLines.Add($"{sensorType},{tag},{(global::StingTools.Core.ParameterHelpers.GetCategoryName(el))},{family},{room},{bmsAddr}");
-                                sensorCount++;
-                            }
+                            string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                            if (string.IsNullOrEmpty(tag)) continue;
+                            string family = ParameterHelpers.GetFamilyName(el);
+                            string room = "";
+                            var roomEl = ParameterHelpers.GetRoomAtElement(doc, el);
+                            if (roomEl != null) room = roomEl.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? "";
+                            string recorded = ParameterHelpers.GetValueText(el, "ASS_BMS_ADDRESS_TXT");
+                            if (!string.IsNullOrEmpty(recorded)) withAddress++;
+                            csvLines.Add($"{sensorType},{tag},{(global::StingTools.Core.ParameterHelpers.GetCategoryName(el))},{family},{room},BMS/{sensorType}/{tag},{recorded}");
+                            sensorCount++;
                         }
                     }
-                    t.Commit();
                 }
 
                 string folder = OutputLocationHelper.GetRoutedDirectory(doc, "AssetRegister");
                 string csvPath = Path.Combine(folder, "STING_SensorPoints.csv");
                 File.WriteAllLines(csvPath, csvLines);
 
-                TaskDialog.Show("Sensor Point Mapper", $"Mapped {sensorCount} sensor points.\nCSV: {csvPath}");
+                TaskDialog.Show("Sensor Point Mapper",
+                    $"Listed {sensorCount} candidate sensor points; {withAddress} already record a BMS address.\n" +
+                    "Point names in the CSV are PROPOSALS for the BMS integrator — nothing was written to the model.\n" +
+                    $"CSV: {csvPath}");
                 StingLog.Info($"Sensor mapper: {sensorCount} points");
                 return Result.Succeeded;
             }

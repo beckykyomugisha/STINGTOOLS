@@ -2281,14 +2281,8 @@ namespace StingTools.UI
                 // deletion. The scan read t["id"], but these rows are keyed "transmittal_id" —
                 // so maxNum was ALWAYS 0 and every transmittal was minted as TX-0001, which is
                 // the very collision the max-suffix pattern was introduced to prevent.
-                int maxNum = 0;
-                foreach (var t in arr)
-                {
-                    string raw = t["transmittal_id"]?.ToString() ?? t["id"]?.ToString();
-                    if (string.IsNullOrEmpty(raw)) continue;
-                    if (int.TryParse(raw.Replace("TX-", ""), out int n) && n > maxNum) maxNum = n;
-                }
-                string transId = $"TX-{maxNum + 1:D4}";
+                // One allocator for every transmittal writer (KUT deep review ISO-12).
+                string transId = StingTools.BIMManager.TransmittalRecord.NextId(arr);
                 string suitCode =
                     (suitCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag as string ?? "S2";
                 var docList = new JArray(selected.Select(s => s.Title).ToArray());

@@ -36,14 +36,7 @@ namespace StingTools.Commands.Twin
     [Regeneration(RegenerationOption.Manual)]
     public class KutPushLifecycleGapsToAccCommand : IExternalCommand
     {
-        // Categories that typically carry a BMS / IoT point — the scope for the
-        // PRICED_NO_BMS_POINT gap (mirrors KutLifecycleReconcileCommand.Monitorable).
-        private static readonly HashSet<string> Monitorable = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "Mechanical Equipment", "Electrical Equipment", "Lighting Fixtures", "Lighting Devices",
-            "Air Terminals", "Duct Accessory", "Plumbing Fixtures", "Fire Alarm Devices",
-            "Security Devices", "Communication Devices", "Data Devices", "Nurse Call Devices", "Sprinklers"
-        };
+        // Monitorable scope (PRICED_NO_BMS_POINT): StingTools.Core.Twin.BmsValuation.MonitorableCategories.
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
         {
@@ -101,7 +94,7 @@ namespace StingTools.Commands.Twin
                     });
 
                 // PRICED_NO_BMS_POINT — priced monitorable asset with no BMS endpoint.
-                if (Monitorable.Contains(cat) && it.TotalUGX >= valueFloor)
+                if (StingTools.Core.Twin.BmsValuation.IsMonitorable(cat) && it.TotalUGX >= valueFloor)
                 {
                     devByElem.TryGetValue(it.RevitElementId, out var dev);
                     bool noPoint = dev == null || string.IsNullOrEmpty(dev.DeviceId) || string.IsNullOrEmpty(dev.EndpointAddress);
@@ -128,11 +121,42 @@ namespace StingTools.Commands.Twin
                 return Result.Succeeded;
             }
 
-            // 3. Idempotency — skip gaps already pushed.
+            // 3. Idempotency — skip gaps already pushed. Without a readable ledger there is no
+            //    idempotency: an unsaved model has nowhere to record what was pushed, and an
+            //    unreadable ledger used to read as empty, so every gap was raised again
+            //    (KUT deep review INT-10 / INT-14). Refuse rather than duplicate.
             string sidecar = SidecarPath(doc);
-            var pushed = LoadSidecar(sidecar);   // signature → issue id
+            if (string.IsNullOrEmpty(sidecar))
+            {
+                TaskDialog.Show("KUT — Push Lifecycle Gaps to ACC",
+                    "Save the model first. Without a project folder there is nowhere to record which gaps " +
+                    "were pushed, so every run would raise every gap as a new ACC issue. Nothing was pushed.");
+                return Result.Cancelled;
+            }
+            var pushed = AccEscalationLedger.Load(sidecar, out string ledgerError);   // signature → issue id
+            if (pushed == null)
+            {
+                TaskDialog.Show("KUT — Push Lifecycle Gaps to ACC", "Nothing was pushed.\n\n" + ledgerError);
+                return Result.Failed;
+            }
+
+            int toCreate = gaps.Count(g => !pushed.ContainsKey($"{g.Type}:{g.ElementId}"));
+            if (toCreate > 0)
+            {
+                var confirm = new TaskDialog("KUT — Push Lifecycle Gaps to ACC")
+                {
+                    MainInstruction = $"Create {toCreate} new ACC issue(s)?",
+                    MainContent = $"{gaps.Count} gap(s) found; {gaps.Count - toCreate} already raised. Each new gap becomes " +
+                                  "an ACC issue that someone will have to close.",
+                    CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                    DefaultButton = TaskDialogResult.No,
+                    AllowCancellation = true,
+                };
+                if (confirm.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+            }
 
             int created = 0, skipped = 0, failed = 0;
+            string ledgerSaveError = null;
             foreach (var g in gaps)
             {
                 string sig = $"{g.Type}:{g.ElementId}";
@@ -143,11 +167,15 @@ namespace StingTools.Commands.Twin
                 try { id = AccIssueSync.PushIssueAsync(creds, issue).GetAwaiter().GetResult(); }
                 catch (Exception ex) { StingLog.Warn($"KUT_PushGapsToAcc push {sig}: {ex.Message}"); id = null; }
 
-                if (!string.IsNullOrEmpty(id)) { pushed[sig] = id; created++; }
+                if (!string.IsNullOrEmpty(id))
+                {
+                    pushed[sig] = id; created++;
+                    // Written after each issue, atomically: a crash part-way must not lose the
+                    // ids already created, or the next run raises them again.
+                    if (!AccEscalationLedger.Save(sidecar, pushed, out string err)) ledgerSaveError = err;
+                }
                 else failed++;
             }
-
-            SaveSidecar(sidecar, pushed);
 
             var sb = new StringBuilder();
             sb.AppendLine($"Gaps found: {gaps.Count}  " +
@@ -157,6 +185,7 @@ namespace StingTools.Commands.Twin
             sb.AppendLine($"ACC issues created:  {created}");
             sb.AppendLine($"Already pushed (skipped): {skipped}");
             if (failed > 0) sb.AppendLine($"Failed (will retry next run): {failed}");
+            if (ledgerSaveError != null) sb.AppendLine("LEDGER NOT SAVED — the next run may raise these again: " + ledgerSaveError);
             sb.AppendLine();
             sb.AppendLine("Re-runs are idempotent (sidecar: _BIM_COORD/acc/pushed_lifecycle_gaps.json).");
 
@@ -192,29 +221,5 @@ namespace StingTools.Commands.Twin
             return Path.Combine(accDir, "pushed_lifecycle_gaps.json");
         }
 
-        private static Dictionary<string, string> LoadSidecar(string path)
-        {
-            var map = new Dictionary<string, string>(StringComparer.Ordinal);
-            try
-            {
-                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return map;
-                var jo = JObject.Parse(File.ReadAllText(path));
-                foreach (var p in jo.Properties()) map[p.Name] = (string)p.Value;
-            }
-            catch (Exception ex) { StingLog.Warn("KUT_PushGapsToAcc sidecar load: " + ex.Message); }
-            return map;
-        }
-
-        private static void SaveSidecar(string path, Dictionary<string, string> map)
-        {
-            if (string.IsNullOrEmpty(path)) return;
-            try
-            {
-                var jo = new JObject();
-                foreach (var kv in map) jo[kv.Key] = kv.Value;
-                File.WriteAllText(path, jo.ToString(Newtonsoft.Json.Formatting.Indented));
-            }
-            catch (Exception ex) { StingLog.Warn("KUT_PushGapsToAcc sidecar save: " + ex.Message); }
-        }
     }
 }

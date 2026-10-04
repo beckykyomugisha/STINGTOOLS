@@ -6,6 +6,7 @@ using Newtonsoft.Json.Linq;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Shared.Helpers;
 
 namespace Planscape.Infrastructure.Services;
 
@@ -58,9 +59,23 @@ public class AccSyncService
         bool Success,
         int Pushed = 0,
         int Skipped = 0,
-        int PulledOpen = 0,
+        int? PulledOpen = null,
         int Failed = 0,
         string? Error = null);
+
+    /// <summary>
+    /// The verdict of one push run (KUT deep review INT-8). It was always Success=true, so a run
+    /// in which every push failed recorded LastSyncStatus "OK" and the scheduled sweep counted the
+    /// connection healthy. A run with any failed push is now not a success; the open-issue count
+    /// is null when ACC could not be asked (it was 0, which read as "no open issues").
+    /// </summary>
+    public static AccSyncReport Summarise(int pushed, int skipped, int? pulledOpen, int failed) =>
+        new AccSyncReport(failed == 0, pushed, skipped, pulledOpen, failed,
+            failed == 0 ? null : $"{failed} issue push(es) failed; {pushed} succeeded. See the server log for each error.");
+
+    /// <summary>LastSyncStatus for a report: OK, PARTIAL (some pushed, some failed) or FAILED.</summary>
+    public static string StatusFor(AccSyncReport r) =>
+        r.Success ? "OK" : (r.Pushed > 0 && r.Failed > 0 ? "PARTIAL" : "FAILED");
 
     /// <summary>
     /// Sync the single active ACC connection for one project. Tenant-scoped: relies
@@ -181,9 +196,9 @@ public class AccSyncService
         if (pushed > 0) WriteIssueMap(conn, map);
 
         // Pull side — report the ACC open-issue count (lightweight visibility metric).
-        int pulledOpen = await PullOpenCountAsync(http, conn, ct);
+        int? pulledOpen = await PullOpenCountAsync(http, conn, ct);
 
-        var report = new AccSyncReport(true, pushed, skipped, pulledOpen, failed);
+        var report = Summarise(pushed, skipped, pulledOpen, failed);
         return Mark(conn, report);
     }
 
@@ -193,11 +208,14 @@ public class AccSyncService
         // APS Issues v1 create. NOTE: a real container requires issueSubtypeId from
         // the container's type catalogue; we send it when configured and let ACC
         // reject (with a clear message) when it's absent so the gap is visible.
+        string? accStatus = MapStatus(issue.Status);
+        if (accStatus == null)
+            return (false, null, $"status '{issue.Status}' is not an open state; there is no ACC status to create it with.");
         var body = new JObject
         {
             ["title"] = Truncate(issue.Title, 250),
             ["description"] = issue.Description ?? "",
-            ["status"] = MapStatus(issue.Status),
+            ["status"] = accStatus,
         };
         if (!string.IsNullOrWhiteSpace(subtypeId))
             body["issueSubtypeId"] = subtypeId;
@@ -228,7 +246,7 @@ public class AccSyncService
         }
     }
 
-    private async Task<int> PullOpenCountAsync(HttpClient http, PlatformConnection conn, CancellationToken ct)
+    private async Task<int?> PullOpenCountAsync(HttpClient http, PlatformConnection conn, CancellationToken ct)
     {
         try
         {
@@ -236,11 +254,19 @@ public class AccSyncService
                 $"{IssuesBase}/containers/{conn.ExternalProjectId}/issues?limit=1&filter[status]=open");
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", conn.AccessToken);
             var resp = await http.SendAsync(req, ct);
-            if (!resp.IsSuccessStatusCode) return 0;
+            if (!resp.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("AccSyncService: open-issue count failed: HTTP {Status}", (int)resp.StatusCode);
+                return null;   // unknown, not "no open issues"
+            }
             var j = JObject.Parse(await resp.Content.ReadAsStringAsync(ct));
-            return (int?)j["pagination"]?["totalResults"] ?? ((j["results"] as JArray)?.Count ?? 0);
+            return (int?)j["pagination"]?["totalResults"] ?? (j["results"] as JArray)?.Count;
         }
-        catch { return 0; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "AccSyncService: open-issue count failed");
+            return null;
+        }
     }
 
     /// <summary>Refresh the access token when missing or within 5 min of expiry, via the connector.</summary>
@@ -259,7 +285,7 @@ public class AccSyncService
     private AccSyncReport Mark(PlatformConnection conn, AccSyncReport report)
     {
         conn.LastSyncAt = DateTime.UtcNow;
-        conn.LastSyncStatus = report.Success ? "OK" : "FAILED";
+        conn.LastSyncStatus = StatusFor(report);
         conn.LastSyncError = report.Error;
         return report;
     }
@@ -293,13 +319,11 @@ public class AccSyncService
         catch { return new JObject(); }
     }
 
-    private static string MapStatus(string s) => s switch
-    {
-        "RESOLVED" => "answered",
-        "CLOSED"   => "closed",
-        "IN_PROGRESS" => "open",
-        _ => "open",
-    };
+    /// <summary>The ACC Issues v1 status a Planscape issue is created with, or null when it
+    /// must not be pushed. INT-12: this used to send "answered" for RESOLVED (a BIM 360 value,
+    /// not an Issues v1 one) and "open" for anything it did not recognise. The one mapping now
+    /// lives in Planscape.Shared and the Revit plugin uses the same code.</summary>
+    internal static string? MapStatus(string? s) => AccIssueStatusMap.ToAccCreateStatus(s);
 
     private static string Truncate(string? s, int n)
         => string.IsNullOrEmpty(s) ? "" : (s!.Length > n ? s.Substring(0, n) : s);

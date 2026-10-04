@@ -59,14 +59,19 @@ namespace StingTools.Commands.Kpi
         public int Stale { get; set; }
         public int Warnings { get; set; }
         public int OpenClashes { get; set; }
-        public double HealthScore { get; set; }
+        /// <summary>False when no STING clash run was found — OpenClashes is then unknown, not 0.</summary>
+        public bool ClashRunFound { get; set; }
+        /// <summary>Null when nothing is in scope (ACC-10).</summary>
+        public double? HealthScore { get; set; }
+        public string HealthBasis { get; set; } = "";
         public Dictionary<string, int> OpenClashBySeverity { get; set; } = new Dictionary<string, int>();
 
         // Owner-system coverage (Fohlio / SpecLink / Niagara).
         public int FfeTotal { get; set; }
         public int FfeLinked { get; set; }
         public int FfeStale { get; set; }
-        public double FfeLinkedPct => FfeTotal > 0 ? 100.0 * FfeLinked / FfeTotal : 100.0;
+        // Null when no FF&E is in scope — it used to read 100% (a green bar) over nothing.
+        public double? FfeLinkedPct => StingTools.ExLink.FohlioImportPlanner.LinkedPct(FfeTotal, FfeLinked);
         public int SpecTotal { get; set; }
         public int SpecAssigned { get; set; }
         public double SpecCoveragePct => SpecTotal > 0 ? 100.0 * SpecAssigned / SpecTotal : 0;
@@ -76,8 +81,6 @@ namespace StingTools.Commands.Kpi
 
     public static class OwnerKpiEngine
     {
-        // Health-score normalisation caps (documented, tunable).
-        private const double ClashCap = 200.0, WarningCap = 500.0, StaleCap = 100.0;
 
         public static OwnerKpiSnapshot Gather(Document doc)
         {
@@ -87,6 +90,7 @@ namespace StingTools.Commands.Kpi
 
             // Open clashes from the latest STING clash run.
             int openClashes = 0;
+            bool clashRunFound = false;
             var bySev = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             try
             {
@@ -96,6 +100,7 @@ namespace StingTools.Commands.Kpi
                     var run = ClashPersistence.Load(ClashPersistence.CanonicalPath(doc));
                     if (run?.Clashes != null)
                     {
+                        clashRunFound = true;
                         foreach (var c in run.Clashes)
                         {
                             if (IsResolved(c.State)) continue;
@@ -117,7 +122,13 @@ namespace StingTools.Commands.Kpi
             try
             {
                 var map = FohlioMap.Load(doc);
-                var ffeCats = new HashSet<string>(map.Categories ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+                // No project map = this project procures nothing through Fohlio: the corporate
+                // default categories are not a statement that it does, so FF&E is n/a, not 0 %
+                // (L2-FOH-6). A map that failed to load is the same, and is logged.
+                if (!string.IsNullOrEmpty(map.LoadError)) StingLog.Warn("Owner KPI: fohlio_map.json unreadable — FF&E not assessed: " + map.LoadError);
+                var ffeCats = map.LoadedFromProject && string.IsNullOrEmpty(map.LoadError)
+                    ? new HashSet<string>(map.Categories ?? new List<string>(), StringComparer.OrdinalIgnoreCase)
+                    : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 var writeParams = map.Columns.Where(c => c.WriteBack && !FohlioMap.IsPseudo(c.Param)).Select(c => c.Param).ToList();
 
                 var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
@@ -145,11 +156,13 @@ namespace StingTools.Commands.Kpi
                             Dictionary<string, string> sv = null;
                             try { sv = JsonConvert.DeserializeObject<Dictionary<string, string>>(snap.SnapshotJson); } catch { }
                             sv = sv ?? new Dictionary<string, string>();
-                            foreach (var p in writeParams)
-                            {
-                                sv.TryGetValue(p, out string snapV);
-                                if (!string.Equals(ParameterHelpers.GetString(el, p), snapV ?? "", StringComparison.Ordinal)) { ffeStale++; break; }
-                            }
+                            bool isStale;
+                            var heldCost = ParameterHelpers.GetDouble(el, ParamRegistry.FOHLIO_UNIT_COST);
+                            var heldCur = ParameterHelpers.GetString(el, ParamRegistry.FOHLIO_CURRENCY);
+                            isStale = FohlioStale.IsStale(writeParams, p => ParameterHelpers.GetString(el, p),
+                                heldCost, heldCur, sv, snap.UnitCost, snap.Currency,
+                                ParamRegistry.FOHLIO_UNIT_COST, ParamRegistry.FOHLIO_CURRENCY);
+                            if (isStale) ffeStale++;
                         }
                     }
                 }
@@ -166,10 +179,7 @@ namespace StingTools.Commands.Kpi
             catch (Exception ex) { StingLog.Warn("Owner KPI BMS: " + ex.Message); }
 
             double compliance = cs.TotalElements > 0 ? cs.CompliancePercent : 0;
-            double clashClean = 100.0 * (1.0 - Math.Min(1.0, openClashes / ClashCap));
-            double warnClean  = 100.0 * (1.0 - Math.Min(1.0, warnings / WarningCap));
-            double staleClean = 100.0 * (1.0 - Math.Min(1.0, cs.StaleCount / StaleCap));
-            double health = 0.40 * compliance + 0.25 * clashClean + 0.20 * warnClean + 0.15 * staleClean;
+            var health = OwnerKpiHealth.Compute(cs.TotalElements, compliance, clashRunFound, openClashes, warnings, cs.StaleCount);
 
             return new OwnerKpiSnapshot
             {
@@ -182,7 +192,9 @@ namespace StingTools.Commands.Kpi
                 Stale              = cs.StaleCount,
                 Warnings           = warnings,
                 OpenClashes        = openClashes,
-                HealthScore        = Math.Round(Math.Max(0, Math.Min(100, health)), 1),
+                ClashRunFound      = clashRunFound,
+                HealthScore        = health.Score,
+                HealthBasis        = health.Basis,
                 OpenClashBySeverity = bySev,
                 FfeTotal = ffeTotal, FfeLinked = ffeLinked, FfeStale = ffeStale,
                 SpecTotal = specTotal, SpecAssigned = specAssigned,
@@ -275,13 +287,15 @@ namespace StingTools.Commands.Kpi
                 sb.Append("<table><tr><th>KPI</th><th>Value</th><th>Δ since last</th></tr>");
                 Row(sb, "Tag / metadata compliance", $"{s.CompliancePct:F1}%", Delta(s.CompliancePct, prev?.CompliancePct, "pp"));
                 Row(sb, "Fully-resolved (strict)", $"{s.StrictPct:F1}%", Delta(s.StrictPct, prev?.StrictPct, "pp"));
-                Row(sb, "Model-health score", $"{s.HealthScore:F0}/100", Delta(s.HealthScore, prev?.HealthScore, ""));
-                Row(sb, "Open clashes", $"{s.OpenClashes}", Delta(s.OpenClashes, prev?.OpenClashes, "", invert: true));
+                Row(sb, "Model-health score", HealthText(s), Delta(s.HealthScore, prev?.HealthScore, ""));
+                Row(sb, "Open clashes", ClashText(s), s.ClashRunFound ? Delta(s.OpenClashes, prev?.OpenClashes, "", invert: true) : "");
                 Row(sb, "Revision populated", $"{s.RevisionPct:F1}%", Delta(s.RevisionPct, prev?.RevisionPct, "pp"));
-                Row(sb, "Sheet ISO 19650 compliance", $"{s.SheetCompliancePct:F1}%", Delta(s.SheetCompliancePct, prev?.SheetCompliancePct, "pp"));
+                Row(sb, "Sheets with an ISO identifier (SHT_TAG_1)", $"{s.SheetCompliancePct:F1}%", Delta(s.SheetCompliancePct, prev?.SheetCompliancePct, "pp"));
                 Row(sb, "Stale elements", $"{s.Stale}", Delta(s.Stale, prev?.Stale, "", invert: true));
                 Row(sb, "Model warnings", $"{s.Warnings}", Delta(s.Warnings, prev?.Warnings, "", invert: true));
-                Row(sb, "Fohlio FF&E linked", $"{s.FfeLinkedPct:F1}% ({s.FfeLinked}/{s.FfeTotal})", Delta(s.FfeLinkedPct, prev?.FfeLinkedPct, "pp"));
+                Row(sb, "Fohlio FF&E linked",
+                    s.FfeLinkedPct.HasValue ? $"{s.FfeLinkedPct:F1}% ({s.FfeLinked}/{s.FfeTotal})" : "n/a — no FF&E in scope",
+                    s.FfeLinkedPct.HasValue ? Delta(s.FfeLinkedPct.Value, prev?.FfeLinkedPct, "pp") : "");
                 Row(sb, "FF&E stale (model ≠ Fohlio)", $"{s.FfeStale}", Delta(s.FfeStale, prev?.FfeStale, "", invert: true));
                 Row(sb, "SpecLink CSI coverage", $"{s.SpecCoveragePct:F1}% ({s.SpecAssigned}/{s.SpecTotal})", Delta(s.SpecCoveragePct, prev?.SpecCoveragePct, "pp"));
                 Row(sb, "BMS points (Niagara)", $"{s.BmsPoints} ({s.BmsNoEndpoint} no endpoint)", Delta(s.BmsPoints, prev?.BmsPoints, ""));
@@ -335,6 +349,15 @@ namespace StingTools.Commands.Kpi
         private static void Row2(StringBuilder sb, string k, string v)
             => sb.Append($"<tr><td>{Esc(k)}</td><td>{Esc(v)}</td></tr>");
 
+        public static string Delta(double? now, double? prev, string unit, bool invert = false)
+            => now == null ? "—" : Delta(now.Value, prev, unit, invert);
+
+        /// <summary>"72/100", or "n/a" when nothing was scored.</summary>
+        public static string HealthText(OwnerKpiSnapshot s) => s.HealthScore.HasValue ? $"{s.HealthScore:F0}/100" : "n/a";
+
+        /// <summary>Open clashes, or "n/a — no clash run" — never 0 for "never tested".</summary>
+        public static string ClashText(OwnerKpiSnapshot s) => s.ClashRunFound ? s.OpenClashes.ToString() : "n/a — no STING clash run";
+
         public static string Delta(double now, double? prev, string unit, bool invert = false)
         {
             if (prev == null) return "—";
@@ -385,10 +408,10 @@ namespace StingTools.Commands.Kpi
             // Headline
             b.AddSection("Headline")
              .RAGBar(snap.CompliancePct, $"Tag / metadata compliance {snap.CompliancePct:F1}%")
-             .Metric("Model-health score", $"{snap.HealthScore:F0}/100",
-                     "compliance 40% · clash 25% · warnings 20% · stale 15%",
+             .Metric("Model-health score", OwnerKpiEngine.HealthText(snap),
+                     snap.HealthBasis,
                      null)
-             .Metric("Open clashes", snap.OpenClashes.ToString(),
+             .Metric("Open clashes", OwnerKpiEngine.ClashText(snap),
                      prev != null ? $"burn-down {OwnerKpiEngine.Delta(snap.OpenClashes, prev.OpenClashes, "", invert: true)}" : "no prior snapshot");
 
             // Tag compliance by discipline
@@ -413,7 +436,8 @@ namespace StingTools.Commands.Kpi
             // Other §4.6 KPIs
             b.AddSection("Other §4.6 KPIs")
              .Metric("Revision populated", $"{snap.RevisionPct:F1}%")
-             .Metric("Sheet ISO 19650 compliance", $"{snap.SheetCompliancePct:F1}%")
+             .Metric("Sheets with an ISO identifier (SHT_TAG_1)", $"{snap.SheetCompliancePct:F1}%",
+                     "the five ISO 19650 sheet checks are Sheet Compliance, not this figure")
              .Metric("Stale elements", snap.Stale.ToString())
              .Metric("Model warnings", snap.Warnings.ToString())
              // PM-8 — these three are longitudinal / multi-party (exchange calendar,
@@ -459,8 +483,12 @@ namespace StingTools.Commands.Kpi
             }
 
             // Owner-system coverage (Fohlio / SpecLink / Niagara)
-            b.AddSection("Owner-system coverage")
-             .RAGBar(snap.FfeLinkedPct, $"Fohlio FF&E linked {snap.FfeLinkedPct:F1}% ({snap.FfeLinked}/{snap.FfeTotal})")
+            var coverage = b.AddSection("Owner-system coverage");
+            if (snap.FfeLinkedPct is double ffePct)
+                coverage.RAGBar(ffePct, $"Fohlio FF&E linked {ffePct:F1}% ({snap.FfeLinked}/{snap.FfeTotal})");
+            else
+                coverage.Metric("Fohlio FF&E linked", "n/a", "no FF&E in the mapped categories — nothing to link");
+            coverage
              .Metric("FF&E stale (model ≠ Fohlio)", snap.FfeStale.ToString(),
                      snap.FfeTotal == 0 ? "no FF&E in mapped categories" : null)
              .RAGBar(snap.SpecCoveragePct, $"SpecLink CSI coverage {snap.SpecCoveragePct:F1}% ({snap.SpecAssigned}/{snap.SpecTotal})")
@@ -489,13 +517,15 @@ namespace StingTools.Commands.Kpi
                 void R(string k, string v, string d) => rows.Add($"\"{k}\",\"{v}\",\"{d}\"");
                 R("Tag/metadata compliance %", $"{s.CompliancePct:F1}", OwnerKpiEngine.Delta(s.CompliancePct, prev?.CompliancePct, "pp"));
                 R("Strict %", $"{s.StrictPct:F1}", OwnerKpiEngine.Delta(s.StrictPct, prev?.StrictPct, "pp"));
-                R("Model-health score", $"{s.HealthScore:F0}", OwnerKpiEngine.Delta(s.HealthScore, prev?.HealthScore, ""));
-                R("Open clashes", $"{s.OpenClashes}", OwnerKpiEngine.Delta(s.OpenClashes, prev?.OpenClashes, "", invert: true));
+                R("Model-health score", s.HealthScore.HasValue ? $"{s.HealthScore:F0}" : "n/a", OwnerKpiEngine.Delta(s.HealthScore, prev?.HealthScore, ""));
+                R("Health basis", s.HealthBasis ?? "", "");
+                R("Open clashes", s.ClashRunFound ? $"{s.OpenClashes}" : "n/a (no clash run)", s.ClashRunFound ? OwnerKpiEngine.Delta(s.OpenClashes, prev?.OpenClashes, "", invert: true) : "");
                 R("Revision %", $"{s.RevisionPct:F1}", OwnerKpiEngine.Delta(s.RevisionPct, prev?.RevisionPct, "pp"));
-                R("Sheet compliance %", $"{s.SheetCompliancePct:F1}", OwnerKpiEngine.Delta(s.SheetCompliancePct, prev?.SheetCompliancePct, "pp"));
+                R("Sheets with ISO identifier %", $"{s.SheetCompliancePct:F1}", OwnerKpiEngine.Delta(s.SheetCompliancePct, prev?.SheetCompliancePct, "pp"));
                 R("Stale elements", $"{s.Stale}", OwnerKpiEngine.Delta(s.Stale, prev?.Stale, "", invert: true));
                 R("Model warnings", $"{s.Warnings}", OwnerKpiEngine.Delta(s.Warnings, prev?.Warnings, "", invert: true));
-                R("Fohlio FF&E linked %", $"{s.FfeLinkedPct:F1}", OwnerKpiEngine.Delta(s.FfeLinkedPct, prev?.FfeLinkedPct, "pp"));
+                R("Fohlio FF&E linked %", s.FfeLinkedPct.HasValue ? $"{s.FfeLinkedPct:F1}" : "n/a",
+                  s.FfeLinkedPct.HasValue ? OwnerKpiEngine.Delta(s.FfeLinkedPct.Value, prev?.FfeLinkedPct, "pp") : "");
                 R("FF&E stale", $"{s.FfeStale}", OwnerKpiEngine.Delta(s.FfeStale, prev?.FfeStale, "", invert: true));
                 R("SpecLink CSI coverage %", $"{s.SpecCoveragePct:F1}", OwnerKpiEngine.Delta(s.SpecCoveragePct, prev?.SpecCoveragePct, "pp"));
                 R("BMS points (Niagara)", $"{s.BmsPoints}", "");

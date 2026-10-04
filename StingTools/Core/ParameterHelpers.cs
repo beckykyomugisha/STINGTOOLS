@@ -3616,40 +3616,13 @@ namespace StingTools.Core
             written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_MODEL, ParamRegistry.MODEL);
             written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_MANUFACTURER, ParamRegistry.MFR);
 
-            // Serial number mapping
-            written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_MARK, "ASS_SERIAL_NR_TXT");
+            // Mark is NOT a serial number, and is no longer copied into ASS_SERIAL_NR_TXT (KUT deep
+            // review MEP-14): COBie SerialNumber must be the manufacturer's, recorded at install.
 
-            // Installation date from Phase Created
-            try
-            {
-                Parameter phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
-                if (phaseParam != null)
-                {
-                    ElementId phaseId = phaseParam.AsElementId();
-                    if (phaseId != null && phaseId != ElementId.InvalidElementId)
-                    {
-                        Phase phase = doc.GetElement(phaseId) as Phase;
-                        if (phase != null && !string.IsNullOrEmpty(phase.Name))
-                        {
-                            // Use phase name as installation context instead of DateTime.Now.
-                            // DateTime.Now is incorrect for existing/demolished elements — they weren't
-                            // installed today. Write phase name as a meaningful lifecycle marker instead.
-                            string installContext = phase.Name;
-                            // If phase looks like "New Construction" or "Existing", record it;
-                            // only write today's date for elements in a construction phase
-                            if (phase.Name.IndexOf("New", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                phase.Name.IndexOf("Construction", StringComparison.OrdinalIgnoreCase) >= 0)
-                            {
-                                // D-01: Use UtcNow for timestamp consistency across codebase
-                                installContext = DateTime.UtcNow.ToString("yyyy-MM-dd");
-                            }
-                            ParameterHelpers.SetIfEmpty(el, "ASS_INSTALLATION_DATE_TXT", installContext);
-                            written++;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"Phase detection is advisory: {ex.Message}"); }
+            // Installation date is NOT derived here. This wrote the day the element was tagged
+            // (or the phase name, which is not a date) into ASS_INSTALLATION_DATE_TXT for every
+            // element in a "New Construction" phase, so COBie InstallationDate and the LOD 500
+            // install-date check were satisfied by the tagging date (KUT deep review MEP-14).
 
             // Type Name (from the family symbol name)
             string typeName = ParameterHelpers.GetFamilySymbolName(el);

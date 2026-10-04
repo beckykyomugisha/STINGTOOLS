@@ -5801,7 +5801,14 @@ namespace StingTools.UI
                     SaveAcc(c);
                     ShowStatus($"Uploading {System.IO.Path.GetFileName(dlg.FileName)} to ACC…");
                     var r = await V6.AccModelUpload.UploadAsync(c, dlg.FileName).ConfigureAwait(true);
-                    ShowStatus(r.Ok ? r.Message : $"ACC upload failed: {r.Message}");
+                    // The same post-upload step the ACC_Upload commands run: if this file is the
+                    // ACCPublish bundle, its PREPARED transmittal becomes SENT. The card used to
+                    // skip it, so a bundle uploaded from here stayed PREPARED (KUT deep review INT-17).
+                    string txNote = null;
+                    var upDoc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                    if (r.Ok && upDoc != null)
+                        txNote = Core.Clash.AccUploadCommandBase.MarkBundleTransmittalSent(upDoc, dlg.FileName, r.ItemUrn);
+                    ShowStatus(r.Ok ? r.Message + (txNote == null ? "" : " " + txNote) : $"ACC upload failed: {r.Message}");
                 }
                 catch (Exception ex) { StingLog.Warn($"ACC upload: {ex.Message}"); ShowStatus($"ACC upload error: {ex.Message}"); }
             };

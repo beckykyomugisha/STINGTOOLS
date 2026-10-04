@@ -110,7 +110,7 @@ namespace StingTools.Core.Storage
                 sb.SetVendorId(StingSchemaBuilder.VendorId);
                 sb.SetReadAccessLevel(AccessLevel.Public);
                 sb.SetWriteAccessLevel(AccessLevel.Vendor);
-                sb.AddSimpleField(FieldRate,         typeof(double));
+                sb.AddSimpleField(FieldRate,         typeof(double)).SetSpec(SpecTypeId.Number);
                 sb.AddSimpleField(FieldUnit,         typeof(string));
                 sb.AddSimpleField(FieldNote,         typeof(string));
                 sb.AddSimpleField(FieldStampedTicks, typeof(long));
@@ -136,7 +136,7 @@ namespace StingTools.Core.Storage
                 sb.SetVendorId(StingSchemaBuilder.VendorId);
                 sb.SetReadAccessLevel(AccessLevel.Public);
                 sb.SetWriteAccessLevel(AccessLevel.Vendor);
-                sb.AddSimpleField(FieldRate,            typeof(double))
+                sb.AddSimpleField(FieldRate,            typeof(double)).SetSpec(SpecTypeId.Number)
                     .SetDocumentation("Override rate in <Currency> — overrides cost_rates_5d.csv defaults");
                 sb.AddSimpleField(FieldUnit,            typeof(string))
                     .SetDocumentation("each / lin-m / m2 / m3 / kg");
@@ -146,11 +146,11 @@ namespace StingTools.Core.Storage
                     .SetDocumentation("Free-text justification");
                 sb.AddSimpleField(FieldStampedTicks,    typeof(long));
                 sb.AddSimpleField(FieldStampedBy,       typeof(string));
-                sb.AddSimpleField(FieldWastePct,        typeof(double))
+                sb.AddSimpleField(FieldWastePct,        typeof(double)).SetSpec(SpecTypeId.Number)
                     .SetDocumentation("Waste uplift % applied per item");
-                sb.AddSimpleField(FieldOverheadPct,     typeof(double))
+                sb.AddSimpleField(FieldOverheadPct,     typeof(double)).SetSpec(SpecTypeId.Number)
                     .SetDocumentation("Overhead % applied per item (separate from global PrelimPct)");
-                sb.AddSimpleField(FieldProfitPct,       typeof(double))
+                sb.AddSimpleField(FieldProfitPct,       typeof(double)).SetSpec(SpecTypeId.Number)
                     .SetDocumentation("Profit margin %");
                 sb.AddSimpleField(FieldDayworksCode,    typeof(string))
                     .SetDocumentation("Cross-ref to dayworks schedule entry");
@@ -203,15 +203,15 @@ namespace StingTools.Core.Storage
 
         private static Override ReadV2Entity(Entity e) => new Override
         {
-            Rate                = e.Get<double>(FieldRate),
+            Rate                = e.Get<double>(FieldRate, UnitTypeId.General),
             Unit                = e.Get<string>(FieldUnit) ?? "",
             Currency            = NonEmpty(e.Get<string>(FieldCurrency), "GBP"),
             Note                = e.Get<string>(FieldNote) ?? "",
             StampedUtcTicks     = e.Get<long>(FieldStampedTicks),
             StampedBy           = e.Get<string>(FieldStampedBy) ?? "",
-            WastePercent        = e.Get<double>(FieldWastePct),
-            OverheadPercent     = e.Get<double>(FieldOverheadPct),
-            ProfitPercent       = e.Get<double>(FieldProfitPct),
+            WastePercent        = e.Get<double>(FieldWastePct, UnitTypeId.General),
+            OverheadPercent     = e.Get<double>(FieldOverheadPct, UnitTypeId.General),
+            ProfitPercent       = e.Get<double>(FieldProfitPct, UnitTypeId.General),
             DayworksCode        = e.Get<string>(FieldDayworksCode) ?? "",
             LockedByUser        = e.Get<string>(FieldLockedByUser) ?? "",
             LockedUntilUtcTicks = e.Get<long>(FieldLockedUntilTicks)
@@ -219,7 +219,7 @@ namespace StingTools.Core.Storage
 
         private static Override ReadV1Entity(Entity e) => new Override
         {
-            Rate            = e.Get<double>(FieldRate),
+            Rate            = e.Get<double>(FieldRate, UnitTypeId.General),
             Unit            = e.Get<string>(FieldUnit) ?? "",
             Currency        = "GBP",          // v1 implicit assumption
             Note            = e.Get<string>(FieldNote) ?? "",
@@ -250,15 +250,15 @@ namespace StingTools.Core.Storage
                 if (schema == null) return false;
 
                 var entity = new Entity(schema);
-                entity.Set(FieldRate,             rate);
+                entity.Set(FieldRate,             rate, UnitTypeId.General);
                 entity.Set(FieldUnit,             unit ?? "each");
                 entity.Set(FieldCurrency,         NonEmpty(currency, "GBP"));
                 entity.Set(FieldNote,             note ?? "");
                 entity.Set(FieldStampedTicks,     DateTime.UtcNow.Ticks);
                 entity.Set(FieldStampedBy,        Environment.UserName ?? "");
-                entity.Set(FieldWastePct,         wastePercent);
-                entity.Set(FieldOverheadPct,      overheadPercent);
-                entity.Set(FieldProfitPct,        profitPercent);
+                entity.Set(FieldWastePct,         wastePercent, UnitTypeId.General);
+                entity.Set(FieldOverheadPct,      overheadPercent, UnitTypeId.General);
+                entity.Set(FieldProfitPct,        profitPercent, UnitTypeId.General);
                 entity.Set(FieldDayworksCode,     dayworksCode ?? "");
                 entity.Set(FieldLockedByUser,     lockedByUser ?? "");
                 entity.Set(FieldLockedUntilTicks, lockedUntilUtcTicks);

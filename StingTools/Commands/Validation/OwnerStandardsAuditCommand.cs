@@ -46,18 +46,24 @@ namespace StingTools.Commands.Validation
             int warnFail = findings.Count(f => !f.Skipped && f.Severity == "WARN" && f.Violations > 0);
             int infoFail = findings.Count(f => !f.Skipped && f.Severity == "INFO" && f.Violations > 0);
             int skipped = findings.Count(f => f.Skipped);
-            string rag = blockFail > 0 ? "RED" : (warnFail > 0 ? "AMBER" : "GREEN");
+            // A rule that examined nothing is NOT ASSESSED, never "ok"; GREEN needs every
+            // BLOCK/WARN rule to have checked something (OwnerStandardsRag).
+            var outcomes = findings.Select(f => new OwnerStandardsRag.RuleOutcome(f.Severity, f.Skipped, f.Checked, f.Violations)).ToList();
+            int notAssessed = outcomes.Count(o => !OwnerStandardsRag.IsAssessed(o));
+            string rag = OwnerStandardsRag.Verdict(outcomes);
 
             string csv = WriteCsv(doc, findings);
             string json = WriteJson(doc, findings, rag);
 
             var sb = new StringBuilder();
-            sb.AppendLine($"RAG: {rag}   ({def.Rules.Count(r => r.Enabled)} enabled rules, {skipped} skipped)");
+            sb.AppendLine($"RAG: {rag}   ({def.Rules.Count(r => r.Enabled)} enabled rules, {notAssessed} not assessed)");
+            if (rag == OwnerStandardsRag.Incomplete || rag == OwnerStandardsRag.NotAssessed)
+                sb.AppendLine("Not every rule examined anything — this is not a pass. Tag the model, or check the rule's categories.");
             sb.AppendLine($"BLOCK failing: {blockFail}   WARN failing: {warnFail}   INFO failing: {infoFail}");
             sb.AppendLine();
             foreach (var f in findings.OrderByDescending(x => SevRank(x.Severity)).ThenByDescending(x => x.Violations))
             {
-                string state = f.Skipped ? "SKIP" : (f.Violations > 0 ? $"{f.Violations} fail" : "ok");
+                string state = OwnerStandardsRag.State(new OwnerStandardsRag.RuleOutcome(f.Severity, f.Skipped, f.Checked, f.Violations));
                 sb.AppendLine($"[{f.Severity}] {f.RuleId}: {state}   ({f.Checked} checked)");
                 if (!string.IsNullOrEmpty(f.Source)) sb.AppendLine($"     src: {f.Source}");
                 if (f.Skipped) sb.AppendLine($"     skipped: {f.SkipReason}");
@@ -68,10 +74,10 @@ namespace StingTools.Commands.Validation
 
             new TaskDialog("Owner Standards Audit")
             {
-                MainInstruction = $"{rag} — {blockFail} BLOCK, {warnFail} WARN, {infoFail} INFO failing",
+                MainInstruction = $"{rag} — {blockFail} BLOCK, {warnFail} WARN, {infoFail} INFO failing, {notAssessed} not assessed",
                 MainContent = sb.ToString()
             }.Show();
-            StingLog.Info($"OwnerStandards_Audit: {rag} block={blockFail} warn={warnFail} info={infoFail} skip={skipped}");
+            StingLog.Info($"OwnerStandards_Audit: {rag} block={blockFail} warn={warnFail} info={infoFail} skip={skipped} notAssessed={notAssessed}");
             return Result.Succeeded;
         }
 

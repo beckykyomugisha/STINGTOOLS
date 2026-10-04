@@ -7,6 +7,8 @@ using Planscape.API.Controllers;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Planscape.Tests;
 
@@ -410,5 +412,65 @@ public class ProjectAdministerCapabilityTests
         var controller = NewSettingsController(f, Guid.NewGuid());
         var result = await controller.UpdateSettings(f.ProjectId, Body());
         Assert.IsType<ForbidResult>(result);
+    }
+
+    // ── KUT deep review INT-7: the shared ACC connection is an administrator's ──────
+    //
+    // [ProjectAccess] alone admitted every project member, viewers included: GET /acc/token
+    // handed any of them the team's delegated ACC access token, and POST /acc/sync let any of
+    // them create ACC issues. Both now require CanAdministerProject.
+
+    private static AccController NewAccController(Fixture f, Guid userId)
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, userId.ToString()),
+            new("user_id", userId.ToString()),
+            new("tenant_id", f.TenantId.ToString()),
+        };
+        // No ACC connection is seeded, so a caller who passes the gate reaches the service
+        // and gets "no connection" — which is how these tests tell "past the gate" from 403.
+        var acc = new AccSyncService(f.Db, null!, null!, NullLogger<AccSyncService>.Instance);
+        return new AccController(acc, f.Db)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test")),
+                },
+            },
+        };
+    }
+
+    [Theory]
+    [InlineData("viewer")]
+    [InlineData("plain-contributor")]
+    public async Task A_non_administrator_cannot_take_the_shared_ACC_token(string who)
+    {
+        using var f = NewDb();
+        var result = await NewAccController(f, f.User(who)).GetToken(f.ProjectId, default);
+        var status = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(403, status.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("viewer")]
+    [InlineData("plain-contributor")]
+    public async Task A_non_administrator_cannot_push_issues_to_ACC(string who)
+    {
+        using var f = NewDb();
+        var result = await NewAccController(f, f.User(who)).Sync(f.ProjectId, default);
+        var status = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(403, status.StatusCode);
+    }
+
+    [Fact]
+    public async Task An_administrator_passes_the_gate()
+    {
+        using var f = NewDb();
+        // Past the gate: no connection -> 404 for the token, 400 for the sync. Not 403.
+        Assert.IsType<NotFoundObjectResult>(await NewAccController(f, f.User("manager")).GetToken(f.ProjectId, default));
+        Assert.IsType<BadRequestObjectResult>((await NewAccController(f, f.User("manager")).Sync(f.ProjectId, default)).Result);
     }
 }

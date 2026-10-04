@@ -44,6 +44,24 @@ namespace StingTools.Core.Twin
 
     public static class BmsValuation
     {
+        /// <summary>
+        /// Revit categories whose assets carry a BMS point. ONE list for the reconcile, the
+        /// gap push and the valuation (KUT deep review API-7): the three commands each kept a
+        /// copy, all three spelt "Duct Accessory" — not a Revit category name, so dampers and
+        /// VAV boxes never counted — and none had Mechanical Control Devices (sensors,
+        /// thermostats), the most point-dense category there is.
+        /// </summary>
+        public static readonly IReadOnlyCollection<string> MonitorableCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Mechanical Equipment", "Mechanical Control Devices", "Electrical Equipment",
+            "Lighting Fixtures", "Lighting Devices", "Air Terminals", "Duct Accessories",
+            "Plumbing Fixtures", "Fire Alarm Devices", "Security Devices", "Communication Devices",
+            "Data Devices", "Nurse Call Devices", "Sprinklers"
+        };
+
+        public static bool IsMonitorable(string categoryName) =>
+            !string.IsNullOrEmpty(categoryName) && ((HashSet<string>)MonitorableCategories).Contains(categoryName);
+
         // Niagara / oBIX fault-status strings that mean "the point is in service":
         // an empty status object {} is the Baja convention for OK.
         private static readonly HashSet<string> LiveStatuses = new HashSet<string>(StringComparer.OrdinalIgnoreCase)

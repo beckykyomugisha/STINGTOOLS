@@ -117,6 +117,7 @@
          and network-free on purpose: the command walks the model and queries the
          station, this only does the maths. -->
     <Compile Include="..\StingTools\Core\Twin\BmsValuation.cs" Link="Twin\BmsValuation.cs" />
+    <Compile Include="..\StingTools\Core\WarrantyExpiry.cs" Link="Core\WarrantyExpiry.cs" />
     <!-- The oBIX/JSON shape handling under the certification decision. Extracted from
          NiagaraJsonClient.cs so it could be linked before this project carried a StingLog
          shim; both are linked now. -->
@@ -133,6 +134,9 @@
          over the parser alone would have passed against every version of that bug. -->
     <Compile Include="..\StingTools\Core\Twin\NiagaraJsonClient.cs" Link="Twin\NiagaraJsonClient.cs" />
     <Compile Include="..\StingTools\Core\Twin\CommissioningSource.cs" Link="Twin\CommissioningSource.cs" />
+    <!-- KUT deep review: Fohlio row matching, price parsing and the empty-scope linked %. -->
+    <Compile Include="..\StingTools\ExLink\FohlioImportPlanner.cs" Link="ExLink\FohlioImportPlanner.cs" />
+    <Compile Include="..\StingTools\ExLink\FohlioMapData.cs" Link="ExLink\FohlioMapData.cs" />
     <!-- One copy of the loopback listener, shared with StingTools.Acc.Tests rather than
          duplicated. A second copy would drift, and this one is already proven. -->
     <Compile Include="..\StingTools.Acc.Tests\TestHelpers\LoopbackServer.cs" Link="TestHelpers\LoopbackServer.cs" />

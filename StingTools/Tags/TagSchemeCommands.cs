@@ -302,6 +302,7 @@ namespace StingTools.Tags
             int tagged = 0, consistent = 0, mismatched = 0, unrendered = 0;
             var rows = new List<string> { "ElementId,Category,SchemeId,Stored,Expected,State" };
             var firstMismatches = new List<string>();
+            var renders = new List<(string scheme, string value, long elementId)>();
 
             foreach (var el in scope)
             {
@@ -314,6 +315,7 @@ namespace StingTools.Tags
                 {
                     string expected = TagSchemeRenderer.Render(doc, el, scheme, tokenVals);
                     string stored = ParameterHelpers.GetString(el, scheme.TargetParam);
+                    renders.Add((scheme.Id, expected, el.Id.Value));
                     string state;
                     if (string.IsNullOrEmpty(stored))
                     {
@@ -337,6 +339,13 @@ namespace StingTools.Tags
                 }
             }
 
+            // Two elements with one identifier: invisible to the per-element comparison above.
+            var duplicates = TagSchemeUniqueness.FindDuplicates(renders);
+            int duplicateElements = duplicates.Values.Sum(v => v.Count);
+            foreach (var d in duplicates)
+                foreach (var id in d.Value)
+                    rows.Add($"{id},\"\",{d.Key.scheme},\"{d.Key.value}\",\"{d.Key.value}\",DUPLICATE");
+
             string csvPath = null;
             if (rows.Count > 1)
             {
@@ -358,6 +367,17 @@ namespace StingTools.Tags
             report.AppendLine($"Consistent:  {consistent}");
             report.AppendLine($"Mismatched:  {mismatched}");
             report.AppendLine($"Unrendered:  {unrendered}");
+            report.AppendLine($"Duplicated:  {duplicates.Count} identifier(s) shared by {duplicateElements} element(s)");
+            if (duplicates.Count > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("Shared identifiers (an identifier must name one element):");
+                foreach (var d in duplicates.Take(10))
+                    report.AppendLine($"  {d.Key.value}: elements {string.Join(", ", d.Value.Take(6))}{(d.Value.Count > 6 ? " …" : "")}");
+                report.AppendLine("  SEQ is unique only within its group (discipline, system, level, and building/zone when");
+                report.AppendLine("  configured). A scheme that drops one of those, or maps two locations to one value, can");
+                report.AppendLine("  repeat. Re-rendering does not fix this — add the field to the scheme.");
+            }
             if (firstMismatches.Count > 0)
             {
                 report.AppendLine();
@@ -377,9 +397,11 @@ namespace StingTools.Tags
 
             TaskDialog td = new TaskDialog("Tag Scheme Audit")
             {
-                MainInstruction = mismatched + unrendered == 0
-                    ? "All scheme tags consistent with tokens"
-                    : $"{mismatched} mismatch(es), {unrendered} unrendered",
+                MainInstruction = duplicates.Count > 0
+                    ? $"{duplicates.Count} identifier(s) shared by more than one element — {mismatched} mismatch(es), {unrendered} unrendered"
+                    : mismatched + unrendered == 0
+                        ? "All scheme tags consistent with tokens"
+                        : $"{mismatched} mismatch(es), {unrendered} unrendered",
                 MainContent = report.ToString()
             };
             td.Show();

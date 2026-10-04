@@ -434,17 +434,27 @@ namespace StingTools.Commands.Validation
                 return Result.Succeeded;
             }
 
-            var passIds = new HashSet<long>(r.Elements.Where(e => e.Pass).Select(e => e.ElementId.Value));
-            int stamped = 0, locked = 0;
+            // Assessed elements only: an element the run skipped keeps whatever it had.
+            var assessed = new Dictionary<long, bool>();
+            foreach (var e in r.Elements) assessed[e.ElementId.Value] = e.Pass;
+            int stamped = 0, locked = 0, kept = 0, cleared = 0;
             using (var t = new Transaction(doc, "STING LOD Stamp"))
             {
                 t.Start();
                 foreach (var el in scope)
                 {
-                    if (!passIds.Contains(el.Id.Value)) continue;
+                    if (!assessed.TryGetValue(el.Id.Value, out bool pass)) continue;
+                    string existing = ParameterHelpers.GetValueText(el, ParamRegistry.LOD_VERIFIED);
+                    // Never downgrade a higher stamp; withdraw a claim the element no longer meets
+                    // (KUT deep review API-5).
+                    var action = LodStampRule.Decide(existing, ms, pass, matrix.Milestones);
+                    if (action == LodStampAction.Keep) { if (pass) kept++; continue; }
                     if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) { locked++; continue; }
-                    if (ParameterHelpers.SetString(el, ParamRegistry.LOD_VERIFIED, ms.Id, overwrite: true))
-                        stamped++;
+                    if (action == LodStampAction.Write)
+                    {
+                        if (ParameterHelpers.SetString(el, ParamRegistry.LOD_VERIFIED, ms.Id, overwrite: true)) stamped++;
+                    }
+                    else if (ParameterHelpers.SetString(el, ParamRegistry.LOD_VERIFIED, "", overwrite: true)) cleared++;
                 }
                 t.Commit();
             }
@@ -454,10 +464,13 @@ namespace StingTools.Commands.Validation
                 MainInstruction = $"Stamped {stamped} passing element(s) with '{ms.Id}'",
                 MainContent = $"Milestone: {ms.Name} (LOD {ms.Lod})\n" +
                               string.Join("\n", scopeReport.DisclosureLines()) + "\n" +
-                              $"Passed: {r.Passed}/{r.Total}\nStamped: {stamped}\nLocked/skipped: {locked}\n\n" +
+                              $"Passed: {r.Passed}/{r.Total}\nStamped: {stamped}\n" +
+                              $"Kept a higher milestone already recorded: {kept}\n" +
+                              $"Cleared (failed a milestone they were stamped at or above): {cleared}\n" +
+                              $"Locked/skipped: {locked}\n\n" +
                               $"ASS_LOD_VERIFIED_TXT now records the highest milestone each element has passed."
             }.Show();
-            StingLog.Info($"LOD_Stamp: {stamped} stamped '{ms.Id}', {locked} locked ({scopeReport.Label})");
+            StingLog.Info($"LOD_Stamp: {stamped} stamped '{ms.Id}', {kept} kept higher, {cleared} cleared, {locked} locked ({scopeReport.Label})");
             return Result.Succeeded;
         }
     }

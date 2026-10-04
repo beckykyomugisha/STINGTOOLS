@@ -23,6 +23,7 @@ using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Planscape.Shared.Helpers;
 using StingTools.Core;
 using StingTools.V6;
 
@@ -47,7 +48,13 @@ namespace StingTools.Core.Clash
             }
 
             string sidecar = AccPullClashesCommand.SidecarPath(doc);
-            var pushedMap = AccPullClashesCommand.LoadPushed(sidecar);
+            var pushedMap = AccPullClashesCommand.LoadPushed(sidecar, out string ledgerError);
+            if (pushedMap == null)
+            {
+                // Untracking against an unreadable ledger would lose the issue ids for good.
+                TaskDialog.Show("ACC — Sync Issue Status", "Nothing was changed.\n\n" + ledgerError);
+                return Result.Failed;
+            }
             if (pushedMap.Count == 0)
             {
                 TaskDialog.Show("ACC — Sync Issue Status",
@@ -80,7 +87,11 @@ namespace StingTools.Core.Clash
             foreach (var i in issues)
                 if (!string.IsNullOrEmpty(i.Id)) statusById[i.Id] = i.Status;
 
-            int closed = 0, open = 0, missing = 0;
+            // INT-12: every Issues v1 status is mapped on purpose (AccIssueStatusMap). A status
+            // outside that vocabulary is neither closed nor open: it stays tracked, is counted,
+            // logged and listed, so a workflow change in ACC shows up instead of reading as open.
+            int closed = 0, open = 0, missing = 0, unknown = 0;
+            var unknownStatuses = new SortedSet<string>(StringComparer.Ordinal);
             var rows = new List<string> { "Signature,IssueId,Status,Action" };
             var toUntrack = new List<string>();
             foreach (var kv in pushedMap)
@@ -91,17 +102,30 @@ namespace StingTools.Core.Clash
                     rows.Add($"{Csv(kv.Key)},{Csv(kv.Value)},NOT_FOUND,keep");
                     continue;
                 }
-                if (AccIssueSync.IsClosedStatus(st))
+                switch (AccIssueStatusMap.ReconcileAction(st))
                 {
-                    closed++;
-                    toUntrack.Add(kv.Key);
-                    rows.Add($"{Csv(kv.Key)},{Csv(kv.Value)},{Csv(st)},untrack");
+                    case AccReconcileAction.Untrack:
+                        closed++;
+                        toUntrack.Add(kv.Key);
+                        rows.Add($"{Csv(kv.Key)},{Csv(kv.Value)},{Csv(st)},untrack");
+                        break;
+                    case AccReconcileAction.KeepUnknown:
+                        unknown++;
+                        unknownStatuses.Add(string.IsNullOrEmpty(st) ? "(none)" : st);
+                        rows.Add($"{Csv(kv.Key)},{Csv(kv.Value)},{Csv(st)},keep-unknown-status");
+                        break;
+                    default:
+                        open++;
+                        rows.Add($"{Csv(kv.Key)},{Csv(kv.Value)},{Csv(st)},keep");
+                        break;
                 }
-                else { open++; rows.Add($"{Csv(kv.Key)},{Csv(kv.Value)},{Csv(st)},keep"); }
             }
+            if (unknown > 0)
+                StingLog.Warn($"ACC_SyncIssueStatus: {unknown} escalated issue(s) carry a status outside the " +
+                              $"Issues v1 vocabulary ({string.Join(", ", unknownStatuses)}) — kept tracked, not judged.");
 
             foreach (var sig in toUntrack) pushedMap.Remove(sig);   // closed → re-raise on recurrence
-            AccPullClashesCommand.SavePushed(sidecar, pushedMap);
+            AccPullClashesCommand.SavePushed(sidecar, pushedMap, out _);
 
             string csvPath = null;
             try
@@ -112,10 +136,12 @@ namespace StingTools.Core.Clash
             catch (Exception ex) { StingLog.Warn("ACC IssueSync CSV: " + ex.Message); }
 
             var sb = new StringBuilder();
-            sb.AppendLine($"Escalated clashes tracked: {closed + open + missing}");
+            sb.AppendLine($"Escalated clashes tracked: {closed + open + missing + unknown}");
             sb.AppendLine($"Now CLOSED in ACC:         {closed}  (untracked — will re-raise if they recur)");
             sb.AppendLine($"Still open:                {open}");
             sb.AppendLine($"Issue not found:           {missing}  (kept; may have been deleted in ACC)");
+            if (unknown > 0)
+                sb.AppendLine($"UNKNOWN ACC status:        {unknown}  (kept; not an Issues v1 status: {string.Join(", ", unknownStatuses)})");
             sb.AppendLine($"Still tracked after sync:  {pushedMap.Count}");
             if (csvPath != null) { sb.AppendLine(); sb.AppendLine("CSV: " + csvPath); }
 
@@ -124,7 +150,7 @@ namespace StingTools.Core.Clash
                 MainInstruction = $"{closed} escalated clash(es) resolved in ACC",
                 MainContent = sb.ToString()
             }.Show();
-            StingLog.Info($"ACC_SyncIssueStatus: closed={closed} open={open} missing={missing} tracked={pushedMap.Count}");
+            StingLog.Info($"ACC_SyncIssueStatus: closed={closed} open={open} missing={missing} unknown={unknown} tracked={pushedMap.Count}");
             return Result.Succeeded;
         }
 

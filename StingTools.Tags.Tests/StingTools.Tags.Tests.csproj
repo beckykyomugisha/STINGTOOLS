@@ -61,6 +61,8 @@
          Document-keyed cache) is NOT linked, it is the Revit-bound half.
          TestHelpers/StingLogShim.cs is picked up by the SDK's default Compile glob. -->
     <Compile Include="..\StingTools\Core\TagTokenPolicy.cs" Link="Core\TagTokenPolicy.cs" />
+    <Compile Include="..\StingTools\Core\TagSchemeUniqueness.cs" Link="Core\TagSchemeUniqueness.cs" />
+    <Compile Include="..\StingTools\Core\Validation\OwnerStandardsRag.cs" Link="Core\Validation\OwnerStandardsRag.cs" />
     <Compile Include="..\StingTools\Core\TokenConfidenceBands.cs" Link="Core\TokenConfidenceBands.cs" />
     <Compile Include="..\StingTools\Core\ProjectConfigLocator.cs" Link="Core\ProjectConfigLocator.cs" />
     <Compile Include="..\StingTools\Core\TokenBindingPreflight.cs" Link="Core\TokenBindingPreflight.cs" />
@@ -174,6 +176,8 @@
          "an empty scope is not a green gate" rule is provable here. -->
     <Compile Include="..\StingTools\Core\Validation\LodMatrixModel.cs" Link="Core\Validation\LodMatrixModel.cs" />
     <Compile Include="..\StingTools\Core\Validation\DateFormatRule.cs" Link="Core\Validation\DateFormatRule.cs" />
+    <Compile Include="..\StingTools\Core\Validation\CommissioningDate.cs" Link="Core\Validation\CommissioningDate.cs" />
+    <Compile Include="..\StingTools\Commands\Kpi\OwnerKpiHealth.cs" Link="Commands\Kpi\OwnerKpiHealth.cs" />
     <Compile Include="..\StingTools\Core\Cobie\CobieFieldMap.cs" Link="Core\Cobie\CobieFieldMap.cs" />
     <Compile Include="..\StingTools\Docs\ReviewCommentTracker.cs" Link="Docs\ReviewCommentTracker.cs" />
     <Compile Include="..\StingTools\Core\Classification\CsiMasterFormat.cs" Link="Core\Classification\CsiMasterFormat.cs" />

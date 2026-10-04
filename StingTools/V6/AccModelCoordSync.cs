@@ -81,6 +81,27 @@ namespace StingTools.V6
         /// <summary>Factor converting DistanceM → mm (from AccCredentials.DistToMm; default 1000 = metres).</summary>
         public double DistToMm { get; set; } = 1000.0;
         public double PenetrationMm => Math.Abs(DistanceM) * DistToMm;
+
+        /// <summary>
+        /// Order-invariant identity of the clash for the escalation ledger: object dbid @ document
+        /// for each side, sorted, so an A/B swap between runs maps to the same key.
+        /// <para>
+        /// When the instance scope has no row for the clash, both object ids are 0 and both
+        /// documents blank, and every such clash used to share the key "0@|0@" — only the first
+        /// was ever escalated and the rest were reported "already tracked" (KUT deep review
+        /// INT-11). Those clashes are keyed by their clash id instead. Clashes that do have
+        /// objects keep the old key, so an existing ledger still matches.
+        /// </para>
+        /// </summary>
+        public string StableSignature()
+        {
+            if (LeftObjectId == 0 && RightObjectId == 0
+                && string.IsNullOrEmpty(LeftDocument) && string.IsNullOrEmpty(RightDocument))
+                return "clash:" + Id;
+            string a = $"{LeftObjectId}@{LeftDocument}";
+            string b = $"{RightObjectId}@{RightDocument}";
+            return string.CompareOrdinal(a, b) <= 0 ? $"{a}|{b}" : $"{b}|{a}";
+        }
     }
 
     public static class AccModelCoordSync
@@ -147,7 +168,7 @@ namespace StingTools.V6
 
         // ── Clashes (tests -> resources -> scope files -> join) ──
         public static async Task<AccFetchResult<List<AccClashRecord>>> GetClashesAsync(
-            AccCredentials creds, string containerId, string modelSetId, int max = 1000)
+            AccCredentials creds, string containerId, string modelSetId, int max = int.MaxValue)
         {
             var result = new List<AccClashRecord>();
             if (string.IsNullOrEmpty(containerId) || string.IsNullOrEmpty(modelSetId))
@@ -173,7 +194,16 @@ namespace StingTools.V6
             var latest = tests
                 .Where(t => ((string)(t["status"]) ?? "").IndexOf("complet", StringComparison.OrdinalIgnoreCase) >= 0)
                 .OrderByDescending(t => (string)(t["completedAt"] ?? t["completedDate"] ?? t["updatedAt"]) ?? "")
-                .FirstOrDefault() ?? tests.First();
+                .FirstOrDefault();
+            if (latest == null)
+            {
+                // No test has completed (still running, or failed). Reading tests.First() instead
+                // could return a stale or empty test and report "no clashes" as a success
+                // (KUT deep review INT-13). Not ready is not clean.
+                string states = string.Join(", ", tests.Select(t => (string)t["status"] ?? "?").Distinct());
+                return Fail(AccFetchStatus.TransportFailed, testsGot.HttpStatus,
+                    $"no clash test on this model set has completed yet (test status: {states}) — results are not ready, so nothing was read");
+            }
             string testId = (string)(latest["clashTestId"] ?? latest["id"] ?? latest["testId"]) ?? "";
             if (string.IsNullOrEmpty(testId))
             {
@@ -238,9 +268,15 @@ namespace StingTools.V6
                 return Fail(AccFetchStatus.TransportFailed, clashScope.HttpStatus,
                     "the clash scope file carried no 'clashes' array — the scope-file schema has changed");
 
+            // Every clash is read. The default cap was 1,000 and hitting it still returned
+            // Success, so a severe clash past row 1,000 was never triaged or escalated
+            // (KUT deep review INT-2). A caller-imposed cap that cuts data is a failure, not a
+            // smaller success.
+            if (clashArr.Count > max)
+                return Fail(AccFetchStatus.TransportFailed, clashScope.HttpStatus,
+                    $"the model set has {clashArr.Count} clashes but the read was capped at {max} — a partial set is not reported as complete");
             foreach (var c in clashArr)
             {
-                if (result.Count >= max) break;
                 string id = (string)(c["id"] ?? c["cid"]) ?? "";
                 if (id.Length == 0) continue;
                 instByCid.TryGetValue(id, out var ins);

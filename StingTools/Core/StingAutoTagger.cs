@@ -1811,13 +1811,17 @@ namespace StingTools.Core
                     // N+3 — Also flip the BOQ stale marker so the cost manager
                     // picks up the change on the next dashboard load. Material swap
                     // directly affects the row's cost / carbon (factors come from
-                    // MaterialLookupCsv). ASS_CST_STALE_BOOL is TEXT storage per
-                    // MR_PARAMETERS — "1" / "0" written as strings.
+                    // MaterialLookupCsv). ASS_CST_STALE_BOOL is YESNO (Integer) in
+                    // MR_PARAMETERS; this used to write only a TEXT binding, so the
+                    // flag was never set (KUT deep review API-2).
                     try
                     {
-                        Parameter cstP = el.LookupParameter("ASS_CST_STALE_BOOL");
-                        if (cstP != null && !cstP.IsReadOnly && cstP.StorageType == StorageType.String)
-                            cstP.Set("1");
+                        Parameter cstP = el.LookupParameter(ParamRegistry.CST_STALE_BOOL);
+                        if (cstP != null && !cstP.IsReadOnly)
+                        {
+                            if (cstP.StorageType == StorageType.Integer) cstP.Set(1);
+                            else if (cstP.StorageType == StorageType.String) cstP.Set("1");
+                        }
                     }
                     catch (Exception csEx)
                     { StingLog.WarnRateLimited("StaleMarker.BoqStale", $"StaleMarker BOQ stale: {csEx.Message}"); }

@@ -104,12 +104,22 @@ namespace StingTools.BOQ.Rates
                 }
                 if (cost <= 0) { ReportIfUnbound(req.Element); return null; }
 
+                // A Fohlio price with no recognisable currency is not priced from Fohlio. It was
+                // assumed to be USD, so a blank-currency UGX quote of 4,500,000 went into the
+                // bill as USD 4,500,000 — an invented currency on a tender figure.
+                string iso = StingTools.ExLink.FohlioMoney.NormalizeCurrency(currency);
+                if (iso == null)
+                {
+                    StingLog.Warn($"FohlioRateProvider: element {req.Element?.Id} has a Fohlio cost {cost} but no " +
+                                  $"recognisable currency ('{currency}') — not priced from Fohlio; next provider used.");
+                    return null;
+                }
+
                 return new RateLookup
                 {
                     UnitRate = cost,
-                    // Fohlio quotes USD unless the export says otherwise; the registry's
-                    // FX adapter converts to the document currency.
-                    CurrencyCode = string.IsNullOrEmpty(currency) ? "USD" : currency.Trim().ToUpperInvariant(),
+                    // The registry's FX adapter converts to the document currency.
+                    CurrencyCode = iso,
                     Unit = string.IsNullOrEmpty(req.Unit) ? "each" : req.Unit,
                     SourceId = Id,
                     Confidence = 95,

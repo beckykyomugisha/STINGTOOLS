@@ -72,7 +72,10 @@ namespace StingTools.Core.Classification
             try
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return ClassStandard.Uniclass;
-                string path = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", FileRel);
+                // The file Set() writes. This read the raw <rvtDir>/_BIM_COORD path while Set wrote
+                // the consolidated coordination folder, so a chosen standard reverted on reopen
+                // (KUT deep review ACC-3). MetaFile still finds a legacy-location file.
+                string path = StingPaths.MetaFile(doc, "_BIM_COORD", "sting_classification.json");
                 if (!File.Exists(path)) return ClassStandard.Uniclass;
                 string raw = (string)JObject.Parse(File.ReadAllText(path))["standard"] ?? "";
                 if (Enum.TryParse<ClassStandard>(raw, true, out var s)) return s;

@@ -5,7 +5,7 @@
     {
       "id": "kut-temple-example",
       "name": "Kampala Uganda Temple (KUT) element identifier",
-      "description": "KUT-<originator>-<volume>-<level>-<discipline>-<number>. LOC building codes map to two-digit BEP volume codes (BLD1 Temple -> 01, BLD2 Meetinghouse -> 02, BLD3 Housing/Ancillary -> 03, BLD4 Grounds -> 04, BLD5 Utility -> 05, BLD6 Guard House -> 06, EXT site-wide -> 00). Project and originator codes resolve from ProjectInformation at render time, so a consultant change is one field edit plus one re-render.",
+      "description": "KUT-<originator>-<volume>-<level>-<discipline>-<system>-<number>, e.g. KUT-SMB-01-GF-M-HVAC-0001. SEQ is numbered per discipline + building + system + level (project_config.json SEQ_INCLUDE_LOC), so the identifier carries all four or two elements can share it; SYS falls back to GEN, the value the SEQ group uses for an element with no system. This is a STING rendering of the eight-field element tag (BEP 4.2.2), not the Appointing Party's asset reference, which is still to be issued. LOC building codes map to two-digit BEP volume codes (BLD1 Temple -> 01, BLD2 Meetinghouse -> 02, BLD3 Housing/Ancillary -> 03, BLD4 Grounds -> 04, BLD5 Utility -> 05, BLD6 Guard House -> 06, EXT site-wide -> 00). Project and originator codes resolve from ProjectInformation at render time, so a consultant change is one field edit plus one re-render.",
       "origin": "project",
       "enabled": true,
       "targetParam": "ASS_TAG_SCHEME_TXT",
@@ -17,10 +17,11 @@
           "kind": "token",
           "token": "LOC",
           "map": { "BLD1": "01", "BLD2": "02", "BLD3": "03", "BLD4": "04", "BLD5": "05", "BLD6": "06", "EXT": "00" },
-          "fallback": "00"
+          "fallback": "XX"
         },
         { "kind": "token", "token": "LVL" },
         { "kind": "token", "token": "DISC" },
+        { "kind": "token", "token": "SYS", "fallback": "GEN" },
         { "kind": "token", "token": "SEQ" }
       ]
     }

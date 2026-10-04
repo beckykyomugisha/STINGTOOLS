@@ -41,6 +41,10 @@ namespace StingTools.ExLink
         public static string Num(Element r) => r.get_Parameter(BuiltInParameter.ROOM_NUMBER)?.AsString() ?? "";
         public static string Nm(Element r)  => r.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? "";
         public static string Csv(string s)  => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
+
+        /// <summary>Revit UniqueId of the room. The only identity that cannot collide between the
+        /// six KUT building models, which all number their rooms from 101.</summary>
+        public const string RoomIdHeader = "Revit Room Id";
     }
 
     [Transaction(TransactionMode.ReadOnly)]
@@ -62,6 +66,7 @@ namespace StingTools.ExLink
                 var header = new List<string> { "Room Number", "Room Name" };
                 header.AddRange(FohlioFinishes.FinishCols.Select(c => c.header));
                 header.Add("Area m2"); header.Add("Fohlio Ref");
+                header.Add(FohlioFinishes.RoomIdHeader); header.Add("Level");
                 var rows = new List<string> { string.Join(",", header.Select(FohlioFinishes.Csv)) };
                 foreach (var r in rooms.OrderBy(FohlioFinishes.Num))
                 {
@@ -70,6 +75,8 @@ namespace StingTools.ExLink
                     double areaSf = r.get_Parameter(BuiltInParameter.ROOM_AREA)?.AsDouble() ?? 0;
                     cells.Add((areaSf * 0.09290304).ToString("F2"));   // ft² → m²
                     cells.Add(ParameterHelpers.GetString(r, ParamRegistry.FOHLIO_REF));
+                    cells.Add(r.UniqueId);
+                    cells.Add((doc.GetElement(r.LevelId) as Level)?.Name ?? "");
                     rows.Add(string.Join(",", cells.Select(FohlioFinishes.Csv)));
                 }
                 path = OutputLocationHelper.GetRoutedPath(doc, "Schedule", $"STING_Fohlio_Finishes_{DateTime.Now:yyyyMMdd}.csv");
@@ -80,9 +87,11 @@ namespace StingTools.ExLink
             new TaskDialog("Fohlio Finishes Export")
             {
                 MainInstruction = $"Exported finishes for {rooms.Count} room(s)",
-                MainContent = "Columns: Room Number, Room Name, Floor/Wall/Ceiling/Base Finish, Area m², Fohlio Ref.\n\n" +
+                MainContent = "Columns: Room Number, Room Name, Floor/Wall/Ceiling/Base Finish, Area m², Fohlio Ref, " +
+                              "Revit Room Id, Level. Keep the Revit Room Id column in Fohlio: it is what stops one " +
+                              "building's room 101 landing on another's.\n\n" +
                               $"CSV: {path}\n\nUpdate finishes in Fohlio, then run Fohlio Import Finishes to write them " +
-                              "back (matched by Room Number)."
+                              "back (matched by Revit Room Id, else by an unambiguous Room Number)."
             }.Show();
             StingLog.Info($"Fohlio_ExportFinishes: {rooms.Count} rooms → {path}");
             return Result.Succeeded;
@@ -111,20 +120,33 @@ namespace StingTools.ExLink
             try { rows = ReadRows(dlg.FileName); }
             catch (Exception ex) { TaskDialog.Show("Fohlio Import Finishes", "Read failed:\n" + ex.Message); return Result.Failed; }
 
-            var byNum = new Dictionary<string, Element>(StringComparer.OrdinalIgnoreCase);
-            foreach (var r in FohlioFinishes.Rooms(doc))
-            {
-                var n = FohlioFinishes.Num(r);
-                if (!string.IsNullOrEmpty(n) && !byNum.ContainsKey(n)) byNum[n] = r;
-            }
+            // Match through the planner: Revit Room Id first (a row from another building's
+            // model never lands here), else a Room Number that is unique in the model AND in
+            // the file. The old map was "first room with this number wins".
+            var rooms = FohlioFinishes.Rooms(doc).ToDictionary(r => r.Id.Value);
+            var plan = FohlioImportPlanner.Match(
+                rows.Select((row, i) => new FohlioRowIdentity
+                {
+                    RowIndex = i,
+                    UniqueId = row.TryGetValue(FohlioFinishes.RoomIdHeader, out var u) ? u : "",
+                    Key = row.TryGetValue("Room Number", out var n) ? n : "",
+                    FohlioRef = row.TryGetValue("Fohlio Ref", out var f) ? f : "",
+                }),
+                rooms.Values.Select(r => new FohlioCandidate
+                {
+                    Id = r.Id.Value,
+                    UniqueId = r.UniqueId,
+                    Key = FohlioFinishes.Num(r),
+                    FohlioRef = ParameterHelpers.GetString(r, ParamRegistry.FOHLIO_REF),
+                }),
+                useFohlioRef: true);
 
             var changes = new List<(Element room, string label, BuiltInParameter? bip, string param, string oldV, string newV)>();
-            int matched = 0, unmatched = 0;
-            foreach (var row in rows)
+            int matched = plan.Matches.Count, unmatched = plan.Unmatched.Count;
+            foreach (var m in plan.Matches)
             {
-                if (!row.TryGetValue("Room Number", out string num) || string.IsNullOrEmpty(num)) { unmatched++; continue; }
-                if (!byNum.TryGetValue(num.Trim(), out var room)) { unmatched++; continue; }
-                matched++;
+                var row = rows[m.RowIndex];
+                var room = rooms[m.CandidateId];
                 foreach (var c in FohlioFinishes.FinishCols)
                 {
                     if (!row.TryGetValue(c.header, out string nv)) continue;
@@ -141,19 +163,21 @@ namespace StingTools.ExLink
                         changes.Add((room, "Fohlio Ref", null, ParamRegistry.FOHLIO_REF, ov, fref.Trim()));
                 }
             }
+            string unmatchedText = FohlioImportPlanner.DescribeUnmatched(plan, "Room");
 
             if (changes.Count == 0)
             {
-                TaskDialog.Show("Fohlio Import Finishes", $"Matched {matched} room(s), {unmatched} unmatched. No finish changes to write.");
+                TaskDialog.Show("Fohlio Import Finishes", $"Matched {matched} room(s), {unmatched} unmatched. No finish changes to write." + unmatchedText);
                 return Result.Succeeded;
             }
 
             var prev = new StringBuilder();
-            prev.AppendLine($"Matched {matched} room(s) by Room Number — {unmatched} unmatched.");
+            prev.AppendLine($"Matched {matched} room(s) — {unmatched} unmatched.");
             prev.AppendLine($"{changes.Count} finish change(s) proposed.");
             prev.AppendLine();
             foreach (var c in changes.Take(15)) prev.AppendLine($"  {FohlioFinishes.Num(c.room)} {c.label}: '{c.oldV}' → '{c.newV}'");
             if (changes.Count > 15) prev.AppendLine($"  … +{changes.Count - 15} more");
+            prev.Append(unmatchedText);
 
             var confirm = new TaskDialog("Fohlio Import Finishes — preview")
             {
@@ -207,7 +231,7 @@ namespace StingTools.ExLink
         private static List<Dictionary<string, string>> ReadRows(string path)
         {
             var rows = new List<Dictionary<string, string>>();
-            var want = new List<string> { "Room Number", "Floor Finish", "Wall Finish", "Ceiling Finish", "Base Finish", "Fohlio Ref" };
+            var want = new List<string> { "Room Number", "Floor Finish", "Wall Finish", "Ceiling Finish", "Base Finish", "Fohlio Ref", FohlioFinishes.RoomIdHeader };
             if (path.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
             {
                 using var wb = new XLWorkbook(path);
@@ -227,7 +251,7 @@ namespace StingTools.ExLink
             }
             else
             {
-                var lines = File.ReadAllLines(path);
+                var lines = FohlioCsv.ReadUtf8Lines(path);
                 if (lines.Length < 2) return rows;
                 var hf = StingToolsApp.ParseCsvLine(lines[0]);
                 var hdr = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);

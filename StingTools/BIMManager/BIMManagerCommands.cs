@@ -2714,6 +2714,9 @@ namespace StingTools.BIMManager
 
             // ── Component (from tagged elements) ──
             var components = new List<Dictionary<string, string>>();
+            // ExternalIdentifier (IFC GlobalId) -> element, recorded as each row is built.
+            var elemByExtId = new Dictionary<string, Element>(StringComparer.Ordinal);
+            int cobieMissingInstallDate = 0, cobieMissingWarrantyStart = 0, cobieJobsWithoutFrequency = 0;
             var cobieElements = new FilteredElementCollector(doc).WhereElementIsNotElementType().ToList();
             var cobieProgress = StingProgressDialog.Show("COBie Components", cobieElements.Count);
             foreach (var el in cobieElements)
@@ -2783,43 +2786,27 @@ namespace StingTools.BIMManager
                 // phase-derived fallback below. The legacy read is retained so projects
                 // that populated the COBie-group parameter directly still export.
                 string installDate = ReadFirst(el, StingTools.Core.Cobie.CobieFieldMap.ReadOrder("InstallationDate"));
-                // Phase 40: Derive installation date from phase as ISO 8601 date, not phase NAME.
-                // Previously exported "New Construction" instead of "2025-03-22".
-                if (string.IsNullOrEmpty(installDate))
-                {
-                    try
-                    {
-                        var phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
-                        if (phaseParam != null)
-                        {
-                            var phase = doc.GetElement(phaseParam.AsElementId()) as Phase;
-                            if (phase != null)
-                            {
-                                // Use project start date from Project Information if available
-                                string projStartDate = doc.ProjectInformation?.get_Parameter(
-                                    BuiltInParameter.PROJECT_ISSUE_DATE)?.AsString();
-                                installDate = !string.IsNullOrEmpty(projStartDate) ? projStartDate
-                                    : DateTime.Now.ToString("yyyy-MM-dd"); // fallback to current date
-                            }
-                        }
-                    }
-                    catch (Exception ex2) { StingLog.Warn($"Phase install date lookup failed: {ex2.Message}"); }
-                }
+                // An element with no recorded installation date exports a BLANK. It used to take the
+                // project issue date, or today, so the handover register looked complete while carrying
+                // dates nobody recorded (KUT deep review MEP-2). The gap is counted instead.
+                if (string.IsNullOrEmpty(installDate)) cobieMissingInstallDate++;
                 // The extended import wrote MNT_WARRANTY_START_TXT, which does not
                 // exist in the registry, so it wrote nothing at all; this read the
                 // only real parameter. Both sides now name the same one, so the
                 // value survives -- on the five categories COM_WARRANTY_START_TXT
                 // is bound to. See CobieFieldMap.NarrowlyBound for the rest.
                 string warrantyStart = ReadFirst(el, StingTools.Core.Cobie.CobieFieldMap.ReadOrder("WarrantyStartDate"));
-                // Phase 40: If warranty start is empty, derive from installation date
-                if (string.IsNullOrEmpty(warrantyStart) && !string.IsNullOrEmpty(installDate))
-                    warrantyStart = installDate;
+                // Not derived from the installation date: a warranty can start at handover, at
+                // commissioning or at delivery. A blank is honest; a copied date is a claim.
+                if (string.IsNullOrEmpty(warrantyStart)) cobieMissingWarrantyStart++;
                 string barCode = ParameterHelpers.GetString(
                     el, StingTools.Core.Cobie.CobieFieldMap.ComponentColumns["BarCode"]);
 
                 // Read TAG7 narrative for rich description
                 string tag7 = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
 
+                string extId = StingTools.IfcResults.IfcGuidEncoder.FromElementGoldStandard(el);
+                if (!string.IsNullOrEmpty(extId)) elemByExtId[extId] = el;
                 components.Add(new Dictionary<string, string>
                 {
                     ["Name"] = friendlyName, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
@@ -2830,7 +2817,7 @@ namespace StingTools.BIMManager
                     // Revit UniqueId. It is the cross-tool join key into the IFC,
                     // Speckle applicationId and the server identity map.
                     ["ExternalSystem"] = "Revit", ["ExternalObject"] = cat,
-                    ["ExternalIdentifier"] = StingTools.IfcResults.IfcGuidEncoder.FromElementGoldStandard(el),
+                    ["ExternalIdentifier"] = extId,
                     ["SerialNumber"] = serialNumber,
                     ["InstallationDate"] = installDate,
                     ["WarrantyStartDate"] = warrantyStart,
@@ -2859,18 +2846,13 @@ namespace StingTools.BIMManager
             try { cobieProgress.Close(); } catch (Exception ex) { StingLog.Warn($"COBie progress close: {ex.Message}"); }
             data["Component"] = components;
 
-            // CRIT-01/04: Build UniqueId → Element map once; reuse across System/Job/Impact/Attribute/Coordinate
-            // sections instead of calling doc.GetElement(extId) per section per component (~5× redundant scans).
-            var elemById = new Dictionary<string, Element>(components.Count, StringComparer.Ordinal);
-            foreach (var comp in components)
-            {
-                string cid = comp["ExternalIdentifier"];
-                if (!string.IsNullOrEmpty(cid) && !elemById.ContainsKey(cid))
-                {
-                    var cel = doc.GetElement(cid);
-                    if (cel != null) elemById[cid] = cel;
-                }
-            }
+            // ExternalIdentifier → Element, reused by the System / Job / Impact / Attribute sections.
+            // It was built with doc.GetElement(ExternalIdentifier), but that is the 22-char IFC
+            // GlobalId and GetElement(string) resolves only a Revit UniqueId — so the map was always
+            // EMPTY, and every component was skipped from Attribute, Job overrides, Impact and the
+            // System parameter pass (KUT deep review MEP-1). The elements are recorded as the rows
+            // are built instead.
+            var elemById = elemByExtId;
 
             // ── System (grouped by actual SYS parameter values from tagged elements) ──
             var systems = new List<Dictionary<string, string>>();
@@ -2936,55 +2918,52 @@ namespace StingTools.BIMManager
             }
             data["System"] = systems;
 
-            // ── Job (maintenance — prefer element MNT_ params, fallback to defaults) ──
+            // ── Job (maintenance) ──
+            // Frequency comes only from what the model records: ASS_MAINTENANCE_FREQUENCY_MONTHS
+            // (the parameter the KUT LOD 500 gate requires) or the MNT_SERVICE_INTERVAL_TXT text.
+            // There used to be a per-system default table (FP 3 months, HVAC 6 …) and a fixed
+            // "4 hours" duration, so every Job row carried figures nobody specified
+            // (KUT deep review MEP-13). With nothing recorded the row is exported with the
+            // frequency blank, and counted.
             var jobs = new List<Dictionary<string, string>>();
-            var defaultMaintFreq = new Dictionary<string, (string f, string u)>
-            {
-                ["HVAC"] = ("6", "months"), ["DCW"] = ("12", "months"), ["DHW"] = ("6", "months"),
-                ["HWS"] = ("6", "months"), ["SAN"] = ("12", "months"), ["GAS"] = ("6", "months"),
-                ["FP"] = ("3", "months"), ["LV"] = ("12", "months"), ["FLS"] = ("3", "months"),
-                ["LTG"] = ("12", "months"), ["ELC"] = ("12", "months")
-            };
-            // Try to read actual maintenance intervals from tagged elements per system
-            var sysMaintenanceOverrides = new Dictionary<string, string>();
+            var sysMaintenance = new Dictionary<string, (string f, string u)>();
             foreach (var comp in components)
             {
                 string compExtId = comp["ExternalIdentifier"];
-                // CRIT-01/04: reuse elemById lookup
                 if (!elemById.TryGetValue(compExtId, out var compEl) || compEl == null) continue;
                 string compSys = ParameterHelpers.GetString(compEl, ParamRegistry.SYS);
-                if (string.IsNullOrEmpty(compSys) || sysMaintenanceOverrides.ContainsKey(compSys)) continue;
+                if (string.IsNullOrEmpty(compSys) || sysMaintenance.ContainsKey(compSys)) continue;
+                string months = ParameterHelpers.GetValueText(compEl, "ASS_MAINTENANCE_FREQUENCY_MONTHS");
+                if (!string.IsNullOrEmpty(months) && months != "0")
+                {
+                    sysMaintenance[compSys] = (months, "months");
+                    continue;
+                }
                 string interval = ParameterHelpers.GetString(compEl, "MNT_SERVICE_INTERVAL_TXT");
-                if (!string.IsNullOrEmpty(interval))
-                    sysMaintenanceOverrides[compSys] = interval;
+                var parts = (interval ?? "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2 && double.TryParse(parts[0], System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out _))
+                    sysMaintenance[compSys] = (parts[0], parts[1].TrimEnd('s') + "s");
             }
             foreach (var sys in systems)
             {
                 string code = sys["Name"];
-                string freq, freqUnit;
-                if (sysMaintenanceOverrides.ContainsKey(code))
-                {
-                    // Parse element-level interval (e.g. "6 months", "3 months", "1 year")
-                    string interval = sysMaintenanceOverrides[code];
-                    var parts = interval.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                    freq = parts.Length > 0 ? parts[0] : "12";
-                    freqUnit = parts.Length > 1 ? parts[1].TrimEnd('s') + "s" : "months";
-                }
-                else
-                {
-                    var mf = defaultMaintFreq.TryGetValue(code, out var mfVal) ? mfVal : ("12", "months");
-                    freq = mf.Item1;
-                    freqUnit = mf.Item2;
-                }
+                bool known = sysMaintenance.TryGetValue(code, out var mf);
+                if (!known) cobieJobsWithoutFrequency++;
                 jobs.Add(new Dictionary<string, string>
                 {
                     ["Name"] = $"PPM-{code}", ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
                     ["Category"] = "Preventive", ["Status"] = "Not Started", ["TypeName"] = code,
-                    ["Description"] = $"Planned Preventive Maintenance for {code} systems",
-                    ["Duration"] = "4", ["DurationUnit"] = "hours",
-                    ["Frequency"] = freq, ["FrequencyUnit"] = freqUnit, ["ResourceNames"] = "FM Technician"
+                    ["Description"] = known
+                        ? $"Planned Preventive Maintenance for {code} systems"
+                        : $"Planned Preventive Maintenance for {code} systems — frequency not recorded in the model",
+                    ["Duration"] = "", ["DurationUnit"] = "",
+                    ["Frequency"] = known ? mf.f : "", ["FrequencyUnit"] = known ? mf.u : "",
+                    ["ResourceNames"] = "FM Technician"
                 });
             }
+            StingLog.Info($"COBie gaps (left blank, never invented): installation date {cobieMissingInstallDate}, " +
+                          $"warranty start {cobieMissingWarrantyStart}, jobs without frequency {cobieJobsWithoutFrequency}");
             data["Job"] = jobs;
 
             // ── Document (from document_register.json + BEP fallback) ──
@@ -3617,7 +3596,10 @@ namespace StingTools.BIMManager
             string today = DateTime.Now.ToString("yyyy-MM-dd");
             return new JObject
             {
-                ["transmittal_id"] = GetNextSequentialId(doc.PathName ?? "TX", "TX"),
+                // Allocated from the file, not a process-wide counter that restarted at 1 every
+                // Revit session (the MIDP model drop never synced it) — ISO-12.
+                ["transmittal_id"] = TransmittalRecord.NextId(
+                    LoadJsonArray(GetBIMManagerFilePath(doc, "transmittals.json"))),
                 ["project_name"] = pi?.Name ?? "Untitled",
                 ["project_number"] = pi?.Number ?? "",
                 ["from_organization"] = Environment.UserName,
@@ -6109,7 +6091,7 @@ namespace StingTools.BIMManager
                 {
                     string txPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "transmittals.json");
                     var txArray = BIMManagerEngine.LoadJsonArray(txPath);
-                    string txId = BIMManagerEngine.NextIdFromArray(txArray, "TX", "transmittal_id");
+                    string txId = TransmittalRecord.NextId(txArray);
                     var txRec = new JObject
                     {
                         ["transmittal_id"] = txId,

@@ -29,65 +29,10 @@ namespace StingTools.ExLink
     //                   (never hardcoded, never committed) if this were ever wired.
     // ─────────────────────────────────────────────────────────────────────────
 
-    /// <summary>One column in the Fohlio ↔ STING/Revit mapping.</summary>
-    public class FohlioColumn
+    // The data model (FohlioColumn, Categories, Columns, BoqTreatment, IsFfeCategory, Parse)
+    // lives in FohlioMapData.cs, which is Revit-free and unit-tested against the shipped map.
+    public partial class FohlioMap
     {
-        /// <summary>Header used in the Fohlio import/export sheet.</summary>
-        public string Header { get; set; } = "";
-        /// <summary>STING/Revit parameter, or a "$"-pseudo (Family / Type / Category / Room).</summary>
-        public string Param { get; set; } = "";
-        /// <summary>True if Fohlio_Import may write this value back into the model.</summary>
-        public bool WriteBack { get; set; }
-    }
-
-    public class FohlioMap
-    {
-        /// <summary>FF&E categories exchanged with Fohlio.</summary>
-        public List<string> Categories { get; set; } = new List<string>
-        {
-            "Furniture", "Furniture Systems", "Casework", "Plumbing Fixtures",
-            "Lighting Fixtures", "Specialty Equipment"
-        };
-
-        public List<FohlioColumn> Columns { get; set; } = new List<FohlioColumn>
-        {
-            new FohlioColumn { Header = "Item Tag",      Param = "ASS_TAG_1_TXT" },
-            new FohlioColumn { Header = "Category",      Param = "$Category" },
-            new FohlioColumn { Header = "Product",       Param = "$Type" },
-            new FohlioColumn { Header = "Family",        Param = "$Family" },
-            new FohlioColumn { Header = "Manufacturer",  Param = "ASS_MANUFACTURER_TXT", WriteBack = true },
-            new FohlioColumn { Header = "Model",         Param = "ASS_MODEL_REF_TXT",    WriteBack = true },
-            new FohlioColumn { Header = "Room",          Param = "$Room" },
-            new FohlioColumn { Header = "Fohlio Ref",    Param = "FOHLIO_REF_TXT",       WriteBack = true },
-        };
-
-        // ---- FF&E BOQ treatment --------------------------------------------------
-        // How Fohlio FF&E is carried in the bill. An item is exactly ONE of these -
-        // never double-counted.
-        //   "ffe"                    DEFAULT - transparent Owner-procured FF&E category
-        //                            (NRM1 group 8 / ICMS): a visible model line, priced
-        //                            at cost from the Fohlio register, flagged so the
-        //                            spec gate does not chase a specification the
-        //                            contractor never writes
-        //   "measured"               contractor-supplied - a normal priced line
-        //   "ownerSupplied-excluded" out of this bill entirely (the element is skipped)
-        //   "pcSum"                  explicit contractual provisional / prime-cost sum
-        public string BoqTreatment { get; set; } = "ffe";
-        public Dictionary<string, string> BoqTreatmentByCategory { get; set; }
-
-        /// <summary>Canonical treatment for a category - delegates to the pure,
-        /// unit-tested <see cref="StingTools.BOQ.FfeTreatment"/>.</summary>
-        public string TreatmentFor(string category)
-            => StingTools.BOQ.FfeTreatment.Resolve(category, BoqTreatment, BoqTreatmentByCategory);
-
-        public bool IsFfeCategory(string category)
-        {
-            if (string.IsNullOrEmpty(category) || Categories == null) return false;
-            foreach (var c in Categories)
-                if (string.Equals(c, category, StringComparison.OrdinalIgnoreCase)) return true;
-            return false;
-        }
-
         // Per-document cache: the BOQ build asks once per FF&E element, so the JSON must
         // be read once per run. Cleared by Cost_ReloadRules alongside the rate registry.
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, FohlioMap> _cache
@@ -98,20 +43,27 @@ namespace StingTools.ExLink
 
         public static void Invalidate() => _cache.Clear();
 
+        /// <summary>Set when a project fohlio_map.json exists but could not be read. The map then
+        /// falls back to the built-in defaults, which carry no cost or currency columns — so a
+        /// command must say so rather than quietly import without prices.</summary>
+        [JsonIgnore]
+        public string LoadError { get; set; }
+
         public static FohlioMap Load(Document doc)
         {
-            var map = new FohlioMap();
+            string p = null;
             try
             {
-                string p = ProjectFile(doc, "fohlio_map.json");
+                p = ProjectFile(doc, "fohlio_map.json");
                 if (p != null && File.Exists(p))
-                {
-                    var o = JsonConvert.DeserializeObject<FohlioMap>(File.ReadAllText(p));
-                    if (o != null) map = o;
-                }
+                    return Parse(File.ReadAllText(p));
             }
-            catch (Exception ex) { StingLog.Warn($"FohlioMap load: {ex.Message}"); }
-            return map;
+            catch (Exception ex)
+            {
+                StingLog.Warn($"FohlioMap load {p}: {ex.Message}");
+                return new FohlioMap { LoadError = $"{p}: {ex.Message}" };
+            }
+            return new FohlioMap();
         }
 
         public static string ProjectFile(Document doc, string name)
@@ -139,7 +91,9 @@ namespace StingTools.ExLink
                         return string.IsNullOrEmpty(num) ? name : $"{num} {name}".Trim();
                     }
                     catch { return ""; }
-                default: return ParameterHelpers.GetString(el, param);
+                // GetValueText, not GetString: FOHLIO_UNIT_COST_NR is NUMBER, and GetString
+                // returns "" for anything but TEXT, so the Unit Cost column always exported blank.
+                default: return ParameterHelpers.GetValueText(el, param);
             }
         }
 

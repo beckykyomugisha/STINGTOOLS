@@ -26,9 +26,9 @@
       "id": "workset-building-prefix",
       "type": "worksetPattern",
       "severity": "WARN",
-      "enabled": true,
+      "enabled": false,
       "pattern": "^(BLD[1-6]|EXT)_",
-      "description": "Worksets should be prefixed with a building code (BLD1..BLD6 or EXT) so site elements without rooms still resolve their LOC (e.g. BLD2_Mechanical).",
+      "description": "DISABLED in the corporate baseline (KUT deep review DES-3): the pattern is KUT's six buildings, so it warned on every workset of every other project. A project enables it in its own overlay once its volume/workset convention is decided. Worksets should be prefixed with a building code (BLD1..BLD6 or EXT) so site elements without rooms still resolve their LOC (e.g. BLD2_Mechanical).",
       "source": "KUT BEP — per-building workset convention"
     },
     {

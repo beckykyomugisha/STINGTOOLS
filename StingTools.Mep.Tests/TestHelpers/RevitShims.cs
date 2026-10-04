@@ -32,6 +32,12 @@ namespace StingTools.Core
             return File.Exists(p) ? p : null;
         }
     }
+
+    internal static class ProjectFolderEngine
+    {
+        /// <summary>No project folder in these tests: there is never a project override.</summary>
+        public static string ResolveProjectOverridePath(Autodesk.Revit.DB.Document doc, string relPath) => null;
+    }
 }
 
 namespace StingTools.Mep.Tests

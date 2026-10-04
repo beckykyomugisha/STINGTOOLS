@@ -97,7 +97,12 @@ namespace StingTools.V6
             string target = decision.ToState;
             string now = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
             ParameterHelpers.SetString(el, ParamRegistry.COMM_STATE_TXT, target, overwrite: true);
-            ParameterHelpers.SetString(el, ParamRegistry.COMM_DATE_TXT, now, overwrite: true);
+            // The commissioning DATE, yyyy-MM-dd, written on reaching COMMISSIONED — not a
+            // timestamp of every state change (KUT deep review MEP-5). The audit keeps `now`.
+            string commDate = StingTools.Core.Validation.CommissioningDate.ValueFor(
+                target, ParameterHelpers.GetValueText(el, ParamRegistry.COMM_DATE_TXT), DateTime.UtcNow);
+            if (commDate != null)
+                ParameterHelpers.SetString(el, ParamRegistry.COMM_DATE_TXT, commDate, overwrite: true);
             ParameterHelpers.SetString(el, ParamRegistry.COMM_OPERATIVE_TXT, scan.Operative ?? "", overwrite: true);
             if (!string.IsNullOrEmpty(scan.Witness))
                 ParameterHelpers.SetString(el, ParamRegistry.COMM_WITNESS_TXT, scan.Witness, overwrite: true);

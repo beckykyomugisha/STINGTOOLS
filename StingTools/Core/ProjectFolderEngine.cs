@@ -3035,14 +3035,18 @@ namespace StingTools.Core
                     arr = new JArray();
                 }
 
-                string transId = $"TX-{(arr.Count + 1):D4}";
+                // One allocator for every writer (KUT deep review ISO-12): Count+1 collided
+                // with ids the BIM Manager and Document Manager had already issued.
+                string transId = StingTools.BIMManager.TransmittalRecord.NextId(arr);
                 arr.Add(new JObject
                 {
                     ["id"]           = transId,
                     ["subject"]      = $"Auto-transmittal: {filePaths.Count} file(s) → {cdeStatus}",
                     ["reason"]       = "CDE state change",
                     ["method"]       = "CDE",
-                    ["issue_date"]   = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    // A CDE folder move is not an issue: the row records when it was prepared,
+                    // so no title block prints an issue date for it (ISO-14).
+                    ["date_prepared"] = DateTime.UtcNow.ToString("yyyy-MM-dd"),
                     ["status"]       = "AUTO_GENERATED",
                     ["cde_status"]   = cdeStatus,
                     ["recipients"]   = new JArray(ResolveAutoTransmittalRecipients(doc)),

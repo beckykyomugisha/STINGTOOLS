@@ -570,7 +570,7 @@ namespace StingTools.Core
                     try
                     {
                         var doc = e.Document;
-                        if (doc != null && !doc.IsFamilyDocument)
+                        if (doc != null && !doc.IsFamilyDocument && !doc.IsLinked)
                         {
                             WarningsEngine.SaveBaseline(doc);
                             StingLog.Info("DocumentClosing: auto-saved warning baseline");
@@ -944,6 +944,16 @@ namespace StingTools.Core
         {
             try
             {
+                // Revit raises DocumentOpened for every LINKED model too. TagConfig is one static
+                // for the process, so each link reloaded it with its own project config (last one
+                // wins), and the folder bootstrap / climate stamp ran against the link (KUT deep
+                // review PERF-1: a host with six building links tagged with a link's config).
+                if (e.Document == null || e.Document.IsLinked)
+                {
+                    if (e.Document != null) StingLog.Info($"DocumentOpened: skipped linked model '{e.Document.Title}'");
+                    return;
+                }
+
                 Temp.FormulaEngine.ClearCache();
                 ParameterHelpers.ClearParamCache();
                 StingAutoTagger.InvalidateContext();

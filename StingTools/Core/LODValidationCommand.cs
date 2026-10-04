@@ -88,7 +88,7 @@ namespace StingTools.Core
                     .AddSection("COVERAGE")
                     .Metric("Passed", r.Passed.ToString())
                     .Metric("Failed", r.Failed.ToString())
-                    .Metric("Pass rate", $"{r.OverallPct:F1}%");
+                    .Metric("Pass rate", r.PassRateText());
 
                 rp.AddSection("SCOPE");
                 foreach (var line in scopeReport.DisclosureLines()) rp.Text(line);

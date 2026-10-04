@@ -5,7 +5,7 @@
     {
       "id": "iso19650-element",
       "name": "ISO 19650 element identifier",
-      "description": "Generic ISO 19650-2 style identifier: Project-Originator-Volume-Level-Discipline-Number. Project and originator codes are read from ProjectInformation (PRJ_ORG_PROJECT_CODE_TXT / PRJ_ORG_ORIGINATOR_CODE_TXT) at render time so a consultant or project-code change is a single field edit plus one re-render, never a per-element rewrite. Volume is the STING LOC token; remap LOC codes to BEP volume codes by adding a 'map' on the LOC segment in your project overlay.",
+      "description": "Generic element identifier in the ISO 19650-2 container-naming style: Project-Originator-Volume-Level-Discipline-System-Number. ISO 19650 prescribes no element tag; System is carried because SEQ is numbered per discipline + system + level, so without it two systems share an identifier. Project and originator codes are read from ProjectInformation (PRJ_ORG_PROJECT_CODE_TXT / PRJ_ORG_ORIGINATOR_CODE_TXT) at render time so a consultant or project-code change is a single field edit plus one re-render, never a per-element rewrite. Volume is the STING LOC token; remap LOC codes to BEP volume codes by adding a 'map' on the LOC segment in your project overlay.",
       "origin": "corporate",
       "enabled": false,
       "targetParam": "ASS_TAG_SCHEME_TXT",
@@ -16,13 +16,14 @@
         { "kind": "token", "token": "LOC" },
         { "kind": "token", "token": "LVL" },
         { "kind": "token", "token": "DISC" },
+        { "kind": "token", "token": "SYS", "fallback": "GEN" },
         { "kind": "token", "token": "SEQ" }
       ]
     },
     {
       "id": "kut-temple-example",
       "name": "Kampala Uganda Temple (KUT) element identifier — worked example",
-      "description": "Worked example for a six-building campus: KUT-<originator>-<volume>-<level>-<discipline>-<number>. The LOC segment maps STING building codes to two-digit BEP volume codes (BLD1 Temple → 01, BLD2 Meetinghouse → 02, BLD3 Housing/Ancillary → 03, BLD4 Grounds → 04, BLD5 Utility → 05, BLD6 Guard House → 06, EXT site-wide → 00). Copy this scheme into <project>/_BIM_COORD/tag_schemes.json, set enabled=true, and adjust codes to the agreed BEP volume table. Remains disabled in the corporate baseline.",
+      "description": "Worked example for a six-building campus: KUT-<originator>-<volume>-<level>-<discipline>-<system>-<number> (SYS is part of the SEQ group, so leaving it out lets two systems share an identifier; an unmapped building renders XX, never a real volume). The LOC segment maps STING building codes to two-digit BEP volume codes (BLD1 Temple → 01, BLD2 Meetinghouse → 02, BLD3 Housing/Ancillary → 03, BLD4 Grounds → 04, BLD5 Utility → 05, BLD6 Guard House → 06, EXT site-wide → 00). Copy this scheme into <project>/_BIM_COORD/tag_schemes.json, set enabled=true, and adjust codes to the agreed BEP volume table. Remains disabled in the corporate baseline.",
       "origin": "example",
       "enabled": false,
       "targetParam": "ASS_TAG_SCHEME_TXT",
@@ -42,10 +43,11 @@
             "BLD6": "06",
             "EXT": "00"
           },
-          "fallback": "00"
+          "fallback": "XX"
         },
         { "kind": "token", "token": "LVL" },
         { "kind": "token", "token": "DISC" },
+        { "kind": "token", "token": "SYS", "fallback": "GEN" },
         { "kind": "token", "token": "SEQ" }
       ]
     }

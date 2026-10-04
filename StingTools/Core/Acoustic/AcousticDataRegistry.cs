@@ -79,8 +79,8 @@ namespace StingTools.Core.Acoustic
                 if (doc != null && !string.IsNullOrEmpty(doc.PathName))
                 {
                     string projDir = Path.GetDirectoryName(doc.PathName) ?? "";
-                    LoadFans(data, Path.Combine(projDir, FanOverrideRel));
-                    LoadSilencers(data, Path.Combine(projDir, SilencerOverrideRel));
+                    LoadFans(data, (StingTools.Core.ProjectFolderEngine.ResolveProjectOverridePath(doc, FanOverrideRel) ?? ""));
+                    LoadSilencers(data, (StingTools.Core.ProjectFolderEngine.ResolveProjectOverridePath(doc, SilencerOverrideRel) ?? ""));
                 }
             }
             catch (Exception ex) { StingTools.Core.StingLog.Error("AcousticDataRegistry.Load", ex); }
