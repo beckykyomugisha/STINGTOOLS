@@ -97,7 +97,7 @@ namespace StingTools.Temp
                                 written++;
                             }
                         }
-                        t.Commit();
+                        StingTx.Commit(t);
                         report.AppendLine($"\nDefault condition 'A - Good' set for {written} unassessed assets.");
                     }
                 }
@@ -189,7 +189,7 @@ namespace StingTools.Temp
                             totalAssets++;
                         }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 string folder = OutputLocationHelper.GetRoutedDirectory(doc, "Maintenance");
@@ -420,7 +420,7 @@ namespace StingTools.Temp
                             ParameterHelpers.SetString(el, "COM_COMMISSION_STATUS_TXT", "PENDING", false);
                         }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 string folder = OutputLocationHelper.GetRoutedDirectory(doc, "Handover");
@@ -602,7 +602,7 @@ namespace StingTools.Temp
                             total++;
                         }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 string folder = OutputLocationHelper.GetRoutedDirectory(doc, "Handover");
@@ -745,7 +745,7 @@ namespace StingTools.Temp
                             }
                         }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 string folder = OutputLocationHelper.GetRoutedDirectory(doc, "AssetRegister");

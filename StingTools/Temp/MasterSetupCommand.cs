@@ -465,7 +465,7 @@ namespace StingTools.Temp
                     tsTx.Start();
                     ParameterHelpers.SetString(doc.ProjectInformation, "STING_MASTER_SETUP_TS",
                         DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
-                    tsTx.Commit();
+                    StingTx.Commit(tsTx);
                 }
             }
             catch (Exception ex) { StingLog.Warn($"AE-03: Timestamp write: {ex.Message}"); }

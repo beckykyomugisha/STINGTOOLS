@@ -784,7 +784,7 @@ namespace StingTools.Temp
                     }
 
                     doc.SetUnits(units);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 StingLog.Info($"Project units set to: {unitSystem}");
@@ -828,7 +828,7 @@ namespace StingTools.Temp
                         currentPos.EastWest, currentPos.NorthSouth,
                         currentPos.Elevation, angleRadians);
                     pl.SetProjectPosition(XYZ.Zero, newPos);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 StingLog.Info($"True North set to {angleDegrees:F1}°");
                 return Result.Succeeded;
@@ -927,7 +927,8 @@ namespace StingTools.Temp
             {
                 tx.Start();
                 set = p.Set(value);
-                if (set) tx.Commit(); else tx.RollBack();
+                // a rolled-back write is reported below as not set
+                if (set) { if (!StingTx.TryCommit(tx, null, out _)) set = false; } else tx.RollBack();
             }
             if (!set)
             {
@@ -1042,7 +1043,7 @@ namespace StingTools.Temp
                         }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 // Apply the regional preset on the in-process singleton so
@@ -1218,7 +1219,7 @@ namespace StingTools.Temp
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             StingLog.Info($"Levels: {created} created, {renamed} renamed, {skipped} existing");
@@ -1296,7 +1297,7 @@ namespace StingTools.Temp
                             skipped++;
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 // Patch the wizard's selection list so subsequent steps use the new names
@@ -1530,7 +1531,7 @@ namespace StingTools.Temp
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             StingLog.Info($"Grids: {created} created" +
@@ -2040,7 +2041,7 @@ namespace StingTools.Temp
                     {
                         tx.Start();
                         svs.ViewId = startView.Id;
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
                     StingLog.Info($"Starting view set to: {startView.Name}");
                     return Result.Succeeded;
@@ -2196,7 +2197,7 @@ namespace StingTools.Temp
                         try { if (!fs.IsActive) fs.Activate(); }
                         catch (Exception ex) { StingLog.Warn($"Activate title block '{fs.FamilyName}': {ex.Message}"); }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 // Publish to TagConfig for downstream sheet-creation commands.
@@ -2247,7 +2248,7 @@ namespace StingTools.Temp
                         tx.Start();
                         parking = ViewDrafting.Create(doc, vft.Id);
                         try { parking.Name = "STING_Setup_Parking"; } catch { }
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
                 }
 

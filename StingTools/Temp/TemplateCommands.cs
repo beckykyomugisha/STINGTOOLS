@@ -387,7 +387,7 @@ namespace StingTools.Temp
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
                 string paramNote = spLookup.Count > 0
                     ? $"\nParameter-based: {paramCreated} created, {paramSkipped} skipped."
                     : "\nParameter-based filters skipped (load shared parameters first).";
@@ -501,7 +501,7 @@ namespace StingTools.Temp
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("Create Worksets",
                 $"Created {created} worksets.\nSkipped {skipped} (exist or failed).\n" +
@@ -905,7 +905,7 @@ namespace StingTools.Temp
                 // ── Phase 3: every template a drawing type names ──
                 dtResult = CreateDrawingTypeTemplates(doc, baseViews, filterLookup, solidFill);
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             var baseReport = new StringBuilder();
             foreach (var kvp in baseViews)

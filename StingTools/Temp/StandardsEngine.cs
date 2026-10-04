@@ -881,7 +881,7 @@ namespace StingTools.Temp
                         ParameterHelpers.SetString(host, "ASS_CLASS_DESC_TXT", desc, false);
                     }
 
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 report.AppendLine($"\nTypes written: {typesTouched}");

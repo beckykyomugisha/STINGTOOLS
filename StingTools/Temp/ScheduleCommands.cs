@@ -305,7 +305,7 @@ namespace StingTools.Temp
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             var report = new StringBuilder();
             report.AppendLine($"Created {created} schedules ({matTakeoffs} material takeoffs).");
@@ -379,7 +379,7 @@ namespace StingTools.Temp
                                 }
                             }
                         }
-                        linkTx.Commit();
+                        StingTx.Commit(linkTx);
                     }
 
                     if (filtersLinked > 0)
@@ -1259,7 +1259,7 @@ namespace StingTools.Temp
                     if (cancelled)
                         tx.RollBack();
                     else
-                        tx.Commit();
+                        StingTx.Commit(tx);
                 }
             }
             finally
@@ -1289,7 +1289,7 @@ namespace StingTools.Temp
                     var (s, t) = NativeParamMapper.TagSheets(doc);
                     sheetsTagged = s;
                     sheetTokens = t;
-                    stx.Commit();
+                    StingTx.Commit(stx);
                 }
             }
             catch (Exception shEx) { StingLog.Warn($"FullAutoPopulate TagSheets: {shEx.Message}"); }
@@ -1473,7 +1473,7 @@ namespace StingTools.Temp
                         if (cancelled)
                             tx.RollBack();
                         else
-                            tx.Commit();
+                            StingTx.Commit(tx);
                     }
                 }
             }
@@ -1864,7 +1864,7 @@ namespace StingTools.Temp
                     PlaceText($"  Revision:     {projRev}", bodyTypeId, lineSpacing);
                 PlaceText($"══════════════════════════════════════════", headerTypeId, lineSpacing);
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             var report = new StringBuilder();
             report.AppendLine("Corporate Title Block Schedule Created");
@@ -2178,7 +2178,7 @@ namespace StingTools.Temp
 
                 PlaceLine("════════════════════════════════════════════════════════════════════════════════════════════════════");
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             // ── Also export as CSV ──
             string csvPath = null;

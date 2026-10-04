@@ -275,7 +275,7 @@ namespace StingTools.Temp
                 {
                     t.Start();
                     doc.Export(outputDir, fileName, ifcOptions);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 var report = new StringBuilder();
@@ -1081,7 +1081,7 @@ namespace StingTools.Temp
                                 }
                                 processed++;
                             }
-                            t.Commit();
+                            StingTx.Commit(t);
                         }
 
                         if (c < chunks - 1)

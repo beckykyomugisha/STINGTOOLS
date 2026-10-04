@@ -114,7 +114,7 @@ namespace StingTools.Temp
                     var line = Line.CreateBound(pt1, pt2);
                     double height = 10; // ~3m in feet
                     var wall = Wall.Create(doc, line, wallType.Id, level.Id, height, 0, false, false);
-                    t.Commit();
+                    StingTx.Commit(t);
 
                     TaskDialog.Show("STING Create Walls",
                         $"Wall created successfully.\n" +
@@ -210,7 +210,7 @@ namespace StingTools.Temp
                         return Result.Cancelled;
                     }
 
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 TaskDialog.Show("STING Create Floors",
@@ -312,7 +312,7 @@ namespace StingTools.Temp
                         }
                     }
 
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 var report = new StringBuilder();
@@ -406,7 +406,7 @@ namespace StingTools.Temp
                             doc.Create.NewFamilyInstance(point, symbol, wall, level,
                                 Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
 
-                            t.Commit();
+                            StingTx.Commit(t);
                             TaskDialog.Show("STING Place Doors", $"Door placed: {symbol.Family.Name} : {symbol.Name}");
                         }
                         else
@@ -417,7 +417,7 @@ namespace StingTools.Temp
                     }
                     catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                     {
-                        t.RollBack();
+                        StingTx.RollBackIfOpen(t);
                         return Result.Cancelled;
                     }
                 }
@@ -485,7 +485,7 @@ namespace StingTools.Temp
                         {
                             doc.Create.NewFamilyInstance(point, symbol, wall, level,
                                 Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
-                            t.Commit();
+                            StingTx.Commit(t);
                             TaskDialog.Show("STING Place Windows", $"Window placed: {symbol.Family.Name} : {symbol.Name}");
                         }
                         else
@@ -496,7 +496,7 @@ namespace StingTools.Temp
                     }
                     catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                     {
-                        t.RollBack();
+                        StingTx.RollBackIfOpen(t);
                         return Result.Cancelled;
                     }
                 }
@@ -612,7 +612,7 @@ namespace StingTools.Temp
                         catch (Exception ex) { StingLog.Warn($"skip failed placements: {ex.Message}"); }
                     }
 
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 TaskDialog.Show("STING Create Columns", $"Columns created: {created} at {intersections.Count} grid intersections.");
@@ -692,7 +692,7 @@ namespace StingTools.Temp
                         }
                     }
 
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 TaskDialog.Show("STING Create Rooms",
@@ -771,7 +771,7 @@ namespace StingTools.Temp
                         }
                     }
 
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 TaskDialog.Show("STING Create Grids", $"Grids created: {created} from {lines.Count} CSV rows.");
@@ -837,7 +837,7 @@ namespace StingTools.Temp
                         }
                     }
 
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 TaskDialog.Show("STING Create Levels", $"Levels created: {created} from {lines.Count} CSV rows.");

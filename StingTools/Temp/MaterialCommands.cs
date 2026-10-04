@@ -1096,6 +1096,7 @@ namespace StingTools.Temp
 
                 int batchEnd = Math.Min(batchStart + MaterialBatchSize, rows.Count);
                 int batchNum = (batchStart / MaterialBatchSize) + 1;
+                int createdAtBatchStart = created, duplicatedAtBatchStart = duplicated;
 
                 using (Transaction tx = new Transaction(doc,
                     $"STING Materials batch {batchNum}"))
@@ -1136,15 +1137,21 @@ namespace StingTools.Temp
                             }
                         }
 
-                        tx.Commit();
-                        StingLog.Info($"{dialogTitle}: batch {batchNum} committed ({created} created so far)");
+                        // a rolled-back batch counts as a batch error and its materials as not created
+                        if (StingTx.TryCommit(tx, null, out string why))
+                            StingLog.Info($"{dialogTitle}: batch {batchNum} committed ({created} created so far)");
+                        else
+                        {
+                            batchErrors++;
+                            created = createdAtBatchStart;
+                            duplicated = duplicatedAtBatchStart;
+                        }
                     }
                     catch (Exception ex)
                     {
                         batchErrors++;
                         StingLog.Error($"{dialogTitle}: batch {batchNum} failed, rolling back batch", ex);
-                        if (tx.HasStarted() && !tx.HasEnded())
-                            tx.RollBack();
+                        StingTx.RollBackIfOpen(tx);
                     }
                 }
             }
