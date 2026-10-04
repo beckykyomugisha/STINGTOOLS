@@ -96,5 +96,21 @@ namespace StingTools.Tags.Tests
             string src = File.ReadAllText(Path.Combine(Repo(), "StingTools", "Tags", "TagSchemeCommands.cs"));
             Assert.Contains("TagSchemeUniqueness.FindDuplicates", src);
         }
+
+        [Fact]
+        public void EveryShippedCorporateSchemeCarriesTheSeqGroup()
+        {
+            // The corporate examples are what a second project copies. Both left SYS out, so a
+            // copied scheme collided the same way the KUT one did (KUTDR-1). Worst case LOC on.
+            var lib = JObject.Parse(File.ReadAllText(Path.Combine(Repo(), "StingTools", "Data", "STING_TAG_SCHEMES.json")));
+            var schemes = lib["schemes"].ToList();
+            Assert.True(schemes.Count >= 2, "the corporate scheme library parsed to almost nothing");
+            foreach (var s in schemes)
+            {
+                var tokens = s["segments"].Where(x => (string)x["kind"] == "token").Select(x => (string)x["token"]).ToList();
+                var missing = TagSchemeUniqueness.MissingSeqGroupTokens(tokens, seqIncludesLoc: true, seqIncludesZone: false);
+                Assert.True(missing.Count == 0, $"{(string)s["id"]} leaves out {string.Join(", ", missing)}");
+            }
+        }
     }
 }

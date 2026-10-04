@@ -120,3 +120,12 @@ where every file is written, or need an owner value.
 Plugin build 0 errors / 0 warnings. `StingTools.Tags.Tests` 5,736 · `StingTools.Acc.Tests` 181 ·
 `StingTools.Boq.Tests` 1,426 · `StingTools.Mep.Tests` 87 · `Planscape.Tests` 1,047 passed / 19 skipped.
 KUT document gate (153 assertions) and workflow gate OK. Nothing was run in Revit.
+
+## Loop 2 *(interrupted)*
+
+Nine read-only reviewers were launched on 2026-10-04 with the loop-1 record and an instruction to
+go deeper. **All nine stopped before reporting** — the account hit its usage limit (HTTP 429,
+resets 19:40 EAT). No loop-2 finding exists yet, so **the stop rule is not met**: loop 2 has to be
+re-run, then at least loop 3. Done in the meantime: both corporate tag-scheme examples carry SYS
+(`EveryShippedCorporateSchemeCarriesTheSeqGroup`, red on the previous file, green now).
+
