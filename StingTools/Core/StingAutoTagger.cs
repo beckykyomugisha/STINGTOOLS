@@ -713,6 +713,9 @@ namespace StingTools.Core
                 string activeViewDtDiscipline)
             {
                 int processed = 0;
+                // ELEC-32: ids marked "recently processed" in this chunk, taken back out if
+                // Revit rolls the chunk back so the elements are tagged next time.
+                var processedThisChunk = new List<long>();
                 try
                 {
                     using (var trans = new Transaction(doc, "STING Auto-Tag (chunk)"))
@@ -844,7 +847,7 @@ namespace StingTools.Core
 
                                 lock (_processedLock)
                                 {
-                                    _recentlyProcessed.Add(id.Value);
+                                    if (_recentlyProcessed.Add(id.Value)) processedThisChunk.Add(id.Value);
                                     _recentlyProcessedQueue.Enqueue(id.Value);
                                     _processedCount++;
 
@@ -891,12 +894,35 @@ namespace StingTools.Core
                             }
                         }
                         // a rolled-back chunk processed nothing
-                        if (!StingTx.TryCommit(trans, null, out string chunkWhy)) { StingLog.Warn(chunkWhy); processed = 0; }
+                        if (!StingTx.TryCommit(trans, null, out string chunkWhy))
+                        {
+                            StingLog.Warn(chunkWhy);
+                            // ELEC-32: forget the chunk's "recently processed" marks so these
+                            // elements are tagged next time, and rebuild the tag index from the
+                            // model on the next drain (the cached one holds the rolled-back tags).
+                            // The in-memory SEQ counters keep the chunk's allocations and are
+                            // saved after the group: those numbers are skipped, never reused.
+                            lock (_processedLock)
+                            {
+                                foreach (long rid in processedThisChunk) _recentlyProcessed.Remove(rid);
+                                _processedCount -= processedThisChunk.Count;
+                            }
+                            _contextInvalid = true;
+                            processed = 0;
+                        }
                     }
                 }
                 catch (Exception batchEx)
                 {
                     StingLog.Error($"AutoTagQueueHandler.ProcessBatch ({batch.Count} elements)", batchEx);
+                    // ELEC-32: the chunk's transaction did not commit — forget its marks too.
+                    lock (_processedLock)
+                    {
+                        foreach (long rid in processedThisChunk) _recentlyProcessed.Remove(rid);
+                        _processedCount -= processedThisChunk.Count;
+                    }
+                    processedThisChunk.Clear();
+                    processed = 0;
                     // A-3: chunk-level failure rolls back this chunk only; outer
                     // TransactionGroup continues with the next chunk.
                     _consecutiveFailures++;
@@ -1075,6 +1101,11 @@ namespace StingTools.Core
                     hashUpdates[id.Value] = $"{t}|{l}|{z}|{v}";
                 }
 
+                // ELEC-32: the hash each element had before this transaction (null = none),
+                // put back if Revit rolls the stale marks back — otherwise the cache says
+                // "already marked" and the element is never stale-marked again.
+                var hashPrev = new Dictionary<long, string>();
+                bool staleRolledBack = false;
                 using (Transaction tx = new Transaction(doc, "STING Mark Stale"))
                 {
                     tx.Start();
@@ -1090,7 +1121,11 @@ namespace StingTools.Core
                                 p.Set(1);
                                 // Update hash cache with pre-computed value
                                 if (hashUpdates.TryGetValue(id.Value, out string newHash))
+                                {
+                                    if (!hashPrev.ContainsKey(id.Value))
+                                        hashPrev[id.Value] = _elementVersionHash.TryGetValue(id.Value, out string oldHash) ? oldHash : null;
                                     _elementVersionHash[id.Value] = newHash;
+                                }
                             }
                         }
                         catch (Exception ex)
@@ -1098,7 +1133,16 @@ namespace StingTools.Core
                             StingLog.Warn($"OnDocumentChanged stale-mark {id.Value}: {ex.Message}");
                         }
                     }
-                    if (!StingTx.TryCommit(tx, null, out string staleWhy)) StingLog.Warn(staleWhy);
+                    if (!StingTx.TryCommit(tx, null, out string staleWhy))
+                    {
+                        StingLog.Warn(staleWhy);
+                        staleRolledBack = true;
+                        foreach (var kv in hashPrev)
+                        {
+                            if (kv.Value == null) _elementVersionHash.TryRemove(kv.Key, out _);
+                            else _elementVersionHash[kv.Key] = kv.Value;
+                        }
+                    }
                 }
 
                 // A2: Update last stale-mark timestamp for debounce
@@ -1120,7 +1164,10 @@ namespace StingTools.Core
                     StingLog.Info($"StingStaleMarker: evicted {evicted} of {originalCount} cached hashes");
                 }
 
-                StingLog.Info($"OnDocumentChanged: marked {idsToMark.Count} elements stale");
+                if (staleRolledBack)
+                    StingLog.Warn($"OnDocumentChanged: stale marks on {idsToMark.Count} elements rolled back — hash cache restored so they are marked next time");
+                else
+                    StingLog.Info($"OnDocumentChanged: marked {idsToMark.Count} elements stale");
             }
             catch (Exception ex)
             {
@@ -1532,6 +1579,17 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>ELEC-32: put back a snapshot entry taken before a transaction Revit rolled
+        /// back (0 = there was none), so a material change is detected again next time.</summary>
+        private static void RestoreCachedMaterialId(long elementId, long previous)
+        {
+            if (previous > 0) { SetCachedMaterialId(elementId, previous); return; }
+            lock (_matIdLock)
+            {
+                if (_matIdSnapshot.Remove(elementId)) _matIdLru.Remove(elementId);
+            }
+        }
+
         private static long ReadPrimaryMaterialId(Element el)
         {
             try
@@ -1855,13 +1913,23 @@ namespace StingTools.Core
                 catch (Exception riEx) { StingLog.Warn($"StaleMarker overflow room index: {riEx.Message}"); }
 
                 int marked = 0;
+                // ELEC-32: TryMarkElementStale updates the material snapshot as it goes; keep
+                // the prior values so a rollback does not hide the material change next time.
+                var matPrev = new Dictionary<long, long>();
+                foreach (var id in ids)
+                    if (id != null && !matPrev.ContainsKey(id.Value)) matPrev[id.Value] = GetCachedMaterialId(id.Value);
                 using (var tx = new Transaction(doc, "STING Stale Re-mark (deferred)"))
                 {
                     tx.Start();
                     foreach (var id in ids)
                         if (TryMarkElementStale(doc, id, roomIndex, projectLoc)) marked++;
                     // rolled back: nothing was marked
-                    if (!StingTx.TryCommit(tx, null, out string remarkWhy)) { StingLog.Warn(remarkWhy); marked = 0; }
+                    if (!StingTx.TryCommit(tx, null, out string remarkWhy))
+                    {
+                        StingLog.Warn(remarkWhy);
+                        marked = 0;
+                        foreach (var kv in matPrev) RestoreCachedMaterialId(kv.Key, kv.Value);
+                    }
                 }
 
                 if (marked > 0)

@@ -258,15 +258,19 @@ namespace StingTools.Tags
             // GAP-03: Chunked 200-element transactions for partial-commit on cancellation.
             // Previously, cancel rolled back ALL work. Now committed batches are preserved.
             const int ChunkSize = 200;
+            // ELEC-32: a batch Revit rolled back stops the run; earlier batches stay committed.
+            string rolledBack = null;
+            int rolledBackBatch = 0;
 
             try
             {
                 for (int batchStart = 0; batchStart < sorted.Count; batchStart += ChunkSize)
                 {
-                    if (cancelled) break;
+                    if (cancelled || rolledBack != null) break;
 
                     int batchEnd = Math.Min(batchStart + ChunkSize, sorted.Count);
                     int batchNum = (batchStart / ChunkSize) + 1;
+                    var statsBeforeBatch = TaggingStatsSnapshot.Take(stats);
 
                     using (Transaction tx = new Transaction(doc, $"STING Auto Tag #{batchNum}"))
                     {
@@ -306,9 +310,18 @@ namespace StingTools.Tags
 
                         if (cancelled)
                             tx.RollBack();
+                        else if (!StingTx.TryCommit(tx, null, out string batchWhy))
+                        {
+                            // ELEC-32: take the rolled-back batch out of the counts and stop.
+                            // The SEQ counters keep the numbers it allocated; PostTagCleanup
+                            // saves them below, so those numbers are skipped, never reused.
+                            statsBeforeBatch?.Restore();
+                            rolledBack = batchWhy;
+                            rolledBackBatch = batchNum;
+                            StingLog.Warn($"AutoTag: batch {batchNum} rolled back — run stopped; batches 1-{batchNum - 1} stay committed");
+                        }
                         else
                         {
-                            StingTx.Commit(tx);
                             TagConfig.SaveSeqSidecar(doc, sequenceCounters);
                         }
                     }
@@ -328,6 +341,14 @@ namespace StingTools.Tags
             }
 
             var report = new StringBuilder();
+            if (rolledBack != null)
+            {
+                report.AppendLine(rolledBack);
+                report.AppendLine($"Stopped at batch {rolledBackBatch}: Revit rolled it back and later batches were not run. " +
+                    (rolledBackBatch > 1 ? $"Batches 1-{rolledBackBatch - 1} stay committed; " : "Nothing was committed; ") +
+                    "the counts below are the committed batches only.");
+                report.AppendLine();
+            }
             report.AppendLine($"Auto Tag — '{activeView.Name}'");
             report.AppendLine(new string('=', 50));
             if (cancelled)
@@ -363,7 +384,9 @@ namespace StingTools.Tags
             report.Append(stats.BuildReport());
 
             TaskDialog td = new TaskDialog("Auto Tag");
-            td.MainInstruction = $"Tagged {stats.TotalTagged} of {taggable} elements in '{activeView.Name}'";
+            td.MainInstruction = rolledBack != null
+                ? $"ROLLED BACK at batch {rolledBackBatch} — stopped; {stats.TotalTagged} of {taggable} elements tagged in committed batches"
+                : $"Tagged {stats.TotalTagged} of {taggable} elements in '{activeView.Name}'";
             td.MainContent = report.ToString();
             td.Show();
 
@@ -379,6 +402,7 @@ namespace StingTools.Tags
             // Phase 165 follow-up — explicit batch teardown so the room-index
             // TTL drops from 90s back to 30s now that this command is done.
             TokenAutoPopulator.PopulationContext.EndSession();
+            if (rolledBack != null) { message = rolledBack; return Result.Failed; }
             return Result.Succeeded;
         }
     }
@@ -519,14 +543,18 @@ namespace StingTools.Tags
             // committed batches are preserved instead of losing all work.
             const int ChunkSize = 200;
             var progress = UI.StingProgressDialog.Show("Tag New Only", sorted.Count);
+            // ELEC-32: a batch Revit rolled back stops the run; earlier batches stay committed.
+            string rolledBack = null;
+            int rolledBackBatch = 0;
             try
             {
                 int batchNum = 0;
                 for (int batchStart = 0; batchStart < sorted.Count; batchStart += ChunkSize)
                 {
-                    if (cancelled) break;
+                    if (cancelled || rolledBack != null) break;
                     batchNum++;
                     int batchEnd = Math.Min(batchStart + ChunkSize, sorted.Count);
+                    var statsBeforeBatch = TaggingStatsSnapshot.Take(stats);
                     using (Transaction tx = new Transaction(doc, $"STING Tag New Only #{batchNum}"))
                     {
                         tx.Start();
@@ -557,7 +585,16 @@ namespace StingTools.Tags
                                 break;
                             }
                         }
-                        if (!cancelled) StingTx.Commit(tx);
+                        if (!cancelled && !StingTx.TryCommit(tx, null, out string batchWhy))
+                        {
+                            // ELEC-32: take the rolled-back batch out of the counts and stop.
+                            // The SEQ counters keep its allocations; PostTagCleanup saves them
+                            // below, so those numbers are skipped, never reused.
+                            statsBeforeBatch?.Restore();
+                            rolledBack = batchWhy;
+                            rolledBackBatch = batchNum;
+                            StingLog.Warn($"TagNewOnly: batch {batchNum} rolled back — run stopped; batches 1-{batchNum - 1} stay committed");
+                        }
                     }
                 }
             }
@@ -579,6 +616,14 @@ namespace StingTools.Tags
             TagPipelineHelper.PostTagCleanup(doc, seqCounters, "TagNewOnly");
 
             var report = new StringBuilder();
+            if (rolledBack != null)
+            {
+                report.AppendLine(rolledBack);
+                report.AppendLine($"Stopped at batch {rolledBackBatch}: Revit rolled it back and later batches were not run. " +
+                    (rolledBackBatch > 1 ? $"Batches 1-{rolledBackBatch - 1} stay committed; " : "Nothing was committed; ") +
+                    "the counts below are the committed batches only.");
+                report.AppendLine();
+            }
             report.AppendLine($"Tag New Only — {untagged.Count} elements");
             report.AppendLine(new string('=', 50));
             report.AppendLine($"  Duration:  {sw.Elapsed.TotalSeconds:F1}s");
@@ -586,7 +631,9 @@ namespace StingTools.Tags
             report.Append(stats.BuildReport());
 
             TaskDialog td = new TaskDialog("Tag New Only");
-            td.MainInstruction = $"Tagged {stats.TotalTagged} new elements";
+            td.MainInstruction = rolledBack != null
+                ? $"ROLLED BACK at batch {rolledBackBatch} — stopped; {stats.TotalTagged} new elements tagged in committed batches"
+                : $"Tagged {stats.TotalTagged} new elements";
             td.MainContent = report.ToString();
             td.Show();
 
@@ -595,6 +642,7 @@ namespace StingTools.Tags
 
             // Phase 165 follow-up — explicit batch teardown.
             TokenAutoPopulator.PopulationContext.EndSession();
+            if (rolledBack != null) { message = rolledBack; return Result.Failed; }
             return Result.Succeeded;
         }
     }
