@@ -999,6 +999,29 @@ def check_hand_edited_sources(root: Path, f: Findings, verbose: bool):
     if verbose:
         print("  hand-edited sources free of retired codes: %d files" % len(files))
 
+    # Sheet-number bands: the generated pack and the two hand-edited tables once
+    # disagreed on which band holds 3D views (8 vs 9), so a 3D sheet numbered from
+    # one was misfiled under the other. Compare the one band that diverged, by
+    # content, in all three.
+    def band_of_3d(rows):
+        hits = sorted({d for d, text in rows if re.search(r"\b3D\b|three-dimensional", text, re.I)})
+        return hits
+
+    pack = band_of_3d((b[0], m) for b, m in N.SHEET_BANDS)
+    for name in ("KUT_NAMING_MIGRATION_MAP.md", "KUT_Drawing_and_Document_Numbering_Convention.md"):
+        p = d / name
+        if not p.exists():
+            f.fail(name, "missing -- the sheet-band check reads it")
+            continue
+        rows = re.findall(r"^\|\s*`?(\d)`?\s*\|\s*([^|]+)\|", p.read_text(encoding="utf-8"), re.M)
+        got = band_of_3d(rows)
+        if not got:
+            f.fail(name, "has no sheet-band row for 3D views -- the band table was not found")
+        elif got != pack:
+            f.fail(name, "puts 3D views in band %s; tools/kut_naming.py SHEET_BANDS puts them in %s"
+                   % (",".join(got), ",".join(pack)))
+        f.ok()
+
 
 def check_draft_on_every_sheet(root: Path, f: Findings, verbose: bool):
     """The workbook's status must appear on every sheet, not only the Cover.

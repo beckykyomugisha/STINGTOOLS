@@ -140,11 +140,10 @@ and is more useful than a flat sequence.
 | `8` | Reserved — coordination, sketches, mark-ups |
 | `9` | 3D — isometrics, axonometrics, perspectives |
 
-> **Not yet agreed — the pack says otherwise.** The generated BEP and Document Control
-> Standard (from `tools/kut_naming.py` `SHEET_BANDS`) put 3D and presentation in `8` and
-> reserve `9`; this table does the reverse. The pack also flags the banding as unconfirmed
-> (BEP 15.2, a kickoff decision). Settle `8` and `9` at the kickoff and change one of the two
-> before any sheet is numbered in those bands.
+> **One proposal, still to be confirmed.** The generated pack (`tools/kut_naming.py`
+> `SHEET_BANDS`) once put 3D in `8` and reserved `9`. It now follows this table and the US
+> National CAD Standard, so the BEP, the Document Control Standard and this map agree. The
+> banding remains a kickoff decision (BEP 15.2): no sheet is numbered until it is confirmed.
 
 ---
 

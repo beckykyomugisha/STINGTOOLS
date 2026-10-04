@@ -26692,3 +26692,8 @@ Gate OK (100 assertions); overlay `--check` current; 37 KUT tests pass. Not run 
 - **New gate check `check_hand_edited_sources`** reads `KUT_DOCS_WORKING/source/` (migration map
   exempt) and fails on a retired building code or a four-character originator. 131 findings on the
   previous sources, 0 now. Added to the gate's CI path filter.
+- **One sheet-banding proposal, not two.** `kut_naming.SHEET_BANDS` put 3D views in band `8` and
+  reserved `9`; the site convention (migration map, Numbering Convention) follows the US National
+  CAD Standard: `6` schedules and diagrams, `7`/`8` user-defined, `9` 3D. The pack now follows the
+  NCS order. Banding stays "proposed, confirm at kickoff" (BEP 15.2). The gate compares the 3D band
+  across the pack and both hand-edited tables; red on the previous `SHEET_BANDS`.
