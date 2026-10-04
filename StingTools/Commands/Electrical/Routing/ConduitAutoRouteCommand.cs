@@ -253,7 +253,7 @@ namespace StingTools.Commands.Electrical.Routing
                         StingLog.Warn($"AutoRoute cable {cable.CircuitId}: {ex2.Message}");
                     }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             try { manifest.Save(doc); } catch (Exception ex2) { StingLog.Warn($"Manifest save: {ex2.Message}"); }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
@@ -268,6 +268,7 @@ namespace StingTools.Commands.Electrical.Routing
             // location on the conduit as ELC_CDT_BREAKPOINT_TXT and
             // surfaces a warning — the schedule still flags the run.
             int junctionBoxes = 0;
+            var stepNotes = new List<string>();
             try
             {
                 var jbConduitIds = new List<ElementId>();
@@ -323,11 +324,20 @@ namespace StingTools.Commands.Electrical.Routing
                         }
                         catch (Exception ex2) { StingLog.Warn($"JB → manifest sync: {ex2.Message}"); }
 
-                        tx2.Commit();
+                        StingTools.Core.Electrical.ElecTx.Commit(tx2, null);
+                        // The manifest was saved before this step, so the box ids added to it
+                        // above were never kept. Save again now the boxes are committed.
+                        try { manifest.Save(doc); } catch (Exception ex2) { StingLog.Warn($"Manifest save after JB placement: {ex2.Message}"); }
                     }
                 }
             }
-            catch (Exception ex2) { StingLog.Warn($"JunctionBoxAutoPlacer: {ex2.Message}"); }
+            catch (Exception ex2)
+            {
+                // A rolled-back placement placed nothing: do not report its count.
+                junctionBoxes = 0;
+                stepNotes.Add("Junction boxes: " + ex2.Message);
+                StingLog.Warn($"JunctionBoxAutoPlacer: {ex2.Message}");
+            }
 
             // Phase Wave D — slab-penetration detection. Walks every
             // newly-created conduit, finds floor crossings, stamps
@@ -370,11 +380,16 @@ namespace StingTools.Commands.Electrical.Routing
                         }
                         catch (Exception ex2) { StingLog.Warn($"FrpPenetrationPlacer: {ex2.Message}"); }
 
-                        tx2.Commit();
+                        StingTools.Core.Electrical.ElecTx.Commit(tx2, null);
                     }
                 }
             }
-            catch (Exception ex2) { StingLog.Warn($"SlabPenetrationDetector: {ex2.Message}"); }
+            catch (Exception ex2)
+            {
+                penetrations = 0;
+                stepNotes.Add("Slab penetrations: " + ex2.Message);
+                StingLog.Warn($"SlabPenetrationDetector: {ex2.Message}");
+            }
 
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"Routed {routed} of {unrouted.Count} un-routed cable(s).");
@@ -417,6 +432,7 @@ namespace StingTools.Commands.Electrical.Routing
             sb.AppendLine();
             sb.AppendLine($"Junction boxes auto-placed: {junctionBoxes}.");
             sb.AppendLine($"Slab penetrations stamped: {penetrations}.");
+            foreach (var n in stepNotes) sb.AppendLine("NOT DONE — " + n);
             sb.AppendLine();
             // Say which method each run actually used: A* falls back to L/Z per run.
             sb.AppendLine("Route method: " + (methodCounts.Count == 0 ? "none (nothing routed)"

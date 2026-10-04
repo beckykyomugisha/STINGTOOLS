@@ -1691,7 +1691,7 @@ namespace StingTools.Commands.Electrical
                     t.Start();
                     WireAnnotationEngine.RemoveAnnotationForConduit(doc, view, conduit);
                     WireAnnotationEngine.PlaceAnnotation(doc, view, conduit, data, style);
-                    t.Commit();
+                    StingTools.Core.Electrical.ElecTx.Commit(t, null);
                 }
 
                 StingLog.Info($"Wire annotation placed on conduit {conduit.Id.Value}");
@@ -1772,15 +1772,20 @@ namespace StingTools.Commands.Electrical
                         using (var t = new Transaction(doc, "STING Wire Annot"))
                         {
                             t.Start();
+                            bool ok = false;
                             try
                             {
                                 var id = WireAnnotationEngine.PlaceAnnotation(
                                     doc, view, conduit, data, style);
-                                if (id != ElementId.InvalidElementId) placed++; else failed++;
+                                ok = id != ElementId.InvalidElementId;
                             }
                             catch (Exception ex)
-                            { failed++; StingLog.Warn($"Batch wire annot {conduit.Id.Value}: {ex.Message}"); }
-                            t.Commit();
+                            { StingLog.Warn($"Batch wire annot {conduit.Id.Value}: {ex.Message}"); }
+                            // One conduit's rollback is that conduit's failure — it was counted
+                            // as placed before the status was read (ELEC-28).
+                            if (t.Commit() != TransactionStatus.Committed)
+                            { ok = false; StingLog.Warn($"Batch wire annot {conduit.Id.Value}: rolled back"); }
+                            if (ok) placed++; else failed++;
                         }
                     }
                     tg.Assimilate();
@@ -1928,7 +1933,7 @@ namespace StingTools.Commands.Electrical
                         }
                         catch (Exception ex) { StingLog.Warn($"RefreshStyle mark {mark.Id.Value}: {ex.Message}"); }
                     }
-                    t.Commit();
+                    StingTools.Core.Electrical.ElecTx.Commit(t, null);
                     TaskDialog.Show("STING Wire Annotation",
                         $"Style refreshed on {updated} slash marks in the active view.");
                 }
@@ -2076,7 +2081,7 @@ namespace StingTools.Commands.Electrical
                     }
                     catch (Exception ex) { StingLog.Warn("HomeRun label: " + ex.Message); }
 
-                    t.Commit();
+                    StingTools.Core.Electrical.ElecTx.Commit(t, null);
                 }
 
                 StingLog.Info($"Home run arrow placed for conduit {conduit.Id.Value}");
@@ -2168,7 +2173,7 @@ namespace StingTools.Commands.Electrical
                         .Concat(homeRunCurves).Concat(homeRunNotes).Concat(homeRunFamilies))
                         try { doc.Delete(el.Id); removed++; }
                         catch (Exception ex) { StingLog.Warn("Clear element: " + ex.Message); }
-                    t.Commit();
+                    StingTools.Core.Electrical.ElecTx.Commit(t, null);
                 }
 
                 TaskDialog.Show("STING Wire Annotation", $"Removed {removed} elements.");
@@ -2336,7 +2341,7 @@ namespace StingTools.Commands.Electrical
                     }
                     catch (Exception ex) { StingLog.Warn($"HomeRunBatch {conduit.Id.Value}: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             TaskDialog.Show("STING Home-Run Arrows",
@@ -2394,7 +2399,7 @@ namespace StingTools.Commands.Electrical
                 tx.Start();
                 try { refreshed = WireAnnotationDriftDetector.RefreshDrifted(doc, view, report); }
                 catch (Exception ex2) { StingLog.Warn($"RefreshDrifted: {ex2.Message}"); }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             TaskDialog.Show("STING Wire Annotations", $"Refreshed {refreshed} annotation(s).");

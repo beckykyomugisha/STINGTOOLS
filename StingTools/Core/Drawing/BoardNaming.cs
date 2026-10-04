@@ -43,5 +43,30 @@ namespace StingTools.Core.Drawing
             return string.Equals(sheetTag, LegacyDoorDiagramSheetTag(boardName.Trim()), StringComparison.Ordinal)
                 || string.Equals(sheetTag, LegacyDoorDiagramSheetTag(boardName), StringComparison.Ordinal);
         }
+
+        /// <summary>
+        /// One label per board for a picker, in input order: the board name, with
+        /// " (id N)" appended only where two boards would otherwise read alike (case-
+        /// insensitive). The circuit wizard and Add / Move Circuit listed the family TYPE
+        /// name, so two boards of one type were indistinguishable and the first always won.
+        /// </summary>
+        public static System.Collections.Generic.List<string> UniqueLabels(
+            System.Collections.Generic.IList<(string Name, long Id)> boards)
+        {
+            var result = new System.Collections.Generic.List<string>();
+            if (boards == null) return result;
+            var counts = new System.Collections.Generic.Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var b in boards)
+            {
+                string n = Resolve(b.Name, null, b.Id);
+                counts[n] = counts.TryGetValue(n, out int c) ? c + 1 : 1;
+            }
+            foreach (var b in boards)
+            {
+                string n = Resolve(b.Name, null, b.Id);
+                result.Add(counts[n] > 1 ? $"{n} (id {b.Id})" : n);
+            }
+            return result;
+        }
     }
 }

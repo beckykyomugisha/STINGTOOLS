@@ -405,7 +405,7 @@ namespace StingTools.Commands.Electrical
                     }
                 }
 
-                t.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(t, null);
                 StingLog.Info($"PanelWireReconcile: auto-corrected {corrected}/{mismatches.Count} conduit(s), {failed} failed.");
                 string msg = $"Auto-correct complete.\n{corrected}/{mismatches.Count} conduit(s) updated.";
                 if (failed > 0)

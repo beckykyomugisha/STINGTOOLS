@@ -26,14 +26,21 @@ namespace StingTools.Core.Electrical
             catch (Exception ex) { StingLog.Warn($"VD current {sys.Id}: {ex.Message}"); }
             try { i.LengthM = sys.Length * 0.3048; }
             catch (Exception ex) { StingLog.Warn($"VD length {sys.Id}: {ex.Message}"); }
-            if (i.LengthM <= 0) i.LengthM = ParameterHelpers.GetDouble(sys, "ELC_CKT_LENGTH_M");
+            // ELC_CKT_LENGTH_M is TEXT; parsed without thousands separators, so "12,5" is
+            // "not known" (NONE: missing length) rather than GetDouble's 125 m.
+            if (i.LengthM <= 0
+                && double.TryParse((ParameterHelpers.GetValueText(sys, "ELC_CKT_LENGTH_M") ?? "").Trim(), NumberStyles.Float,
+                                   CultureInfo.InvariantCulture, out double lenM) && lenM > 0)
+                i.LengthM = lenM;
             try { i.VoltageV = ElecUnits.Read(sys, BuiltInParameter.RBS_ELEC_VOLTAGE); }
             catch (Exception ex) { StingLog.Warn($"VD voltage {sys.Id}: {ex.Message}"); }
             try { i.Phases = sys.PolesNumber >= 3 ? 3 : 1; }
             catch (Exception ex) { StingLog.Warn($"VD poles {sys.Id}: {ex.Message}"); }
             try { i.CsaMm2 = WireSizeParser.ParseCsaMm2(sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM)?.AsString() ?? ""); }
             catch (Exception ex) { StingLog.Warn($"VD wire size {sys.Id}: {ex.Message}"); }
-            if (i.CsaMm2 <= 0) i.CsaMm2 = ParameterHelpers.GetDouble(sys, "ELC_CBL_SZ_MM"); // ParamRegistry.ELC_CKT_CSA_MM2 is an alias for it
+            // ELC_CBL_SZ_MM (ParamRegistry.ELC_CKT_CSA_MM2) is TEXT. GetDouble parsed it with
+            // thousands separators allowed, so "2,5" (a comma-decimal locale) read as 25 mm².
+            if (i.CsaMm2 <= 0) i.CsaMm2 = WireSizeParser.ParseCsaMm2(ParameterHelpers.GetValueText(sys, "ELC_CBL_SZ_MM"));
             var rec = CircuitCableRecord.Read(sys);
             i.Insulation = rec.Insulation; i.InstallMethod = rec.InstallMethod; i.CableType = rec.CableType;
             return i;
@@ -90,7 +97,7 @@ namespace StingTools.Core.Electrical
                 {
                     if (p.StorageType == StorageType.Double) pct = p.AsDouble();
                     else if (p.StorageType == StorageType.String
-                             && double.TryParse(p.AsString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double v)) pct = v;
+                             && NumberText.TryParse(p.AsString(), out double v)) pct = v;
                 }
             }
             catch (Exception ex) { StingLog.Warn($"VD read {el.Id}: {ex.Message}"); }

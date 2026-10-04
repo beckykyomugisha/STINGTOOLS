@@ -37,6 +37,8 @@ namespace StingTools.Commands.Electrical.FeederSizing
     public class FeederSizerCommand : IExternalCommand
     {
         public static List<FeederSizeResult> LastResults { get; private set; } = new();
+        /// <summary>The document LastResults belong to (ElecResultScope.Key).</summary>
+        public static string LastResultsDocKey { get; private set; }
 
         /// <summary>The standard this run sizes to (ELEC-24), read from the Electrical panel.</summary>
         private string _standard = StingTools.Standards.ElectricalStandardId.Bs7671;
@@ -90,9 +92,11 @@ namespace StingTools.Commands.Electrical.FeederSizing
             var results = FeederSizerEngine.CalculateAll(inputs, wireTables,
                 StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables(doc));
             LastResults = results;
+            LastResultsDocKey = StingTools.Core.Electrical.ElecResultScope.Key(doc.PathName, doc.Title);
 
-            int written = 0, vdFails = 0, notSized = 0, onDefaults = 0;
+            int written = 0, vdFails = 0, notSized = 0, onDefaults = 0, notFound = 0, refused = 0;
             var notSizedLines = new List<string>();
+            TransactionStatus status;
             using (var tx = new Transaction(doc, "STING Size Feeders"))
             {
                 tx.Start();
@@ -109,40 +113,48 @@ namespace StingTools.Commands.Electrical.FeederSizing
                     }
                     try
                     {
-                        var panel = FindPanelByName(doc, r.PanelName);
-                        if (panel == null) continue;
-                        ParameterHelpers.SetString(panel, ParamRegistry.ELC_FEEDER_CSA,
-                            $"{r.ProposedCsaMm2:0.#}", overwrite: true);
+                        var panel = FindPanel(doc, r);
+                        if (panel == null)
+                        {
+                            notFound++;
+                            if (notSizedLines.Count < 8) notSizedLines.Add($"  {r.PanelName}: board not found — nothing stamped");
+                            continue;
+                        }
+                        // Counted as stamped only when the size landed (unbound = not stamped).
+                        bool csaOk = ParameterHelpers.SetString(panel, ParamRegistry.ELC_FEEDER_CSA,
+                            (r.ProposedCsaMm2).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                         ParameterHelpers.SetString(panel, ParamRegistry.ELC_FEEDER_RATING_A,
-                            $"{r.ProposedRatingA:0}", overwrite: true);
+                            (r.ProposedRatingA).ToString("0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                         // The sizer's own figure for the cable it chose, on the fed board: A4-SIZED on
                         // BS 7671 (Appendix 4 mV/A/m); on NEC the sizer's drop is conductor resistance.
                         StingTools.Core.Electrical.CircuitVoltageDropModel.StampForeign(panel, r.ActualVDPct,
                             $"{(nec ? StingTools.Core.Electrical.CircuitVoltageDrop.CodeR60228 : StingTools.Core.Electrical.CircuitVoltageDrop.CodeA4Sized)} " +
                             $"feeder {r.CsaLabel} from the feeder sizer; {r.Basis}");
-                        written++;
+                        if (csaOk) written++; else refused++;
                         if (!r.VDCompliant) vdFails++;
                     }
-                    catch (Exception ex) { StingLog.Warn($"Feeder write: {ex.Message}"); }
+                    catch (Exception ex) { refused++; StingLog.Warn($"Feeder write: {ex.Message}"); }
                 }
-                tx.Commit();
+                status = tx.Commit();
             }
+            bool kept = status == TransactionStatus.Committed;
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             var defaults = results.SelectMany(r => r.DefaultsUsed.Select(d => $"{r.PanelName}: {d}")).Take(8).ToList();
             StingLog.Info($"FeederSizer: {results.Count} feeder(s), stamped {written}, not sized {notSized}, " +
                           $"on defaults {onDefaults}, VD fails {vdFails}.");
             PresetDialog.Show("STING Feeders",
                 $"Standard:{(nec ? "NEC 2023 (Table 310.16; derate not applied; voltage drop is advisory)" : "BS 7671 Appendix 4")}.\n" +
-                $"Feeders: {results.Count}. Stamped {written}. Not sized: {notSized}. VD exceedances: {vdFails}.\n" +
+                $"Feeders: {results.Count}. {StingTools.Core.Electrical.ElecWriteReport.Landed("stamped", written, kept, status.ToString())} Not sized: {notSized}. VD exceedances: {vdFails}.\n" +
+                (notFound + refused > 0 ? $"Not stamped: {notFound} board(s) not found, {refused} refused the write ({ParamRegistry.ELC_FEEDER_CSA} unbound? run Load Params).\n" : "") +
                 $"VD limit: {settings.VDLimitPct:0.##} % " +
                 (settings.VDLimitUserSet ? "(user-set for feeders)" : nec ? "(NEC 215.2(A)(1) Informational Note, advisory)" : "(BS 7671 Appendix 12 'other' limit)") +
                 $". Diversity: {(settings.DiversityPct > 0 ? settings.DiversityPct : 100):0.#} %.\n" +
-                (notSized > 0 ? "\nNot sized:\n" + string.Join("\n", notSizedLines) + "\n" : "") +
+                (notSized + notFound > 0 ? "\nNot sized:\n" + string.Join("\n", notSizedLines) + "\n" : "") +
                 (onDefaults > 0
                     ? $"\n{onDefaults} feeder(s) used DEFAULT inputs (not model data) — check before issue:\n" +
                       string.Join("\n", defaults.Select(d => "  " + d))
                     : ""), ref message);
-            return Result.Succeeded;
+            return kept ? Result.Succeeded : Result.Failed;
         }
 
         /// <summary>The circuit that FEEDS a panel: one of its electrical systems whose base
@@ -176,6 +188,7 @@ namespace StingTools.Commands.Electrical.FeederSizing
                 var input = new FeederSizeInput
                 {
                     PanelName       = node.Label ?? "",
+                    PanelId         = node.ElementId?.Value ?? 0,
                     DerateFactor    = s.DerateFactor,
                     DiversityFactor = s.DiversityPct > 0 ? s.DiversityPct / 100.0 : 1.0,
                     InstallMethod   = s.InstallMethod ?? "C",
@@ -238,13 +251,21 @@ namespace StingTools.Commands.Electrical.FeederSizing
                 CollectInputs(child, s, output, isRoot: false);
         }
 
-        private static FamilyInstance FindPanelByName(Document doc, string name)
+        /// <summary>
+        /// The fed board by element id; by board name (Panel Name) only when no id is known
+        /// and the name is unique. It matched p.Name — the family TYPE name — so every feeder
+        /// to boards of one type was stamped on the first of them, the others got nothing.
+        /// </summary>
+        private static FamilyInstance FindPanel(Document doc, FeederSizeResult r)
         {
-            return new FilteredElementCollector(doc)
+            if (r.PanelId > 0 && doc.GetElement(new ElementId(r.PanelId)) is FamilyInstance byId) return byId;
+            var named = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
                 .WhereElementIsNotElementType()
                 .OfType<FamilyInstance>()
-                .FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+                .Where(p => string.Equals(StingTools.Core.Drawing.BoardNames.Of(p), r.PanelName, StringComparison.OrdinalIgnoreCase))
+                .Take(2).ToList();
+            return named.Count == 1 ? named[0] : null;
         }
     }
 }

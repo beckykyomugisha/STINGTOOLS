@@ -42,6 +42,8 @@ namespace StingTools.Commands.Electrical.Import
                 var warnings = new List<string>();
                 var byTypeMatches = new List<string>();
 
+                TransactionStatus importStatus;
+
                 using (var tx = new Transaction(doc, "STING EasyPower Import"))
                 {
                     tx.Start();
@@ -75,10 +77,13 @@ namespace StingTools.Commands.Electrical.Import
                             if (notFound <= 5) warnings.Add($"Bus/panel not found: '{rec.BusName}'");
                         }
                     }
-                    tx.Commit();
+                    importStatus = tx.Commit();
                 }
 
-                string report = $"Records: {records.Count}  Stamped: {stamped}  Unmatched: {notFound}" +
+                // A rolled-back import kept nothing: never print its write counts as stamped.
+                bool importKept = importStatus == TransactionStatus.Committed;
+                string report = (importKept ? "" : StingTools.Core.Electrical.ElecWriteReport.Landed("records stamped", stamped, false, importStatus.ToString()) + "\nThe counts below were made and then undone.\n\n") +
+                                $"Records: {records.Count}  Stamped: {stamped}  Unmatched: {notFound}" +
                                 $"\nPanels matched but nothing written: {nothingWritten}  Failed writes: {failedWrites}";
                 if (byTypeMatches.Count > 0)
                 {
@@ -93,7 +98,7 @@ namespace StingTools.Commands.Electrical.Import
                 if (warnings.Count > 0)
                     report += "\n\nWarnings:\n" + string.Join("\n", warnings.Take(10));
                 TaskDialog.Show("EasyPower Import", report);
-                return Result.Succeeded;
+                return importKept ? Result.Succeeded : Result.Failed;
             }
             catch (Exception ex)
             {
@@ -223,9 +228,9 @@ namespace StingTools.Commands.Electrical.Import
         }
 
         private static string Attr(XElement el, string n) => el.Attribute(n)?.Value ?? el.Element(n)?.Value;
+        // NumberText: an export from a comma-decimal machine ("12,5") is 12.5, not 125.
         private static double? ParseD(string s) =>
-            double.TryParse(s, System.Globalization.NumberStyles.Any,
-                System.Globalization.CultureInfo.InvariantCulture, out double v) ? v : (double?)null;
+            StingTools.Core.NumberText.TryParse(s, out double v) ? v : (double?)null;
 
         private class EasyPowerRecord
         {

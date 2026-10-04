@@ -563,7 +563,7 @@ namespace StingTools.Commands.Electrical
                     t.Start();
                     WireElementAnnotationEngine.RemoveAnnotation(doc, view, wire);
                     placedId = WireElementAnnotationEngine.Place(doc, view, wire, compute.Data, style);
-                    t.Commit();
+                    StingTools.Core.Electrical.ElecTx.Commit(t, null);
                 }
 
                 if (placedId == ElementId.InvalidElementId)
@@ -681,17 +681,20 @@ namespace StingTools.Commands.Electrical
                         using (var t = new Transaction(doc, "STING Wire Element Annot"))
                         {
                             t.Start();
+                            bool ok = false;
                             try
                             {
                                 var id = WireElementAnnotationEngine.Place(doc, view, wire, compute.Data, style);
-                                if (id != ElementId.InvalidElementId) placed++; else failed++;
+                                ok = id != ElementId.InvalidElementId;
                             }
                             catch (Exception ex)
                             {
-                                failed++;
                                 StingLog.Warn($"Batch wire-element annot {wire.Id.Value}: {ex.Message}");
                             }
-                            t.Commit();
+                            // A rolled-back wire is a failed wire, not a placed one (ELEC-28).
+                            if (t.Commit() != TransactionStatus.Committed)
+                            { ok = false; StingLog.Warn($"Batch wire-element annot {wire.Id.Value}: rolled back"); }
+                            if (ok) placed++; else failed++;
                         }
                     }
                     tg.Assimilate();

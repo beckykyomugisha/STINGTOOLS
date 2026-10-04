@@ -69,7 +69,7 @@ namespace StingTools.Commands.Electrical.Schematics
                 var view = StingTools.Core.Drawing.SchematicViewFactory.CreateOrReplace(doc, ViewName, out string viewError);
                 if (view == null)
                 {
-                    tx.RollBack();
+                    StingTools.Core.Electrical.ElecTx.RollBackIfOpen(tx);
                     message = "Could not make the drafting view: " + viewError;
                     if (!PresetDialog.Quiet) TaskDialog.Show("STING Fire Alarm Schematic", message);
                     return Result.Failed;
@@ -162,7 +162,7 @@ namespace StingTools.Commands.Electrical.Schematics
                     }
                 }
 
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
 
                 // Onto the sheet of the drawing type routing gives E / FIRE_ALARM_SCHEMATIC
                 // (stamped; a re-run's diagram replaces this one there).

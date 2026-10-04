@@ -137,7 +137,7 @@ namespace StingTools.Commands.Electrical.Lighting
                     }
                     catch (Exception ex) { StingLog.Warn($"LuminaireRegistry apply: {ex.Message}"); skipped++; }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             TaskDialog.Show("STING Luminaire Registry — Applied",

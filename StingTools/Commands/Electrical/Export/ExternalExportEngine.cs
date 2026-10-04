@@ -106,8 +106,13 @@ namespace StingTools.Commands.Electrical.Export
             {
                 ProjectName = doc?.ProjectInformation?.Name ?? "",
                 ProjectNumber = doc?.ProjectInformation?.Number ?? "",
-                FaultResults = FaultCurrentCommand.LastResults ?? new List<FaultPropagationResult>(),
-                ArcFlashResults = ArcFlashCommand.LastResults ?? new List<ArcFlashRow>()
+                // Only this document's studies: the caches are static and keyed by element id.
+                FaultResults = doc != null && StingTools.Core.Electrical.ElecResultScope.Matches(FaultCurrentCommand.LastResultsDocKey,
+                                   StingTools.Core.Electrical.ElecResultScope.Key(doc.PathName, doc.Title))
+                    ? FaultCurrentCommand.LastResults ?? new List<FaultPropagationResult>() : new List<FaultPropagationResult>(),
+                ArcFlashResults = doc != null && StingTools.Core.Electrical.ElecResultScope.Matches(ArcFlashCommand.LastResultsDocKey,
+                                   StingTools.Core.Electrical.ElecResultScope.Key(doc.PathName, doc.Title))
+                    ? ArcFlashCommand.LastResults ?? new List<ArcFlashRow>() : new List<ArcFlashRow>()
             };
             if (doc == null) return m;
             try

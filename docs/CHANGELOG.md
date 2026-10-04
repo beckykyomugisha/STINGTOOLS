@@ -2,6 +2,33 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (ELEC-27 to ELEC-31 closed + follow-up sweep, 2026-10-04)
+
+Branch `claude/electrical-defect-review-ea67f1`. Builds 0/0 against Revit **2025, 2026 and 2027**; Tags 5,763/5,763. **Not run in Revit.**
+
+- **ELEC-29 — Revit 2026 / 2027 builds.** 2026 renamed `UNIFORMAT_*` → `ASSEMBLY_*`, `OMNICLASS_*` → `CLASSIFICATION_*` and a Rebar argument; 2027 removed `Curve.Intersect(out …)`, `Zone.Volume`, `ANALYTICAL_HEAT_TRANSFER_COEFFICIENT` and ships a .NET 10 API. `Core/BipCompat` (by-name resolution), `Core/CurveCompat`, version symbols and a `net10.0-windows` target for 2027 in `StingTools.csproj`. The .NET 10 analyzers also caught an inexact `FileStream.Read` in the project-log tail (fixed).
+- **ELEC-28 — rollbacks.** All 84 remaining electrical commits go through `ElecTx.Commit`, which throws on a rollback so no success count is printed; batch annotators count a rolled-back item as failed. Conduit auto-route no longer reports junction boxes / penetrations that were undone, and now saves the junction-box ids it adds to the cable manifest (they were never saved).
+- **ELEC-27 — kW is true power.** Board connected load is the sum of the fed circuits' true power, not apparent power under a kW name. Batch Panel Schedules also stopped writing the schedule view name as the board designation.
+- **ELEC-30 — numbers in text.** `Core/NumberText` behind `GetDouble` and the electrical parsers: `"2,5"` is 2.5 (was 25); thousands groups unchanged.
+- **ELEC-31 — stale panel rows.** PNLS Save, SLD Zoom and Open Schedule refuse rows read from another model (Save could write location / manufacturer onto an unrelated element).
+- **Sweep:** Circuit View Filter built a Panel-Name rule from type names (matched nothing, reported N); the ElecCalc seed export wrote type names as circuit panels; the cable-schedule SKU varied with the machine culture.
+- Logged: ELEC-32 (≈838 unchecked commits outside electrical); a 2027 deploy needs its own build output and manifest.
+- Tests: `RevitVersionCompatTests`, `NumberTextTests`, `PanelConnectedLoadTests`, ELEC-28 / ELEC-31 / sweep guards in `ElecWriteReportTests`, `ElecResultScopeTests`, `ElectricalGlueRegressionTests` — each red against the code before its fix.
+
+#### Completed (Electrical defect review — 7 rounds, 2026-10-04)
+
+Review of the electrical module (everything since PR #976 / #977, branch `claude/electrical-defect-review-ea67f1`), seven rounds: correctness, silent failure, integration, Revit version / fragility, cross-document state (×2), and a review of the round fixes themselves. Build 0/0 (Revit 2025); Tags 5,687+ / Routing 80 / Mep 87 green. **Not run in Revit.**
+
+- **AIC tier below the fault (safety).** `FaultCurrentEngine.NextAicTierKa` returned the LARGEST tier when fault × 1.10 exceeded every tier — a 120 kA board was stamped "100 kA required" — and the raw fault level when no tiers loaded. `Core/Electrical/AicTier` returns 0 = no standard tier; the AIC stamp writes nothing for such a board and lists it; the panel grid shows "none" and the snapshot `NO_AIC_TIER` (was `OK`). `STING_AIC_TIERS.json` `safetyMarginPct` is now read (it was ignored; 10 % was hard-coded).
+- **Rolled-back transactions reported as written.** Circuit check, fault / AIC stamp, param sync, feeder sizing, cable sizing apply, VD recalc, panel Excel import, template build, batch schedules, phase balance and the Amtech / EasyPower / Trimble importers printed write counts without reading `Commit()`. They now report ROLLED BACK with 0 kept (`Core/Electrical/ElecWriteReport`) and return Failed. 77 other sites remain — ROADMAP ELEC-28.
+- **Boards identified by family type name.** Feeder sizing stamped every feeder to boards of one type onto the first of them; the SLD labelled all such boards alike; the load-demand audit never found a board; the circuit wizard and Add Spare / Move Circuit listed type names and took the first match. Boards are now found by element id or Panel Name (`BoardNames.Of`), and pickers use `BoardNaming.UniqueLabels` (id appended on a collision).
+- **Electrical Param Sync** wrote the type name into `ELC_PNL_NAME`, `"230V"` into a NUMBER (refused every time) and counted every board as synced; Batch Panel Schedules handed NUMBER targets `"100 A"`. Fixed; refusals listed.
+- **Locale.** 25 electrical writes formatted numbers with the machine culture ("2,5" on a comma-decimal Windows), which `GetDouble` reads as 25 mm²; the BS 7671 audit parsed sizes with the current culture (a 25 mm² misread passes a failing Zs). All invariant; sizes read through `WireSizeParser`. Plugin-wide `GetDouble` — ROADMAP ELEC-30.
+- **Cross-document caches.** Fault Current / Feeder / Arc Flash results and the conduit-fill / emergency / LPD grid rows are static and keyed by element id; a study on one model was applied to another (a detached copy keeps the ids). Each cache records `ElecResultScope.Key(path, title)`; consumers refuse or hide another model's results.
+- Smaller: feeder sizing counted unbound writes as stamped and dropped unfound boards silently; Panel Audit printed "templates out of date: 0" with no spec loaded; an uncalled `CpcAdiabatic` with k values that contradict BS 7671 Table 54.3 was removed.
+- Measured, not changed: the plugin does not compile against Revit 2026 (8 non-electrical errors) and cannot target 2027 (.NET 10) — ROADMAP ELEC-29. kVA written under a kW parameter name — ELEC-27.
+- Tests: `AicTierTests`, `ElecWriteReportTests`, `ElecResultScopeTests`, `BoardUniqueLabelTests`, `ElectricalGlueRegressionTests` (source guards for the Revit-bound glue). Each was shown red against the code before its fix.
+
 #### Completed (TAGACC-27 Batch Tag refuses at once when no token parameter is bound, 2026-10-04)
 
 - Found on the live KUT build: Batch Tag on `Kampala Uganda - Interior_v26_detached.rvt`, a model Load Shared Parameters had never run on, spent 99 s and reported *Tagged 0 of 3,121*, a NOT WRITTEN block per category and token, and 100 "malformed tag '-------'" warnings. The cause was one line at the bottom of the report.

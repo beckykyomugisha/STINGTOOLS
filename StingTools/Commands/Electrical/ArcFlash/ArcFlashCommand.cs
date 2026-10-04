@@ -45,6 +45,8 @@ namespace StingTools.Commands.Electrical.ArcFlash
     {
         /// <summary>Calculated panels only — not-calculated panels are never exported as values.</summary>
         public static List<ArcFlashRow> LastResults { get; private set; } = new List<ArcFlashRow>();
+        /// <summary>The document LastResults belong to (ElecResultScope.Key).</summary>
+        public static string LastResultsDocKey { get; private set; }
 
         private const string NotApplicable = "N/A";
 
@@ -55,6 +57,14 @@ namespace StingTools.Commands.Electrical.ArcFlash
             var doc = ctx.Doc;
 
             var faultResults = FaultCurrentCommand.LastResults;
+            if (faultResults != null && faultResults.Count > 0
+                && !ElecResultScope.Matches(FaultCurrentCommand.LastResultsDocKey, ElecResultScope.Key(doc.PathName, doc.Title)))
+            {
+                // Fault levels from another model, keyed by its element ids: an arc-flash
+                // energy built on them would be for the wrong board.
+                PresetDialog.Show("STING Arc Flash", ElecResultScope.Refusal("Fault Current", FaultCurrentCommand.LastResultsDocKey), ref message);
+                return Result.Cancelled;
+            }
             if (faultResults == null || faultResults.Count == 0)
             {
                 TaskDialog.Show("STING Arc Flash",
@@ -210,9 +220,10 @@ namespace StingTools.Commands.Electrical.ArcFlash
                         EquipmentClass = cls.ToString()
                     });
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             LastResults = results;
+            LastResultsDocKey = ElecResultScope.Key(doc.PathName, doc.Title);
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             StingLog.Info($"ArcFlash ({ArcFlashEngine.BasisShort}): {results.Count} calculated, {notCalculated.Count} not calculated.");

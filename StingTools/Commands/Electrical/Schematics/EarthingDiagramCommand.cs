@@ -58,7 +58,7 @@ namespace StingTools.Commands.Electrical.Schematics
                 var view = StingTools.Core.Drawing.SchematicViewFactory.CreateOrReplace(doc, "STING - Earthing Arrangement", out string viewError);
                 if (view == null)
                 {
-                    tx.RollBack();
+                    StingTools.Core.Electrical.ElecTx.RollBackIfOpen(tx);
                     message = "Could not make the drafting view: " + viewError;
                     if (!PresetDialog.Quiet) TaskDialog.Show("STING Earthing Diagram", message);
                     return Result.Failed;
@@ -66,7 +66,7 @@ namespace StingTools.Commands.Electrical.Schematics
 
                 DrawEarthingArrangement(doc, view, system, metLocation);
 
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
 
                 // Onto the sheet of the drawing type routing gives E / EARTHING_SCHEMATIC.
                 string sheetLine = StingTools.Core.SLD.SldSheetPlacement.Place(doc,

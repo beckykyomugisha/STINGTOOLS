@@ -78,7 +78,7 @@ namespace StingTools.Commands.Electrical.Photometric
                                     registryStamped++;
                                 }
                             }
-                            rtx.Commit();
+                            StingTools.Core.Electrical.ElecTx.Commit(rtx, null);
                         }
                         if (registryStamped > 0)
                         {
@@ -129,7 +129,7 @@ namespace StingTools.Commands.Electrical.Photometric
                     StampType(symbol, file);
                     stamped++;
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Photometric",
@@ -144,18 +144,18 @@ namespace StingTools.Commands.Electrical.Photometric
             try
             {
                 ParameterHelpers.SetString(typeElement, ParamRegistry.ELC_PHOTO_FILE_PATH, file.FilePath ?? "", overwrite: true);
-                ParameterHelpers.SetString(typeElement, ParamRegistry.ELC_PHOTO_LUMENS,    $"{file.TotalLumens:0.0}", overwrite: true);
-                ParameterHelpers.SetString(typeElement, ParamRegistry.ELC_PHOTO_WATTS,     $"{file.TotalWatts:0.0}",  overwrite: true);
-                ParameterHelpers.SetString(typeElement, ParamRegistry.ELC_PHOTO_EFFICACY,  $"{file.Efficacy:0.0}",    overwrite: true);
-                ParameterHelpers.SetString(typeElement, ParamRegistry.ELC_PHOTO_BEAM_ANGLE,$"{file.BeamAngleDeg:0.0}",overwrite: true);
-                if (file.CCT > 0) ParameterHelpers.SetString(typeElement, ParamRegistry.ELC_PHOTO_CCT, $"{file.CCT:0}", overwrite: true);
-                if (file.CRI > 0) ParameterHelpers.SetString(typeElement, ParamRegistry.ELC_PHOTO_CRI, $"{file.CRI:0}", overwrite: true);
+                ParameterHelpers.SetString(typeElement, ParamRegistry.ELC_PHOTO_LUMENS,    (file.TotalLumens).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
+                ParameterHelpers.SetString(typeElement, ParamRegistry.ELC_PHOTO_WATTS,     (file.TotalWatts).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture),  overwrite: true);
+                ParameterHelpers.SetString(typeElement, ParamRegistry.ELC_PHOTO_EFFICACY,  (file.Efficacy).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture),    overwrite: true);
+                ParameterHelpers.SetString(typeElement, ParamRegistry.ELC_PHOTO_BEAM_ANGLE,(file.BeamAngleDeg).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture),overwrite: true);
+                if (file.CCT > 0) ParameterHelpers.SetString(typeElement, ParamRegistry.ELC_PHOTO_CCT, (file.CCT).ToString("0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
+                if (file.CRI > 0) ParameterHelpers.SetString(typeElement, ParamRegistry.ELC_PHOTO_CRI, (file.CRI).ToString("0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                 if (!string.IsNullOrEmpty(file.Symmetry))
                     ParameterHelpers.SetString(typeElement, ParamRegistry.ELC_PHOTO_SYMMETRY, file.Symmetry, overwrite: true);
                 // Mirror lumens/watts onto the existing LTG_* family params if the
                 // family exposes them — this keeps Phase 178 LPD calculations honest.
-                ParameterHelpers.SetString(typeElement, ParamRegistry.LTG_LUMENS,  $"{file.TotalLumens:0.0}", overwrite: false);
-                ParameterHelpers.SetString(typeElement, ParamRegistry.LTG_WATTAGE, $"{file.TotalWatts:0.0}",  overwrite: false);
+                ParameterHelpers.SetString(typeElement, ParamRegistry.LTG_LUMENS,  (file.TotalLumens).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), overwrite: false);
+                ParameterHelpers.SetString(typeElement, ParamRegistry.LTG_WATTAGE, (file.TotalWatts).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture),  overwrite: false);
             }
             catch (Exception ex) { StingLog.Warn($"AssignPhotometric stamp: {ex.Message}"); }
         }

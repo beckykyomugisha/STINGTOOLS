@@ -74,19 +74,20 @@ namespace StingTools.Commands.Electrical.FaultCurrent
         /// </summary>
         public static Dictionary<long, FaultPropagationResult> PropagateAll(
             StingTools.Core.SLD.SLDNode root, double utilityFaultKa, WireTableSet wireTables,
-            Func<StingTools.Core.SLD.SLDNode, PanelSupplyInfo> supplyOf, double[] aicTiers = null)
+            Func<StingTools.Core.SLD.SLDNode, PanelSupplyInfo> supplyOf, double[] aicTiers = null,
+            double aicMarginPct = AicTier.DefaultMarginPct)
         {
             var results = new Dictionary<long, FaultPropagationResult>();
             if (root == null) return results;
             PropagateNode(root, utilityFaultKa, 0, 0, false, wireTables, supplyOf,
-                aicTiers ?? new double[0], results);
+                aicTiers ?? new double[0], aicMarginPct, results);
             return results;
         }
 
         private static void PropagateNode(StingTools.Core.SLD.SLDNode node,
             double parentFaultKa, double parentVoltageLL, int parentPhases, bool parentVoltageAssumed,
             WireTableSet wireTables, Func<StingTools.Core.SLD.SLDNode, PanelSupplyInfo> supplyOf,
-            double[] aicTiers, Dictionary<long, FaultPropagationResult> results)
+            double[] aicTiers, double aicMarginPct, Dictionary<long, FaultPropagationResult> results)
         {
             if (node == null) return;
             var info = supplyOf?.Invoke(node) ?? new PanelSupplyInfo();
@@ -164,13 +165,15 @@ namespace StingTools.Commands.Electrical.FaultCurrent
 
             if (node.IsPanel && node.ElementId != null)
             {
+                string noTier = AicTier.NoTierReason(thisFaultKa, aicTiers, aicMarginPct);
+                if (noTier != null) notes.Add("AIC: " + noTier);
                 results[node.ElementId.Value] = new FaultPropagationResult
                 {
                     PanelId       = node.ElementId,
                     PanelName     = node.Label,
                     FaultKa       = thisFaultKa,
                     ZtotalMohm    = conductor.Magnitude,
-                    AicRequiredKa = NextAicTierKa(thisFaultKa, aicTiers),
+                    AicRequiredKa = NextAicTierKa(thisFaultKa, aicTiers, aicMarginPct),
                     Voltage       = phases == 3 ? $"{vLL:0}V 3ph" : $"{vLN:0}V 1ph",
                     FeederCsaMm2  = csa,
                     FeederLengthM = lengthM,
@@ -181,18 +184,16 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             }
 
             foreach (var child in node.Children ?? Enumerable.Empty<StingTools.Core.SLD.SLDNode>())
-                PropagateNode(child, thisFaultKa, vLL, phases, voltageAssumed, wireTables, supplyOf, aicTiers, results);
+                PropagateNode(child, thisFaultKa, vLL, phases, voltageAssumed, wireTables, supplyOf, aicTiers, aicMarginPct, results);
         }
 
-        /// <summary>Look up the next AIC tier ≥ <paramref name="faultKa"/> × (1 + safetyMargin).</summary>
-        public static double NextAicTierKa(double faultKa, double[] tiers, double safetyMarginPct = 10.0)
-        {
-            if (tiers == null || tiers.Length == 0) return faultKa;
-            double target = faultKa * (1.0 + safetyMarginPct / 100.0);
-            foreach (double t in tiers.OrderBy(x => x))
-                if (t >= target) return t;
-            return tiers.Last();
-        }
+        /// <summary>
+        /// The next AIC tier ≥ <paramref name="faultKa"/> × (1 + safetyMargin); 0 when no
+        /// tier is large enough or none is loaded (see <see cref="AicTier"/>). It used to
+        /// return the largest tier — below the fault — when the fault exceeded them all.
+        /// </summary>
+        public static double NextAicTierKa(double faultKa, double[] tiers, double safetyMarginPct = AicTier.DefaultMarginPct)
+            => AicTier.Next(faultKa, tiers, safetyMarginPct);
     }
 
     /// <summary>

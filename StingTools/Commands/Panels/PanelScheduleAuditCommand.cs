@@ -159,7 +159,10 @@ namespace StingTools.Commands.Panels
                   .MetricWarn("IP rating not set", missingIp.ToString(), "PNLS → PANEL PARAMETERS → IP Rating → Save to Model")
                   .Metric("STING templates built", specCount == 0 ? "no specs loaded" : $"{stingBuilt} of {specCount}",
                           stingMissing > 0 ? $"{stingMissing} not built — PNLS 📐" : null)
-                  .MetricWarn("STING templates out of date", templateCheckError != null ? "not checked" : staleRows.Count.ToString(), "rebuild with PNLS 📐");
+                  // No specs loaded (or the check crashed) means nothing was compared — not "0 out of date".
+                  .MetricWarn("STING templates out of date",
+                              templateCheckError != null || specCount == 0 ? "not checked" : staleRows.Count.ToString(),
+                              specCount == 0 && templateCheckError == null ? "no template specs loaded — see TEMPLATE SPEC NOTES" : "rebuild with PNLS 📐");
             if (templateCheckError != null)
                 result.MetricError("STING template check failed", templateCheckError, "see the STING log");
 

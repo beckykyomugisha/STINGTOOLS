@@ -234,7 +234,15 @@ namespace StingTools.Core.Panels
                     catch (Exception ex) { result.Errors.Add($"existing {panel?.Id?.Value}: {ex.Message}"); }
                 }
 
-                tx.Commit();
+                var status = tx.Commit();
+                if (status != TransactionStatus.Committed)
+                {
+                    // Every schedule and stamp above was undone.
+                    result.Errors.Insert(0, StingTools.Core.Electrical.ElecWriteReport.Landed(
+                        "schedules created", result.Created, false, status.ToString()));
+                    result.Failed += result.Created;
+                    result.Created = result.DrawingTypeStamped = result.ParamsStamped = result.CircuitRefsStamped = 0;
+                }
             }
 
             try
@@ -275,9 +283,13 @@ namespace StingTools.Core.Panels
             int wrote = 0;
             try
             {
-                wrote += Try(panel, ParamRegistry.ELC_PNL_NAME, psv.Name);
+                // The board's designation is its Panel Name — not the schedule VIEW's name.
+                wrote += Try(panel, ParamRegistry.ELC_PNL_NAME, StingTools.Core.Drawing.BoardNames.Of(panel));
                 wrote += Try(panel, ParamRegistry.ELC_PNL_VOLTAGE, ReadString(panel, "Panel Voltage"));
-                wrote += Try(panel, ParamRegistry.ELC_PNL_LOAD, ReadString(panel, "Total Connected"));
+                // Connected TRUE power in kW over the circuits the board feeds (ELEC-27).
+                double? kw = StingTools.Core.Electrical.PanelConnectedLoad.BoardKw(panel);
+                wrote += Try(panel, ParamRegistry.ELC_PNL_LOAD,
+                    kw.HasValue ? StingTools.Core.Electrical.PanelConnectedLoadMath.KwText(kw.Value) : null);
                 wrote += Try(panel, ParamRegistry.ELC_PNL_FED_FROM, ReadString(panel, "Panel Source") ?? ReadString(panel, "Source"));
                 wrote += Try(panel, ParamRegistry.ELC_MAIN_BRK, ReadString(panel, "Mains") ?? ReadString(panel, "Main Disconnect"));
                 wrote += Try(panel, ParamRegistry.ELC_WAYS, ReadInt(panel, "Number Of Circuits") ?? ReadInt(panel, "Number of Slots"));
@@ -325,8 +337,15 @@ namespace StingTools.Core.Panels
                 var p = el?.LookupParameter(nativeParam);
                 if (p == null) return null;
                 if (p.StorageType == StorageType.String) return p.AsString();
-                if (p.StorageType == StorageType.Double) return p.AsValueString();
-                if (p.StorageType == StorageType.Integer) return p.AsInteger().ToString();
+                // The targets (ELC_PNL_VOLTAGE, ELC_PNL_LOAD, ELC_MAIN_BRK) are NUMBER
+                // parameters, which refuse a display string such as "100 A" or "230 V".
+                // Hand over the SI number (V, VA, A) instead; a non-electrical spec is raw.
+                if (p.StorageType == StorageType.Double)
+                {
+                    double v = StingTools.Core.Electrical.ElecUnits.ToSi(p);
+                    return v > 0 ? v.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) : null;
+                }
+                if (p.StorageType == StorageType.Integer) return p.AsInteger().ToString(System.Globalization.CultureInfo.InvariantCulture);
             }
             catch (Exception ex) { StingLog.Warn($"ReadString {nativeParam}: {ex.Message}"); }
             return null;

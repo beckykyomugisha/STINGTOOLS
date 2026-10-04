@@ -34,6 +34,14 @@ namespace StingTools.Commands.Electrical.ArcFlash
             var doc = ctx.Doc;
 
             var rows = ArcFlashCommand.LastResults;
+            if (rows != null && rows.Count > 0
+                && !StingTools.Core.Electrical.ElecResultScope.Matches(ArcFlashCommand.LastResultsDocKey,
+                       StingTools.Core.Electrical.ElecResultScope.Key(doc.PathName, doc.Title)))
+            {
+                PresetDialog.Show("STING Arc Flash Labels",
+                    StingTools.Core.Electrical.ElecResultScope.Refusal("Arc Flash Calc", ArcFlashCommand.LastResultsDocKey), ref message);
+                return Result.Cancelled;
+            }
             if (rows == null || rows.Count == 0)
             {
                 PresetDialog.Show("STING Arc Flash Labels",
@@ -54,7 +62,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 view = StingTools.Core.Drawing.SchematicViewFactory.CreateOrReplace(doc, ViewName, out string viewError);
                 if (view == null)
                 {
-                    tx.RollBack();
+                    StingTools.Core.Electrical.ElecTx.RollBackIfOpen(tx);
                     message = "Could not make the drafting view: " + viewError;
                     if (!PresetDialog.Quiet) TaskDialog.Show("STING Arc Flash Labels", message);
                     return Result.Failed;
@@ -98,7 +106,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 }
 
                 StampDrawingType(view, drawingTypeId);
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             // Onto its drawing type's sheet (found again by stamp; a re-run's labels replace these).

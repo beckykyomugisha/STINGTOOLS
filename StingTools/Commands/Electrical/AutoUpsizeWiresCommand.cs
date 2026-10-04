@@ -117,7 +117,7 @@ namespace StingTools.Commands.Electrical
                         var sys = doc.GetElement(p.CircuitId) as ElectricalSystem;
                         if (sys == null) continue;
                         ParameterHelpers.SetString(sys, ParamRegistry.ELC_CKT_CSA_MM2,
-                            $"{p.NewCsaMm2:0.#}", overwrite: true);
+                            (p.NewCsaMm2).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                         StingTools.Core.Electrical.CircuitVoltageDropModel.Stamp(sys, p.NewVd);
                         try
                         {
@@ -130,7 +130,7 @@ namespace StingTools.Commands.Electrical
                     }
                     catch (Exception ex) { StingLog.Warn($"Upsize write: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Auto-Upsize",

@@ -701,11 +701,8 @@ namespace StingTools.Model
 
             var curveX = gX.Curve;
             var curveY = gY.Curve;
-            curveX.Intersect(curveY, out var results);
-
-            if (results != null && results.Size > 0)
-                return results.get_Item(0).XYZPoint;
-            return null;
+            var pts = StingTools.Core.CurveCompat.IntersectionPoints(curveX, curveY);
+            return pts.Count > 0 ? pts[0] : null;
         }
 
         public Level ResolveLevel(string levelCode)

@@ -57,6 +57,9 @@ namespace StingTools.UI
         public static List<StingTools.UI.ConduitFillData> LastConduitFills = new();
         public static List<StingTools.UI.EmergAuditRow> LastEmergAudit = new();
         public static List<StingTools.UI.LpdRow> LastLpdRows = new();
+        // The document each grid cache came from (ElecResultScope.Key): the rows carry element
+        // ids, so another model's rows must not appear in this model's grid.
+        public static string LastConduitFillsDocKey, LastEmergAuditDocKey, LastLpdRowsDocKey;
         public static List<StingTools.Commands.Electrical.Compliance.CircuitAuditResult> LastBs7671Results = new();
 
         private StingElectricalCommandHandler(StingElectricalPanel panel) { _panel = panel; }
@@ -740,8 +743,26 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"ApplyCableSize: {ex.Message}"); }
         }
 
+        /// <summary>
+        /// False (with a message shown) when the panel's rows were read from another model:
+        /// their element ids mean nothing here. ROADMAP ELEC-31.
+        /// </summary>
+        private bool PanelShowsThisModel(Document doc)
+        {
+            string key = _panel?.SnapshotDocKey;
+            if (string.IsNullOrEmpty(key) || doc == null
+                || StingTools.Core.Electrical.ElecResultScope.Matches(key, StingTools.Core.Electrical.ElecResultScope.Key(doc.PathName, doc.Title)))
+                return true;
+            TaskDialog.Show("STING Electrical", PanelModelMismatch);
+            return false;
+        }
+
+        internal const string PanelModelMismatch =
+            "The Electrical panel is still showing another model. Click Refresh on the panel, then try again.";
+
         private void ZoomToSelectedSld(UIApplication app, Document doc)
         {
+            if (!PanelShowsThisModel(doc)) return;
             try
             {
                 var item = _panel?.SLDTree?.SelectedItem as SLDNodeViewModel;
@@ -760,6 +781,7 @@ namespace StingTools.UI
 
         private void OpenScheduleForSelectedSld(UIApplication app, Document doc)
         {
+            if (!PanelShowsThisModel(doc)) return;
             try
             {
                 var item = _panel?.SLDTree?.SelectedItem as SLDNodeViewModel;

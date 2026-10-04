@@ -71,7 +71,14 @@ namespace StingTools.Commands.Panels
                         run.Results.Add(r);
                     }
                 }
-                tx.Commit();
+                var status = tx.Commit();
+                if (status != TransactionStatus.Committed)
+                {
+                    // The whole run was undone: no template was created or rebuilt.
+                    foreach (var r in run.Results.Where(x => !x.Failed))
+                    { r.Failed = true; r.FailReason = $"ROLLED BACK ({status}) — the template was built and then undone"; }
+                    run.Warnings.Insert(0, $"The transaction ROLLED BACK ({status}); nothing was kept.");
+                }
             }
             try { PanelScheduleTemplateRegistry.Reload(doc); }
             catch (Exception ex) { StingLog.Warn($"Template registry reload: {ex.Message}"); }

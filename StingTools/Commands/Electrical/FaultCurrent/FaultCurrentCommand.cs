@@ -29,6 +29,9 @@ namespace StingTools.Commands.Electrical.FaultCurrent
     {
         public static List<FaultPropagationResult> LastResults { get; private set; }
             = new List<FaultPropagationResult>();
+        /// <summary>The document LastResults were computed on (ElecResultScope.Key); consumers
+        /// refuse results from another model — they are keyed by element id.</summary>
+        public static string LastResultsDocKey { get; private set; }
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -73,12 +76,15 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             }
 
             var wireTables = WireTableSet.Load(StingToolsApp.DataPath);
-            var aicTiers   = LoadAicTiers();
+            var aicSet     = LoadAicTierSet();
+            var aicTiers   = aicSet.Tiers;
             var results = FaultCurrentEngine.PropagateAll(root, utilityKa, wireTables,
-                ResolveSupply, aicTiers).Values.ToList();
+                ResolveSupply, aicTiers, aicSet.MarginPct).Values.ToList();
             LastResults = results;
+            LastResultsDocKey = ElecResultScope.Key(doc.PathName, doc.Title);
 
             int written = 0;
+            TransactionStatus stampStatus;
             using (var tx = new Transaction(doc, "STING Stamp Fault Levels"))
             {
                 tx.Start();
@@ -98,14 +104,16 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                     }
                     catch (Exception ex) { StingLog.Warn($"Stamp fault to panel: {ex.Message}"); }
                 }
-                tx.Commit();
+                stampStatus = tx.Commit();
             }
+            bool stampKept = stampStatus == TransactionStatus.Committed;
 
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             var top = results.OrderByDescending(r => r.FaultKa).FirstOrDefault();
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"Calculated maximum fault levels (IEC 60909-0, c = {Iec60909Lv.CMaxLv:0.00}) " +
-                          $"for {results.Count} panel(s). Stamped {written} ELC_PNL_SHORT_CIRCUIT_RATING_KA values.");
+                          $"for {results.Count} panel(s). " +
+                          ElecWriteReport.Landed("ELC_PNL_SHORT_CIRCUIT_RATING_KA value(s) stamped", written, stampKept, stampStatus.ToString()));
             if (top != null) sb.AppendLine($"Highest: {top.FaultKa:0.0} kA at {top.PanelName}.");
             sb.AppendLine($"Upstream fault level at origin: {utilityKa:0.0} kA" +
                           (utilityAssumed ? " (ASSUMED — no value entered on the Electrical panel)" : $" ({utilitySource})"));
@@ -183,12 +191,12 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             }
             catch (Exception ex) { StingLog.Warn($"FaultCurrent feeder circuit '{node.Label}': {ex.Message}"); }
 
-            info.FeederCsaMm2 = ReadNumber(fi, "ELC_FEEDER_CSA_MM2");
-            if (info.FeederCsaMm2 <= 0) info.FeederCsaMm2 = ReadNumber(fi, "ELC_CBL_SZ_MM");
+            info.FeederCsaMm2 = ReadCsa(fi, "ELC_FEEDER_CSA_MM2");
+            if (info.FeederCsaMm2 <= 0) info.FeederCsaMm2 = ReadCsa(fi, "ELC_CBL_SZ_MM");
             if (info.FeederCsaMm2 <= 0 && feeder != null)
             {
-                info.FeederCsaMm2 = ReadNumber(feeder, "ELC_FEEDER_CSA_MM2");
-                if (info.FeederCsaMm2 <= 0) info.FeederCsaMm2 = ReadNumber(feeder, "ELC_CBL_SZ_MM");
+                info.FeederCsaMm2 = ReadCsa(feeder, "ELC_FEEDER_CSA_MM2");
+                if (info.FeederCsaMm2 <= 0) info.FeederCsaMm2 = ReadCsa(feeder, "ELC_CBL_SZ_MM");
             }
 
             double len = ReadNumber(fi, "ELC_CBL_LENGTH_M");
@@ -212,6 +220,23 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                 }
             }
             return info;
+        }
+
+        /// <summary>
+        /// A conductor size from a TEXT parameter ("2,5", "2.5 mm²", "4x16") through
+        /// WireSizeParser; ReadNumber's leading-number regex read "2,5" as 2 mm², which
+        /// overstates the cable's resistance and understates the fault level.
+        /// </summary>
+        private static double ReadCsa(Element el, string paramName)
+        {
+            try
+            {
+                var p = el?.LookupParameter(paramName);
+                if (p != null && p.HasValue && p.StorageType == StorageType.String)
+                    return WireSizeParser.ParseCsaMm2(p.AsString());
+            }
+            catch (Exception ex) { StingLog.Warn($"FaultCurrent read {paramName}: {ex.Message}"); }
+            return ReadNumber(el, paramName);
         }
 
         /// <summary>
@@ -244,19 +269,18 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             return 0;
         }
 
-        public static double[] LoadAicTiers()
+        public static double[] LoadAicTiers() => LoadAicTierSet().Tiers;
+
+        /// <summary>STING_AIC_TIERS.json — the tiers AND its safetyMarginPct (once ignored).</summary>
+        public static AicTierSet LoadAicTierSet()
         {
             try
             {
                 string path = StingToolsApp.FindDataFile("STING_AIC_TIERS.json");
-                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new double[0];
-                var root = JObject.Parse(File.ReadAllText(path));
-                return ((root["tiers_kA"] as JArray) ?? new JArray())
-                    .Select(t => t.Value<double>())
-                    .OrderBy(x => x)
-                    .ToArray();
+                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new AicTierSet();
+                return AicTier.Parse(File.ReadAllText(path));
             }
-            catch (Exception ex) { StingLog.Warn($"LoadAicTiers: {ex.Message}"); return new double[0]; }
+            catch (Exception ex) { StingLog.Warn($"LoadAicTiers: {ex.Message}"); return new AicTierSet(); }
         }
     }
 
@@ -279,6 +303,16 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             // levels the last Calc_FaultCurrent computed; without them the step fails. The
             // summary goes to the step message.
             var results = FaultCurrentCommand.LastResults;
+            if (results != null && results.Count > 0
+                && !ElecResultScope.Matches(FaultCurrentCommand.LastResultsDocKey, ElecResultScope.Key(doc.PathName, doc.Title)))
+            {
+                // Another model's study: its element ids mean nothing here (or, in a detached
+                // copy, the same boards at an older state).
+                string why = "AIC stamp: " + ElecResultScope.Refusal("Fault Current", FaultCurrentCommand.LastResultsDocKey);
+                if (WorkflowEngine.IsRunningPreset) { message = why; return Result.Failed; }
+                TaskDialog.Show("STING AIC", why);
+                return Result.Failed;
+            }
             if (results == null || results.Count == 0)
             {
                 if (WorkflowEngine.IsRunningPreset)
@@ -289,9 +323,12 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                 TaskDialog.Show("STING AIC", "Run fault-current calculation first.");
                 return Result.Failed;
             }
-            var tiers = FaultCurrentCommand.LoadAicTiers();
+            var tierSet = FaultCurrentCommand.LoadAicTierSet();
+            var tiers = tierSet.Tiers;
 
-            int stamped = 0;
+            int stamped = 0, refused = 0;
+            var noTier = new List<string>();
+            TransactionStatus status;
             using (var tx = new Transaction(doc, "STING Stamp AIC Tiers"))
             {
                 tx.Start();
@@ -303,18 +340,27 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                         if (elId == null) continue;
                         var panel = doc.GetElement(elId) as FamilyInstance;
                         if (panel == null) continue;
-                        double aic = FaultCurrentEngine.NextAicTierKa(r.FaultKa, tiers);
-                        ParameterHelpers.SetString(panel, ParamRegistry.ELC_PNL_AIC_KA,
-                            $"{aic:0.0}", overwrite: true);
-                        stamped++;
+                        double aic = FaultCurrentEngine.NextAicTierKa(r.FaultKa, tiers, tierSet.MarginPct);
+                        // No tier covers this board: write nothing rather than a rating
+                        // below its fault level (the old lookup stamped the largest tier).
+                        if (aic <= 0) { noTier.Add($"{r.PanelName}: {AicTier.NoTierReason(r.FaultKa, tiers, tierSet.MarginPct)}"); continue; }
+                        if (ParameterHelpers.SetString(panel, ParamRegistry.ELC_PNL_AIC_KA,
+                                aic.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true))
+                            stamped++;
+                        else refused++;
                     }
-                    catch (Exception ex) { StingLog.Warn($"Stamp AIC: {ex.Message}"); }
+                    catch (Exception ex) { refused++; StingLog.Warn($"Stamp AIC: {ex.Message}"); }
                 }
-                tx.Commit();
+                status = tx.Commit();
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            PresetDialog.Show("STING AIC", $"AIC ratings stamped to {stamped} panel(s).", ref message);
-            return Result.Succeeded;
+            var sb = new System.Text.StringBuilder(ElecWriteReport.Landed("AIC rating(s) stamped", stamped, status == TransactionStatus.Committed, status.ToString()));
+            if (refused > 0) sb.Append($"\n{refused} panel(s) refused the write — is ELC_PNL_AIC_RATING_KA bound to Electrical Equipment? Run Load Params.");
+            if (noTier.Count > 0)
+                sb.Append($"\n\nNOT stamped — no standard tier ({noTier.Count}):\n  " + string.Join("\n  ", noTier.Take(15))
+                          + (noTier.Count > 15 ? $"\n  … {noTier.Count - 15} more" : ""));
+            PresetDialog.Show("STING AIC", sb.ToString(), ref message);
+            return status == TransactionStatus.Committed && refused == 0 && noTier.Count == 0 ? Result.Succeeded : Result.Failed;
         }
     }
 }

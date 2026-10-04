@@ -2630,7 +2630,16 @@ namespace StingTools.Core
                     int toRead = (int)Math.Min(bufSize, pos);
                     pos -= toRead;
                     stream.Seek(pos, SeekOrigin.Begin);
-                    stream.Read(buf, 0, toRead);
+                    // Read can return fewer bytes than asked; scanning a part-filled buffer
+                    // would count stale bytes as newlines.
+                    int got = 0;
+                    while (got < toRead)
+                    {
+                        int n = stream.Read(buf, got, toRead - got);
+                        if (n <= 0) break;
+                        got += n;
+                    }
+                    toRead = got;
                     for (int i = toRead - 1; i >= 0; i--)
                     {
                         if (buf[i] == (byte)'\n') found++;

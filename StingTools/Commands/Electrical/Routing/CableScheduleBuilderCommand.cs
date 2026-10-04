@@ -148,12 +148,12 @@ namespace StingTools.Commands.Electrical.Routing
                                 }
                                 catch { }
                             }
-                            txSched.Commit();
+                            StingTools.Core.Electrical.ElecTx.Commit(txSched, null);
                             StingLog.Info($"ViewSchedule '{vs.Name}' created (id={vs.Id.Value}).");
                         }
                         catch (Exception exSched)
                         {
-                            txSched.RollBack();
+                            StingTools.Core.Electrical.ElecTx.RollBackIfOpen(txSched);
                             StingLog.Warn($"Phase 183 schedule create failed: {exSched.Message}");
                         }
                     }
@@ -199,7 +199,7 @@ namespace StingTools.Commands.Electrical.Routing
                 r.CableLines.Add(new CableBomLine
                 {
                     Description = $"{ex.CoreCount}c × {ex.CsaMm2:F1} mm² {ex.ConductorMaterial} {ex.InsulationType}",
-                    Sku         = $"CABLE_{ex.ConductorMaterial}_{ex.CoreCount}C_{ex.CsaMm2:F1}_{ex.InsulationType}",
+                    Sku         = $"CABLE_{ex.ConductorMaterial}_{ex.CoreCount}C_{ex.CsaMm2.ToString("F1", CultureInfo.InvariantCulture)}_{ex.InsulationType}",   // invariant: one SKU per cable on any machine
                     TotalLengthM  = Math.Round(lengthM, 1),
                     TotalWeightKg = Math.Round(weightKg, 1),
                     InstanceCount = instances,
@@ -444,7 +444,7 @@ namespace StingTools.Commands.Electrical.Routing
             }
             catch { }
 
-            tx.Commit();
+            StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             StingLog.Info($"Cable schedule view '{scheduleName}' created/refreshed.");
         }
 

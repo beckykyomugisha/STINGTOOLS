@@ -234,7 +234,14 @@ namespace StingTools.Core.Electrical
                     }
                     catch (Exception ex) { result.Errors.Add($"{id.Value}: {ex.Message}"); }
                 }
-                tx.Commit();
+                var status = tx.Commit();
+                if (status != TransactionStatus.Committed)
+                {
+                    // Every write above was undone: report none of them as persisted.
+                    result.Errors.Insert(0, ElecWriteReport.Landed("circuits written", result.Written, false, status.ToString()));
+                    result.Written = result.WroteCsaNum = result.WroteVdNum = result.WroteCircuitCsa = 0;
+                    result.WroteNativeWireSize = result.VdStamped = result.VdNotCalculated = 0;
+                }
             }
 
             // Anti-hollow guard: computed but persisted nothing → loud, not silent.

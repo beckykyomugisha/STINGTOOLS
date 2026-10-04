@@ -122,7 +122,7 @@ namespace StingTools.Commands.Electrical.Schematics
                 var view = StingTools.Core.Drawing.SchematicViewFactory.CreateOrReplace(doc, "STING - LPS Schematic", out string viewError);
                 if (view == null)
                 {
-                    tx.RollBack();
+                    StingTools.Core.Electrical.ElecTx.RollBackIfOpen(tx);
                     message = "Could not make the drafting view: " + viewError;
                     if (!PresetDialog.Quiet) TaskDialog.Show("STING LPS Schematic", message);
                     return Result.Failed;
@@ -131,7 +131,7 @@ namespace StingTools.Commands.Electrical.Schematics
                 DrawLPSSchematic(doc, view, protLevel, meshSize,
                     airTerminals, downConductors, earthElectrodes, bondingBars);
 
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
 
                 // Onto the sheet of the drawing type routing gives E / LPS_SCHEMATIC.
                 string sheetLine = StingTools.Core.SLD.SldSheetPlacement.Place(doc,

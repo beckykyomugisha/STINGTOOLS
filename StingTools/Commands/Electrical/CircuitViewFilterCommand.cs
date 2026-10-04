@@ -59,11 +59,14 @@ namespace StingTools.Commands.Electrical
                 return Result.Cancelled;
             }
 
-            // Gather unique panel names.
+            // Gather unique panel names — the circuit's Panel (RBS_ELEC_CIRCUIT_PANEL_PARAM),
+            // which is what the filter rule below tests. BaseEquipment.Name is the board's
+            // family TYPE name: offering it built a filter that matched nothing while the
+            // report counted every circuit on boards of that type.
             var panelNames = allCircuits
                 .Select(es =>
                 {
-                    try { return es.BaseEquipment?.Name ?? ""; }
+                    try { return es.PanelName ?? ""; }
                     catch { return ""; }
                 })
                 .Where(n => !string.IsNullOrEmpty(n))
@@ -193,7 +196,7 @@ namespace StingTools.Commands.Electrical
                 }
                 catch (Exception ex)
                 {
-                    tx.RollBack();
+                    StingTools.Core.Electrical.ElecTx.RollBackIfOpen(tx);
                     message = $"Could not create filter: {ex.Message}";
                     return Result.Failed;
                 }
@@ -205,7 +208,7 @@ namespace StingTools.Commands.Electrical
                     {
                         if (byPanel)
                         {
-                            string pnl = es.BaseEquipment?.Name ?? "";
+                            string pnl = es.PanelName ?? "";
                             return pnl.Equals(filterValue, StringComparison.OrdinalIgnoreCase);
                         }
                         else
@@ -253,7 +256,7 @@ namespace StingTools.Commands.Electrical
                 try { ParameterHelpers.SetString(view, "STING_CIRCUIT_FILTER_TXT", filterName, overwrite: true); }
                 catch { /* shared param may not be bound */ }
 
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             TaskDialog.Show("STING Circuit Filter",

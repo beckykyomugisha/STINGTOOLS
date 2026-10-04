@@ -82,7 +82,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
                     }
                     catch (Exception ex) { StingLog.Warn($"AF boundary {panel.Name}: {ex.Message}"); skipped++; }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             TaskDialog.Show("STING Arc Flash Boundary",

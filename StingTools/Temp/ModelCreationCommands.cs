@@ -576,16 +576,7 @@ namespace StingTools.Temp
                         var curve1 = grids[i].Curve;
                         var curve2 = grids[j].Curve;
 
-                        var results = new IntersectionResultArray();
-                        var setCompResult = curve1.Intersect(curve2, out results);
-
-                        if (setCompResult == SetComparisonResult.Overlap && results != null)
-                        {
-                            for (int k = 0; k < results.Size; k++)
-                            {
-                                intersections.Add(results.get_Item(k).XYZPoint);
-                            }
-                        }
+                        intersections.AddRange(StingTools.Core.CurveCompat.IntersectionPoints(curve1, curve2));
                     }
                 }
 

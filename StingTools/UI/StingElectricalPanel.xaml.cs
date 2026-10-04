@@ -324,9 +324,17 @@ namespace StingTools.UI
         /// command handler after each command completes so the grids stay in
         /// sync with the model. Marshals onto the WPF dispatcher thread.
         /// </summary>
+        /// <summary>
+        /// The document the grids and SLD tree were last filled from. Their rows carry element
+        /// ids, so an action on a row is refused when the active model is a different one
+        /// (ROADMAP ELEC-31) — the PNLS Save wrote onto whatever element held that id there.
+        /// </summary>
+        public string SnapshotDocKey { get; private set; }
+
         public void RefreshFromData(ElectricalPanelSnapshot snapshot)
         {
             if (snapshot == null) return;
+            if (!string.IsNullOrEmpty(snapshot.DocKey)) SnapshotDocKey = snapshot.DocKey;
             try
             {
                 Dispatcher.Invoke(() =>
@@ -463,6 +471,7 @@ namespace StingTools.UI
             {
                 PanelName = sel?.Name ?? "",
                 PanelId = sel?.PanelDataRef?.Id?.Value ?? 0,
+                DocKey = SnapshotDocKey,
                 MainBreakerA = txtMainBreaker?.Text ?? "",
                 FedFrom = (cmbFedFrom?.Text) ?? "",
                 Location = txtLocation?.Text ?? "",
@@ -894,6 +903,8 @@ namespace StingTools.UI
 
     public class ElectricalPanelSnapshot
     {
+        /// <summary>The document this snapshot was read from (ElecResultScope.Key).</summary>
+        public string                     DocKey;
         public List<PanelData>            Panels;
         public List<CircuitData>          Circuits;
         public StingTools.Core.SLD.SLDNode SLDRoot;
@@ -943,7 +954,7 @@ namespace StingTools.UI
         public string CsaDisplay   => $"{FeederCsaMm2:0.#}";
         public string ZDisplay     => $"{ZtotalMohm:0.0}";
         public string FaultDisplay => $"{FaultKa:0.00}";
-        public string AicDisplay   => $"{AicRequiredKa:0}";
+        public string AicDisplay   => AicRequiredKa > 0 ? $"{AicRequiredKa:0}" : "none";
     }
     public class ConduitFillData
     {
@@ -1003,6 +1014,8 @@ namespace StingTools.UI
             Manufacturer, FaultKA, Enclosure;
         /// <summary>Element id of the board picked in the grid; 0 when unknown.</summary>
         public long PanelId;
+        /// <summary>The document that grid row came from (ElecResultScope.Key).</summary>
+        public string DocKey;
     }
 
     public class VDOptionsSnapshot

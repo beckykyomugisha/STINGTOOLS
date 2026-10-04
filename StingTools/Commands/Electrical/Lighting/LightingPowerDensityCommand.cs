@@ -87,9 +87,9 @@ namespace StingTools.Commands.Electrical.Lighting
                     try
                     {
                         ParameterHelpers.SetString(r, ParamRegistry.ELC_LPD_W_M2,
-                            $"{wPerM2:0.00}", overwrite: true);
+                            (wPerM2).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                         ParameterHelpers.SetString(r, ParamRegistry.ELC_LPD_LIMIT_W_M2,
-                            $"{limit:0.00}", overwrite: true);
+                            (limit).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                         ParameterHelpers.SetString(r, ParamRegistry.ELC_LPD_STATUS,
                             status, overwrite: true);
                     }
@@ -115,10 +115,11 @@ namespace StingTools.Commands.Electrical.Lighting
                         Status      = status
                     });
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             LastRows = rows;
             StingElectricalCommandHandler.LastLpdRows = rows;
+            StingElectricalCommandHandler.LastLpdRowsDocKey = StingTools.Core.Electrical.ElecResultScope.Key(doc.PathName, doc.Title);
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             int pass = rows.Count(r => r.Status == "PASS");
             int fail = rows.Count(r => r.Status == "FAIL");
@@ -154,7 +155,7 @@ namespace StingTools.Commands.Electrical.Lighting
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
-        private static double ParseDouble(string s) => double.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double v) ? v : 0;
+        private static double ParseDouble(string s) => StingTools.Core.NumberText.TryParse(s, out double v) ? v : 0;
 
         public static LpdLimitTable LoadLpdLimits(string standardId)
         {
@@ -225,7 +226,7 @@ namespace StingTools.Commands.Electrical.Lighting
                     ogs.SetProjectionLineWeight(5);
                     try { view.SetElementOverrides(r.Id, ogs); colored++; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             TaskDialog.Show("STING LPD", $"Re-coloured {colored} room(s) in view.");
             return Result.Succeeded;

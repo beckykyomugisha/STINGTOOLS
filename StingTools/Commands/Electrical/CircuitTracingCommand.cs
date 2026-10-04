@@ -159,7 +159,7 @@ namespace StingTools.Commands.Electrical
                     }
                 }
 
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             string startName = selected.Name ?? selected.Id.ToString();
@@ -281,7 +281,7 @@ namespace StingTools.Commands.Electrical
                         StingLog.Warn($"ClearTrace {el.Id}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
 
             TaskDialog.Show("STING Clear Trace",

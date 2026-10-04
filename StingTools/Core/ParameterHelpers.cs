@@ -969,9 +969,8 @@ namespace StingTools.Core
                     case StorageType.Double: return p.AsDouble();
                     case StorageType.Integer: return p.AsInteger();
                     case StorageType.String:
-                        string s = p.AsString();
-                        return double.TryParse(s, System.Globalization.NumberStyles.Any,
-                            System.Globalization.CultureInfo.InvariantCulture, out double v) ? v : defaultValue;
+                        // NumberText: "2,5" is 2.5, not the 25 NumberStyles.Any made of it (ELEC-30).
+                        return NumberText.TryParse(p.AsString(), out double v) ? v : defaultValue;
                     default: return defaultValue;
                 }
             }
@@ -5059,7 +5058,11 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"MapZoneElement name on {el.Id}: {ex.Message}"); }
 
             written += WriteQuantity(el, zone.Area, sqFtToSqM, ParamRegistry.ROOM_AREA);
-            written += WriteQuantity(el, zone.Volume, cuFtToCuM, ParamRegistry.ROOM_VOLUME);
+            // ZONE_VOLUME (every version) rather than Zone.Volume (deprecated 2026, removed 2027).
+            double zoneVolumeFt3 = 0;
+            try { zoneVolumeFt3 = zone.get_Parameter(BuiltInParameter.ZONE_VOLUME)?.AsDouble() ?? 0; }
+            catch (Exception ex) { StingLog.Warn($"MapZoneElement volume on {el.Id}: {ex.Message}"); }
+            written += WriteQuantity(el, zoneVolumeFt3, cuFtToCuM, ParamRegistry.ROOM_VOLUME);
             return written;
         }
 
@@ -5220,8 +5223,12 @@ namespace StingTools.Core
                 // Panel-specific params
                 if (catUpper.Contains("EQUIPMENT"))
                 {
-                    written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_PANEL_TOTALLOAD_PARAM,
-                        ParamRegistry.ELC_PNL_LOAD);
+                    // kW = true power over the circuits the board feeds; the apparent-power
+                    // built-in (VA) used to land here as kVA under the kW name (ELEC-27).
+                    double? boardKw = StingTools.Core.Electrical.PanelConnectedLoad.BoardKw(el);
+                    if (boardKw.HasValue && ParameterHelpers.SetString(el, ParamRegistry.ELC_PNL_LOAD,
+                            StingTools.Core.Electrical.PanelConnectedLoadMath.KwText(boardKw.Value), overwrite: false))
+                        written++;
                     written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_PANEL_FEED_PARAM,
                         ParamRegistry.ELC_PNL_FED_FROM);
                     written += MapStringParam(el, "Mains", ParamRegistry.ELC_MAIN_BRK);
@@ -5360,16 +5367,18 @@ namespace StingTools.Core
                     ParamRegistry.KEYNOTE, el);
 
                 // Assembly Code (Uniformat)
-                written += MapBuiltIn(elType, BuiltInParameter.UNIFORMAT_CODE,
-                    ParamRegistry.UNIFORMAT, el);
+                // Renamed in Revit 2026 (UNIFORMAT_* → ASSEMBLY_*, OMNICLASS_* →
+                // CLASSIFICATION_*): resolved by name so one build serves both.
+                if (BipCompat.AssemblyCode is BuiltInParameter asmCode)
+                    written += MapBuiltIn(elType, asmCode, ParamRegistry.UNIFORMAT, el);
 
                 // Assembly Description
-                written += MapBuiltIn(elType, BuiltInParameter.UNIFORMAT_DESCRIPTION,
-                    ParamRegistry.UNIFORMAT_DESC, el);
+                if (BipCompat.AssemblyDescription is BuiltInParameter asmDesc)
+                    written += MapBuiltIn(elType, asmDesc, ParamRegistry.UNIFORMAT_DESC, el);
 
                 // OmniClass Title
-                written += MapBuiltIn(elType, BuiltInParameter.OMNICLASS_CODE,
-                    ParamRegistry.OMNICLASS, el);
+                if (BipCompat.ClassificationCode is BuiltInParameter clsCode)
+                    written += MapBuiltIn(elType, clsCode, ParamRegistry.OMNICLASS, el);
 
                 // Cost (if available)
                 written += MapBuiltIn(elType, BuiltInParameter.ALL_MODEL_COST,

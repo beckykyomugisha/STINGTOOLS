@@ -55,7 +55,7 @@ namespace StingTools.Core.SLD
                     // reserved) is not kept — the view's stamps go with it.
                     if (pr.Failure != null)
                     {
-                        tx.RollBack();
+                        StingTools.Core.Electrical.ElecTx.RollBackIfOpen(tx);
                         foreach (var w in pr.Warnings.Where(w => w != pr.Failure).Distinct()) StingLog.Warn($"SldSheetPlacement {drawingTypeId}: {w}");
                         StingLog.Warn($"SldSheetPlacement {drawingTypeId}: {pr.Failure} — rolled back.");
                         return $"'{view.Name}' is not on a sheet: {pr.Failure} (rolled back).";

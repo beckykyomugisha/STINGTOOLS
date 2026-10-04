@@ -78,6 +78,7 @@ namespace StingTools.Commands.Electrical.VoltageDrop
             // Stamp VD% and its basis (ELC_CKT_VD_BASIS_TXT) per circuit. A circuit that
             // could not be calculated gets NONE and the reason, never 0.00.
             int stamped = 0;
+            TransactionStatus status;
             using (var tx = new Transaction(doc, "STING Stamp Voltage Drop"))
             {
                 tx.Start();
@@ -92,8 +93,9 @@ namespace StingTools.Commands.Electrical.VoltageDrop
                     }
                     catch (Exception ex) { StingLog.Warn($"VD stamp {r.CircuitId.Value}: {ex.Message}"); }
                 }
-                tx.Commit();
+                status = tx.Commit();
             }
+            bool kept = status == TransactionStatus.Committed;
 
             PresetDialog.Show("STING Voltage Drop",
                 $"Circuits: {results.Count}\n" +
@@ -101,9 +103,10 @@ namespace StingTools.Commands.Electrical.VoltageDrop
                 (possible > 0 ? $"Possibly exceeding (upper bound, no cable recorded): {possible}\n" : "") +
                 (bounded > 0 ? $"Upper-bound figures (A4-MAX — apply a cable size to record the cable): {bounded}\n" : "") +
                 (notCalc > 0 ? $"Not calculated (basis NONE gives the reason): {notCalc}\n" : "") +
-                $"Voltage drop and basis stamped: {stamped}" +
-                (stamped == 0 && results.Count > 0 ? "\n\nNothing was stamped: ELC_CKT_VD_BASIS_TXT is not bound to Electrical Circuits. Run Load Shared Params." : ""), ref message);
-            return Result.Succeeded;
+                (kept ? $"Voltage drop and basis stamped: {stamped}"
+                      : StingTools.Core.Electrical.ElecWriteReport.Landed("circuits stamped", stamped, false, status.ToString())) +
+                (kept && stamped == 0 && results.Count > 0 ? "\n\nNothing was stamped: ELC_CKT_VD_BASIS_TXT is not bound to Electrical Circuits. Run Load Shared Params." : ""), ref message);
+            return kept ? Result.Succeeded : Result.Failed;
         }
 
         /// <param name="lightingLimitPct">Limit for circuits feeding lighting (BS 7671 App 12: 3 %).</param>
@@ -273,7 +276,7 @@ namespace StingTools.Commands.Electrical.VoltageDrop
                     }
                     catch (Exception ex) { StingLog.Warn($"Flag VD: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             PresetDialog.Show("STING Voltage Drop",
                 $"Flagged {flagged} element(s) on {results.Count(r => r.ExceedsThreshold)} circuit(s).", ref message);

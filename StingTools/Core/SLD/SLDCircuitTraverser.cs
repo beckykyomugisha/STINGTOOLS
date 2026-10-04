@@ -341,7 +341,9 @@ namespace StingTools.Core.SLD
                 HierarchyLevel = level,
                 IsPanel       = true,
                 RevitElement  = fi,
-                Label         = fi.Name,
+                // The board's Panel Name: fi.Name is its family TYPE name, so every board of
+                // one type carried the same label on the SLD, in the fault and feeder reports.
+                Label         = StingTools.Core.Drawing.BoardNames.Of(fi),
                 ConceptId     = SymbolConceptForElement(fi),
             };
 
@@ -664,8 +666,7 @@ namespace StingTools.Core.SLD
             if (!string.IsNullOrEmpty(rating))
             {
                 string numStr = rating.Replace("A", "").Replace("a", "").Trim();
-                if (double.TryParse(numStr, System.Globalization.NumberStyles.Any,
-                        System.Globalization.CultureInfo.InvariantCulture, out double a) && a >= 125)
+                if (StingTools.Core.NumberText.TryParse(numStr, out double a) && a >= 125)
                     return "SLD_MCCB";
             }
 

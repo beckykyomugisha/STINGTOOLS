@@ -25,6 +25,7 @@ namespace StingTools.Commands.Electrical
         {
             var snap = new ElectricalPanelSnapshot();
             if (doc == null) return snap;
+            snap.DocKey = StingTools.Core.Electrical.ElecResultScope.Key(doc.PathName, doc.Title);
             try
             {
                 snap.Panels = BuildPanels(doc);
@@ -47,8 +48,15 @@ namespace StingTools.Commands.Electrical
                 // for "NEC", which is why selecting NEC 2023 produced a BS 7671 answer.
                 snap.Standard = StingTools.Standards.ElectricalStandardId.Normalise(
                     StingTools.UI.StingElectricalCommandHandler.ActivePanel?.SelectedStandard);
-                // Phase 178 — surface LastResults caches (no extra Revit reads).
-                snap.Feeders = StingTools.Commands.Electrical.FeederSizing.FeederSizerCommand.LastResults
+                // Phase 178 — surface LastResults caches (no extra Revit reads), but only this
+                // document's: a study run on another model is not shown as this one's.
+                string docKey = StingTools.Core.Electrical.ElecResultScope.Key(doc.PathName, doc.Title);
+                bool feedersHere = StingTools.Core.Electrical.ElecResultScope.Matches(
+                    StingTools.Commands.Electrical.FeederSizing.FeederSizerCommand.LastResultsDocKey, docKey);
+                bool faultsHere = StingTools.Core.Electrical.ElecResultScope.Matches(
+                    StingTools.Commands.Electrical.FaultCurrent.FaultCurrentCommand.LastResultsDocKey, docKey);
+                snap.Feeders = (feedersHere ? StingTools.Commands.Electrical.FeederSizing.FeederSizerCommand.LastResults
+                                            : new List<StingTools.Commands.Electrical.FeederSizing.FeederSizeResult>())
                     .Select(r => new StingTools.UI.FeederData
                     {
                         PanelName = r.PanelName, DemandKW = r.DemandKW,
@@ -58,7 +66,8 @@ namespace StingTools.Commands.Electrical
                         ProposedRatingA = r.ProposedRatingA,
                         Status = r.Status
                     }).ToList();
-                snap.FaultResults = StingTools.Commands.Electrical.FaultCurrent.FaultCurrentCommand.LastResults
+                snap.FaultResults = (faultsHere ? StingTools.Commands.Electrical.FaultCurrent.FaultCurrentCommand.LastResults
+                                                : new List<StingTools.Commands.Electrical.FaultCurrent.FaultPropagationResult>())
                     .Select(r => new StingTools.UI.FaultData
                     {
                         PanelName = r.PanelName, Voltage = r.Voltage,
@@ -66,11 +75,16 @@ namespace StingTools.Commands.Electrical
                         ZtotalMohm = r.ZtotalMohm,
                         FaultKa = r.FaultKa,
                         AicRequiredKa = r.AicRequiredKa,
-                        Status = r.AicRequiredKa > 0 && r.FaultKa > r.AicRequiredKa ? "EXCEEDS_AIC" : "OK"
+                        // 0 = no standard tier covers the board (or none loaded) — never "OK".
+                        Status = r.FaultKa > 0 && r.AicRequiredKa <= 0 ? "NO_AIC_TIER"
+                               : r.AicRequiredKa > 0 && r.FaultKa > r.AicRequiredKa ? "EXCEEDS_AIC" : "OK"
                     }).ToList();
-                snap.ConduitFills = StingTools.UI.StingElectricalCommandHandler.LastConduitFills;
-                snap.EmergAudit   = StingTools.UI.StingElectricalCommandHandler.LastEmergAudit;
-                snap.LpdRows      = StingTools.UI.StingElectricalCommandHandler.LastLpdRows;
+                snap.ConduitFills = StingTools.Core.Electrical.ElecResultScope.Matches(StingTools.UI.StingElectricalCommandHandler.LastConduitFillsDocKey, docKey)
+                    ? StingTools.UI.StingElectricalCommandHandler.LastConduitFills : new List<StingTools.UI.ConduitFillData>();
+                snap.EmergAudit   = StingTools.Core.Electrical.ElecResultScope.Matches(StingTools.UI.StingElectricalCommandHandler.LastEmergAuditDocKey, docKey)
+                    ? StingTools.UI.StingElectricalCommandHandler.LastEmergAudit : new List<StingTools.UI.EmergAuditRow>();
+                snap.LpdRows      = StingTools.Core.Electrical.ElecResultScope.Matches(StingTools.UI.StingElectricalCommandHandler.LastLpdRowsDocKey, docKey)
+                    ? StingTools.UI.StingElectricalCommandHandler.LastLpdRows : new List<StingTools.UI.LpdRow>();
             }
             catch (Exception ex) { StingLog.Warn($"SnapshotBuilder: {ex.Message}"); }
             return snap;

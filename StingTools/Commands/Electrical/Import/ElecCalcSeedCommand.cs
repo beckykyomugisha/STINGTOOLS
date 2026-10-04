@@ -120,12 +120,14 @@ namespace StingTools.Commands.Electrical.Import
             {
                 list.Add(new CircuitSeedRecord
                 {
-                    Panel         = sys.BaseEquipment?.Name ?? "",
+                    // The board's Panel Name — BaseEquipment.Name is its TYPE name, shared by
+                    // every board of that type, so the seed could not tell them apart.
+                    Panel         = sys.PanelName ?? "",
                     CircuitNumber = sys.CircuitNumber ?? "",
                     LoadNameTxt   = sys.LookupParameter("ELC_CIRCUIT_DESC_TXT")?.AsString() ?? "",
                     Rating        = sys.LookupParameter("ELC_CIRCUIT_RATING_TXT")?.AsString() ?? "",
                     LoadKVA       = sys.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD) != null
-                        ? (StingTools.Core.Electrical.ElecUnits.ApparentLoadVA(sys) / 1000.0).ToString("F2")
+                        ? (StingTools.Core.Electrical.ElecUnits.ApparentLoadVA(sys) / 1000.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture)
                         : "",
                     CsaMm2        = sys.LookupParameter("ELC_CABLE_CSA_MM2_TXT")?.AsString() ?? "",
                     Poles         = sys.PolesNumber.ToString() ?? ""

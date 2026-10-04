@@ -92,7 +92,7 @@ namespace StingTools.Commands.Electrical
                         if (report.CableCount == 0) { noCablesOnRecord++; continue; }
                         double pct = report.FillRatio * 100.0;
                         ParameterHelpers.SetString(el, ParamRegistry.ELC_CONDUIT_FILL_PCT,
-                            $"{pct:0.0}", overwrite: true);
+                            (pct).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                         results.Add(new ConduitFillData
                         {
                             ConduitId   = el.Id,
@@ -112,9 +112,10 @@ namespace StingTools.Commands.Electrical
                     }
                     catch (Exception ex2) { StingLog.Warn($"Fill compute: {ex2.Message}"); }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             StingElectricalCommandHandler.LastConduitFills = results;
+            StingElectricalCommandHandler.LastConduitFillsDocKey = StingTools.Core.Electrical.ElecResultScope.Key(doc.PathName, doc.Title);
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
             string worstStr = string.IsNullOrEmpty(worstName) ? "—" : $"{worstName} ({worstFill:0.0}%)";
             TaskDialog.Show("STING Conduit Fill",
@@ -170,7 +171,7 @@ namespace StingTools.Commands.Electrical
                             }
                             catch (Exception ex2) { StingLog.Warn($"AutoUpsize loop: {ex2.Message}"); }
                         }
-                        txUp.Commit();
+                        StingTools.Core.Electrical.ElecTx.Commit(txUp, null);
                     }
 
                     // Re-validate after upsize
@@ -190,13 +191,13 @@ namespace StingTools.Commands.Electrical
                                     r.FillPct = report2.FillRatio * 100.0;
                                     r.Passes  = report2.PassesLimit;
                                     ParameterHelpers.SetString(el, ParamRegistry.ELC_CONDUIT_FILL_PCT,
-                                        $"{r.FillPct:0.0}", overwrite: true);
+                                        (r.FillPct).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                                     if (r.Passes) passedAfter++;
                                     else failedAfter++;
                                 }
                                 catch { }
                             }
-                            txRecheck.Commit();
+                            StingTools.Core.Electrical.ElecTx.Commit(txRecheck, null);
                         }
                         TaskDialog.Show("STING Auto-Upsize",
                             $"Upsized {upsized} conduit(s).\nNow passing: {passedAfter}  |  Still failing: {failedAfter}");
@@ -221,7 +222,7 @@ namespace StingTools.Commands.Electrical
                         {
                             txSumm.Start();
                             summP.Set($"Checked:{results.Count} Fail:{overFillCount} Avg:{avgFill:0.1}% @ {DateTime.Now:yyyy-MM-dd HH:mm}");
-                            txSumm.Commit();
+                            StingTools.Core.Electrical.ElecTx.Commit(txSumm, null);
                         }
                     }
                 }

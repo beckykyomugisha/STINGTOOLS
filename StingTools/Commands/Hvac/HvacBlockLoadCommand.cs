@@ -442,12 +442,13 @@ namespace StingTools.Commands.Hvac
                 // Group by Zone if available — `Space.Zone` returns the Revit
                 // HVAC Zone the space is assigned to. Wrapped because not
                 // every project binds Zones.
+                // SPACE_ZONE_NAME (every version) — Space.Zone is deprecated in Revit 2027.
                 try
                 {
-                    var zone = s.Zone;
-                    if (zone != null && !string.IsNullOrEmpty(zone.Name)) return zone.Name;
+                    string zoneName = s.get_Parameter(BuiltInParameter.SPACE_ZONE_NAME)?.AsString();
+                    if (!string.IsNullOrWhiteSpace(zoneName)) return zoneName;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Info($"Block load zone of space {s.Id}: {ex.Message}"); }
                 return "(default)";
             }
             catch { return "(default)"; }

@@ -375,7 +375,7 @@ namespace StingTools.Core.Hvac.Loads
             if (v.HasValue && v.Value > 0) return v;
             try
             {
-                var p = sym.get_Parameter(BuiltInParameter.ANALYTICAL_HEAT_TRANSFER_COEFFICIENT);
+                var p = StingTools.Core.BipCompat.Get(sym, StingTools.Core.BipCompat.HeatTransferCoefficient);
                 if (p != null && p.StorageType == StorageType.Double)
                 {
                     double internalU = p.AsDouble();

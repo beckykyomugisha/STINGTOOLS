@@ -152,7 +152,7 @@ namespace StingTools.Commands.Electrical.Sustainability
                 {
                     if (p.StorageType == StorageType.Double)  { var v = p.AsDouble();  if (v > 0) return v; }
                     if (p.StorageType == StorageType.Integer) { var v = p.AsInteger(); if (v > 0) return v; }
-                    if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out double s) && s > 0) return s;
+                    if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double s) && s > 0) return s;
                 }
                 catch { }
             }

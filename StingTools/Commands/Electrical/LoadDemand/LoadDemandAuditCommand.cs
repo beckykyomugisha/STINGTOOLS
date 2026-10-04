@@ -169,7 +169,9 @@ namespace StingTools.Commands.Electrical.LoadDemand
         {
             return new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_ElectricalEquipment)
                 .WhereElementIsNotElementType().OfType<FamilyInstance>()
-                .FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+                // name is a circuit's PanelName — the board's Panel Name, not p.Name (its family
+                // TYPE name), which never matched and left every board's rating unread.
+                .FirstOrDefault(p => string.Equals(StingTools.Core.Drawing.BoardNames.Of(p), name, StringComparison.OrdinalIgnoreCase));
         }
 
         private static double SafeDouble(Element el, string name)
@@ -180,7 +182,7 @@ namespace StingTools.Commands.Electrical.LoadDemand
             {
                 if (p.StorageType == StorageType.Double)  return StingTools.Core.Electrical.ElecUnits.ToSi(p);
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
-                if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out double v)) return v;
+                if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double v)) return v;
             }
             catch { }
             return 0;

@@ -46,6 +46,25 @@
   </PropertyGroup>
 
   <!--
+    Which Revit the build targets (ROADMAP ELEC-29). Taken from RevitApiPath unless passed
+    as -p:RevitYear=. Revit 2027's API assemblies are built on .NET 10, so a 2027 build
+    targets net10.0-windows (the net8 libraries it references still load). Code that must
+    differ by version uses REVIT2026_OR_GREATER / REVIT2027_OR_GREATER:
+      2026 renamed UNIFORMAT_* / OMNICLASS_* (resolved by name in Core/BipCompat.cs) and
+      deprecated Curve.Intersect(out) and Zone.Volume; 2027 removed both.
+    Building one year after another in the same checkout re-restores; run with -t:Rebuild.
+  -->
+  <PropertyGroup>
+    <RevitYear Condition="'$(RevitYear)' == '' And $(RevitApiPath.Contains('2027'))">2027</RevitYear>
+    <RevitYear Condition="'$(RevitYear)' == '' And $(RevitApiPath.Contains('2026'))">2026</RevitYear>
+    <RevitYear Condition="'$(RevitYear)' == ''">2025</RevitYear>
+    <TargetFramework Condition="'$(RevitYear)' == '2027'">net10.0-windows</TargetFramework>
+    <DefineConstants>$(DefineConstants);REVIT$(RevitYear)</DefineConstants>
+    <DefineConstants Condition="$(RevitYear) &gt;= 2026">$(DefineConstants);REVIT2026_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="$(RevitYear) &gt;= 2027">$(DefineConstants);REVIT2027_OR_GREATER</DefineConstants>
+  </PropertyGroup>
+
+  <!--
     Revit reference-assembly resolution — two paths, same API surface:
 
       • Developer machine WITH Revit installed ($(RevitApiPath)\RevitAPI.dll

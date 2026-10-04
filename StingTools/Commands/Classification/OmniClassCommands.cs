@@ -163,8 +163,9 @@ namespace StingTools.Commands.Classification
             try
             {
                 Element type = doc.GetElement(el.GetTypeId());
-                Parameter p = type?.get_Parameter(BuiltInParameter.OMNICLASS_CODE)
-                              ?? el.get_Parameter(BuiltInParameter.OMNICLASS_CODE);
+                // OMNICLASS_CODE in Revit 2025, CLASSIFICATION_CODE from 2026 (BipCompat).
+                Parameter p = StingTools.Core.BipCompat.Get(type, StingTools.Core.BipCompat.ClassificationCode)
+                              ?? StingTools.Core.BipCompat.Get(el, StingTools.Core.BipCompat.ClassificationCode);
                 string v = p?.AsString();
                 if (!string.IsNullOrWhiteSpace(v) && v.Trim().StartsWith("23-")) return Normalize(v);
             }

@@ -160,7 +160,7 @@ namespace StingTools.Commands.Electrical.Schematics
                 var view = StingTools.Core.Drawing.SchematicViewFactory.CreateOrReplace(doc, "STING - MGPS Schematic", out string viewError);
                 if (view == null)
                 {
-                    tx.RollBack();
+                    StingTools.Core.Electrical.ElecTx.RollBackIfOpen(tx);
                     message = "Could not make the drafting view: " + viewError;
                     if (!PresetDialog.Quiet) TaskDialog.Show("STING MGPS Schematic", message);
                     return Result.Failed;
@@ -169,7 +169,7 @@ namespace StingTools.Commands.Electrical.Schematics
                 DrawMGPSSchematic(doc, view, gasTypesPresent,
                     sourcesByGas, zvByGas, tuByGas);
 
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
 
                 // Onto the sheet of the drawing type routing gives MG / SCHEMATIC.
                 string sheetLine = StingTools.Core.SLD.SldSheetPlacement.Place(doc,

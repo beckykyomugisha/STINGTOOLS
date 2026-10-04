@@ -133,12 +133,12 @@ namespace StingTools.Core.Placement
                         // Some rebar variants throw — catch per element.
                         var rebar = el as Autodesk.Revit.DB.Structure.Rebar;
                         if (rebar == null) continue;
+                        // Positional: the second parameter is suppressHooks in 2025 and
+                        // suppressHooksAndCranks from 2026, so a named argument binds to one only.
                         var curves = rebar.GetCenterlineCurves(
-                            adjustForSelfIntersection: false,
-                            suppressHooks: false,
-                            suppressBendRadius: false,
-                            multiplanarOption: Autodesk.Revit.DB.Structure.MultiplanarOption.IncludeOnlyPlanarCurves,
-                            barPositionIndex: 0);
+                            false, false, false,
+                            Autodesk.Revit.DB.Structure.MultiplanarOption.IncludeOnlyPlanarCurves,
+                            0);
                         if (curves == null) continue;
                         foreach (var c in curves) if (c != null) _rebarCache.Add(c);
                     }

@@ -82,16 +82,16 @@ namespace StingTools.Commands.Electrical.Photometric
                     string key = Normalise(r.Name);
                     if (luxByRoom.TryGetValue(key, out var v))
                     {
-                        try { ParameterHelpers.SetString(r, ParamRegistry.ELC_PHOTO_LUX, $"{v.lux:0.0}", overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        try { ParameterHelpers.SetString(r, ParamRegistry.ELC_PHOTO_LUX, (v.lux).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         // A missing UGR in the IFC parses as 0 — do not write it as a result.
                         if (v.ugr > 0)
                         {
-                            try { ParameterHelpers.SetString(r, ParamRegistry.ELC_PHOTO_UGR, $"{v.ugr:0.0}", overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            try { ParameterHelpers.SetString(r, ParamRegistry.ELC_PHOTO_UGR, (v.ugr).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                         matched++;
                     }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Photometric",
@@ -124,7 +124,7 @@ namespace StingTools.Commands.Electrical.Photometric
                         double totalLumens = SumLumensInRoom(rm, allFixtures, ref fromWatts, ref noData);
                         if (totalLumens < 1) continue;
                         double lux = totalLumens * UF * MF / areaM2;
-                        try { ParameterHelpers.SetString(room, ParamRegistry.ELC_PHOTO_LUX, $"{lux:0.0}", overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        try { ParameterHelpers.SetString(room, ParamRegistry.ELC_PHOTO_LUX, (lux).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         // UGR is NOT written here. It depends on luminaire luminance,
                         // position and the observer's view — a lumen total cannot give it.
                         // Only a photometric calculation (DIALux import, option 1) writes UGR.
@@ -132,7 +132,7 @@ namespace StingTools.Commands.Electrical.Photometric
                     }
                     catch (Exception ex) { StingLog.Warn($"PhotoEstimate room: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTools.Core.Electrical.ElecTx.Commit(tx, null);
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Photometric Estimate",
