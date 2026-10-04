@@ -6,9 +6,9 @@
 
 | Field | Value |
 |---|---|
-| Document number | KUT-[ORG]-ZZ-XX-RP-Z-0004 |
+| Document number | None — a working note, not a controlled document. `RP-Z-0004` is the Mobilisation Information Request |
 | Revision | P01 |
-| Status / suitability | S2 (shared — for information) |
+| Status / suitability | **Superseded** by the KUT Document Control Standard (`KUT-[ORG]-ZZ-ZZ-RP-Z-0003`), which governs. Kept for its explanation of the sheet bands |
 | Author | Author |
 | Standard | BS EN ISO 19650-2; US National CAD Standard (Uniform Drawing System) |
 | Date | [FILL: yyyy-mm-dd] |

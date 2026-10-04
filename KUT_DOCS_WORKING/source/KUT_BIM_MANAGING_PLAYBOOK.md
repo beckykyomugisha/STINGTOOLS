@@ -248,7 +248,7 @@ The issued RACI matrix lives at `RACI and Roles/KUT_RACI_Responsibility_Matrix.x
 
 ## 5 — The numbering system
 
-This is the section people come back to. Print it. The authoritative source is the companion **KUT_Drawing_and_Document_Numbering_Convention.md**; this is the working summary.
+This is the section people come back to. Print it. The authoritative source is the **KUT Document Control Standard** (`KUT-[ORG]-ZZ-ZZ-RP-Z-0003`), which supersedes the earlier Numbering Convention; this is the working summary. `KUT_Drawing_and_Document_Numbering_Convention.md` is kept as a working note on the sheet bands.
 
 ### 5.1 The principle
 
@@ -881,7 +881,7 @@ If COBie is required in the EIR, it is produced from the model at close-out — 
 | This playbook | BIM Mgr | Mobilisation, updated as needed | `00 Project Standards and Control/` |
 | MIDP | BIM Mgr | Mobilisation, monthly & per drop | `MIDP/` |
 | TIDP (per discipline) | Task Team Manager | Mobilisation, re-baselined per stage | `TIDPs/` |
-| Numbering convention | BIM Mgr | Mobilisation | `KUT_Drawing_and_Document_Numbering_Convention.md` |
+| Numbering convention | BIM Mgr | Mobilisation | `KUT_Document_Control_Standard.docx` (`RP-Z-0003`); the Numbering Convention .md is a working note |
 | Document Control Standard | BIM Mgr | Mobilisation | `KUT_Document_Control_Standard.docx` |
 | Drawing register & transmittal | BIM Mgr | Every drop / every issue | `KUT_Drawing_Register_and_Transmittal_TEMPLATE.xlsx`, `Document Templates/` |
 | Standards overlay (STINGTOOLS) | BIM Mgr | Mobilisation | `_BIM_COORD/` (owner_standards, lod_matrix, tag_schemes, fohlio_map) |

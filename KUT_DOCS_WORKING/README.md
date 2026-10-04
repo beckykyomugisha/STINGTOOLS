@@ -34,7 +34,7 @@ live here rather than scattered at the repository root.
 
 | File | Status | Where it belongs |
 |---|---|---|
-| `KUT_Drawing_and_Document_Numbering_Convention.md` | corrected (second pass), **copied 2026-10-04** (originals in `_superseded_2026-10-04`) | `KUT2026\00 Project Standards and Control\` |
+| `KUT_Drawing_and_Document_Numbering_Convention.md` | corrected (second pass); **superseded by the Document Control Standard**, kept as a working note; **copied 2026-10-04** (originals in `_superseded_2026-10-04`) | `KUT2026\00 Project Standards and Control\` |
 | `KUT_BIM_MANAGING_PLAYBOOK.md` | corrected (second pass), **copied 2026-10-04** (originals in `_superseded_2026-10-04`) | same |
 | `KUT_BIM_MODELLING_PLAYBOOK.md` | corrected (second pass), **copied 2026-10-04** (originals in `_superseded_2026-10-04`) | same |
 | `KUT_BIM_MANAGER_PLAYBOOK.md` | corrected (second pass), **copied 2026-10-04** (originals in `_superseded_2026-10-04`) | same |

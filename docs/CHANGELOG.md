@@ -26702,3 +26702,8 @@ Gate OK (100 assertions); overlay `--check` current; 37 KUT tests pass. Not run 
   the risk row still framed originator length as open; the overlay steps listed four of seven files
   and omitted `project_config.json`. Eight paragraphs edited in place (formatting untouched; Word
   opens it). `check_hand_edited_sources` now reads the .docx too; red on the previous file.
+- **The Numbering Convention is a superseded working note, and says so.** It claimed document
+  number `RP-Z-0004`, which the Mobilisation Information Request also carries, and the Managing
+  Playbook called it "the authoritative source" although the issued Document Control Standard
+  (`RP-Z-0003`) states that it supersedes it. Its header and both Managing Playbook references now
+  point at the Document Control Standard. In the project folder its June `.docx` was retired.
