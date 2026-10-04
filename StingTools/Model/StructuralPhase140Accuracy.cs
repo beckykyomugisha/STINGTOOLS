@@ -609,7 +609,7 @@ namespace StingTools.Model
                         catch (Exception ex) { StingLog.Warn($"GridLabelMark set: {ex.Message}"); }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             return n;
         }
@@ -643,11 +643,11 @@ namespace StingTools.Model
             if (noteTypeId == null || noteTypeId == ElementId.InvalidElementId) return 0;
 
             int placed = 0;
-            using (var tx = new SubTransaction(doc))
+            using (var sub = new SubTransaction(doc))
             {
                 try
                 {
-                    tx.Start();
+                    sub.Start();
                     for (int i = 0; i < warnings.Count; i++)
                     {
                         if (string.IsNullOrWhiteSpace(warnings[i]) || points[i] == null) continue;
@@ -663,12 +663,12 @@ namespace StingTools.Model
                             StingLog.Warn($"PlaceWarningAtPoint #{i}: {ex.Message}");
                         }
                     }
-                    tx.Commit();
+                    sub.Commit();
                 }
                 catch (Exception ex)
                 {
                     StingLog.Warn($"PlaceWarningsAtPoints sub-transaction: {ex.Message}");
-                    if (tx.HasStarted()) tx.RollBack();
+                    if (sub.HasStarted()) sub.RollBack();
                 }
             }
             return placed;
@@ -712,11 +712,11 @@ namespace StingTools.Model
                 : new XYZ(0, 0, 0);
             double rowFt = 5.0 * Units.MmToFeet * 100; // 0.5 m row spacing in plan units
 
-            using (var tx = new SubTransaction(doc))
+            using (var sub = new SubTransaction(doc))
             {
                 try
                 {
-                    tx.Start();
+                    sub.Start();
                     int row = 0;
                     foreach (var w in warnings)
                     {
@@ -731,12 +731,12 @@ namespace StingTools.Model
                         }
                         catch (Exception ex2) { StingLog.Warn($"PlaceWarning row {row}: {ex2.Message}"); }
                     }
-                    tx.Commit();
+                    sub.Commit();
                 }
                 catch (Exception ex2)
                 {
                     StingLog.Warn($"PlaceWarnings sub-transaction: {ex2.Message}");
-                    if (tx.HasStarted()) tx.RollBack();
+                    if (sub.HasStarted()) sub.RollBack();
                 }
             }
             return ids;

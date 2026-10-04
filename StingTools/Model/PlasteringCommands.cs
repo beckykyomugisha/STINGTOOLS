@@ -181,7 +181,7 @@ namespace StingTools.Model
                 {
                     tx.Start();
                     report = SmartCoveringFactory.ApplyCovering(uidoc.Document, sel, isExt, isPaint, covType);
-                    if (report.Success) tx.Commit(); else tx.RollBack();
+                    if (report.Success) StingTx.Commit(tx); else tx.RollBack();
                 }
 
                 var sb = new System.Text.StringBuilder();
@@ -230,7 +230,7 @@ namespace StingTools.Model
                 {
                     tx.Start();
                     report = SmartCoveringFactory.ApplyCovering(doc, allElements, false, false);
-                    if (report.Success) tx.Commit(); else tx.RollBack();
+                    if (report.Success) StingTx.Commit(tx); else tx.RollBack();
                 }
                 TaskDialog.Show("COVERINGS — Batch Result", report.Summary);
                 return report.Success ? Result.Succeeded : Result.Failed;
@@ -256,7 +256,7 @@ namespace StingTools.Model
                 {
                     tx.Start();
                     var write = RoomFinishScheduler.WriteToRooms(uidoc.Document, schedule);
-                    tx.Commit();
+                    StingTx.Commit(tx);
 
                     var sb = new System.Text.StringBuilder();
                     sb.AppendLine($"ROOM FINISH SCHEDULE — {schedule.Count} rooms scanned");

@@ -308,7 +308,7 @@ namespace StingTools.Model
                         }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 return result;
@@ -462,7 +462,7 @@ namespace StingTools.Model
                         var children = explodeMethod.Invoke(import, null)
                             as ICollection<ElementId>;
                         count = children?.Count ?? 0;
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
                     _explodeSupported = true;
                     return count;
@@ -958,7 +958,7 @@ namespace StingTools.Model
                     created = StructuralDWGEnhancements.CreateWallFromCurve(
                         doc, curve, WallHeightMm, tm.TypeId, level);
                     if (created == null) { tx.RollBack(); }
-                    else tx.Commit();
+                    else StingTx.Commit(tx);
                 }
 
                 if (created == null)
@@ -1125,7 +1125,7 @@ namespace StingTools.Model
                         var axis = Line.CreateBound(centre, centre + XYZ.BasisZ);
                         ElementTransformUtils.RotateElement(doc, col.Id, axis, dims.AngleRad);
                     }
-                    if (col == null) tx.RollBack(); else tx.Commit();
+                    if (col == null) tx.RollBack(); else StingTx.Commit(tx);
                 }
 
                 if (col == null)
@@ -1301,7 +1301,7 @@ namespace StingTools.Model
                     var curve = Line.CreateBound(
                         new XYZ(bx0, by0, level.Elevation), new XYZ(bx1, by1, level.Elevation));
                     beam = doc.Create.NewFamilyInstance(curve, symbol, level, StructuralType.Beam);
-                    if (beam == null) tx.RollBack(); else tx.Commit();
+                    if (beam == null) tx.RollBack(); else StingTx.Commit(tx);
                 }
 
                 if (beam == null)

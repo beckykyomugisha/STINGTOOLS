@@ -331,7 +331,7 @@ namespace StingTools.Model
                     }
                     groupIndex++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             if (collisions > 0)

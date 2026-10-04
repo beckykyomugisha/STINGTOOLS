@@ -797,7 +797,7 @@ namespace StingTools.Model
                 {
                     tx.Start();
                     result = StructuralAutoSizer.ApplyAutoSizing(ctx.Doc, apply: true);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 try { StingTools.Core.ComplianceScan.InvalidateCache(); }
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }

@@ -957,7 +957,7 @@ namespace StingTools.Model
                         StingLog.Warn($"Column row {row.RowNum}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // Warn if >5% of rows failed
@@ -1018,7 +1018,7 @@ namespace StingTools.Model
                     }
                     catch (Exception ex) { StingLog.Warn($"Beam row {row.RowNum}: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             return ids;
         }
@@ -1085,7 +1085,7 @@ namespace StingTools.Model
                     }
                     catch (Exception ex) { StingLog.Warn($"Wall row {row.RowNum}: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             return ids;
         }

@@ -942,11 +942,12 @@ namespace StingTools.Model
                         }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {
-                    tx.RollBack();
+                    StingTx.RollBackIfOpen(tx);
+                    count = 0; // the batch rolled back — none of it is in the model
                     result.Warnings.Add($"Wall batch failed: {ex.Message}");
                 }
             }
@@ -1000,11 +1001,12 @@ namespace StingTools.Model
                             result.Warnings.Add($"Floor skipped: {ex.Message}");
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {
-                    tx.RollBack();
+                    StingTx.RollBackIfOpen(tx);
+                    count = 0; // the batch rolled back — none of it is in the model
                     result.Warnings.Add($"Floor batch failed: {ex.Message}");
                 }
             }
@@ -1050,9 +1052,13 @@ namespace StingTools.Model
                             }
                             catch (Exception ex) { StingLog.Warn($"Some circuits may not be valid rooms: {ex.Message}"); }
                         }
-                        tx.Commit();
+                        if (!StingTx.TryCommit(tx, null, out string roomWhy))
+                        {
+                            count = 0; // rolled back — no rooms were placed
+                            result.Warnings.Add(roomWhy);
+                        }
                     }
-                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); tx.RollBack(); }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); StingTx.RollBackIfOpen(tx); }
                 }
             }
             catch (Exception ex)

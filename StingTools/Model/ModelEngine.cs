@@ -332,7 +332,7 @@ namespace StingTools.Model
                     tx.Start();
                     symbol.Activate();
                     _doc.Regenerate();
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
             }
         }
@@ -515,11 +515,11 @@ namespace StingTools.Model
                         wall = Wall.Create(_doc, line, typeResult.TypeId,
                             level.Id, heightFt, 0, false, isStructural);
                         ModelWorksetAssigner.Assign(_doc, wall);
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
                     catch (Exception ex)
                     {
-                        tx.RollBack();
+                        StingTx.RollBackIfOpen(tx);
                         return ModelResult.Fail($"Wall creation failed: {ex.Message}");
                     }
                 }
@@ -601,11 +601,11 @@ namespace StingTools.Model
                                 walls.Add(wall);
                                 wallIds.Add(wall.Id);
                             }
-                            tx.Commit();
+                            StingTx.Commit(tx);
                         }
                         catch (Exception ex)
                         {
-                            tx.RollBack();
+                            StingTx.RollBackIfOpen(tx);
                             tg.RollBack();
                             return ModelResult.Fail($"Wall creation failed: {ex.Message}");
                         }
@@ -620,9 +620,10 @@ namespace StingTools.Model
                             for (int i = 0; i < walls.Count; i++)
                                 JoinGeometryUtils.JoinGeometry(_doc,
                                     walls[i], walls[(i + 1) % walls.Count]);
-                            tx.Commit();
+                            // joins are best-effort: a rollback leaves the walls unjoined
+                            if (!StingTx.TryCommit(tx, null, out string joinWhy)) StingLog.Warn(joinWhy);
                         }
-                        catch (Exception ex) { StingLog.Warn($"Rollback: {ex.Message}"); tx.RollBack(); }
+                        catch (Exception ex) { StingLog.Warn($"Rollback: {ex.Message}"); StingTx.RollBackIfOpen(tx); }
                     }
 
                     // Transaction 3: Place room element
@@ -639,9 +640,10 @@ namespace StingTools.Model
                                 createdRoom = _doc.Create.NewRoom(level, center);
                                 if (createdRoom != null && !string.IsNullOrEmpty(roomName))
                                     createdRoom.Name = roomName;
-                                tx.Commit();
+                                // a rolled-back room is not reported as placed
+                                if (!StingTx.TryCommit(tx, null, out string roomWhy)) { StingLog.Warn(roomWhy); createdRoom = null; }
                             }
-                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); tx.RollBack(); }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); StingTx.RollBackIfOpen(tx); }
                         }
                     }
 
@@ -710,11 +712,11 @@ namespace StingTools.Model
                         floor = Floor.Create(_doc,
                             new List<CurveLoop> { boundary }, typeResult.TypeId, level.Id);
                         ModelWorksetAssigner.Assign(_doc, floor);
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
                     catch (Exception ex)
                     {
-                        tx.RollBack();
+                        StingTx.RollBackIfOpen(tx);
                         return ModelResult.Fail($"Floor creation failed: {ex.Message}");
                     }
                 }
@@ -766,7 +768,7 @@ namespace StingTools.Model
                     floor = Floor.Create(_doc,
                         new List<CurveLoop> { outerLoop }, typeResult.TypeId, level.Id);
                     ModelWorksetAssigner.Assign(_doc, floor);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 return ModelResult.Ok(
@@ -817,7 +819,7 @@ namespace StingTools.Model
                     ceiling = Ceiling.Create(_doc,
                         new List<CurveLoop> { boundary }, typeResult.TypeId, level.Id);
                     ModelWorksetAssigner.Assign(_doc, ceiling);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 var areaSqM = (widthMm / 1000.0) * (depthMm / 1000.0);
@@ -882,7 +884,7 @@ namespace StingTools.Model
                     }
 
                     ModelWorksetAssigner.Assign(_doc, roof);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 return ModelResult.Ok(
@@ -960,7 +962,7 @@ namespace StingTools.Model
                     }
 
                     ModelWorksetAssigner.Assign(_doc, instance);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 return ModelResult.Ok(
@@ -1011,7 +1013,7 @@ namespace StingTools.Model
                             ?.Set(topLevel.Id);
 
                     ModelWorksetAssigner.Assign(_doc, col);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 return ModelResult.Ok(
@@ -1071,7 +1073,7 @@ namespace StingTools.Model
                             placedIds.Add(col.Id);
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 return ModelResult.OkBatch(
@@ -1120,7 +1122,7 @@ namespace StingTools.Model
                     beam = _doc.Create.NewFamilyInstance(
                         beamLine, symbol, level, StructuralType.Beam);
                     ModelWorksetAssigner.Assign(_doc, beam);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 var lengthMm = Units.ToMm(beamLine.Length);
@@ -1195,7 +1197,7 @@ namespace StingTools.Model
                         TrySetParam(duct, BuiltInParameter.RBS_CURVE_DIAMETER_PARAM, Units.Mm(diameterMm));
                     }
                     ModelWorksetAssigner.Assign(_doc, duct);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 string sizeNote = (widthMm > 0 && heightMm > 0) ? $" {widthMm:F0}×{heightMm:F0}mm"
@@ -1259,7 +1261,7 @@ namespace StingTools.Model
                     if (diameterMm > 0)
                         TrySetParam(pipe, BuiltInParameter.RBS_PIPE_DIAMETER_PARAM, Units.Mm(diameterMm));
                     ModelWorksetAssigner.Assign(_doc, pipe);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 string sizeNote = diameterMm > 0 ? $" Ø{diameterMm:F0}mm" : "";
@@ -1299,7 +1301,7 @@ namespace StingTools.Model
                         new XYZ(Units.Mm(xMm), Units.Mm(yMm), Units.Mm(zMm)),
                         symbol, level, StructuralType.NonStructural);
                     ModelWorksetAssigner.Assign(_doc, inst);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 return ModelResult.Ok(
@@ -1347,11 +1349,11 @@ namespace StingTools.Model
                     {
                         floor = Floor.Create(_doc, new List<CurveLoop> { loop }, typeResult.TypeId, level.Id);
                         ModelWorksetAssigner.Assign(_doc, floor);
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
                     catch (Exception ex)
                     {
-                        tx.RollBack();
+                        StingTx.RollBackIfOpen(tx);
                         return ModelResult.Fail($"Floor creation failed: {ex.Message}");
                     }
                 }
@@ -1415,11 +1417,11 @@ namespace StingTools.Model
                             roof.set_SlopeAngle(mc, Math.Tan(slopeRad));
                         }
                         ModelWorksetAssigner.Assign(_doc, roof);
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
                     catch (Exception ex)
                     {
-                        tx.RollBack();
+                        StingTx.RollBackIfOpen(tx);
                         return ModelResult.Fail($"Roof creation failed: {ex.Message}");
                     }
                 }
@@ -1465,11 +1467,11 @@ namespace StingTools.Model
                         if (!string.IsNullOrEmpty(roomNumber))
                             room.get_Parameter(BuiltInParameter.ROOM_NUMBER)?.Set(roomNumber);
                         ModelWorksetAssigner.Assign(_doc, room);
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
                     catch (Exception ex)
                     {
-                        tx.RollBack();
+                        StingTx.RollBackIfOpen(tx);
                         return ModelResult.Fail($"Room placement failed: {ex.Message}");
                     }
                 }
@@ -1527,11 +1529,11 @@ namespace StingTools.Model
                         else
                             inst = _doc.Create.NewFamilyInstance(pt, symbol, StructuralType.NonStructural);
                         ModelWorksetAssigner.Assign(_doc, inst);
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
                     catch (Exception ex)
                     {
-                        tx.RollBack();
+                        StingTx.RollBackIfOpen(tx);
                         return ModelResult.Fail($"Family placement failed: {ex.Message}");
                     }
                 }
@@ -1741,7 +1743,8 @@ namespace StingTools.Model
                         }
                         catch (Exception ex) { StingLog.Warn($"AutoTag element {id}: {ex.Message}"); }
                     }
-                    tx.Commit();
+                    // tagging is best-effort after creation: a rollback means nothing was tagged
+                    if (!StingTx.TryCommit(tx, null, out string tagWhy)) { StingLog.Warn(tagWhy); tagged = 0; }
                 }
 
                 if (tagged > 0)
