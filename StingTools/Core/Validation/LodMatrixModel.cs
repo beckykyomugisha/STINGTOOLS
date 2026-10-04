@@ -183,6 +183,18 @@ namespace StingTools.Core.Validation
             NotAssessedByCategory.TryGetValue(key, out int n);
             NotAssessedByCategory[key] = n + 1;
         }
+
+        /// <summary>
+        /// The pass-rate text every LOD surface prints. One function, because "LOD Check"
+        /// printed <see cref="OverallPct"/> directly and so read "100.0%" over an empty scope
+        /// or a rung that asserts nothing, while LOD_Verify said NOT ASSESSED for the same run.
+        /// </summary>
+        public string PassRateText()
+        {
+            if (RungAssertsNothing) return "NOT ASSESSED — this rung states no requirement";
+            if (NoElementsInScope) return "NO ELEMENTS IN SCOPE — not a pass";
+            return $"{OverallPct:F1}%";
+        }
     }
 
     /// <summary>

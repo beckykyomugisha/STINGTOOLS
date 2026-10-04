@@ -251,7 +251,10 @@ namespace StingTools.Core.Validation
 
             foreach (var p in check.RequiredParams ?? new List<string>())
             {
-                string v = ParameterHelpers.GetString(el, p);
+                // GetValueText, not GetString: GetString returns "" for anything but TEXT, so
+                // ASS_MAINTENANCE_FREQUENCY_MONTHS (NUMBER) read as missing on every element and
+                // KUT Tier A plant could never pass rung 500. An unset value is still "".
+                string v = ParameterHelpers.GetValueText(el, p);
                 if (string.IsNullOrEmpty(v))
                 { er.Pass = false; er.Reasons.Add($"missing/empty {p}"); continue; }
 
