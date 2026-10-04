@@ -215,8 +215,12 @@ namespace StingTools.Core
             var items = new List<DeliverableItem>();
 
             // DD1 — Brief/concept
-            items.Add(new DeliverableItem { Name = "BIM Execution Plan", Milestone = "DD1", CommandTag = "GenerateBEP",
-                Status = File.Exists(Path.Combine(StingToolsApp.DataPath ?? "", "project_bep.json")) ? "Complete" : "NotStarted", CompletionPct = 100 });
+            // The project's own BEP, not the plugin data folder's project_bep.json: that one
+            // is a shipped sample, so it marked the BEP Complete on every project.
+            string projectBep = global::StingTools.BIMManager.BIMManagerEngine.GetBIMManagerFilePath(doc, "project_bep.json");
+            bool hasBep = !string.IsNullOrEmpty(projectBep) && File.Exists(projectBep);
+            items.Add(new DeliverableItem { Name = "BIM Execution Plan", Milestone = "DD1", CommandTag = "CreateBEP",
+                Status = hasBep ? "Complete" : "NotStarted", CompletionPct = hasBep ? 100 : 0 });
 
             // DD2 — Design development
             items.Add(new DeliverableItem { Name = "Model Health Report", Milestone = "DD2", CommandTag = "ModelHealthDashboard" });

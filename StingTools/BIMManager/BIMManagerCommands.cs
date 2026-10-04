@@ -3993,25 +3993,10 @@ namespace StingTools.BIMManager
                 StingLog.Warn($"BEP XLSX export failed: {ex.Message}");
             }
 
-            // Save allowed codes for BEP validation
-            string dataPath = StingToolsApp.DataPath ?? "";
-            if (!string.IsNullOrEmpty(dataPath))
-            {
-                try
-                {
-                    var validationBep = new JObject
-                    {
-                        ["project_name"] = wd.ProjectName,
-                        ["allowed_disc"] = bep["allowed_codes"]?["allowed_disc"],
-                        ["allowed_loc"] = bep["allowed_codes"]?["allowed_loc"],
-                        ["allowed_zone"] = bep["allowed_codes"]?["allowed_zone"],
-                        ["allowed_sys"] = bep["allowed_codes"]?["allowed_sys"]
-                    };
-                    OutputLocationHelper.WriteAllTextAtomic(Path.Combine(dataPath, "project_bep.json"),
-                        validationBep.ToString(Formatting.Indented));
-                }
-                catch (Exception ex2) { StingLog.Warn($"BEP validation file: {ex2.Message}"); }
-            }
+            // The allowed codes for BEP validation are in bepPath's "allowed_codes", which
+            // Validate BEP reads. They are NOT copied into the plugin data folder any more:
+            // that folder is shared by every project on the machine, and the copy overwrote
+            // the shipped sample with whichever project last ran this wizard.
 
             // Auto-register exports in CDE document register
             if (!string.IsNullOrEmpty(xlsxPath))

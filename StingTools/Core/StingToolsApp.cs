@@ -1072,19 +1072,12 @@ namespace StingTools.Core
                 // to prevent config bleed between projects
                 try
                 {
-                    string configPath = null;
-                    // First: look alongside the .rvt file for project-specific config
-                    string docPath = e.Document?.PathName;
-                    if (!string.IsNullOrEmpty(docPath))
-                    {
-                        string projectDir = System.IO.Path.GetDirectoryName(docPath);
-                        if (!string.IsNullOrEmpty(projectDir))
-                        {
-                            string adjacent = System.IO.Path.Combine(projectDir, "project_config.json");
-                            if (System.IO.File.Exists(adjacent))
-                                configPath = adjacent;
-                        }
-                    }
+                    // First: the project's own config — beside the .rvt, else the project
+                    // overlay (_BIM_COORD/project_config.json, where an owner pack deploys it).
+                    var located = TagConfig.LocateProjectConfig(e.Document);
+                    string configPath = located.Path;
+                    if (configPath != null)
+                        StingLog.Info($"TagConfig: project_config.json from {located.Source}: {configPath}");
                     // Fallback: look in plugin data directory
                     if (configPath == null)
                         configPath = FindDataFile("project_config.json");
