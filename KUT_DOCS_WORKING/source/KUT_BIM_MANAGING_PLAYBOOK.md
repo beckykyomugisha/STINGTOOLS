@@ -503,6 +503,8 @@ Every author follows these. **The full modelling method — worksets, family rul
 
 **The one rule that makes tagging trustworthy:** every element must be attributable to a volume. Choose **one** method per model and tell the BIM Manager which — **per-volume worksets** (`BLD1_Mechanical`, `BLD3_Architecture`…) *(preferred)*, or **one model per volume** (set the volume once on Project Information). Either way, **place rooms before the first coordination share.** Elements with no room, no workset and no volume are silently assigned to `BLD1` (Temple) and reported as low-confidence at every gate until fixed.
 
+> **Worksharing, hosting and the click paths.** Where the central models live, how a desktop connects to the office server, the recommended workset scheme (which conflicts with "per-volume worksets preferred" above — owner decision **OD-2**), linking, and what worksharing changes for STINGTOOLS are in the companion `KUT_BIM_MODELLING_PLAYBOOK.md` **Part 1C**. Who does what each day, week, fortnight, issue and gate — with every STING button location — is its **Part 9**.
+
 ---
 
 ## 9 — Information requirements by stage
