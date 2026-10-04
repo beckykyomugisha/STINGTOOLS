@@ -151,7 +151,7 @@ namespace StingTools.Docs
                     if (pickedDt != null)
                         DrawingTypeSheetAdapter.PostCreate(doc, sheet, pickedDt, warnings);
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
 
                     var msg = $"Created sheet {sheet.SheetNumber} from {(pickedDt != null ? "profile" : "template")} '{template.Name}'.";
                     if (warnings.Count > 0)
@@ -278,7 +278,7 @@ namespace StingTools.Docs
             {
                 tx.Start();
                 int count = SheetTemplateEngine.SnapViewportsToGrid(doc, sheet, grid);
-                tx.Commit();
+                StingTx.Commit(tx);
                 TaskDialog.Show("Grid Align", $"Adjusted {count} viewport(s) to grid positions.");
             }
             return Result.Succeeded;
@@ -329,7 +329,7 @@ namespace StingTools.Docs
             {
                 tx.Start();
                 int count = SheetTemplateEngine.AlignViewportEdges(doc, sheet, edge);
-                tx.Commit();
+                StingTx.Commit(tx);
                 TaskDialog.Show("Align Edges", $"Aligned {count} viewport(s) to {edge} edge.");
             }
             return Result.Succeeded;
@@ -377,7 +377,7 @@ namespace StingTools.Docs
             {
                 tx.Start();
                 int count = SheetTemplateEngine.DistributeViewports(doc, sheet, horizontal);
-                tx.Commit();
+                StingTx.Commit(tx);
                 TaskDialog.Show("Distribute",
                     $"Distributed {count} viewport(s) {(horizontal ? "horizontally" : "vertically")}.");
             }

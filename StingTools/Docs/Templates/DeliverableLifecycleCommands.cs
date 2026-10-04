@@ -36,7 +36,7 @@ namespace Planscape.Docs.Templates
                 using var tx = new Transaction(doc, "STING — " + title);
                 tx.Start();
                 var lr = action(doc, engine);
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 if (lr == null || !lr.Ok)
                 {

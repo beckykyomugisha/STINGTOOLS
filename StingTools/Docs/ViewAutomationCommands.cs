@@ -98,7 +98,7 @@ namespace StingTools.Docs
                     catch (Exception ex2) { StingLog.Warn($"DuplicateView rename: {ex2.Message}"); }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             View duplicated = doc.GetElement(newViewId) as View;
@@ -217,7 +217,7 @@ namespace StingTools.Docs
                         StingLog.Warn($"Rename '{item.OriginalName}' → '{item.NewName}': {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var report = new StringBuilder();
@@ -530,7 +530,7 @@ namespace StingTools.Docs
                         StingLog.Warn($"CopyViewSettings to '{target.Name}': {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Copy View Settings",
@@ -679,7 +679,7 @@ namespace StingTools.Docs
                         }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Auto-Place Viewports",
@@ -804,7 +804,7 @@ namespace StingTools.Docs
                 cropBox.Max = new XYZ(viewMax.X, viewMax.Y, cropBox.Max.Z);
 
                 view.CropBox = cropBox;
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Crop to Content",
@@ -921,7 +921,7 @@ namespace StingTools.Docs
                     }
                     sheetsUpdated++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Batch Align Viewports",
@@ -1062,7 +1062,7 @@ namespace StingTools.Docs
                             StingLog.Warn($"MagicRename '{item.OriginalName}': {ex.Message}");
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 TaskDialog.Show("Magic Rename",

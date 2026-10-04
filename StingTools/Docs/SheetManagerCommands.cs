@@ -228,7 +228,7 @@ namespace StingTools.Docs
             {
                 tx.Start();
                 int moved = SheetManagerEngine.ArrangeViewportsOnSheet(doc, sheet);
-                tx.Commit();
+                StingTx.Commit(tx);
                 TaskDialog.Show("Sheet Manager", $"Rearranged {moved} viewports on sheet '{sheet.SheetNumber}'.");
             }
             return Result.Succeeded;
@@ -264,7 +264,7 @@ namespace StingTools.Docs
             {
                 tx.Start();
                 var cloned = SheetManagerEngine.CloneSheet(doc, sheet, config);
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 if (cloned != null)
                     TaskDialog.Show("Sheet Manager",
@@ -294,7 +294,7 @@ namespace StingTools.Docs
             {
                 tx.Start();
                 int moved = SheetManagerEngine.ArrangeViewportsOnSheet(doc, sheet);
-                tx.Commit();
+                StingTx.Commit(tx);
                 TaskDialog.Show("Sheet Manager",
                     $"Layout '{mode}': arranged {moved} viewports on '{sheet.SheetNumber}'.");
             }
@@ -498,7 +498,7 @@ namespace StingTools.Docs
                         errors++;
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Sheet Manager",
@@ -534,7 +534,7 @@ namespace StingTools.Docs
                 tx.Start();
                 var (sheetsCreated, viewsPlaced) =
                     SheetManagerEngine.BatchCreateAndPlace(doc, unplaced, tbType.Id, autoScale: true);
-                tx.Commit();
+                StingTx.Commit(tx);
                 TaskDialog.Show("Sheet Manager",
                     $"Created {sheetsCreated} sheets and placed {viewsPlaced} views.\n" +
                     $"{unplaced.Count - viewsPlaced} views could not be placed (overflow).");
@@ -574,7 +574,7 @@ namespace StingTools.Docs
                         }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Sheet Manager", $"Updated scale on {changed} viewports.");
@@ -619,13 +619,13 @@ namespace StingTools.Docs
                 {
                     var zone = SheetManagerEngine.GetDrawableZone(doc, sheet);
                     Viewport.Create(doc, sheet.Id, view.Id, zone.Center);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                     TaskDialog.Show("Sheet Manager",
                         $"Placed '{view.Name}' on sheet '{sheet.SheetNumber}'.");
                 }
                 catch (Exception ex)
                 {
-                    tx.RollBack();
+                    StingTx.RollBackIfOpen(tx);
                     StingLog.Warn($"PlaceViewOnSheet failed: {ex.Message}");
                     TaskDialog.Show("Sheet Manager", $"Cannot place view: {ex.Message}");
                 }
@@ -663,12 +663,12 @@ namespace StingTools.Docs
 
                     var zone = SheetManagerEngine.GetDrawableZone(doc, sheet);
                     Viewport.Create(doc, sheet.Id, view.Id, zone.Center);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                     TaskDialog.Show("Sheet Manager", $"Created '{sheet.SheetNumber}' and placed '{view.Name}'.");
                 }
                 catch (Exception ex)
                 {
-                    if (tx.HasStarted()) tx.RollBack();
+                    StingTx.RollBackIfOpen(tx);
                     TaskDialog.Show("Sheet Manager", $"Error: {ex.Message}");
                 }
             }
@@ -695,7 +695,7 @@ namespace StingTools.Docs
                     var newVp = SheetManagerEngine.MoveViewportToSheet(doc, vp, targetSheet);
                     if (newVp != null)
                     {
-                        tx.Commit();
+                        StingTx.Commit(tx);
                         string targetNum = result.Options.ContainsKey("TargetSheetNumber")
                             ? result.Options["TargetSheetNumber"]?.ToString() : targetSheet.SheetNumber;
                         TaskDialog.Show("Sheet Manager", $"Moved '{viewName}' to sheet '{targetNum}'.");
@@ -709,7 +709,7 @@ namespace StingTools.Docs
                 }
                 catch (Exception ex)
                 {
-                    tx.RollBack();
+                    StingTx.RollBackIfOpen(tx);
                     TaskDialog.Show("Sheet Manager", $"Cannot move viewport: {ex.Message}");
                 }
             }
@@ -725,7 +725,7 @@ namespace StingTools.Docs
             {
                 tx.Start();
                 doc.Delete(vpId);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("Sheet Manager", "Viewport removed from sheet.");
             return Result.Succeeded;
@@ -742,7 +742,7 @@ namespace StingTools.Docs
             {
                 tx.Start();
                 var newId = view.Duplicate(ViewDuplicateOption.WithDetailing);
-                tx.Commit();
+                StingTx.Commit(tx);
                 var newView = doc.GetElement(newId) as View;
                 TaskDialog.Show("Sheet Manager", $"Duplicated: '{newView?.Name ?? "view"}'");
             }
@@ -761,7 +761,7 @@ namespace StingTools.Docs
             {
                 tx.Start();
                 doc.Delete(viewId);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("Sheet Manager", $"Deleted view: '{viewName}'");
             return Result.Succeeded;
@@ -786,7 +786,7 @@ namespace StingTools.Docs
                     try { total += SheetManagerEngine.ArrangeViewportsOnSheet(doc, sheet); }
                     catch (Exception ex) { StingLog.Warn($"Arrange error on {sheet.SheetNumber}: {ex.Message}"); }
                 }
-                if (cancelled) tx.RollBack(); else tx.Commit();
+                if (cancelled) tx.RollBack(); else StingTx.Commit(tx);
             }
             try { arrangeProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchArrange progress close: {ex.Message}"); }
             TaskDialog.Show("Sheet Manager", $"Arranged {total} viewports across {sheets.Count} sheets.");
@@ -893,7 +893,7 @@ namespace StingTools.Docs
                     // not, so swapping to any unused type failed).
                     if (!newType.IsActive) { newType.Activate(); doc.Regenerate(); }
                     currentTb.Symbol = newType;
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 TaskDialog.Show("Sheet Manager",
                     $"Swapped title block on '{sheet.SheetNumber}'\n" +
@@ -908,7 +908,7 @@ namespace StingTools.Docs
                     if (!newType.IsActive) { newType.Activate(); doc.Regenerate(); }
                     doc.Create.NewFamilyInstance(XYZ.Zero, newType, sheet as Element,
                         Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 TaskDialog.Show("Sheet Manager",
                     $"Placed title block '{newType.FamilyName}: {newType.Name}' on '{sheet.SheetNumber}'");
@@ -1046,7 +1046,7 @@ namespace StingTools.Docs
                         StingLog.Warn($"ISO revert failed for '{sheet.SheetNumber}': {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // Clear backup after successful revert
@@ -1397,7 +1397,7 @@ namespace StingTools.Docs
             {
                 tx.Start();
                 int moved = SheetManagerEngine.ArrangeViewportsOnSheet(doc, sheet, margins);
-                tx.Commit();
+                StingTx.Commit(tx);
                 TaskDialog.Show("Auto Layout",
                     $"Rearranged {moved} of {vpCount} viewports on '{sheet.SheetNumber}'.\n" +
                     $"Margins: {marginChoice}");
@@ -1458,7 +1458,7 @@ namespace StingTools.Docs
             {
                 tx.Start();
                 var cloned = SheetManagerEngine.CloneSheet(doc, sheet, config);
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 if (cloned != null)
                 {
@@ -1532,7 +1532,7 @@ namespace StingTools.Docs
                 tx.Start();
                 var (sheetsCreated, viewsPlaced) =
                     SheetManagerEngine.BatchCreateAndPlace(doc, unplaced, tbType.Id, autoScale: autoScale);
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 TaskDialog.Show("Place Views",
                     $"Created {sheetsCreated} new sheets.\n" +
@@ -1621,7 +1621,7 @@ namespace StingTools.Docs
                 {
                     tx.Start();
                     view.Scale = optimal;
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 TaskDialog.Show("Optimal Scale", $"Scale set to 1:{optimal}.");
             }
@@ -1753,7 +1753,7 @@ namespace StingTools.Docs
                         StingLog.Warn($"Error arranging sheet '{sheet.SheetNumber}': {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Batch Arrange",
@@ -1837,7 +1837,7 @@ namespace StingTools.Docs
                 var newVp = SheetManagerEngine.MoveViewportToSheet(doc, selected, targetSheet);
                 if (newVp != null)
                 {
-                    tx.Commit();
+                    StingTx.Commit(tx);
                     TaskDialog.Show("Move Viewport",
                         $"Moved '{viewName}' from '{sourceSheet.SheetNumber}' to '{targetSheet.SheetNumber}'.");
                 }

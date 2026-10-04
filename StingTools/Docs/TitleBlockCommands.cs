@@ -987,7 +987,7 @@ namespace StingTools.Docs
                     totalSheetListed.ToString(CultureInfo.InvariantCulture),
                     overwrite: true);
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             StingLog.Info($"TB Populate: {written} updated, {lockedSkipped} locked, " +
@@ -1497,7 +1497,7 @@ namespace StingTools.Docs
                         StingLog.Warn($"TB: variant swap failed on {sheet.SheetNumber}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             StingLog.Info($"TB SetVariant: swapped {swapped}, already match {alreadyMatch}, " +
@@ -1632,7 +1632,7 @@ namespace StingTools.Docs
                         StingLog.Warn($"TB LegendBind: {sheet.SheetNumber} failed: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             StingLog.Info($"TB LegendBind: bound {boundCount}, already bound {alreadyBound}, " +
@@ -1778,7 +1778,7 @@ namespace StingTools.Docs
                         paginationWritten++;
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             StingLog.Info($"TB SheetCount: {total} sheets on sheet list, "
@@ -1932,7 +1932,7 @@ namespace StingTools.Docs
                 {
                     tx.Start();
                     body();
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
             }
             return stamped;

@@ -97,7 +97,7 @@ namespace StingTools.Docs
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("MaxRects Layout", layout.Summary);
@@ -210,7 +210,7 @@ namespace StingTools.Docs
             {
                 tx.Start();
                 int moved = SheetManagerEngineExt.ApplyLayoutPreset(doc, sheet, preset);
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 TaskDialog.Show("Apply Layout",
                     $"Applied preset '{preset.Name}'.\n" +
@@ -279,7 +279,7 @@ namespace StingTools.Docs
                 tx.Start();
                 var cloned = SheetManagerEngineExt.BatchCloneSheets(doc, selectedSheets,
                     duplicateViews: mode == "dup");
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 TaskDialog.Show("Batch Clone",
                     $"Cloned {cloned.Count} of {selectedSheets.Count} sheets.\n" +
@@ -408,7 +408,7 @@ namespace StingTools.Docs
                     int changed = SheetManagerEngineExt.AutoAssignViewportTypes(doc, sheet);
                     totalChanged += changed;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Auto-Assign VP Types",
@@ -547,7 +547,7 @@ namespace StingTools.Docs
                 var (sheetsCreated, placed) = SheetManagerEngineExt.PlaceWithOverflow(
                     doc, selectedViews, sheet, tbTypeId,
                     useMaxRects: algo == "maxrects", autoScale: true);
-                tx.Commit();
+                StingTx.Commit(tx);
 
                 TaskDialog.Show("Place with Overflow",
                     $"Placed {placed} of {selectedViews.Count} views.\n" +

@@ -212,7 +212,7 @@ namespace StingTools.Select
                         return Result.Cancelled;
                     }
                     StaleFlagHelper.ApplyHighlight(doc, view, filterId);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 int count = StaleFlagHelper.CollectFlagged(doc, view).Count;
@@ -261,7 +261,7 @@ namespace StingTools.Select
                 {
                     t.Start();
                     view.RemoveFilter(filter.Id);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
                 TaskDialog.Show("Clear Stale Highlight", $"Removed the stale highlight from '{view.Name}'.");
                 StingLog.Info($"ClearStaleHighlight: removed from view '{view.Name}'.");

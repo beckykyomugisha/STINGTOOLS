@@ -194,7 +194,7 @@ namespace StingTools.Docs
                         break;
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             string[] modeNames = { "", "Top", "Bottom", "Center Y", "Left", "Right", "Center X", "Distribute H", "Distribute V" };
@@ -253,7 +253,7 @@ namespace StingTools.Docs
                     num++;
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Renumber Viewports",
@@ -321,7 +321,7 @@ namespace StingTools.Docs
                             break;
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             TaskDialog.Show("Text Case", $"Converted {textNotes.Count} text notes.");

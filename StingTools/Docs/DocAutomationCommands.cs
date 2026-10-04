@@ -140,7 +140,7 @@ namespace StingTools.Docs
                         }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             string result2 = $"Deleted {deleted} unused views.";
