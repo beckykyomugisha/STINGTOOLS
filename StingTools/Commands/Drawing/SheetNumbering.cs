@@ -246,7 +246,7 @@ namespace StingTools.Commands.Drawing
                             StingLog.Warn($"SheetNumbering retag '{c.New}': {ex.Message}");
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
             }
             catch (Exception ex)

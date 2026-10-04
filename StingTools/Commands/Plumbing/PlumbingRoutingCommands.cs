@@ -225,7 +225,7 @@ namespace StingTools.Commands.Plumbing
             {
                 tx.Start();
                 r = PTrapInserter.Scan(ctx.Doc, scoped, placeFamily: place);
-                if (place) tx.Commit(); else tx.RollBack();
+                if (place) StingTx.Commit(tx); else tx.RollBack();
             }
 
             string status = $"P-Trap · {scope} · {r.FixturesScanned} fix · "
@@ -304,7 +304,7 @@ namespace StingTools.Commands.Plumbing
             {
                 tx.Start();
                 r = SleeveEngine.PlaceSleeves(ctx.Doc, pipes, dryRun: false);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             string status = $"Sleeves · {scope} · {r.MepCurvesScanned} pipes · "

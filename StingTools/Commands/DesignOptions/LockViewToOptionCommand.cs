@@ -83,7 +83,7 @@ namespace StingTools.Commands.DesignOptions
                     }
                     catch (Exception ex2) { fail.Add($"{v.Name}: {ex2.Message}"); }
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             var sb = new StringBuilder();
@@ -130,7 +130,7 @@ namespace StingTools.Commands.DesignOptions
                     }
                     catch (Exception ex2) { StingLog.Warn($"ResetViewOption: {ex2.Message}"); }
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
             TaskDialog.Show("STING", $"Reset {ok} view(s) to <Automatic>.");
             return Result.Succeeded;

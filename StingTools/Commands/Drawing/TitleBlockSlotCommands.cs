@@ -175,7 +175,7 @@ namespace StingTools.Commands.Drawing
                         skipped.Add($"{v.ViewType} '{v.Name}' — {ex.Message}");
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // 5. Report
@@ -331,7 +331,7 @@ namespace StingTools.Commands.Drawing
                 {
                     try { newBim.Set(targetMode); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var sb = new StringBuilder();
@@ -412,7 +412,8 @@ namespace StingTools.Commands.Drawing
                     {
                         tx.Start();
                         var ok = doc.LoadFamily(c, new StingTools.Core.Drawing.TitleBlockLoadOptions(), out Family fam);
-                        tx.Commit();
+                        // a rolled-back load falls through to the next candidate
+                        if (!StingTx.TryCommit(tx, null, out string loadWhy)) { StingLog.Warn(loadWhy); continue; }
                         if (ok && fam != null) return fam;
                         if (fam != null) return fam;  // already-loaded short-circuit
                     }

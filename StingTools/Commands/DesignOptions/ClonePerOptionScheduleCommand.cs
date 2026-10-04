@@ -89,7 +89,7 @@ namespace StingTools.Commands.DesignOptions
                         StingLog.Warn($"ClonePerOptionSchedule: {ex.Message}");
                     }
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             var sb = new StringBuilder();

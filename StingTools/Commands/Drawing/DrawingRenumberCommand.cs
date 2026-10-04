@@ -289,7 +289,7 @@ namespace StingTools.Commands.Drawing
                         try { SheetSequenceStore.SetForBucket(doc, kv.Key, keep); }
                         catch (Exception ex) { notes.Add($"Counter '{kv.Key}' not reset: {ex.Message}"); }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 var report = new StringBuilder();

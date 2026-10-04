@@ -90,7 +90,7 @@ namespace StingTools.Commands.Mep
                             warnings.Add($"tray {el?.Id}: {ex2.Message}");
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {

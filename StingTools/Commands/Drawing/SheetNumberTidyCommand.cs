@@ -142,7 +142,7 @@ namespace StingTools.Commands.Drawing
                     try { p.sheet.SheetNumber = p.to; done++; StingLog.Info($"SheetNumberTidy: '{p.from}' -> '{p.to}'"); }
                     catch (Exception ex) { failed.Add($"{p.from} -> {p.to}: {ex.Message}"); }
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             string historyPath = null;

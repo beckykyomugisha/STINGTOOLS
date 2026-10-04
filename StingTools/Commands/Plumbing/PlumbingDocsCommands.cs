@@ -567,7 +567,7 @@ namespace StingTools.Commands.Plumbing
                         "No isometric could be drawn.\n\n" + string.Join("\n", result.Warnings.Take(8)));
                     return Result.Failed;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var panel = StingResultPanel.Create("Plumbing Isometric");

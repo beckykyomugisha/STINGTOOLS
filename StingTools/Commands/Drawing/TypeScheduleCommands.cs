@@ -125,7 +125,7 @@ namespace StingTools.Commands.Drawing
                         StingLog.Error($"CreateTypeSchedule {label}", ex);
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var sb = new System.Text.StringBuilder();

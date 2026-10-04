@@ -224,7 +224,7 @@ namespace StingTools.Commands.Placement
                         }
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             try { ActionAuditLog.Record("Lighting_GridPlace",

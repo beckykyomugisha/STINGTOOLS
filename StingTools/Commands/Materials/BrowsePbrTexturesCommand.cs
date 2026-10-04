@@ -53,7 +53,7 @@ namespace StingTools.Commands.Materials
                         mat = conv.ResultMaterial;
                     }
                     ar = PbrTextureApplier.Apply(doc, mat, dlg.Result);
-                    if (ar.Success) { t.Commit(); committed = true; } else t.RollBack();
+                    if (ar.Success) { StingTx.Commit(t); committed = true; } else t.RollBack();
                 }
 
                 if (committed) try { ar.PostCommit?.Invoke(doc, mat); } catch { /* non-fatal */ }
@@ -167,7 +167,7 @@ namespace StingTools.Commands.Materials
                         }
                         else failed++;
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 foreach (var (post, m) in postCommits)

@@ -122,7 +122,7 @@ namespace StingTools.Commands.Mep
                                 result.Warnings.Add($"intersect {mep.Id}: {ex2.Message}");
                             }
                         }
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
                     catch (Exception ex)
                     {

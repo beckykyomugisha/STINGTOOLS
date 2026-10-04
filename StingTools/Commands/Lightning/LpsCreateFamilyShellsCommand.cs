@@ -280,7 +280,7 @@ namespace StingTools.Commands.Lightning
                         catch (Exception ex) { StingLog.Warn($"SetFormula {s.name}: {ex.Message}"); }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 var so = new SaveAsOptions { OverwriteExistingFile = true };

@@ -155,7 +155,7 @@ namespace StingTools.Commands.Hvac
                             StingLog.Warn($"Scrape row {e?.Id}: {exE.Message}");
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 var panel = StingResultPanel.Create("HVAC — Scrape Equipment Params");

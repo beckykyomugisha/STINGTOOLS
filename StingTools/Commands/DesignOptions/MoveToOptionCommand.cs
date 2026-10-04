@@ -157,7 +157,7 @@ namespace StingTools.Commands.DesignOptions
                         }
                     }
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             DesignOptionRegistry.InvalidateCache(doc);

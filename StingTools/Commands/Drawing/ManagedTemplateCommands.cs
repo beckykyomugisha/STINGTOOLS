@@ -387,7 +387,7 @@ namespace StingTools.Commands.Drawing
                         PresetDialog.Show("STING — Detach Managed", fail, ref msg);
                         return Result.Failed;
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 ViewStylePackRegistry.Reload(doc);

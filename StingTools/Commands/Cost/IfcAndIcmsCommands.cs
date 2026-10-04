@@ -50,7 +50,7 @@ namespace StingTools.Commands.Cost
                 {
                     t.Start();
                     tally = IfcQuantitySetWriter.StampAllElements(doc, boq);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 // H-1 — do not promise the next export will carry quantities unless

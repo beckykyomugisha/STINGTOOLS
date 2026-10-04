@@ -356,7 +356,7 @@ namespace StingTools.Commands.Mep
                             res.Warnings.Add($"size {c.Id}: {ex2.Message}");
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex)
                 {

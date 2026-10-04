@@ -104,7 +104,7 @@ namespace StingTools.Commands.DesignOptions
                     TaskDialog.Show("STING — Clash View", $"Failed: {ex.Message}");
                     return Result.Failed;
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             var sb = new StringBuilder();

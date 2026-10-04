@@ -289,7 +289,7 @@ namespace StingTools.Commands.Drawing
                     if (TitleBlockLock.Clear(doc, hit, out string why)) cleared++;
                     else failures.Add($"{hit.Sheet.SheetNumber}: {why}");
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             var sb = new StringBuilder();

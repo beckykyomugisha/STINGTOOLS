@@ -122,7 +122,7 @@ namespace StingTools.Commands.Plumbing
                         failed++;
                     }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             var panel = StingResultPanel.Create("Pump Selection");

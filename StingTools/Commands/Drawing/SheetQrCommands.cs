@@ -117,7 +117,7 @@ namespace StingTools.Commands.Drawing
                 {
                     t.Start();
                     r = SheetQrStamper.Stamp(uiDoc.Document, sheets);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 SheetQrCommandHelpers.Report("STING — Sheet QR", r, scope);
@@ -161,7 +161,7 @@ namespace StingTools.Commands.Drawing
                 {
                     t.Start();
                     r = SheetQrStamper.Stamp(doc, sheets);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 SheetQrCommandHelpers.Report("STING — Sheet QR (all)", r, $"all {sheets.Count} sheet(s)");
@@ -221,7 +221,7 @@ namespace StingTools.Commands.Drawing
                         var p = tb?.LookupParameter(ParamRegistry.TB_QR_PAYLOAD);
                         if (p != null && !p.IsReadOnly) { p.Set(string.Empty); payloadsCleared++; }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 TaskDialog.Show("STING — Clear Sheet QR",

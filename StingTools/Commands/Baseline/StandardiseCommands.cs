@@ -236,7 +236,7 @@ namespace StingTools.Commands.Baseline
                         try { matches[0].Name = p.ProposedName; done++; }
                         catch (Exception ex) { failed.Add($"{p.CurrentName} — {ex.Message}"); }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 var res = new StringBuilder($"Renamed {done} of {todo.Count} type(s).");
@@ -333,7 +333,7 @@ namespace StingTools.Commands.Baseline
                         try { x.Mat.MaterialClass = x.Plan.ProposedClass; done++; }
                         catch (Exception ex) { failed.Add($"{x.Plan.MaterialName} — {ex.Message}"); }
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 var res = new StringBuilder($"Classified {done} of {todo.Count} material(s).");
@@ -486,7 +486,7 @@ namespace StingTools.Commands.Baseline
                         if (TrySetClass(m, alt, out string e2)) { done++; continue; }
                         failed.Add($"{p.MaterialName} — {e1}; and as '{Describe(alt)}': {e2}");
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 var res = new StringBuilder($"Reverted {done} of {todo.Count} material(s).");

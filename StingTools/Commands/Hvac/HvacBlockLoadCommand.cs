@@ -140,7 +140,7 @@ namespace StingTools.Commands.Hvac
                             }
                             catch (Exception ex) { StingLog.Warn($"Block-load stamp {el.Id}: {ex.Message}"); }
                         }
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
                 }
 

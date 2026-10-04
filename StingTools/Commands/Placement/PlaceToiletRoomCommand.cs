@@ -56,11 +56,11 @@ namespace StingTools.Commands.Placement
                 try
                 {
                     result = svc.PlaceAll(doc, txn);
-                    txn.Commit();
+                    StingTx.Commit(txn);
                 }
                 catch (Exception ex)
                 {
-                    txn.RollBack();
+                    StingTx.RollBackIfOpen(txn);
                     StingLog.Error("PlaceToiletRoomCommand", ex);
                     TaskDialog.Show("STING Error", $"Placement failed: {ex.Message}");
                     return Result.Failed;

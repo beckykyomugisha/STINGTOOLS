@@ -85,7 +85,7 @@ namespace StingTools.Commands.Cost
                 {
                     t.Start();
                     int stamped = PaymentCertEngine.StampElements(doc, cert, idsBySection);
-                    t.Commit();
+                    StingTx.Commit(t);
                     StingLog.Info($"Payment cert {cert.CertNumber}: stamped {stamped} elements.");
                 }
 

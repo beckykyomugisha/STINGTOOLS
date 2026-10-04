@@ -332,7 +332,7 @@ namespace StingTools.Commands.Classification
                         ParameterHelpers.SetString(el, "CLS_OMNICLASS_TITLE_TXT", r.Title, overwrite: true);
                     if (w1) { assigned++; if (r.Source == "native") native++; }
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             var sb = new StringBuilder();

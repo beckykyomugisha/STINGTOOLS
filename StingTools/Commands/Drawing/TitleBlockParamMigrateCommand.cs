@@ -212,7 +212,7 @@ namespace StingTools.Commands.Drawing
                         }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 string sample = string.Join(", ", migrations.Keys.Take(5));

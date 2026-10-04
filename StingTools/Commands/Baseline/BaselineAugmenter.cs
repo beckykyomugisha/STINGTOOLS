@@ -136,7 +136,7 @@ namespace StingTools.Commands.Baseline
                         added++;
                     }
                     if (added == 0) { tx.RollBack(); r.FamiliesAlreadyConforming++; return; }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 famDoc.LoadFamily(doc, new ReuseLoadOptions());

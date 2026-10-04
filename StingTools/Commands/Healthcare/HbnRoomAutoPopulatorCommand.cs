@@ -184,7 +184,7 @@ namespace StingTools.Commands.Healthcare
                         StingLog.Info($"HbnAutoPopulate: Room '{room.Name}' ({roomClass}) → ACH={design.Ach} ΔPa={design.DeltaPa} T={design.TempC}°C RH={design.RhPct}% NR={design.Nr}");
                         populated++;
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 TaskDialog.Show("HBN Auto-Populate",

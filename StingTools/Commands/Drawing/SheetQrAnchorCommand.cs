@@ -151,7 +151,7 @@ namespace StingTools.Commands.Drawing
                             "success here would leave you expecting a cell that is not stored.");
                         return Result.Failed;
                     }
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
 
                 StingLog.Info($"Sheet_SetQRAnchor: '{sheet.SheetNumber}' anchor stored on type " +
@@ -174,7 +174,7 @@ namespace StingTools.Commands.Drawing
                     {
                         t.Start();
                         r = SheetQrStamper.Stamp(doc, new[] { sheet });
-                        t.Commit();
+                        StingTx.Commit(t);
                     }
                     SheetQrCommandHelpers.Report("STING — Sheet QR", r, $"sheet '{sheet.SheetNumber}'");
                 }

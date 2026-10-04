@@ -435,7 +435,7 @@ namespace StingTools.Commands.MepDesign
                         }
                         catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); skipped++; }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex3)
                 {

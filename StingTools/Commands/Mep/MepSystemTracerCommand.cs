@@ -134,7 +134,7 @@ namespace StingTools.Commands.Mep
                         catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                         seq++;
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex2)
                 {

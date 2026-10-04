@@ -198,7 +198,7 @@ namespace StingTools.Commands.Placement
                         try { s.Activate(); }
                         catch (Exception ex) { StingLog.Warn($"MedGasOutlet activate {s.Name}: {ex.Message}"); }
                     }
-                    txAct.Commit();
+                    StingTx.Commit(txAct);
                 }
             }
 
@@ -296,7 +296,7 @@ namespace StingTools.Commands.Placement
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // ----------------------------------------------------------------

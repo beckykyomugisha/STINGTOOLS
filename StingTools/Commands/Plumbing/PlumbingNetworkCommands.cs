@@ -320,7 +320,7 @@ namespace StingTools.Commands.Plumbing
                     }
                 }
 
-                if (!previewOnly) tx.Commit();
+                if (!previewOnly) StingTx.Commit(tx);
             }
 
             var panel = StingResultPanel.Create(previewOnly ? "Slope Automation — PREVIEW" : "Slope Automation Applied");
@@ -403,7 +403,7 @@ namespace StingTools.Commands.Plumbing
                 {
                     tx.Start();
                     result = VentCreationEngine.CreateVents(doc, vents, new VentCreationOptions());
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
             }
             catch (Exception ex)
@@ -541,7 +541,7 @@ namespace StingTools.Commands.Plumbing
                     }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // Critical path
