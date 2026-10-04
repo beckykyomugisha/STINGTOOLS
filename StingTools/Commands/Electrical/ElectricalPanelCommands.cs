@@ -151,6 +151,17 @@ namespace StingTools.Commands.Electrical
                 return Result.Cancelled;
             }
 
+            // The row came from the grid; if the grid was filled from another model its id is
+            // some other element here (ASS_LOC_TXT / ASS_MANUFACTURER_TXT are bound to every
+            // category, so they would land on it). ROADMAP ELEC-31.
+            if (!string.IsNullOrEmpty(snap.DocKey)
+                && !StingTools.Core.Electrical.ElecResultScope.Matches(snap.DocKey,
+                       StingTools.Core.Electrical.ElecResultScope.Key(doc.PathName, doc.Title)))
+            {
+                TaskDialog.Show("STING Electrical", StingElectricalCommandHandler.PanelModelMismatch + "\n\nNothing was saved.");
+                return Result.Cancelled;
+            }
+
             // By element id first: the grid row carries it. By Panel Name only as a
             // fallback — never by p.Name, which is the family TYPE name and matched the
             // first board of that type whichever row was picked.

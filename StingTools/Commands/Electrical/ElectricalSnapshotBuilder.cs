@@ -25,6 +25,7 @@ namespace StingTools.Commands.Electrical
         {
             var snap = new ElectricalPanelSnapshot();
             if (doc == null) return snap;
+            snap.DocKey = StingTools.Core.Electrical.ElecResultScope.Key(doc.PathName, doc.Title);
             try
             {
                 snap.Panels = BuildPanels(doc);

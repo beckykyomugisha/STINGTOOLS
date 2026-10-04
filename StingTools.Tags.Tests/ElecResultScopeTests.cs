@@ -56,6 +56,27 @@ namespace StingTools.Tags.Tests
             Assert.Contains("ElecResultScope.Matches", src.Substring(Math.Max(0, at - 2000), Math.Min(src.Length - Math.Max(0, at - 2000), 6000)));
         }
 
+        /// <summary>
+        /// ELEC-31: actions on the Electrical panel's rows (PNLS Save, SLD zoom / open schedule)
+        /// use element ids read when the panel was filled; after a model switch the Save wrote
+        /// onto whatever element held that id.
+        /// </summary>
+        [Theory]
+        [InlineData("Commands/Electrical/ElectricalPanelCommands.cs", "class ElecPanelWriteParamsCommand", "snap.DocKey")]
+        [InlineData("UI/StingElectricalCommandHandler.cs", "private void ZoomToSelectedSld", "PanelShowsThisModel(doc)")]
+        [InlineData("UI/StingElectricalCommandHandler.cs", "private void OpenScheduleForSelectedSld", "PanelShowsThisModel(doc)")]
+        [InlineData("Commands/Electrical/ElectricalSnapshotBuilder.cs", "public static ElectricalPanelSnapshot Build", "snap.DocKey =")]
+        public void Panel_row_actions_check_the_model_the_rows_came_from(string file, string anchor, string mustAppear)
+        {
+            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            while (dir != null && !File.Exists(Path.Combine(dir.FullName, "StingTools.addin"))) dir = dir.Parent;
+            Assert.NotNull(dir);
+            string src = File.ReadAllText(Path.Combine(dir.FullName, "StingTools", file.Replace('/', Path.DirectorySeparatorChar)));
+            int at = src.IndexOf(anchor, StringComparison.Ordinal);
+            Assert.True(at >= 0, anchor);
+            Assert.Contains(mustAppear, src.Substring(at, Math.Min(1500, src.Length - at)));
+        }
+
         /// <summary>The panel grid's caches: the assignment itself is scoped to this document.</summary>
         [Theory]
         [InlineData("snap.Feeders")]
