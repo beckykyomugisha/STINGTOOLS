@@ -35,11 +35,16 @@ namespace StingTools.Commands.Electrical
             if (panels.Count == 0)
             { TaskDialog.Show("STING Circuit", "No electrical panels found in the model."); return Result.Cancelled; }
 
+            // Boards by Panel Name, the id added where two read alike. The list was the family
+            // TYPE name, so boards of one type were indistinguishable and the first always won.
+            panels = panels.OrderBy(p => StingTools.Core.Drawing.BoardNames.Of(p), StringComparer.OrdinalIgnoreCase).ToList();
+            var labels = StingTools.Core.Drawing.BoardNaming.UniqueLabels(
+                panels.Select(p => (StingTools.Core.Drawing.BoardNames.Of(p), p.Id.Value)).ToList());
             string panelName = StingListPicker.Show("Select Panel",
-                "Choose a panel to add a spare slot to:",
-                panels.Select(p => p.Name).OrderBy(n => n).ToList());
+                "Choose a panel to add a spare slot to:", labels);
             if (string.IsNullOrEmpty(panelName)) return Result.Cancelled;
-            var panel = panels.FirstOrDefault(p => p.Name == panelName);
+            int pick = labels.IndexOf(panelName);
+            var panel = pick >= 0 ? panels[pick] : null;
             if (panel == null) return Result.Cancelled;
 
             var psv = new FilteredElementCollector(doc)
@@ -200,7 +205,11 @@ namespace StingTools.Commands.Electrical
                 .OfClass(typeof(FamilyInstance))
                 .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
                 .Cast<FamilyInstance>()
-                .Where(p => !string.Equals(p.Name, srcPanelName, StringComparison.OrdinalIgnoreCase))
+                // Exclude the source board itself, by id: srcPanelName is a Panel Name and was
+                // compared with p.Name (the TYPE name), so the source stayed in the list.
+                .Where(p => { try { return srcSystem.BaseEquipment == null || p.Id != srcSystem.BaseEquipment.Id; }
+                              catch (Exception ex) { StingLog.Info($"Move circuit source: {ex.Message}"); return true; } })
+                .OrderBy(p => StingTools.Core.Drawing.BoardNames.Of(p), StringComparer.OrdinalIgnoreCase)
                 .ToList();
             if (panels.Count == 0)
             { TaskDialog.Show("STING Circuit", "No other panels available to move this circuit to."); return Result.Cancelled; }
@@ -213,11 +222,13 @@ namespace StingTools.Commands.Electrical
             }
             catch { srcLabel = $"id {srcSystem.Id?.Value}"; }
 
+            var destLabels = StingTools.Core.Drawing.BoardNaming.UniqueLabels(
+                panels.Select(p => (StingTools.Core.Drawing.BoardNames.Of(p), p.Id.Value)).ToList());
             string destName = StingListPicker.Show("Move Circuit",
-                $"Move circuit {srcLabel} to:",
-                panels.Select(p => p.Name).OrderBy(n => n).ToList());
+                $"Move circuit {srcLabel} to:", destLabels);
             if (string.IsNullOrEmpty(destName)) return Result.Cancelled;
-            var destPanel = panels.FirstOrDefault(p => p.Name == destName);
+            int destPick = destLabels.IndexOf(destName);
+            var destPanel = destPick >= 0 ? panels[destPick] : null;
             if (destPanel == null) return Result.Cancelled;
 
             using (var tx = new Transaction(doc, "STING Move Circuit"))

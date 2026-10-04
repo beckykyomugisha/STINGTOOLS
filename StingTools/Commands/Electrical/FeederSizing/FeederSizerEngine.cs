@@ -16,6 +16,9 @@ namespace StingTools.Commands.Electrical.FeederSizing
     public class FeederSizeInput
     {
         public string PanelName       { get; set; }
+        /// <summary>The fed board's element id (0 = unknown). Results are stamped by it:
+        /// a name is not unique — SLD labels used to be the family TYPE name.</summary>
+        public long   PanelId         { get; set; }
         public double DemandKW        { get; set; }
         public double PowerFactor     { get; set; } = 0.85;
         public double SystemVoltageV  { get; set; } = 415.0;
@@ -46,6 +49,7 @@ namespace StingTools.Commands.Electrical.FeederSizing
     public class FeederSizeResult
     {
         public string PanelName       { get; set; }
+        public long   PanelId         { get; set; }
         public double DemandKW        { get; set; }
         public double DesignCurrentA  { get; set; }
         public double ProposedCsaMm2  { get; set; }
@@ -74,7 +78,7 @@ namespace StingTools.Commands.Electrical.FeederSizing
         public static FeederSizeResult Calculate(FeederSizeInput input, WireTableSet wireTables,
             StingTools.Core.Electrical.Bs7671Data bs7671Tables)
         {
-            var result = new FeederSizeResult { PanelName = input?.PanelName ?? "" };
+            var result = new FeederSizeResult { PanelName = input?.PanelName ?? "", PanelId = input?.PanelId ?? 0 };
             if (input == null) { result.Warning = "Null input"; result.Status = "ERROR"; return result; }
             result.DefaultsUsed.AddRange(input.DefaultsUsed);
 

@@ -24,6 +24,8 @@ namespace StingTools.Commands.Electrical.CircuitWizard
     {
         public static List<ProposedCircuit> PendingCircuits { get; set; } = new();
         public static string PendingPanelName { get; set; } = "";
+        /// <summary>The target board's element id from the dialog (0 = none); preferred over the name.</summary>
+        public static long PendingPanelId { get; set; }
 
         /// <summary>
         /// Options that were active when the wizard called ProposeCircuits.
@@ -47,11 +49,15 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                 return Result.Cancelled;
             }
 
-            var panel = new FilteredElementCollector(doc)
+            // By the id the dialog picked; by Panel Name only when no id came across. It
+            // matched p.Name (the family TYPE name): the first board of that type got the circuits.
+            long panelId = PendingPanelId;
+            var panel = panelId > 0 ? doc.GetElement(new ElementId(panelId)) as FamilyInstance : null;
+            panel ??= new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
                 .WhereElementIsNotElementType()
                 .OfType<FamilyInstance>()
-                .FirstOrDefault(p => string.Equals(p.Name, panelName, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(p => string.Equals(StingTools.Core.Drawing.BoardNames.Of(p), panelName, StringComparison.OrdinalIgnoreCase));
             if (panel == null)
             {
                 TaskDialog.Show("STING Circuit Wizard", $"Panel '{panelName}' not found.");

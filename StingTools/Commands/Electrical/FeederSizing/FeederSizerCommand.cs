@@ -110,11 +110,11 @@ namespace StingTools.Commands.Electrical.FeederSizing
                     }
                     try
                     {
-                        var panel = FindPanelByName(doc, r.PanelName);
+                        var panel = FindPanel(doc, r);
                         if (panel == null)
                         {
                             notFound++;
-                            if (notSizedLines.Count < 8) notSizedLines.Add($"  {r.PanelName}: board not found by Panel Name — nothing stamped");
+                            if (notSizedLines.Count < 8) notSizedLines.Add($"  {r.PanelName}: board not found — nothing stamped");
                             continue;
                         }
                         // Counted as stamped only when the size landed (unbound = not stamped).
@@ -185,6 +185,7 @@ namespace StingTools.Commands.Electrical.FeederSizing
                 var input = new FeederSizeInput
                 {
                     PanelName       = node.Label ?? "",
+                    PanelId         = node.ElementId?.Value ?? 0,
                     DerateFactor    = s.DerateFactor,
                     DiversityFactor = s.DiversityPct > 0 ? s.DiversityPct / 100.0 : 1.0,
                     InstallMethod   = s.InstallMethod ?? "C",
@@ -247,13 +248,21 @@ namespace StingTools.Commands.Electrical.FeederSizing
                 CollectInputs(child, s, output, isRoot: false);
         }
 
-        private static FamilyInstance FindPanelByName(Document doc, string name)
+        /// <summary>
+        /// The fed board by element id; by board name (Panel Name) only when no id is known
+        /// and the name is unique. It matched p.Name — the family TYPE name — so every feeder
+        /// to boards of one type was stamped on the first of them, the others got nothing.
+        /// </summary>
+        private static FamilyInstance FindPanel(Document doc, FeederSizeResult r)
         {
-            return new FilteredElementCollector(doc)
+            if (r.PanelId > 0 && doc.GetElement(new ElementId(r.PanelId)) is FamilyInstance byId) return byId;
+            var named = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
                 .WhereElementIsNotElementType()
                 .OfType<FamilyInstance>()
-                .FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+                .Where(p => string.Equals(StingTools.Core.Drawing.BoardNames.Of(p), r.PanelName, StringComparison.OrdinalIgnoreCase))
+                .Take(2).ToList();
+            return named.Count == 1 ? named[0] : null;
         }
     }
 }

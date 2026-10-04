@@ -112,6 +112,28 @@ namespace StingTools.Tags.Tests
             Assert.Contains("specCount == 0", m.Groups["args"].Value);
         }
 
+        /// <summary>
+        /// A board looked up, listed or labelled by p.Name / fi.Name is looked up by its family
+        /// TYPE name, which every board of that type shares: feeder sizes, wizard circuits and
+        /// moved circuits all went to the first board of the type, and the SLD labelled every
+        /// one of them alike. Boards are found by element id or BoardNames.Of (Panel Name).
+        /// </summary>
+        [Theory]
+        [InlineData("Commands/Electrical/FeederSizing/FeederSizerCommand.cs")]
+        [InlineData("Commands/Electrical/LoadDemand/LoadDemandAuditCommand.cs")]
+        [InlineData("Commands/Electrical/CircuitCrudCommands.cs")]
+        [InlineData("Commands/Electrical/CircuitWizard/CircuitWizardCommand.cs")]
+        [InlineData("UI/CircuitWizardDialog.xaml.cs")]
+        [InlineData("Core/SLD/SLDCircuitTraverser.cs")]
+        public void Boards_are_not_matched_or_labelled_by_their_type_name(string file)
+        {
+            string src = File.ReadAllText(Path.Combine(Root(), "StingTools", file.Replace('/', Path.DirectorySeparatorChar)));
+            var bad = new Regex(@"Equals\(\s*p\.Name\s*,|\bp\.Name\s*==|Select\(\s*p\s*=>\s*p\.Name\s*\)|Items\.Add\(\s*p\.Name|Label\s*=\s*fi\.Name\b");
+            var hits = src.Split('\n').Select((l, i) => (l, i)).Where(x => bad.IsMatch(x.l))
+                          .Select(x => $"{file}:{x.i + 1}: {x.l.Trim()}").ToList();
+            Assert.True(hits.Count == 0, string.Join("\n", hits));
+        }
+
         /// <summary>A TEXT conductor size read through GetDouble: "2,5" became 25 mm².</summary>
         [Fact]
         public void Text_conductor_sizes_are_not_read_with_GetDouble()

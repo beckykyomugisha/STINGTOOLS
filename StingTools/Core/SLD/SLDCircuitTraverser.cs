@@ -341,7 +341,9 @@ namespace StingTools.Core.SLD
                 HierarchyLevel = level,
                 IsPanel       = true,
                 RevitElement  = fi,
-                Label         = fi.Name,
+                // The board's Panel Name: fi.Name is its family TYPE name, so every board of
+                // one type carried the same label on the SLD, in the fault and feeder reports.
+                Label         = StingTools.Core.Drawing.BoardNames.Of(fi),
                 ConceptId     = SymbolConceptForElement(fi),
             };
 

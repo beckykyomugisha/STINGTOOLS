@@ -55,17 +55,23 @@ namespace StingTools.UI
             UpdateCreateButton();
         }
 
+        private readonly System.Collections.Generic.List<long> _panelIds = new System.Collections.Generic.List<long>();
+
         private void PopulatePanels()
         {
             if (_doc == null) return;
             cmbWzPanel.Items.Clear();
-            foreach (var p in new FilteredElementCollector(_doc)
+            _panelIds.Clear();
+            // Panel Name, the id added where two read alike — the family TYPE name made boards
+            // of one type indistinguishable and the command created circuits on the first.
+            var boards = new FilteredElementCollector(_doc)
                 .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
                 .WhereElementIsNotElementType()
-                .OfType<FamilyInstance>())
-            {
-                cmbWzPanel.Items.Add(p.Name ?? "");
-            }
+                .OfType<FamilyInstance>()
+                .Select(p => (Name: StingTools.Core.Drawing.BoardNames.Of(p), Id: p.Id.Value))
+                .OrderBy(b => b.Name, StringComparer.OrdinalIgnoreCase).ToList();
+            var labels = StingTools.Core.Drawing.BoardNaming.UniqueLabels(boards);
+            for (int i = 0; i < boards.Count; i++) { cmbWzPanel.Items.Add(labels[i]); _panelIds.Add(boards[i].Id); }
             if (cmbWzPanel.Items.Count > 0) cmbWzPanel.SelectedIndex = 0;
         }
 
@@ -273,6 +279,8 @@ namespace StingTools.UI
             }
             CircuitWizardCommand.PendingCircuits = Proposals.Select(p => p.Source).ToList();
             CircuitWizardCommand.PendingPanelName = panel;
+            int at = cmbWzPanel.SelectedIndex;
+            CircuitWizardCommand.PendingPanelId = at >= 0 && at < _panelIds.Count ? _panelIds[at] : 0;
             try { StingElectricalCommandHandler.Instance?.SetCommand("Circuit_CreateWizard"); }
             catch (Exception ex) { StingLog.Warn($"CreateWizard dispatch: {ex.Message}"); }
             DialogResult = true;
