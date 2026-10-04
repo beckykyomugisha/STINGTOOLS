@@ -126,7 +126,7 @@ namespace StingTools.Commands.Storage
                                 StingLog.Warn($"MigrateToExtensibleStorageCommand element {el?.Id}: {ex.Message}");
                             }
                         }
-                        t.Commit();
+                        StingTx.Commit(t);
                     }
                     tg.Assimilate();
                 }

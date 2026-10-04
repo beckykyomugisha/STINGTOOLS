@@ -301,7 +301,7 @@ namespace StingTools.Commands.TagStudio
                         try { doc.Delete(f.Id); junkDeleted++; }
                         catch (Exception ex) { StingLog.Warn($"Purge temp duplicate '{junkName}': {ex.Message}"); }
                     }
-                    junkTx.Commit();
+                    StingTx.Commit(junkTx);
                 }
                 StingLog.Info($"PropagateUniversalTag: purged {junkDeleted} temp-named duplicate families");
             }
@@ -917,7 +917,7 @@ namespace StingTools.Commands.TagStudio
                         result.UnstyledTypes = TagTypeVariantWriter.LastUnstyledTypes.Count;
                         result.MsVariants = swPhase.ElapsedMilliseconds;
 
-                        tx.Commit();
+                        StingTx.Commit(tx); // a rollback lands in the per-target catch as this family's error
                     }
 
                     // ── Atomic save-then-publish (from MigrateTagLabelReferences) ──
@@ -1010,7 +1010,9 @@ namespace StingTools.Commands.TagStudio
                             StingLog.Warn($"{targetName}: LoadFamily: {loadEx.Message}");
                             loadedOk = false;
                         }
-                        if (loadedOk) loadTx.Commit(); else loadTx.RollBack();
+                        // a rolled-back reload is a refused load: the !loadedOk branch below reports it
+                        if (loadedOk) { if (!StingTx.TryCommit(loadTx, null, out string commitWhy)) { loadedOk = false; loadThrew = commitWhy; } }
+                        else loadTx.RollBack();
                     }
 
                     // Recorded whether the load succeeded or was refused - a refused
@@ -1303,7 +1305,7 @@ namespace StingTools.Commands.TagStudio
                     added = AddMissingParams(mfd.FamilyManager, defFile, styleAndVisParams);
                     try { types = TagTypeVariantWriter.CreateStandardVariants(mfd.FamilyManager, variants, TagTypeVariantWriter.BuildArrowheadLookup(mfd)); }
                     catch (Exception vex) { StingLog.Warn($"PrimeMaster: type variants: {vex.Message}"); }
-                    tx.Commit();
+                    StingTx.Commit(tx); // a rollback lands in the catch below ("clones will add their own")
                 }
 
                 // Back into the project, because EditFamily clones the IN-PROJECT
@@ -1326,7 +1328,9 @@ namespace StingTools.Commands.TagStudio
                 {
                     lt.Start();
                     bool ok = doc.LoadFamily(masterPath, new TagFamilyLoadOptions(), out _);
-                    if (ok) lt.Commit(); else lt.RollBack();
+                    // a rolled-back reload is reported as REFUSED below
+                    if (ok) { if (!StingTx.TryCommit(lt, null, out string commitWhy)) ok = false; }
+                    else lt.RollBack();
                     StingLog.Info($"PrimeMaster: added {added} parameter(s), {types} type variant(s); " +
                                   $"reload into project {(ok ? "OK" : "REFUSED - clones will add their own")}");
                 }

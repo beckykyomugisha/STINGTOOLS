@@ -74,7 +74,8 @@ namespace StingTools.Commands.Sustainability
                             sheetInfo = $"sheet {sheet.SheetNumber} — {sheet.Name}";
                         }
                     }
-                    t.Commit();
+                    // a rollback must not be reported as "deliverable created"
+                    if (!StingTx.TryCommit(t, null, out string why)) { msg = why; return Result.Failed; }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Sustain deliverable sheet: {ex.Message}"); }

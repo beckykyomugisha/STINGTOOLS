@@ -252,7 +252,7 @@ namespace StingTools.Commands.Symbols
                             }
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 // Wave F3 — auto re-stitch. Revit's ChangeTypeId
@@ -272,8 +272,9 @@ namespace StingTools.Commands.Symbols
                         try
                         {
                             tx2.Start();
-                            rejoined = RestitchSwappedConnectors(doc, swappedIds);
-                            tx2.Commit();
+                            int rejoinedHere = RestitchSwappedConnectors(doc, swappedIds);
+                            StingTx.Commit(tx2); // a rollback lands in the catch below; rejoined stays 0
+                            rejoined = rejoinedHere;
                         }
                         catch (Exception ex)
                         {
@@ -836,7 +837,7 @@ namespace StingTools.Commands.Symbols
                             // AuthorSymbols tries to key off them.
                             FamilyParamEngine.InjectAutomationPresentationPack(famDoc);
                             FamilySymbolAuthor.AuthorSymbols(famDoc);
-                            tx.Commit();
+                            StingTx.Commit(tx); // a rollback lands in the catch below; txOk stays false
                             txOk = true;
                         }
                         catch (Exception ex)

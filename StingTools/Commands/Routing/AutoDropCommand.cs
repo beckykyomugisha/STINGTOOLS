@@ -245,7 +245,7 @@ namespace StingTools.Commands.Routing
                         var all = new List<StingTools.Core.Routing.PenetrationRecord>(slab.Count + wall.Count + beam.Count);
                         all.AddRange(slab); all.AddRange(wall); all.AddRange(beam);
                         var place = StingTools.Core.Routing.FrpPenetrationPlacer.Place(doc, all);
-                        tx.Commit();
+                        StingTx.Commit(tx);
                         if (allResults.Count > 0)
                         {
                             allResults[0].Warnings.Add(
@@ -295,7 +295,7 @@ namespace StingTools.Commands.Routing
                             foreach (var w in supportRes.Warnings)
                                 if (!aggregateWarnings.Contains(w)) aggregateWarnings.Add(w);
                         }
-                        sx.Commit();
+                        StingTx.Commit(sx);
                         if (totalPlaced > 0 && allResults.Count > 0)
                         {
                             allResults[0].Warnings.Add(

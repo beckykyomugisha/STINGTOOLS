@@ -291,7 +291,7 @@ namespace StingTools.Commands.SLD
                             catch (Exception ex) { StingLog.Warn($"MigrateLabelIds inner: {ex.Message}"); }
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
             }
             catch (Exception ex)
@@ -387,7 +387,7 @@ namespace StingTools.Commands.SLD
                     SymbolStandardResolver.SetViewStandard(doc, view, newStandard);
                     rebuilt++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // Full rebuild each SLD view with the new standard.
@@ -403,7 +403,7 @@ namespace StingTools.Commands.SLD
                         tx.Start();
                         SLDGenerator.UpdateSLD(doc, view, ElementId.InvalidElementId,
                             layoutOpts, annotOpts);
-                        tx.Commit();
+                        StingTx.Commit(tx); // a rolled-back view lands in the catch below as errors++
                     }
                 }
                 catch (Exception ex)

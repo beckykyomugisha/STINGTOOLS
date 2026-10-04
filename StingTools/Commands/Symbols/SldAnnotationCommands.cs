@@ -449,7 +449,7 @@ namespace StingTools.Commands.Symbols
                     var tn = PlaceAnnotation(doc, view, el, text, kind, fmt, offsetFt);
                     if (tn != null) placed++; else failed++;
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
             StingLog.Info($"SldAnnotate {kind}: placed {placed}, no value {noValue}, already {duplicate}, failed {failed}");
 
@@ -593,7 +593,7 @@ namespace StingTools.Commands.Symbols
                 {
                     t.Start();
                     r = SldAnnotationEngine.UpdateAnnotations(ctx.Doc, view, chosen);
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
                 report += $"\nRe-rendered {r.Changed} of {existing} annotation(s) in this view.";
                 if (r.Empty > 0) report += $"\n{r.Empty} left as they were — no value to show in {chosen} format.";
@@ -633,7 +633,7 @@ namespace StingTools.Commands.Symbols
             {
                 t.Start();
                 r = SldAnnotationEngine.UpdateAnnotations(ctx.Doc, view, SldAnnotationEngine.CurrentFormat);
-                t.Commit();
+                StingTx.Commit(t);
             }
             string report = $"Updated {r.Changed} of {existing.Count} annotation(s) from current values " +
                             $"({existing.Count - r.Changed - r.Orphaned - r.Empty} already current).";
@@ -680,7 +680,7 @@ namespace StingTools.Commands.Symbols
             {
                 t.Start();
                 n = SldAnnotationEngine.ToggleAnnotationVisibility(ctx.Doc, view, show);
-                t.Commit();
+                StingTx.Commit(t);
             }
             TaskDialog.Show("STING SLD — Toggle",
                 $"{n} of {existing.Count} annotation(s) {(show ? "shown" : "halftoned")}.");
@@ -721,7 +721,7 @@ namespace StingTools.Commands.Symbols
                     try { ctx.Doc.Delete(a.Note.Id); deleted++; }
                     catch (Exception ex) { StingLog.Warn($"SldAnnotationClear: {ex.Message}"); }
                 }
-                t.Commit();
+                StingTx.Commit(t);
             }
             TaskDialog.Show("STING SLD — Clear", $"Removed {deleted} of {existing.Count} annotation(s).");
             return Result.Succeeded;

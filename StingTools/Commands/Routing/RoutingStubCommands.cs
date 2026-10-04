@@ -109,7 +109,7 @@ namespace StingTools.Commands.Routing
                             }
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex2)
                 {

@@ -113,7 +113,7 @@ namespace StingTools.Commands.TemplateManager
             {
                 tx.Start();
                 stamped = DriftDetector.StampAll(ctx.Doc);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             return V2CommandHelper.PublishOrFallback("DriftStamp", "Stamp Template Checksums", ctx.Doc, () =>
             {

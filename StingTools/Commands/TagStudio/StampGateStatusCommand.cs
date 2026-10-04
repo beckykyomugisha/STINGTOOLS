@@ -124,7 +124,7 @@ namespace StingTools.Commands.TagStudio
                         }
                         else skipped++;
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
             }
             finally
@@ -198,7 +198,7 @@ namespace StingTools.Commands.TagStudio
                     }
                     catch (Exception ex) { StingLog.Warn($"Bind '{ext.Name}': {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
         }
 

@@ -195,7 +195,7 @@ namespace StingTools.Commands.SLD
                 { tx.RollBack(); message = "Could not create drafting view."; return Result.Failed; }
                 SLDRiserEngine.DrawRiser(doc, view, root, opts);
                 StampDrawingType(doc, view, riserTypeId);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             // Onto the riser drawing type's sheet. The context tag keeps this sheet apart
@@ -313,7 +313,7 @@ namespace StingTools.Commands.SLD
                 try { view.Scale = 1; } catch (Exception ex) { StingLog.Warn($"Riser scale: {ex.Message}"); }
                 SLDRiserEngine.DrawRiser(doc, view, root,
                     StingElectricalCommandHandler.CurrentRiserOptions);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("STING Riser", $"Updated '{view.Name}'.");
             return Result.Succeeded;

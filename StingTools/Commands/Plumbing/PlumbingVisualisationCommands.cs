@@ -137,7 +137,7 @@ namespace StingTools.Commands.Plumbing
                     }
                     catch (Exception ex)
                     {
-                        t.RollBack();
+                        StingTx.RollBackIfOpen(t);
                         message = $"Schematic generation failed: {ex.Message}";
                         StingLog.Error("PlumbDrainageSchematicCommand", ex);
                         return Result.Failed;
@@ -384,11 +384,11 @@ namespace StingTools.Commands.Plumbing
                             catch (Exception ex) { StingLog.Warn($"PlumbPressureZone: stamp pipe {pipe.Id}: {ex.Message}"); }
                         }
 
-                        t.Commit();
+                        StingTx.Commit(t);
                     }
                     catch (Exception ex2)
                     {
-                        t.RollBack();
+                        StingTx.RollBackIfOpen(t);
                         message = $"Pressure zone colouring failed: {ex2.Message}";
                         StingLog.Error("PlumbPressureZoneCommand", ex2);
                         return Result.Failed;

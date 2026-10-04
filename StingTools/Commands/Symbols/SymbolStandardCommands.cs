@@ -228,7 +228,7 @@ namespace StingTools.Commands.Symbols
                     catch (Exception ex) { StingLog.Warn($"SwapAllTags model fi: {ex.Message}"); modelSkipped++; }
                 }
 
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             using (var tg = new TransactionGroup(doc, "STING Swap Symbol Standard"))
@@ -242,6 +242,7 @@ namespace StingTools.Commands.Symbols
                         tx.Start();
                         try
                         {
+                            int chunkN = 0; // counted into n only once this chunk commits
                             for (int i = chunkStart; i < end; i++)
                             {
                                 var tag = tags[i];
@@ -266,18 +267,19 @@ namespace StingTools.Commands.Symbols
                                     if (stdParam != null && !stdParam.IsReadOnly) stdParam.Set(newStandard);
                                     if (view != null)
                                         SymbolAnnotationEngine.UpdateAnnotations(doc, view, newStandard);
-                                    n++;
+                                    chunkN++;
                                 }
                                 catch (Exception ex) { StingLog.Warn($"SwapAllTags inner [{i}]: {ex.Message}"); }
                             }
-                            tx.Commit();
+                            StingTx.Commit(tx); // a rolled-back chunk lands in the catch below
+                            n += chunkN;
                         }
                         catch (Exception chunkEx)
                         {
                             // A chunk-level failure rolls back this chunk
                             // only; previously-committed chunks survive.
                             StingLog.Error($"SwapAllTags chunk {chunkStart}-{end} failed", chunkEx);
-                            try { tx.RollBack(); } catch (Exception rbEx) { StingLog.Warn($"SwapAllTags rollback: {rbEx.Message}"); }
+                            StingTx.RollBackIfOpen(tx);
                         }
                     }
                 }
@@ -346,7 +348,7 @@ namespace StingTools.Commands.Symbols
                     }
                     catch (Exception ex) { StingLog.Warn($"SwitchViewStandard model fi: {ex.Message}"); }
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("STING", $"View standard set to {pick}. {n} annotation(s) refreshed, {modelUpdated} model instance(s) updated.");
             return Result.Succeeded;
@@ -390,7 +392,7 @@ namespace StingTools.Commands.Symbols
                 {
                     tx.Start();
                     n = SymbolOverlayManager.PlaceOverlaysForView(ctx.Doc, ctx.ActiveView);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 TaskDialog.Show("STING", $"Placed {n} symbol overlay(s) in {ctx.ActiveView.Name}.");
                 return Result.Succeeded;
@@ -421,7 +423,7 @@ namespace StingTools.Commands.Symbols
                 {
                     totalPlaced += SymbolOverlayManager.PlaceOverlaysForView(ctx.Doc, v);
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("STING", $"Placed {totalPlaced} symbol overlay(s) project-wide.");
             return Result.Succeeded;
@@ -461,7 +463,7 @@ namespace StingTools.Commands.Symbols
             {
                 tx.Start();
                 n = SymbolOverlayManager.SyncAllFilterVisibility(ctx.Doc);
-                tx.Commit();
+                StingTx.Commit(tx);
             }
             TaskDialog.Show("STING", $"Synced filter visibility on {n} symbol tag(s).");
             return Result.Succeeded;
@@ -525,7 +527,7 @@ namespace StingTools.Commands.Symbols
                     p.Set(chosen.Code);
                     updated++;
                 }
-                tx.Commit();
+                StingTx.Commit(tx);
             }
 
             string detail = skipped > 0

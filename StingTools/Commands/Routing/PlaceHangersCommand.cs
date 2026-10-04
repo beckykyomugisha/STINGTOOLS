@@ -117,7 +117,7 @@ namespace StingTools.Commands.Routing
                         placed = ApplyFamilyInstances(doc, res, binding);
                     else
                         DrawPreview(doc, view, res);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
                 catch (Exception ex2)
                 {

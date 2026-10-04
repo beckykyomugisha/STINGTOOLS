@@ -121,11 +121,12 @@ namespace StingTools.Commands.Symbols
                             FamilyParamEngine.InjectAutomationPresentationPack(famDoc);
 
                             var saResult = FamilySymbolAuthor.AuthorSymbols(famDoc, symOpts);
-                            results.Add((fam.Name, saResult, null));
                             if (saResult.Warnings.Count > 0)
                                 StingLog.Warn($"AuthorSymbols '{fam.Name}': {string.Join("; ", saResult.Warnings)}");
 
-                            tx.Commit();
+                            // a rollback throws into the per-family catch, which records this family as failed
+                            StingTx.Commit(tx);
+                            results.Add((fam.Name, saResult, null));
                         }
 
                         // Reload the modified family back into the project.

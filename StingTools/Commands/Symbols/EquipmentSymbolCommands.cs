@@ -369,7 +369,7 @@ namespace StingTools.Commands.Symbols
                     t.Start();
                     fs.Activate();
                     doc.Regenerate();
-                    t.Commit();
+                    StingTx.Commit(t);
                 }
             }
 
@@ -401,8 +401,6 @@ namespace StingTools.Commands.Symbols
                     try
                     {
                         var inst = doc.Create.NewFamilyInstance(point, fs, activeView);
-                        placed++;
-                        StingLog.Info($"Placed {symbolId} at {point}");
                     }
                     catch (Exception ex)
                     {
@@ -410,7 +408,10 @@ namespace StingTools.Commands.Symbols
                         StingLog.Warn($"EquipmentSymbolEngine.NewFamilyInstance: {ex.Message}");
                         continue;
                     }
-                    t.Commit();
+                    // one pick's rollback counts as that pick not placed
+                    if (!StingTx.TryCommit(t, null, out string why)) { StingLog.Warn(why); continue; }
+                    placed++;
+                    StingLog.Info($"Placed {symbolId} at {point}");
                 }
             }
             return placed;

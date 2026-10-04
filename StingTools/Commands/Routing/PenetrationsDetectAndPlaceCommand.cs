@@ -70,7 +70,7 @@ namespace StingTools.Commands.Routing
 
                     placeResult = FrpPenetrationPlacer.Place(doc, all);
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
             }
             catch (Exception ex)

@@ -342,7 +342,7 @@ namespace StingTools.Commands.TagStudio
                                 StingLog.Warn($"{fam.Name}: ReplaceParameter('{oldName}' → '{newName}'): {rpEx.Message}");
                             }
                         }
-                        tx.Commit();
+                        StingTx.Commit(tx); // a rollback lands in the per-family catch as this family's error
                     }
 
                     // ── Pass 2: Rewrite formulas that reference old names as tokens ──
@@ -370,7 +370,7 @@ namespace StingTools.Commands.TagStudio
                                 StingLog.Warn($"{fam.Name}: SetFormula('{fp.Definition.Name}'): {fEx.Message}");
                             }
                         }
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
 
                     // ── Save + load back ──
@@ -448,7 +448,9 @@ namespace StingTools.Commands.TagStudio
                             StingLog.Warn($"{fam.Name}: LoadFamily back: {loadEx.Message}");
                             loadedOk = false;
                         }
-                        if (loadedOk) loadTx.Commit(); else loadTx.RollBack();
+                        // a rolled-back reload is a failed load: the !loadedOk branch below reports it
+                        if (loadedOk) { if (!StingTx.TryCommit(loadTx, null, out string why)) { loadedOk = false; StingLog.Warn(why); } }
+                        else loadTx.RollBack();
                     }
 
                     if (!loadedOk)

@@ -411,7 +411,7 @@ namespace StingTools.Commands.Symbols
             {
                 t.Start();
                 doc.Delete(toDelete);
-                t.Commit();
+                StingTx.Commit(t);
             }
 
             StingLog.Info($"ClearMepDetailSymbols: deleted {toDelete.Count} symbols from view '{view.Name}'.");

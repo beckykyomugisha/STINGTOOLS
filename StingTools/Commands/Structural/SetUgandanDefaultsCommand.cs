@@ -86,7 +86,7 @@ namespace StingTools.Commands.Structural
                         { bp.Set(selected.BlackCottonRisk ? 1 : 0); written++; }
                     }
                     catch (Exception exB) { StingLog.Warn($"Black-cotton write: {exB.Message}"); }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 var panel = StingResultPanel.Create($"Uganda defaults — {selected.Label}");

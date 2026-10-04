@@ -57,7 +57,7 @@ namespace StingTools.Commands.Plumbing
                 {
                     tx.Start();
                     PlumbingSystemConfig.Save(ctx.Doc, cfg);
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
             }
             catch (Exception ex)

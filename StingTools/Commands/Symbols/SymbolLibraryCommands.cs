@@ -530,7 +530,7 @@ namespace StingTools.Commands.Symbols
                             warnings.Add($"{Path.GetFileName(rfa)}: {ex.Message}");
                         }
                     }
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
             }
             catch (Exception ex)

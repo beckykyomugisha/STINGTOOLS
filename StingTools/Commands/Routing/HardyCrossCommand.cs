@@ -139,7 +139,7 @@ namespace StingTools.Commands.Routing
                             catch (Exception ex2)
                             { StingLog.Warn($"Hardy Cross write-back {pipeEl.Id}: {ex2.Message}"); }
                         }
-                        tx.Commit();
+                        StingTx.Commit(tx);
                     }
                     catch (Exception ex2)
                     {

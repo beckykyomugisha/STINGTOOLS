@@ -236,7 +236,7 @@ namespace StingTools.Commands.TagStudio
                         }
                     }
 
-                    tx.Commit();
+                    StingTx.Commit(tx);
                 }
 
                 // Placement must run AFTER this commit: a schedule's rendered
