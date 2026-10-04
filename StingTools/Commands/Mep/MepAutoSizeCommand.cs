@@ -361,6 +361,7 @@ namespace StingTools.Commands.Mep
                 catch (Exception ex)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                    res.Resized = 0; // nothing this transaction resized is in the model
                     res.Warnings.Add($"Conduit sizing fatal: {ex.Message}");
                 }
             }

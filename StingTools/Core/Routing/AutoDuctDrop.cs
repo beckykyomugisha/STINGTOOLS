@@ -107,6 +107,10 @@ namespace StingTools.Core.Routing
                 catch (Exception ex3)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                    // Nothing this transaction created or connected is in the model.
+                    result.CreatedIds.Clear();
+                    result.ConnectedCount = 0;
+                    result.TakeoffCount = 0;
                     result.Warnings.Add($"AutoDuctDrop fatal: {ex3.Message}");
                 }
             }

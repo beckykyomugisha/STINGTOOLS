@@ -216,6 +216,7 @@ namespace StingTools.Commands.Drawing
         {
             if (doc == null || plan == null || plan.Count == 0) return;
 
+            int retaggedBefore = outcome.Retagged;
             try
             {
                 string originator = NativeParamMapper.SheetTagger.DetectOriginator(doc);
@@ -254,6 +255,8 @@ namespace StingTools.Commands.Drawing
                 // Named, not swallowed. The renumber HAS happened; an operator who
                 // believes the identifiers followed and finds they did not would be
                 // chasing the wrong thing entirely.
+                // The rebuild transaction did not commit, so none of its re-tags stand.
+                outcome.Retagged = retaggedBefore;
                 outcome.RetagFailures.Add("  the identifier rebuild failed for the whole run — "
                     + ex.Message + " — run Tag Sheets to finish it");
                 StingLog.Error("SheetNumbering: identifier rebuild failed", ex);

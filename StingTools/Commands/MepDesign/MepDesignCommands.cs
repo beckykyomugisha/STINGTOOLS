@@ -394,6 +394,7 @@ namespace StingTools.Commands.MepDesign
             var byName = result.BranchResults.ToDictionary(b => b.BranchName, b => b);
 
             int written = 0, skipped = 0;
+            string writeFailure = null;
             using (var tx = new Transaction(doc, "STING MEP-A-12 balance apply"))
             {
                 try { tx.Start(); }
@@ -441,10 +442,12 @@ namespace StingTools.Commands.MepDesign
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
                     StingLog.Warn($"BalanceApply commit: {ex3.Message}");
+                    written = 0; // nothing this transaction wrote is in the model
+                    writeFailure = ex3.Message;
                 }
             }
 
-            MepPanel.Build("MEP-A-12 Balance apply", "Hardy-Cross → Revit")
+            var balancePanel = MepPanel.Build("MEP-A-12 Balance apply", "Hardy-Cross → Revit")
                 .AddSection("BALANCER")
                 .Metric("Iterations", result.Iterations.ToString())
                 .Metric("Converged",   result.Converged ? "yes" : "no")
@@ -452,8 +455,9 @@ namespace StingTools.Commands.MepDesign
                 .AddSection("WRITE-BACK")
                 .Metric("Branches",  branches.Count.ToString())
                 .Metric("Written",    written.ToString())
-                .Metric("Skipped",    skipped.ToString())
-                .Show();
+                .Metric("Skipped",    skipped.ToString());
+            if (writeFailure != null) balancePanel.AddSection("NOT WRITTEN").Text(writeFailure);
+            balancePanel.Show();
             return Result.Succeeded;
         }
 

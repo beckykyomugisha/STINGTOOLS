@@ -861,6 +861,10 @@ namespace StingTools.BIMManager
                 catch (Exception ex)
                 {
                     StingTx.RollBackIfOpen(trans);
+                    // The batch did not commit: no change in it was applied, so the change
+                    // log (built from AllChanges) must not record any as Applied.
+                    foreach (var c in changes)
+                        if (c.Status == ChangeStatus.Applied) c.Status = ChangeStatus.Failed;
                     StingLog.Error($"Excel streaming import batch failed", ex);
                     return;
                 }
@@ -875,6 +879,7 @@ namespace StingTools.BIMManager
 
             if (affectedIds.Count > 0)
             {
+                int rebuiltBefore = result.Rebuilt;
                 using (var rebuildTrans = new Transaction(doc, "STING Excel Import — Tag Rebuild"))
                 {
                     rebuildTrans.Start();
@@ -979,6 +984,7 @@ namespace StingTools.BIMManager
                     catch (Exception ex)
                     {
                         StingTx.RollBackIfOpen(rebuildTrans);
+                        result.Rebuilt = rebuiltBefore; // this batch's rebuild did not commit
                         StingLog.Error("Excel streaming tag rebuild transaction failed", ex);
                     }
                 }
@@ -1817,6 +1823,7 @@ namespace StingTools.BIMManager
                         catch (Exception ex2)
                         {
                             StingTx.RollBackIfOpen(rebuildTrans);
+                            rebuilt = 0; // the rebuild did not commit, so no tag was rebuilt
                             StingLog.Error("ExcelLink tag rebuild transaction failed", ex2);
                         }
                     }
@@ -2242,6 +2249,7 @@ namespace StingTools.BIMManager
                         catch (Exception ex2)
                         {
                             StingTx.RollBackIfOpen(rebuildTrans);
+                            rebuilt = 0; // the rebuild did not commit, so no tag was rebuilt
                             StingLog.Error("ExcelLink RoundTrip tag rebuild failed", ex2);
                         }
                     }

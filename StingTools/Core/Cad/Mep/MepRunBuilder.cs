@@ -460,8 +460,11 @@ namespace StingTools.Core.Cad.Mep
                     StingTx.RollBackIfOpen(tx);
                     StingLog.Error("MepRunBuilder.Build", ex);
                     result.Warnings.Add($"Run batch failed (rolled back): {ex.Message}");
-                    result.CreatedIds.Clear();
-                    return result;
+                    // Nothing this transaction created, sized or stamped is in the model:
+                    // a fresh result, keeping only the warnings (with the rollback reason).
+                    var rolledBack = new MepRunBuildResult();
+                    rolledBack.Warnings.AddRange(result.Warnings);
+                    return rolledBack;
                 }
             }
 
@@ -611,8 +614,11 @@ namespace StingTools.Core.Cad.Mep
                     StingTx.RollBackIfOpen(tx);
                     StingLog.Error("MepRunBuilder.BuildRisers", ex);
                     result.Warnings.Add($"Riser batch failed (rolled back): {ex.Message}");
-                    result.CreatedIds.Clear();
-                    return result;
+                    // Nothing this transaction created, sized or stamped is in the model:
+                    // a fresh result, keeping only the warnings (with the rollback reason).
+                    var rolledBack = new MepRunBuildResult();
+                    rolledBack.Warnings.AddRange(result.Warnings);
+                    return rolledBack;
                 }
             }
 

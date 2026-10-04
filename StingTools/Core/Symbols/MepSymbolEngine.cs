@@ -358,6 +358,10 @@ namespace StingTools.Core.Symbols
                 catch (Exception ex)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                    // Nothing this transaction placed is in the model, and a rolled-back
+                    // run is a hard failure (Succeeded must not read true).
+                    result.Placed = 0;
+                    result.Failed++;
                     result.Warnings.Add($"MepSymbolEngine fatal: {ex.Message}");
                 }
             }

@@ -95,6 +95,7 @@ namespace StingTools.Commands.Mep
                 catch (Exception ex)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                    updated = 0; // nothing this transaction wrote is in the model
                     warnings.Add($"Live-fill fatal: {ex.Message}");
                 }
             }

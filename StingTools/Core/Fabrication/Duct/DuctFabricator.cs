@@ -25,6 +25,8 @@ namespace StingTools.Core.Fabrication.Duct
             int seq = 1;
             var symbolTargets = new List<(ElementId AssyId, ElementId IsoViewId)>();
 
+            int assyBefore = result.AssemblyIds.Count, sheetBefore = result.SheetIds.Count,
+                tbBefore = result.TitleBlockFallbacks.Count;
             using (var tx = new Transaction(doc, "STING v4 Duct fabrication"))
             {
                 try { tx.Start(); }
@@ -52,6 +54,13 @@ namespace StingTools.Core.Fabrication.Duct
                 catch (Exception ex)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                    // Nothing this transaction built is in the model: drop its assemblies,
+                    // sheets and symbol targets so the result does not report them.
+                    result.AssemblyIds.RemoveRange(assyBefore, result.AssemblyIds.Count - assyBefore);
+                    result.SheetIds.RemoveRange(sheetBefore, result.SheetIds.Count - sheetBefore);
+                    result.TitleBlockFallbacks.RemoveRange(tbBefore, result.TitleBlockFallbacks.Count - tbBefore);
+                    symbolTargets.Clear();
+                    seq = 1;
                     result.Warnings.Add($"DuctFabricator: {ex.Message}");
                 }
             }

@@ -200,6 +200,11 @@ namespace StingTools.Core.Mep
                 catch (Exception ex)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                    // Nothing this transaction placed, cut or stamped is in the model.
+                    result.PlacedIds.Clear();
+                    result.Placed = 0;
+                    result.CutApplied = 0;
+                    result.FireRatingWritten = 0;
                     result.Warnings.Add($"tx commit: {ex.Message}");
                 }
             }

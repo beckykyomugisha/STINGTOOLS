@@ -228,6 +228,10 @@ namespace StingTools.Core.Mep
                 catch (Exception ex)
                 {
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                    // Nothing this transaction placed is in the model.
+                    result.CreatedIds.Clear();
+                    result.Items.Clear();
+                    result.Sleeved = 0;
                     result.Warnings.Add($"SleeveConnectorEngine fatal: {ex.Message}");
                 }
             }

@@ -146,6 +146,11 @@ namespace StingTools.Core.Cad.Mep
                     StingLog.Error("MepFixtureBuilder.Place", ex);
                     result.Warnings.Add($"Placement batch failed (rolled back): {ex.Message}");
                     result.CreatedIds.Clear();
+                    // Nothing this transaction placed is in the model.
+                    result.Placed = 0;
+                    result.Hosted = 0;
+                    foreach (var k in result.ByCategory.Keys.ToList())
+                        result.ByCategory[k] = (0, result.ByCategory[k].skipped);
                     return result;
                 }
             }
