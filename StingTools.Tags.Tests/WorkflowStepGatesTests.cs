@@ -86,6 +86,26 @@ namespace StingTools.Tags.Tests
             Assert.True(found >= 2, $"expected the MorningHealthCheck and WeeklyDataDrop steps, found {found}");
         }
 
+        // WORKFLOW_PlumbingDesign.json wrote two conditions as objects
+        // ({"type":"hasSupplySystem"}); WorkflowStep.Condition is a string, so the
+        // engine's load threw, logged one warning and dropped the whole preset.
+        [Fact]
+        public void Every_shipped_preset_parses_as_the_engine_loads_it()
+        {
+            string data = Path.Combine(RepoRoot(), "StingTools", "Data");
+            var failures = new System.Collections.Generic.List<string>();
+            foreach (string file in Directory.GetFiles(data, "WORKFLOW_*.json"))
+            {
+                try
+                {
+                    var preset = JsonConvert.DeserializeObject<WorkflowPreset>(File.ReadAllText(file));
+                    if (preset == null || preset.Steps.Count == 0) failures.Add($"{Path.GetFileName(file)}: no steps");
+                }
+                catch (JsonException ex) { failures.Add($"{Path.GetFileName(file)}: {ex.Message}"); }
+            }
+            Assert.True(failures.Count == 0, string.Join("\n", failures));
+        }
+
         // ── requiresMinElements / requiresIssueCount ────────────────────────
 
         [Theory]

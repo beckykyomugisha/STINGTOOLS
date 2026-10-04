@@ -26633,6 +26633,11 @@ Reviewed `docs/StingTools_Complete_Guide.html` (Phase 174 baseline) against the 
   check mentioned them. Now evaluated by `WorkflowStepGates` for every step.
 - **Tests.** `StingTools.Tags.Tests/WorkflowStepGatesTests.cs`, including one that loads every
   shipped `WORKFLOW_*.json` and asserts each `minElementCount` step is gated.
+- **`WORKFLOW_PlumbingDesign.json` loads again.** Two steps wrote `condition` as an object
+  (`{"type": "hasSupplySystem"}`, `{"type": "hasPumpElement"}`). `Condition` is a string, so
+  the engine's load threw, logged one warning and dropped the whole preset. Neither name is a
+  condition the engine evaluates; both steps are optional; the two keys are removed. A new test
+  parses every shipped preset the way the engine does.
 - **Guide corrected where it contradicted the code.** Counts (1,700+ commands, 10 tabs, 114
   drawing types, 143 routing rules, 42 style packs, 287 filters, 3,668 shared parameters, 182
   container parameters in 33 groups, 303 formulas); the step-condition table now lists the keys
