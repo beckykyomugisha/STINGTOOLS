@@ -58,11 +58,11 @@ namespace StingTools.Core.Storage
                 sb.SetWriteAccessLevel(AccessLevel.Vendor);
                 sb.AddSimpleField(FieldLastScanUtc,    typeof(long))
                     .SetDocumentation("DateTime.UtcNow.Ticks of last ComplianceScan.Scan()");
-                sb.AddSimpleField(FieldCompliancePct,  typeof(double))
+                sb.AddSimpleField(FieldCompliancePct,  typeof(double)).SetSpec(SpecTypeId.Number)
                     .SetDocumentation("Latest ComplianceResult.CompliancePercent (tagged / total * 100)");
-                sb.AddSimpleField(FieldStrictPct,      typeof(double))
+                sb.AddSimpleField(FieldStrictPct,      typeof(double)).SetSpec(SpecTypeId.Number)
                     .SetDocumentation("Latest ComplianceResult.StrictPercent (fully resolved / total * 100)");
-                sb.AddSimpleField(FieldRevisionPct,    typeof(double))
+                sb.AddSimpleField(FieldRevisionPct,    typeof(double)).SetSpec(SpecTypeId.Number)
                     .SetDocumentation("Latest ComplianceResult.RevisionPercent");
                 sb.AddSimpleField(FieldUntaggedCount,  typeof(int))
                     .SetDocumentation("Latest ComplianceResult.Untagged");
@@ -91,9 +91,9 @@ namespace StingTools.Core.Storage
                 return new Snapshot
                 {
                     LastScanUtcTicks = entity.Get<long>(FieldLastScanUtc),
-                    CompliancePct    = entity.Get<double>(FieldCompliancePct),
-                    StrictPct        = entity.Get<double>(FieldStrictPct),
-                    RevisionPct      = entity.Get<double>(FieldRevisionPct),
+                    CompliancePct    = entity.Get<double>(FieldCompliancePct, UnitTypeId.General),
+                    StrictPct        = entity.Get<double>(FieldStrictPct, UnitTypeId.General),
+                    RevisionPct      = entity.Get<double>(FieldRevisionPct, UnitTypeId.General),
                     UntaggedCount    = entity.Get<int>(FieldUntaggedCount),
                     RagStatus        = entity.Get<string>(FieldRagStatus) ?? "",
                     RingBufferJson   = entity.Get<string>(FieldRingBufferJson) ?? "",
@@ -115,9 +115,9 @@ namespace StingTools.Core.Storage
                 if (schema == null) return false;
                 var entity = new Entity(schema);
                 entity.Set(FieldLastScanUtc,    snap.LastScanUtcTicks);
-                entity.Set(FieldCompliancePct,  snap.CompliancePct);
-                entity.Set(FieldStrictPct,      snap.StrictPct);
-                entity.Set(FieldRevisionPct,    snap.RevisionPct);
+                entity.Set(FieldCompliancePct,  snap.CompliancePct, UnitTypeId.General);
+                entity.Set(FieldStrictPct,      snap.StrictPct, UnitTypeId.General);
+                entity.Set(FieldRevisionPct,    snap.RevisionPct, UnitTypeId.General);
                 entity.Set(FieldUntaggedCount,  snap.UntaggedCount);
                 entity.Set(FieldRagStatus,      snap.RagStatus ?? "");
                 entity.Set(FieldRingBufferJson, snap.RingBufferJson ?? "");

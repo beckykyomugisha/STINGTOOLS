@@ -51,7 +51,7 @@ namespace StingTools.Core.Storage
                 sb.SetWriteAccessLevel(AccessLevel.Vendor);
                 sb.AddSimpleField(FieldKind, typeof(string))
                     .SetDocumentation("DrawingType.Crop.Kind as of last apply (ScopeBox / TightBbox / RoomBoundary / ScopeBoxOrBbox / None)");
-                sb.AddSimpleField(FieldMarginMm, typeof(double))
+                sb.AddSimpleField(FieldMarginMm, typeof(double)).SetSpec(SpecTypeId.Number)
                     .SetDocumentation("DrawingType.Crop.MarginMm as of last apply");
                 sb.AddSimpleField(FieldStampedTicks, typeof(long))
                     .SetDocumentation("DateTime.UtcNow.Ticks when the stamp was written");
@@ -76,7 +76,7 @@ namespace StingTools.Core.Storage
                 return new CropStamp
                 {
                     Kind            = entity.Get<string>(FieldKind) ?? "",
-                    MarginMm        = entity.Get<double>(FieldMarginMm),
+                    MarginMm        = entity.Get<double>(FieldMarginMm, UnitTypeId.General),
                     StampedUtcTicks = entity.Get<long>(FieldStampedTicks),
                 };
             }
@@ -97,7 +97,7 @@ namespace StingTools.Core.Storage
                 if (schema == null) return false;
                 var entity = new Entity(schema);
                 entity.Set(FieldKind, kind ?? "");
-                entity.Set(FieldMarginMm, marginMm);
+                entity.Set(FieldMarginMm, marginMm, UnitTypeId.General);
                 entity.Set(FieldStampedTicks, DateTime.UtcNow.Ticks);
                 view.SetEntity(entity);
                 return true;
