@@ -64,7 +64,8 @@ namespace StingTools.Commands.Symbols
                 }
 
                 SymbolStandardResolver.SetProjectStandard(ctx.Doc, pick);
-                int swapped = SwapAllTags(ctx.Doc, pick, out int modelSwapped, out int modelSkipped);
+                int swapped = SwapAllTags(ctx.Doc, pick, out int modelSwapped, out int modelSkipped,
+                    out int modelRestyled, out int tagsFailed);
                 string modelLine;
                 if (modelSwapped == 0 && modelSkipped > 0)
                     modelLine = $"\n0 model symbol instances swapped, {modelSkipped} skipped: their {pick} "
@@ -72,6 +73,10 @@ namespace StingTools.Commands.Symbols
                 else
                     modelLine = $"\n{modelSwapped} model symbol instance(s) swapped"
                         + (modelSkipped > 0 ? $", {modelSkipped} skipped (no resolvable or compatible target)." : ".");
+                if (modelRestyled > 0)
+                    modelLine += $"\n{modelRestyled} multi-standard model instance(s) restyled (STING_SYMBOL_STD).";
+                if (tagsFailed > 0)
+                    modelLine += $"\n{tagsFailed} tag(s) NOT updated: their batch was rolled back or failed — see the STING log, then re-run.";
                 TaskDialog.Show("STING", $"Switched to {pick}. {swapped} tag(s) updated.{modelLine}");
                 return Result.Succeeded;
             }
@@ -124,12 +129,18 @@ namespace StingTools.Commands.Symbols
         // partial success preserved.
         private const int SwapChunkSize = 100;
 
+        /// <returns>Annotation tags swapped. Model instances are counted separately:
+        /// <paramref name="modelRestyled"/> (STING_SYMBOL_STD set) and
+        /// <paramref name="modelSwapped"/> / <paramref name="modelSkipped"/> (family swaps);
+        /// <paramref name="tagsFailed"/> counts tags in chunks that rolled back or failed.</returns>
         internal static int SwapAllTags(Document doc, string newStandard,
-            out int modelSwapped, out int modelSkipped)
+            out int modelSwapped, out int modelSkipped, out int modelRestyled, out int tagsFailed)
         {
             int n = 0;
             modelSwapped = 0;
             modelSkipped = 0;
+            modelRestyled = 0;
+            tagsFailed = 0;
             int stdCode = StandardNameToCode(newStandard);
 
             var tags = new FilteredElementCollector(doc)
@@ -152,35 +163,11 @@ namespace StingTools.Commands.Symbols
             {
                 tx.Start();
 
-                // ── 1. Annotation tags: swap family type ────────────────────────
-                foreach (var tag in tags)
-                {
-                    try
-                    {
-                        var view = doc.GetElement(tag.OwnerViewId) as View;
-                        string conceptId = tag.LookupParameter("STING_SYMBOL_ID")?.AsString();
-                        if (string.IsNullOrEmpty(conceptId)) continue;
-                        string viewCtx = SymbolViewContextResolver.ToKey(SymbolViewContextResolver.Resolve(view));
-                        string scaleTier = SymbolScaleEngine.GetScaleTier(view);
-                        string fam = SymbolConceptRegistry.GetFamilyName(conceptId, newStandard, viewCtx, scaleTier, null, doc);
-                        if (string.IsNullOrEmpty(fam)) continue;
-                        var sym = new FilteredElementCollector(doc)
-                            .OfClass(typeof(FamilySymbol))
-                            .Cast<FamilySymbol>()
-                            .FirstOrDefault(s => string.Equals(s.Name, fam, StringComparison.OrdinalIgnoreCase));
-                        if (sym == null) continue;
-                        if (!sym.IsActive) sym.Activate();
-                        tag.ChangeTypeId(sym.Id);
-                        var stdParam = tag.LookupParameter(ParamRegistry.SYMBOL_STANDARD);
-                        if (stdParam != null && !stdParam.IsReadOnly) stdParam.Set(newStandard);
-                        if (view != null)
-                            SymbolAnnotationEngine.UpdateAnnotations(doc, view, newStandard);
-                        n++;
-                    }
-                    catch (Exception ex) { StingLog.Warn($"SwapAllTags tag: {ex.Message}"); }
-                }
+                // Annotation tags are swapped once, in the chunked TransactionGroup below.
+                // (A merge of two branches left a second, identical tag pass here that
+                // swapped every tag twice and counted it twice.)
 
-                // ── 2. Model family instances ────────────────────────────────────
+                // ── Model family instances ───────────────────────────────────────
                 //   a) keep the STING_SYMBOL_STD integer in sync (multi-standard
                 //      families restyle from it);
                 //   b) for instances naming a concept in STING_SYMBOL_ID, change the
@@ -195,7 +182,7 @@ namespace StingTools.Commands.Symbols
                         if (p != null && !p.IsReadOnly)
                         {
                             p.Set(stdCode);
-                            n++;
+                            modelRestyled++;   // a model instance, not a tag (was counted in n)
                         }
 
                         string conceptId = fi.LookupParameter(ParamRegistry.SYMBOL_ID)?.AsString();
@@ -255,15 +242,18 @@ namespace StingTools.Commands.Symbols
                                     string scaleTier = SymbolScaleEngine.GetScaleTier(view);
                                     string fam = SymbolConceptRegistry.GetFamilyName(conceptId, newStandard, viewCtx, scaleTier, null, doc);
                                     if (string.IsNullOrEmpty(fam)) continue;
-                                    // Inline FindSymbol — original helper was lost to the merge.
-                                    var sym = new FilteredElementCollector(doc)
+                                    // Family-name match first, then type name — the two lookups
+                                    // the removed duplicate pass and this pass used between them.
+                                    var symbols = new FilteredElementCollector(doc)
                                         .OfClass(typeof(FamilySymbol))
                                         .Cast<FamilySymbol>()
-                                        .FirstOrDefault(fs => string.Equals(fs.FamilyName, fam, StringComparison.OrdinalIgnoreCase));
+                                        .ToList();
+                                    var sym = symbols.FirstOrDefault(fs => string.Equals(fs.FamilyName, fam, StringComparison.OrdinalIgnoreCase))
+                                           ?? symbols.FirstOrDefault(fs => string.Equals(fs.Name, fam, StringComparison.OrdinalIgnoreCase));
                                     if (sym == null) continue;
                                     if (!sym.IsActive) sym.Activate();
                                     tag.ChangeTypeId(sym.Id);
-                                    var stdParam = tag.LookupParameter("STING_SYMBOL_STANDARD");
+                                    var stdParam = tag.LookupParameter(ParamRegistry.SYMBOL_STANDARD);
                                     if (stdParam != null && !stdParam.IsReadOnly) stdParam.Set(newStandard);
                                     if (view != null)
                                         SymbolAnnotationEngine.UpdateAnnotations(doc, view, newStandard);
@@ -279,6 +269,7 @@ namespace StingTools.Commands.Symbols
                             // A chunk-level failure rolls back this chunk
                             // only; previously-committed chunks survive.
                             StingLog.Error($"SwapAllTags chunk {chunkStart}-{end} failed", chunkEx);
+                            tagsFailed += end - chunkStart;
                             StingTx.RollBackIfOpen(tx);
                         }
                     }

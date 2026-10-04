@@ -898,6 +898,7 @@ namespace StingTools.Model
             if (level == null) return 0;
 
             var fh = new ModelFailureHandler();
+            int idsAtStart = result.CreatedElementIds.Count;
 
             using (var tx = new Transaction(_doc, "STING MODEL: Create Walls from DWG"))
             {
@@ -948,6 +949,7 @@ namespace StingTools.Model
                 {
                     StingTx.RollBackIfOpen(tx);
                     count = 0; // the batch rolled back — none of it is in the model
+                    result.CreatedElementIds.RemoveRange(idsAtStart, result.CreatedElementIds.Count - idsAtStart);
                     result.Warnings.Add($"Wall batch failed: {ex.Message}");
                 }
             }
@@ -967,6 +969,7 @@ namespace StingTools.Model
 
             var typeResult = resolver.ResolveFloorType();
             if (!typeResult.Success) return 0;
+            int idsAtStart = result.CreatedElementIds.Count;
 
             using (var tx = new Transaction(_doc, "STING MODEL: Create Floors from DWG"))
             {
@@ -1007,6 +1010,7 @@ namespace StingTools.Model
                 {
                     StingTx.RollBackIfOpen(tx);
                     count = 0; // the batch rolled back — none of it is in the model
+                    result.CreatedElementIds.RemoveRange(idsAtStart, result.CreatedElementIds.Count - idsAtStart);
                     result.Warnings.Add($"Floor batch failed: {ex.Message}");
                 }
             }
@@ -1033,6 +1037,7 @@ namespace StingTools.Model
                 var topology = _doc.get_PlanTopology(level, phase);
                 if (topology == null) return 0;
 
+                int idsAtStart = result.CreatedElementIds.Count;
                 using (var tx = new Transaction(_doc, "STING MODEL: Place Rooms from DWG"))
                 {
                     tx.Start();
@@ -1055,10 +1060,17 @@ namespace StingTools.Model
                         if (!StingTx.TryCommit(tx, null, out string roomWhy))
                         {
                             count = 0; // rolled back — no rooms were placed
+                            result.CreatedElementIds.RemoveRange(idsAtStart, result.CreatedElementIds.Count - idsAtStart);
                             result.Warnings.Add(roomWhy);
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); StingTx.RollBackIfOpen(tx); }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Suppressed: {ex.Message}");
+                        StingTx.RollBackIfOpen(tx);
+                        count = 0; // rolled back — no rooms were placed
+                        result.CreatedElementIds.RemoveRange(idsAtStart, result.CreatedElementIds.Count - idsAtStart);
+                    }
                 }
             }
             catch (Exception ex)
