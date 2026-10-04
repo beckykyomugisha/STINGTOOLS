@@ -3596,7 +3596,10 @@ namespace StingTools.BIMManager
             string today = DateTime.Now.ToString("yyyy-MM-dd");
             return new JObject
             {
-                ["transmittal_id"] = GetNextSequentialId(doc.PathName ?? "TX", "TX"),
+                // Allocated from the file, not a process-wide counter that restarted at 1 every
+                // Revit session (the MIDP model drop never synced it) — ISO-12.
+                ["transmittal_id"] = TransmittalRecord.NextId(
+                    LoadJsonArray(GetBIMManagerFilePath(doc, "transmittals.json"))),
                 ["project_name"] = pi?.Name ?? "Untitled",
                 ["project_number"] = pi?.Number ?? "",
                 ["from_organization"] = Environment.UserName,
@@ -6088,7 +6091,7 @@ namespace StingTools.BIMManager
                 {
                     string txPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "transmittals.json");
                     var txArray = BIMManagerEngine.LoadJsonArray(txPath);
-                    string txId = BIMManagerEngine.NextIdFromArray(txArray, "TX", "transmittal_id");
+                    string txId = TransmittalRecord.NextId(txArray);
                     var txRec = new JObject
                     {
                         ["transmittal_id"] = txId,

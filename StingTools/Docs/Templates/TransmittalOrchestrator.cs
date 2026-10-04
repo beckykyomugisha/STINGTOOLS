@@ -152,15 +152,17 @@ namespace Planscape.Docs.Templates
                         path, "planscape.transmittals",
                         StingTools.Core.PluginSchemaVersion.CurrentTransmittals);
                     var arr = JArray.Parse(File.ReadAllText(path));
-                    foreach (var row in arr)
-                    {
-                        string raw = row?["id"]?.ToString() ?? row?["transmittal_id"]?.ToString();
-                        if (string.IsNullOrEmpty(raw)) continue;
-                        var m = System.Text.RegularExpressions.Regex.Match(raw, @"(\d+)\s*$");
-                        if (m.Success && int.TryParse(m.Groups[1].Value, out int n) && n > max) max = n;
-                    }
+                    // The one allocator every transmittal writer uses (KUT deep review ISO-12).
+                    return StingTools.BIMManager.TransmittalRecord.NextId(arr);
                 }
-                catch (Exception ex) { StingLog.Warn($"NextTransmittalId: {ex.Message}"); }
+                catch (Exception ex)
+                {
+                    // An unreadable register must stop the mint: returning TX-0001 here re-used
+                    // a live id. Create() reports the failure.
+                    StingLog.Warn($"NextTransmittalId: {ex.Message}");
+                    throw new InvalidOperationException(
+                        "transmittals.json could not be read, so no transmittal id can be allocated safely: " + ex.Message, ex);
+                }
             }
             return $"TX-{(max + 1):D4}";
         }

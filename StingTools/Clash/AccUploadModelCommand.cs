@@ -127,7 +127,12 @@ namespace StingTools.Core.Clash
                 var rows = BIMManager.BIMManagerEngine.LoadJsonArray(txPath);
                 var row = BIMManager.TransmittalRecord.MarkSent(rows, rec.TransmittalId, DateTime.Now,
                     Environment.UserName, "uploaded to ACC" + (string.IsNullOrWhiteSpace(itemUrn) ? "" : " as " + itemUrn));
-                if (row == null) return null;
+                if (row == null)
+                {
+                    // Said, not swallowed (ISO-13): the bundle reached ACC but its record did not move.
+                    StingLog.Warn($"ACC upload: transmittal {rec.TransmittalId} not found as PREPARED/DRAFT in {txPath}");
+                    return $"Transmittal {rec.TransmittalId} was NOT marked SENT — no PREPARED or DRAFT row with that id. Check transmittals.json.";
+                }
                 BIMManager.BIMManagerEngine.SaveJsonFile(txPath, rows);
                 StingLog.Info($"ACC upload: transmittal {rec.TransmittalId} marked SENT");
                 return $"Transmittal {rec.TransmittalId} is now recorded as SENT.";

@@ -68,6 +68,27 @@ namespace StingTools.BIMManager
     {
         public static string Id(JToken t) => First(t, "transmittal_id", "id");
 
+        /// <summary>
+        /// The next free TX-NNNN id across EVERY row shape (transmittal_id, id, tx_id). KUT deep
+        /// review ISO-12: five writers allocated ids five ways — Count+1, a process-static counter
+        /// that restarted at 1 each Revit session, scans of one field only — so an auto row and a
+        /// manual row could both be TX-0002, and MarkSent then found the wrong one.
+        /// </summary>
+        public static string NextId(JArray rows)
+        {
+            int max = 0;
+            foreach (var r in rows?.OfType<JObject>() ?? Enumerable.Empty<JObject>())
+                foreach (var key in new[] { "transmittal_id", "id", "tx_id" })
+                {
+                    string v = r[key]?.Type == JTokenType.String ? (string)r[key] : null;
+                    if (v == null || !v.StartsWith("TX-", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (int.TryParse(v.Substring(3), System.Globalization.NumberStyles.None,
+                            System.Globalization.CultureInfo.InvariantCulture, out int n) && n > max)
+                        max = n;
+                }
+            return $"TX-{max + 1:D4}";
+        }
+
         /// <summary>When the package was issued, or "" if it has not been (a PREPARED
         /// row). This is the date a title block may print.</summary>
         public static string IssueDate(JToken t) => First(t, "date_issued", "date", "issue_date");
@@ -105,10 +126,18 @@ namespace StingTools.BIMManager
         public static JObject MarkSent(JArray rows, string id, DateTime now, string user, string note)
         {
             if (rows == null || string.IsNullOrWhiteSpace(id)) return null;
-            var row = rows.OfType<JObject>().FirstOrDefault(r => string.Equals(Id(r), id, StringComparison.OrdinalIgnoreCase));
+            // The movable row with this id. Legacy files can hold two rows with one id (ISO-12);
+            // taking the first match picked an AUTO_GENERATED duplicate and left the PREPARED
+            // row unissued (ISO-13).
+            var row = rows.OfType<JObject>()
+                .Where(r => string.Equals(Id(r), id, StringComparison.OrdinalIgnoreCase))
+                .FirstOrDefault(r =>
+                {
+                    string s = TransmittalStatus.Normalise(r["status"]?.ToString());
+                    return s == TransmittalStatus.Prepared || s == TransmittalStatus.Draft;
+                });
             if (row == null) return null;
             string from = TransmittalStatus.Normalise(row["status"]?.ToString());
-            if (from != TransmittalStatus.Prepared && from != TransmittalStatus.Draft) return null;
 
             row["status"] = TransmittalStatus.Sent;
             row["date_issued"] = now.ToString("yyyy-MM-dd");
