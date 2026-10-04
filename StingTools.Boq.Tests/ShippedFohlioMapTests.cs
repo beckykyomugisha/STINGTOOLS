@@ -16,10 +16,10 @@ namespace StingTools.Boq.Tests
     // recognises rather than a typo that normalises to the default by accident, and the
     // cost columns the BOQ rate provider depends on exist.
     //
-    // What it does NOT prove: that FohlioMap's C# property names still match. FohlioMap
-    // imports Autodesk.Revit.DB, so it cannot be linked here; renaming a property without
-    // renaming the JSON would slip past. The names below are therefore written as the
-    // literal contract, not derived from the type.
+    // Since the KUT deep review (2026-10) FohlioMap's data half is Revit-free
+    // (ExLink/FohlioMapData.cs) and linked here, so the shipped file is ALSO read through the
+    // real class — which is how the list-append defect was found: reading a JObject never
+    // exercised the POCO, and the POCO appended the file's columns to its defaults.
     public class ShippedFohlioMapTests
     {
         private static JObject Load()
@@ -59,8 +59,9 @@ namespace StingTools.Boq.Tests
             {
                 Assert.Equal(JTokenType.String, pr.Value.Type);
                 string v = (string)pr.Value;
-                Assert.Contains(FfeTreatment.Normalize(v),
-                    new[] { FfeTreatment.Ffe, FfeTreatment.PcSum, FfeTreatment.Measured, FfeTreatment.Excluded });
+                // The RAW value, not Normalize(v): Normalize maps any typo to a canonical
+                // token, so asserting on it could never fail.
+                Assert.Contains(v, new[] { FfeTreatment.Ffe, FfeTreatment.PcSum, FfeTreatment.Measured, FfeTreatment.Excluded });
             }
         }
 
@@ -94,6 +95,45 @@ namespace StingTools.Boq.Tests
             // IsFfeCategory matches on these; an empty list would mean no element is ever
             // treated as FF&E and the whole treatment becomes dead.
             Assert.All(cats, c => Assert.False(string.IsNullOrWhiteSpace((string)c)));
+        }
+            // ── through the real class ────────────────────────────────────────────
+
+        private static StingTools.ExLink.FohlioMap Parsed()
+        {
+            string path = Path.Combine(System.AppContext.BaseDirectory, "Data", "kut_fohlio_map.json");
+            return StingTools.ExLink.FohlioMap.Parse(File.ReadAllText(path));
+        }
+
+        [Fact]
+        public void TheShippedMapReplacesTheDefaultColumnsInsteadOfAppendingToThem()
+        {
+            // Old behaviour: DeserializeObject reused the 8 initialised default columns and
+            // appended the file's 12, so the KUT export had 20 columns with Item Tag,
+            // Manufacturer, Model and Fohlio Ref twice.
+            var fileCols = (Load()["Columns"] as JArray).Count;
+            var map = Parsed();
+            Assert.Equal(fileCols, map.Columns.Count);
+            var dupes = map.Columns.GroupBy(c => c.Header).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+            Assert.True(dupes.Count == 0, "duplicate export columns: " + string.Join(", ", dupes));
+        }
+
+        [Fact]
+        public void TheShippedCategoryListIsTheProjectsListNotTheDefaultsPlusIt()
+        {
+            var fileCats = (Load()["Categories"] as JArray).Select(t => (string)t).ToList();
+            Assert.Equal(fileCats, Parsed().Categories);
+        }
+
+        [Fact]
+        public void WithoutAProjectMapNothingIsOwnerFfe()
+        {
+            // Old behaviour: the defaults answered IsFfeCategory, so a project with no Fohlio
+            // billed plumbing fixtures, lighting, casework and specialty equipment as
+            // Owner-procured FF&E — outside OH&P and contingency.
+            var none = new StingTools.ExLink.FohlioMap();
+            Assert.False(none.IsFfeCategory("Plumbing Fixtures"));
+            Assert.False(none.IsFfeCategory("Furniture"));
+            Assert.True(Parsed().IsFfeCategory("Furniture"));
         }
     }
 }

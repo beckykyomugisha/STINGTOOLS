@@ -66,7 +66,8 @@ namespace StingTools.Commands.Kpi
         public int FfeTotal { get; set; }
         public int FfeLinked { get; set; }
         public int FfeStale { get; set; }
-        public double FfeLinkedPct => FfeTotal > 0 ? 100.0 * FfeLinked / FfeTotal : 100.0;
+        // Null when no FF&E is in scope — it used to read 100% (a green bar) over nothing.
+        public double? FfeLinkedPct => StingTools.ExLink.FohlioImportPlanner.LinkedPct(FfeTotal, FfeLinked);
         public int SpecTotal { get; set; }
         public int SpecAssigned { get; set; }
         public double SpecCoveragePct => SpecTotal > 0 ? 100.0 * SpecAssigned / SpecTotal : 0;
@@ -281,7 +282,9 @@ namespace StingTools.Commands.Kpi
                 Row(sb, "Sheet ISO 19650 compliance", $"{s.SheetCompliancePct:F1}%", Delta(s.SheetCompliancePct, prev?.SheetCompliancePct, "pp"));
                 Row(sb, "Stale elements", $"{s.Stale}", Delta(s.Stale, prev?.Stale, "", invert: true));
                 Row(sb, "Model warnings", $"{s.Warnings}", Delta(s.Warnings, prev?.Warnings, "", invert: true));
-                Row(sb, "Fohlio FF&E linked", $"{s.FfeLinkedPct:F1}% ({s.FfeLinked}/{s.FfeTotal})", Delta(s.FfeLinkedPct, prev?.FfeLinkedPct, "pp"));
+                Row(sb, "Fohlio FF&E linked",
+                    s.FfeLinkedPct.HasValue ? $"{s.FfeLinkedPct:F1}% ({s.FfeLinked}/{s.FfeTotal})" : "n/a — no FF&E in scope",
+                    s.FfeLinkedPct.HasValue ? Delta(s.FfeLinkedPct.Value, prev?.FfeLinkedPct, "pp") : "");
                 Row(sb, "FF&E stale (model ≠ Fohlio)", $"{s.FfeStale}", Delta(s.FfeStale, prev?.FfeStale, "", invert: true));
                 Row(sb, "SpecLink CSI coverage", $"{s.SpecCoveragePct:F1}% ({s.SpecAssigned}/{s.SpecTotal})", Delta(s.SpecCoveragePct, prev?.SpecCoveragePct, "pp"));
                 Row(sb, "BMS points (Niagara)", $"{s.BmsPoints} ({s.BmsNoEndpoint} no endpoint)", Delta(s.BmsPoints, prev?.BmsPoints, ""));
@@ -459,8 +462,12 @@ namespace StingTools.Commands.Kpi
             }
 
             // Owner-system coverage (Fohlio / SpecLink / Niagara)
-            b.AddSection("Owner-system coverage")
-             .RAGBar(snap.FfeLinkedPct, $"Fohlio FF&E linked {snap.FfeLinkedPct:F1}% ({snap.FfeLinked}/{snap.FfeTotal})")
+            var coverage = b.AddSection("Owner-system coverage");
+            if (snap.FfeLinkedPct is double ffePct)
+                coverage.RAGBar(ffePct, $"Fohlio FF&E linked {ffePct:F1}% ({snap.FfeLinked}/{snap.FfeTotal})");
+            else
+                coverage.Metric("Fohlio FF&E linked", "n/a", "no FF&E in the mapped categories — nothing to link");
+            coverage
              .Metric("FF&E stale (model ≠ Fohlio)", snap.FfeStale.ToString(),
                      snap.FfeTotal == 0 ? "no FF&E in mapped categories" : null)
              .RAGBar(snap.SpecCoveragePct, $"SpecLink CSI coverage {snap.SpecCoveragePct:F1}% ({snap.SpecAssigned}/{snap.SpecTotal})")
@@ -495,7 +502,8 @@ namespace StingTools.Commands.Kpi
                 R("Sheet compliance %", $"{s.SheetCompliancePct:F1}", OwnerKpiEngine.Delta(s.SheetCompliancePct, prev?.SheetCompliancePct, "pp"));
                 R("Stale elements", $"{s.Stale}", OwnerKpiEngine.Delta(s.Stale, prev?.Stale, "", invert: true));
                 R("Model warnings", $"{s.Warnings}", OwnerKpiEngine.Delta(s.Warnings, prev?.Warnings, "", invert: true));
-                R("Fohlio FF&E linked %", $"{s.FfeLinkedPct:F1}", OwnerKpiEngine.Delta(s.FfeLinkedPct, prev?.FfeLinkedPct, "pp"));
+                R("Fohlio FF&E linked %", s.FfeLinkedPct.HasValue ? $"{s.FfeLinkedPct:F1}" : "n/a",
+                  s.FfeLinkedPct.HasValue ? OwnerKpiEngine.Delta(s.FfeLinkedPct.Value, prev?.FfeLinkedPct, "pp") : "");
                 R("FF&E stale", $"{s.FfeStale}", OwnerKpiEngine.Delta(s.FfeStale, prev?.FfeStale, "", invert: true));
                 R("SpecLink CSI coverage %", $"{s.SpecCoveragePct:F1}", OwnerKpiEngine.Delta(s.SpecCoveragePct, prev?.SpecCoveragePct, "pp"));
                 R("BMS points (Niagara)", $"{s.BmsPoints}", "");

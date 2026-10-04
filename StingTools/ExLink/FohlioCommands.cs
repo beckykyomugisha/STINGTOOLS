@@ -34,6 +34,17 @@ namespace StingTools.ExLink
         }
 
         public static string Csv(string s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
+
+        /// <summary>A project fohlio_map.json that exists but cannot be read must stop the
+        /// command. Falling back to the built-in defaults silently drops the cost and currency
+        /// columns, so an import would quietly stop writing prices.</summary>
+        public static bool RefuseBrokenMap(FohlioMap map, string title)
+        {
+            if (string.IsNullOrEmpty(map?.LoadError)) return false;
+            TaskDialog.Show(title, "The project's fohlio_map.json could not be read, so nothing was done.\n\n" +
+                map.LoadError + "\n\nFix the file (or remove it to use the built-in mapping) and run again.");
+            return true;
+        }
     }
 
     [Transaction(TransactionMode.ReadOnly)]
@@ -47,6 +58,7 @@ namespace StingTools.ExLink
             Document doc = ctx.Doc;
 
             var map = FohlioMap.Load(doc);
+            if (FohlioScope.RefuseBrokenMap(map, "Fohlio Export")) return Result.Failed;
             var scope = FohlioScope.Collect(doc, map);
             if (scope.Count == 0)
             {
@@ -98,6 +110,7 @@ namespace StingTools.ExLink
             Document doc = ctx.Doc;
 
             var map = FohlioMap.Load(doc);
+            if (FohlioScope.RefuseBrokenMap(map, "Fohlio Import")) return Result.Failed;
             var dlg = new Microsoft.Win32.OpenFileDialog
             {
                 Title = "Select the Fohlio export (CSV or XLSX)",
@@ -118,14 +131,28 @@ namespace StingTools.ExLink
             try { rows = ReadRows(dlg.FileName, map); }
             catch (Exception ex) { TaskDialog.Show("Fohlio Import", $"Read failed:\n{ex.Message}"); return Result.Failed; }
 
-            // Model index by tag
+            // Match through the planner: the Fohlio ref (the link key) first, then a tag that is
+            // unique in the model and in the file. The old index was "first element with this
+            // tag wins", so a re-tag sent a row to whichever element now carried the tag, and a
+            // duplicate tag wrote to one element and reported both rows matched.
             var scope = FohlioScope.Collect(doc, map);
-            var byTag = new Dictionary<string, Element>(StringComparer.OrdinalIgnoreCase);
-            foreach (var el in scope)
-            {
-                string t = ParameterHelpers.GetString(el, "ASS_TAG_1_TXT");
-                if (!string.IsNullOrEmpty(t) && !byTag.ContainsKey(t)) byTag[t] = el;
-            }
+            var scopeById = scope.ToDictionary(e => e.Id.Value);
+            string refHeader = map.Columns.FirstOrDefault(c => string.Equals(c.Param, ParamRegistry.FOHLIO_REF, StringComparison.OrdinalIgnoreCase))?.Header
+                               ?? "Fohlio Ref";
+            var plan = FohlioImportPlanner.Match(
+                rows.Select((row, i) => new FohlioRowIdentity
+                {
+                    RowIndex = i,
+                    Key = row.TryGetValue(tagCol.Header, out var tv) ? tv : "",
+                    FohlioRef = row.TryGetValue(refHeader, out var rv) ? rv : "",
+                }),
+                scope.Select(e => new FohlioCandidate
+                {
+                    Id = e.Id.Value,
+                    Key = ParameterHelpers.GetString(e, "ASS_TAG_1_TXT"),
+                    FohlioRef = ParameterHelpers.GetString(e, ParamRegistry.FOHLIO_REF),
+                }),
+                useFohlioRef: true);
 
             var writeCols = map.Columns.Where(c => c.WriteBack && !FohlioMap.IsPseudo(c.Param)).ToList();
 
@@ -141,13 +168,16 @@ namespace StingTools.ExLink
             var changes = new List<ProposedChange>();
             var snapshots = new Dictionary<long, (string fref, Dictionary<string, string> snap)>();
             var costData = new Dictionary<long, (double cost, string cur, double qty, int lead)>();
-            int matched = 0, unmatched = 0;
+            var costChanges = new List<(Element el, double oldCost, string oldCur, double newCost, string newCur)>();
+            var costProblems = new List<string>();
+            int matched = plan.Matches.Count, unmatched = plan.Unmatched.Count;
 
-            foreach (var row in rows)
+            foreach (var m in plan.Matches)
             {
-                if (!row.TryGetValue(tagCol.Header, out string tagVal) || string.IsNullOrEmpty(tagVal)) { unmatched++; continue; }
-                if (!byTag.TryGetValue(tagVal.Trim(), out var el)) { unmatched++; continue; }
-                matched++;
+                var row = rows[m.RowIndex];
+                var el = scopeById[m.CandidateId];
+                string label = ParameterHelpers.GetString(el, "ASS_TAG_1_TXT");
+                if (string.IsNullOrEmpty(label)) label = el.Id.ToString();
 
                 var snap = new Dictionary<string, string>();
                 foreach (var c in writeCols)
@@ -159,90 +189,124 @@ namespace StingTools.ExLink
                     if (!string.Equals(old, newVal, StringComparison.Ordinal) && newVal.Length > 0)
                         changes.Add(new ProposedChange { El = el, Param = c.Param, Header = c.Header, Old = old, New = newVal });
                 }
-                row.TryGetValue("Fohlio Ref", out string fref);
+                row.TryGetValue(refHeader, out string fref);
                 snapshots[el.Id.Value] = (snap.TryGetValue(ParamRegistry.FOHLIO_REF, out var fr) ? fr : (fref ?? ""), snap);
 
-                // Procurement cost (optional columns)
-                double cost = ParseNum(costHeader, row);
-                string cur = (curHeader != null && row.TryGetValue(curHeader, out string cv)) ? (cv ?? "").Trim() : "";
+                // Procurement cost. A price that cannot be read, or that names no currency, is
+                // reported and NOT written: it used to become 0 (dropped) or be priced as USD.
+                double cost = 0;
+                string cellCur = null;
+                string costRaw = costHeader != null && row.TryGetValue(costHeader, out string crw) ? (crw ?? "").Trim() : "";
+                if (costRaw.Length > 0 && !FohlioMoney.TryParseCost(costRaw, out cost, out cellCur))
+                {
+                    costProblems.Add($"{label}: price '{costRaw}' could not be read");
+                    cost = 0;
+                }
+                string curRaw = curHeader != null && row.TryGetValue(curHeader, out string cv) ? (cv ?? "").Trim() : "";
+                string cur = FohlioMoney.NormalizeCurrency(curRaw) ?? cellCur;
+                if (cost > 0 && cur == null)
+                {
+                    costProblems.Add($"{label}: price {costRaw} has no recognisable currency ('{curRaw}')");
+                    cost = 0;
+                }
                 double qty = ParseNum(qtyHeader, row);
                 int lead = (int)ParseNum(leadHeader, row);
-                costData[el.Id.Value] = (cost, cur, qty, lead);
+                costData[el.Id.Value] = (cost, cur ?? "", qty, lead);
+
+                if (cost > 0)
+                {
+                    double oldCost = el.LookupParameter(ParamRegistry.FOHLIO_UNIT_COST)?.AsDouble() ?? 0;
+                    string oldCur = ParameterHelpers.GetString(el, ParamRegistry.FOHLIO_CURRENCY);
+                    if (Math.Abs(oldCost - cost) > 1e-9 || !string.Equals(oldCur, cur, StringComparison.OrdinalIgnoreCase))
+                        costChanges.Add((el, oldCost, oldCur, cost, cur));
+                }
             }
 
-            bool anyCost = costData.Values.Any(c => c.cost > 0);
-            if (changes.Count == 0 && !anyCost)
+            string unmatchedText = FohlioImportPlanner.DescribeUnmatched(plan, "FF&E");
+            string problemText = costProblems.Count == 0 ? "" :
+                "\n\nPrices NOT written (" + costProblems.Count + "):\n" +
+                string.Join("\n", costProblems.Take(10).Select(x => "  " + x)) +
+                (costProblems.Count > 10 ? $"\n  … +{costProblems.Count - 10} more (see the log)" : "");
+            foreach (var x in costProblems) StingLog.Warn("Fohlio_Import: " + x);
+
+            if (changes.Count == 0 && costChanges.Count == 0)
             {
                 TaskDialog.Show("Fohlio Import",
-                    $"Matched {matched} row(s), {unmatched} unmatched. No field or cost changes to write.");
+                    $"Matched {matched} row(s), {unmatched} unmatched. No field or cost changes to write." +
+                    unmatchedText + problemText);
                 return Result.Succeeded;
             }
 
-            // Preview / diff before any write. Skipped when only cost (no text field
-            // changes) is being imported — cost is numeric, not a text diff.
-            bool overwrite = true;
-            if (changes.Count > 0)
-            {
-                var preview = new StringBuilder();
-                preview.AppendLine($"Matched {matched} row(s) by Item Tag — {unmatched} unmatched.");
-                preview.AppendLine($"{changes.Count} field change(s) proposed across {changes.Select(c => c.El.Id.Value).Distinct().Count()} element(s).");
-                if (anyCost) preview.AppendLine($"Procurement cost on {costData.Values.Count(c => c.cost > 0)} item(s) will also be written.");
-                preview.AppendLine();
-                foreach (var c in changes.Take(15))
-                    preview.AppendLine($"  {c.El.Id} {c.Header}: '{c.Old}' → '{c.New}'");
-                if (changes.Count > 15) preview.AppendLine($"  … +{changes.Count - 15} more");
+            // Preview before ANY write, cost included. It used to be skipped when only prices
+            // changed, and cost changes were shown only as a count.
+            var preview = new StringBuilder();
+            preview.AppendLine($"Matched {matched} row(s) — {unmatched} unmatched.");
+            preview.AppendLine($"{changes.Count} field change(s) across {changes.Select(c => c.El.Id.Value).Distinct().Count()} element(s); " +
+                               $"{costChanges.Count} price change(s).");
+            preview.AppendLine();
+            foreach (var c in changes.Take(12))
+                preview.AppendLine($"  {c.El.Id} {c.Header}: '{c.Old}' → '{c.New}'");
+            if (changes.Count > 12) preview.AppendLine($"  … +{changes.Count - 12} more");
+            foreach (var c in costChanges.Take(8))
+                preview.AppendLine($"  {c.el.Id} Unit cost: {(c.oldCost > 0 ? $"{c.oldCost:N2} {c.oldCur}" : "(none)")} → {c.newCost:N2} {c.newCur}");
+            if (costChanges.Count > 8) preview.AppendLine($"  … +{costChanges.Count - 8} more price(s)");
+            preview.Append(unmatchedText);
+            preview.Append(problemText);
 
-                var confirm = new TaskDialog("Fohlio Import — preview")
-                {
-                    MainInstruction = "Review before writing to the model",
-                    MainContent = preview.ToString(),
-                    CommonButtons = TaskDialogCommonButtons.Cancel,
-                    AllowCancellation = true
-                };
-                confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Apply — fill empty only", "Write only where the model value is currently blank");
-                confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Apply — overwrite", "Overwrite existing model values with the Fohlio values");
-                var choice = confirm.Show();
-                if (choice == TaskDialogResult.Cancel) return Result.Cancelled;
-                overwrite = choice == TaskDialogResult.CommandLink2;
-            }
+            var confirm = new TaskDialog("Fohlio Import — preview")
+            {
+                MainInstruction = "Review before writing to the model",
+                MainContent = preview.ToString(),
+                CommonButtons = TaskDialogCommonButtons.Cancel,
+                AllowCancellation = true
+            };
+            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Apply — fill empty only",
+                "Write only where the model value is currently blank (prices too)");
+            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Apply — overwrite",
+                "Overwrite existing model values and prices with the Fohlio values");
+            var choice = confirm.Show();
+            if (choice == TaskDialogResult.Cancel) return Result.Cancelled;
+            bool overwrite = choice == TaskDialogResult.CommandLink2;
 
             string fxDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
-            int written = 0, costWritten = 0;
+            int written = 0, costWritten = 0, snapshotsStored = 0, skippedNotEditable = 0;
             using (var t = new Transaction(doc, "STING Fohlio Import"))
             {
                 t.Start();
                 foreach (var c in changes)
                 {
-                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, c.El)) continue;
+                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, c.El)) { skippedNotEditable++; continue; }
                     bool ok = overwrite
                         ? ParameterHelpers.SetString(c.El, c.Param, c.New, overwrite: true)
                         : ParameterHelpers.SetIfEmpty(c.El, c.Param, c.New);
                     if (ok) written++;
                 }
-                // Procurement cost — numeric unit cost + quote currency + FX-fixing
-                // date (decision #3, auditable at tender). Always overwrite (a fresh
-                // Fohlio export is authoritative for the price).
-                foreach (var kv in costData)
+                // Procurement cost — the user's fill-empty / overwrite choice applies to prices
+                // too. The FX-fixing date is stamped only when a price or currency actually
+                // changed: re-stamping it on every import moved the date a QS defends at tender.
+                foreach (var c in costChanges)
                 {
-                    if (kv.Value.cost <= 0) continue;
-                    var el = doc.GetElement(new ElementId(kv.Key));
-                    if (el == null || !TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
-                    if (ParameterHelpers.SetDouble(el, ParamRegistry.FOHLIO_UNIT_COST, kv.Value.cost, overwrite: true))
-                        costWritten++;
-                    if (!string.IsNullOrEmpty(kv.Value.cur))
-                        ParameterHelpers.SetString(el, ParamRegistry.FOHLIO_CURRENCY, kv.Value.cur, overwrite: true);
-                    ParameterHelpers.SetString(el, ParamRegistry.CST_FX_DATE_DT, fxDate, overwrite: true);
+                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, c.el)) { skippedNotEditable++; continue; }
+                    if (!overwrite && c.oldCost > 0) continue;
+                    if (!ParameterHelpers.SetDouble(c.el, ParamRegistry.FOHLIO_UNIT_COST, c.newCost, overwrite: true)) continue;
+                    costWritten++;
+                    ParameterHelpers.SetString(c.el, ParamRegistry.FOHLIO_CURRENCY, c.newCur, overwrite: true);
+                    ParameterHelpers.SetString(c.el, ParamRegistry.CST_FX_DATE_DT, fxDate, overwrite: true);
                 }
-                // Snapshot every matched element (for the staleness + cost audit), even
-                // those with no change. Carries the cost fields for the rate fallback.
+                // Snapshot what the model now HOLDS, not what the file said — under fill-empty the
+                // two differ, and recording the file value made the element read stale forever.
+                // Elements another user owns are skipped: writing their entity can fail the
+                // whole commit in a workshared model.
                 foreach (var kv in snapshots)
                 {
                     var el = doc.GetElement(new ElementId(kv.Key));
                     if (el == null) continue;
+                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
+                    var held = kv.Value.snap.Keys.ToDictionary(k => k, k => ParameterHelpers.GetString(el, k));
                     costData.TryGetValue(kv.Key, out var cd);
-                    StingFohlioSnapshotSchema.Write(el, kv.Value.fref,
-                        JsonConvert.SerializeObject(kv.Value.snap), DateTime.UtcNow,
-                        cd.cost, cd.cur, cd.qty, cd.lead);
+                    if (StingFohlioSnapshotSchema.Write(el, kv.Value.fref, JsonConvert.SerializeObject(held), DateTime.UtcNow,
+                            cd.cost, cd.cur, cd.qty, cd.lead))
+                        snapshotsStored++;
                 }
                 t.Commit();
             }
@@ -250,13 +314,14 @@ namespace StingTools.ExLink
             new TaskDialog("Fohlio Import")
             {
                 MainInstruction = $"Wrote {written} field value(s) + {costWritten} cost(s)",
-                MainContent = $"Matched: {matched}\nUnmatched: {unmatched}\nSnapshots stored: {snapshots.Count}\n" +
+                MainContent = $"Matched: {matched}\nUnmatched: {unmatched}\nSnapshots stored: {snapshotsStored} of {snapshots.Count}\n" +
+                              (skippedNotEditable > 0 ? $"Not written — owned by another user: {skippedNotEditable}\n" : "") +
                               $"Procurement costs written: {costWritten}\n\n" +
                               "FOHLIO_REF_TXT links each item to Fohlio; FOHLIO_UNIT_COST_NR feeds the BOQ " +
                               "(FohlioRateProvider), and ASS_CST_FX_DATE_DT records the FX-fixing date, which the " +
                               "BOQ Item Schedule reports beside the converted rate."
             }.Show();
-            StingLog.Info($"Fohlio_Import: matched={matched} wrote={written} costs={costWritten} snapshots={snapshots.Count}");
+            StingLog.Info($"Fohlio_Import: matched={matched} wrote={written} costs={costWritten} snapshots={snapshotsStored}/{snapshots.Count} notEditable={skippedNotEditable}");
             return Result.Succeeded;
         }
 
@@ -323,7 +388,16 @@ namespace StingTools.ExLink
             Document doc = ctx.Doc;
 
             var map = FohlioMap.Load(doc);
+            if (FohlioScope.RefuseBrokenMap(map, "Fohlio Audit")) return Result.Failed;
             var scope = FohlioScope.Collect(doc, map);
+            if (scope.Count == 0)
+            {
+                // Not "100% linked": nothing was examined. Usually a wrong category list, a bad
+                // map or a model without FF&E.
+                TaskDialog.Show("Fohlio Audit", "NO FF&E IN SCOPE — nothing was audited.\n\n" +
+                    $"Mapped categories: {string.Join(", ", map.Categories)}");
+                return Result.Succeeded;
+            }
             var writeParams = map.Columns.Where(c => c.WriteBack && !FohlioMap.IsPseudo(c.Param)).Select(c => c.Param).ToList();
 
             int total = scope.Count, missingRef = 0, stale = 0, current = 0, neverImported = 0;
