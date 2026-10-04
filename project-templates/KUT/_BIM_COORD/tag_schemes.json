@@ -17,7 +17,7 @@
           "kind": "token",
           "token": "LOC",
           "map": { "BLD1": "01", "BLD2": "02", "BLD3": "03", "BLD4": "04", "BLD5": "05", "BLD6": "06", "EXT": "00" },
-          "fallback": "00"
+          "fallback": "XX"
         },
         { "kind": "token", "token": "LVL" },
         { "kind": "token", "token": "DISC" },
