@@ -66,6 +66,36 @@ namespace StingTools.Tags.Tests
             Assert.True(hits.Count == 0, "Culture-dependent number written:\n" + string.Join("\n", hits));
         }
 
+        /// <summary>
+        /// Commands that write engineering values and then print how many they wrote must
+        /// look at Transaction.Commit(): a rolled-back run printed "Stamped N" with nothing
+        /// in the model. The other electrical commands are ROADMAP ELEC-28.
+        /// </summary>
+        [Theory]
+        [InlineData("Commands/Panels/PanelComplianceAndBalanceCommands.cs", "STING Circuit Compliance Check")]
+        [InlineData("Commands/Electrical/FaultCurrent/FaultCurrentCommand.cs", "STING Stamp Fault Levels")]
+        [InlineData("Commands/Electrical/FaultCurrent/FaultCurrentCommand.cs", "STING Stamp AIC Tiers")]
+        [InlineData("Commands/Electrical/ElectricalPanelCommands.cs", "STING Electrical Param Sync")]
+        [InlineData("Commands/Electrical/FeederSizing/FeederSizerCommand.cs", "STING Size Feeders")]
+        [InlineData("Commands/Electrical/VoltageDrop/VoltageDropCommand.cs", "STING Stamp Voltage Drop")]
+        [InlineData("Commands/Panels/PanelScheduleExcelCommands.cs", "STING Import Panel Schedules")]
+        [InlineData("Commands/Panels/PanelTemplateCommands.cs", "STING Panel Schedule Templates")]
+        [InlineData("Core/Panels/PanelScheduleApplyEngine.cs", "STING Batch Panel Schedules")]
+        [InlineData("Core/Electrical/CableSizerApplyEngine.cs", "STING Cable Sizing")]
+        [InlineData("Commands/Electrical/Import/AmtechImportCommand.cs", "STING Amtech Import")]
+        [InlineData("Commands/Electrical/Import/EasyPowerImportCommand.cs", "STING EasyPower Import")]
+        [InlineData("Commands/Electrical/Import/TrimbleImportCommand.cs", "STING Trimble Import")]
+        public void Reporting_commands_check_the_commit_status(string file, string transactionName)
+        {
+            string src = File.ReadAllText(Path.Combine(Root(), "StingTools", file.Replace('/', Path.DirectorySeparatorChar)));
+            var decl = new Regex(@"var\s+(\w+)\s*=\s*new\s+Transaction\(\s*\w+\s*,\s*""" + Regex.Escape(transactionName) + @"""").Match(src);
+            Assert.True(decl.Success, $"transaction '{transactionName}' not found in {file}");
+            // This transaction's own Commit() (not a SubTransaction's) is the first after it.
+            var m = new Regex(@"(\w+\s*=\s*)?\b" + decl.Groups[1].Value + @"\.Commit\(\)\s*;").Match(src, decl.Index);
+            Assert.True(m.Success, "no Commit() after the transaction");
+            Assert.True(m.Groups[1].Success, $"{file}: '{transactionName}' commits without reading the status: {m.Value}");
+        }
+
         /// <summary>A TEXT conductor size read through GetDouble: "2,5" became 25 mm².</summary>
         [Fact]
         public void Text_conductor_sizes_are_not_read_with_GetDouble()

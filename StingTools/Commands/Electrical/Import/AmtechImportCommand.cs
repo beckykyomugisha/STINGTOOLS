@@ -43,6 +43,8 @@ namespace StingTools.Commands.Electrical.Import
                 var warnings = new List<string>();
                 var byTypeMatches = new List<string>();
 
+                TransactionStatus importStatus;
+
                 using (var tx = new Transaction(doc, "STING Amtech Import"))
                 {
                     tx.Start();
@@ -78,10 +80,13 @@ namespace StingTools.Commands.Electrical.Import
                         }
                         circuitWrites += StampCircuits(doc, rec, warnings, ref failedWrites);
                     }
-                    tx.Commit();
+                    importStatus = tx.Commit();
                 }
 
-                string report = $"Records: {records.Count}  Stamped: {stamped}  Unmatched: {notFound}" +
+                // A rolled-back import kept nothing: never print its write counts as stamped.
+                bool importKept = importStatus == TransactionStatus.Committed;
+                string report = (importKept ? "" : StingTools.Core.Electrical.ElecWriteReport.Landed("records stamped", stamped, false, importStatus.ToString()) + "\nThe counts below were made and then undone.\n\n") +
+                                $"Records: {records.Count}  Stamped: {stamped}  Unmatched: {notFound}" +
                                 $"\nPanels matched but nothing written: {nothingWritten}" +
                                 $"\nCircuit values written: {circuitWrites}  Failed writes: {failedWrites}";
                 if (byTypeMatches.Count > 0)
@@ -97,7 +102,7 @@ namespace StingTools.Commands.Electrical.Import
                 if (warnings.Count > 0)
                     report += "\n\nWarnings:\n" + string.Join("\n", warnings.Take(10));
                 TaskDialog.Show("Amtech Import", report);
-                return Result.Succeeded;
+                return importKept ? Result.Succeeded : Result.Failed;
             }
             catch (Exception ex)
             {

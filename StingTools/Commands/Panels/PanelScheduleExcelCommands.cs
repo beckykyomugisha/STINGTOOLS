@@ -368,6 +368,7 @@ namespace StingTools.Commands.Panels
             // Diff" is for. Counts alone cannot tell the user WHAT changed.
             var cellChanges = new List<string>();
 
+            TransactionStatus importStatus;
             using (var tx = new Transaction(doc, "STING Import Panel Schedules"))
             {
                 tx.Start();
@@ -517,7 +518,16 @@ namespace StingTools.Commands.Panels
                         cellsBlankPreserved += blankPreserved;
                     }
                 }
-                tx.Commit();
+                importStatus = tx.Commit();
+            }
+            // A rolled-back import kept no cell: say so, and count none as written.
+            bool importKept = importStatus == TransactionStatus.Committed;
+            if (!importKept)
+            {
+                failures.Insert(0, StingTools.Core.Electrical.ElecWriteReport.Landed("cells written", cellsWritten, false, importStatus.ToString()));
+                cellsWritten = 0;
+                cellChanges.Clear();
+                loadDeltas.Clear();
             }
 
             try { ActionAuditLog.Record("PanelScheduleImport",
@@ -528,7 +538,7 @@ namespace StingTools.Commands.Panels
             panel.SetSubtitle($"{sheetsProcessed} schedules · {cellsWritten} cells written · {cellsRejected} rejected");
             panel.AddSection("SUMMARY")
                  .Metric("Worksheets processed", sheetsProcessed.ToString())
-                 .MetricHighlight("Cells written", cellsWritten.ToString())
+                 .MetricHighlight("Cells written", cellsWritten.ToString(), importKept ? null : "ROLLED BACK — nothing was kept")
                  .MetricWarn("Cells rejected (read-only)", cellsRejected.ToString())
                  .MetricWarn("Empty-cell guard preserved Revit data", cellsBlankPreserved.ToString())
                  .Metric("Computed columns not imported", computedProtected.ToString(), "BS 7671 check is written only by PNLS ✅")

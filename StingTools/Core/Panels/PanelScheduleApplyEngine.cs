@@ -234,7 +234,15 @@ namespace StingTools.Core.Panels
                     catch (Exception ex) { result.Errors.Add($"existing {panel?.Id?.Value}: {ex.Message}"); }
                 }
 
-                tx.Commit();
+                var status = tx.Commit();
+                if (status != TransactionStatus.Committed)
+                {
+                    // Every schedule and stamp above was undone.
+                    result.Errors.Insert(0, StingTools.Core.Electrical.ElecWriteReport.Landed(
+                        "schedules created", result.Created, false, status.ToString()));
+                    result.Failed += result.Created;
+                    result.Created = result.DrawingTypeStamped = result.ParamsStamped = result.CircuitRefsStamped = 0;
+                }
             }
 
             try

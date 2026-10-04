@@ -91,8 +91,9 @@ namespace StingTools.Commands.Electrical.FeederSizing
                 StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables(doc));
             LastResults = results;
 
-            int written = 0, vdFails = 0, notSized = 0, onDefaults = 0;
+            int written = 0, vdFails = 0, notSized = 0, onDefaults = 0, notFound = 0, refused = 0;
             var notSizedLines = new List<string>();
+            TransactionStatus status;
             using (var tx = new Transaction(doc, "STING Size Feeders"))
             {
                 tx.Start();
@@ -110,8 +111,14 @@ namespace StingTools.Commands.Electrical.FeederSizing
                     try
                     {
                         var panel = FindPanelByName(doc, r.PanelName);
-                        if (panel == null) continue;
-                        ParameterHelpers.SetString(panel, ParamRegistry.ELC_FEEDER_CSA,
+                        if (panel == null)
+                        {
+                            notFound++;
+                            if (notSizedLines.Count < 8) notSizedLines.Add($"  {r.PanelName}: board not found by Panel Name — nothing stamped");
+                            continue;
+                        }
+                        // Counted as stamped only when the size landed (unbound = not stamped).
+                        bool csaOk = ParameterHelpers.SetString(panel, ParamRegistry.ELC_FEEDER_CSA,
                             (r.ProposedCsaMm2).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                         ParameterHelpers.SetString(panel, ParamRegistry.ELC_FEEDER_RATING_A,
                             (r.ProposedRatingA).ToString("0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
@@ -120,29 +127,31 @@ namespace StingTools.Commands.Electrical.FeederSizing
                         StingTools.Core.Electrical.CircuitVoltageDropModel.StampForeign(panel, r.ActualVDPct,
                             $"{(nec ? StingTools.Core.Electrical.CircuitVoltageDrop.CodeR60228 : StingTools.Core.Electrical.CircuitVoltageDrop.CodeA4Sized)} " +
                             $"feeder {r.CsaLabel} from the feeder sizer; {r.Basis}");
-                        written++;
+                        if (csaOk) written++; else refused++;
                         if (!r.VDCompliant) vdFails++;
                     }
-                    catch (Exception ex) { StingLog.Warn($"Feeder write: {ex.Message}"); }
+                    catch (Exception ex) { refused++; StingLog.Warn($"Feeder write: {ex.Message}"); }
                 }
-                tx.Commit();
+                status = tx.Commit();
             }
+            bool kept = status == TransactionStatus.Committed;
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             var defaults = results.SelectMany(r => r.DefaultsUsed.Select(d => $"{r.PanelName}: {d}")).Take(8).ToList();
             StingLog.Info($"FeederSizer: {results.Count} feeder(s), stamped {written}, not sized {notSized}, " +
                           $"on defaults {onDefaults}, VD fails {vdFails}.");
             PresetDialog.Show("STING Feeders",
                 $"Standard:{(nec ? "NEC 2023 (Table 310.16; derate not applied; voltage drop is advisory)" : "BS 7671 Appendix 4")}.\n" +
-                $"Feeders: {results.Count}. Stamped {written}. Not sized: {notSized}. VD exceedances: {vdFails}.\n" +
+                $"Feeders: {results.Count}. {StingTools.Core.Electrical.ElecWriteReport.Landed("stamped", written, kept, status.ToString())} Not sized: {notSized}. VD exceedances: {vdFails}.\n" +
+                (notFound + refused > 0 ? $"Not stamped: {notFound} board(s) not found, {refused} refused the write ({ParamRegistry.ELC_FEEDER_CSA} unbound? run Load Params).\n" : "") +
                 $"VD limit: {settings.VDLimitPct:0.##} % " +
                 (settings.VDLimitUserSet ? "(user-set for feeders)" : nec ? "(NEC 215.2(A)(1) Informational Note, advisory)" : "(BS 7671 Appendix 12 'other' limit)") +
                 $". Diversity: {(settings.DiversityPct > 0 ? settings.DiversityPct : 100):0.#} %.\n" +
-                (notSized > 0 ? "\nNot sized:\n" + string.Join("\n", notSizedLines) + "\n" : "") +
+                (notSized + notFound > 0 ? "\nNot sized:\n" + string.Join("\n", notSizedLines) + "\n" : "") +
                 (onDefaults > 0
                     ? $"\n{onDefaults} feeder(s) used DEFAULT inputs (not model data) — check before issue:\n" +
                       string.Join("\n", defaults.Select(d => "  " + d))
                     : ""), ref message);
-            return Result.Succeeded;
+            return kept ? Result.Succeeded : Result.Failed;
         }
 
         /// <summary>The circuit that FEEDS a panel: one of its electrical systems whose base
