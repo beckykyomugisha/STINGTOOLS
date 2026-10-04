@@ -125,10 +125,12 @@ namespace StingTools.Tags.Tests
         [InlineData("Commands/Electrical/CircuitWizard/CircuitWizardCommand.cs")]
         [InlineData("UI/CircuitWizardDialog.xaml.cs")]
         [InlineData("Core/SLD/SLDCircuitTraverser.cs")]
+        [InlineData("Commands/Electrical/CircuitViewFilterCommand.cs")]
+        [InlineData("Commands/Electrical/Import/ElecCalcSeedCommand.cs")]
         public void Boards_are_not_matched_or_labelled_by_their_type_name(string file)
         {
             string src = File.ReadAllText(Path.Combine(Root(), "StingTools", file.Replace('/', Path.DirectorySeparatorChar)));
-            var bad = new Regex(@"Equals\(\s*p\.Name\s*,|\bp\.Name\s*==|Select\(\s*p\s*=>\s*p\.Name\s*\)|Items\.Add\(\s*p\.Name|Label\s*=\s*fi\.Name\b");
+            var bad = new Regex(@"Equals\(\s*p\.Name\s*,|\bp\.Name\s*==|Select\(\s*p\s*=>\s*p\.Name\s*\)|Items\.Add\(\s*p\.Name|Label\s*=\s*fi\.Name\b|return\s+es\.BaseEquipment\?\.Name|pnl\s*=\s*es\.BaseEquipment|Panel\s*=\s*sys\.BaseEquipment\?\.Name");
             var hits = src.Split('\n').Select((l, i) => (l, i)).Where(x => bad.IsMatch(x.l))
                           .Select(x => $"{file}:{x.i + 1}: {x.l.Trim()}").ToList();
             Assert.True(hits.Count == 0, string.Join("\n", hits));

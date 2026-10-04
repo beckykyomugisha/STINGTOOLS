@@ -199,7 +199,7 @@ namespace StingTools.Commands.Electrical.Routing
                 r.CableLines.Add(new CableBomLine
                 {
                     Description = $"{ex.CoreCount}c × {ex.CsaMm2:F1} mm² {ex.ConductorMaterial} {ex.InsulationType}",
-                    Sku         = $"CABLE_{ex.ConductorMaterial}_{ex.CoreCount}C_{ex.CsaMm2:F1}_{ex.InsulationType}",
+                    Sku         = $"CABLE_{ex.ConductorMaterial}_{ex.CoreCount}C_{ex.CsaMm2.ToString("F1", CultureInfo.InvariantCulture)}_{ex.InsulationType}",   // invariant: one SKU per cable on any machine
                     TotalLengthM  = Math.Round(lengthM, 1),
                     TotalWeightKg = Math.Round(weightKg, 1),
                     InstanceCount = instances,
