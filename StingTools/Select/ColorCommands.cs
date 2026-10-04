@@ -510,9 +510,10 @@ namespace StingTools.Select
                 {
                     ltx.Start();
                     var legendView = Tags.LegendBuilder.CreateLegendView(doc, legendEntries, legendConfig);
-                    StingTx.Commit(ltx);
-
-                    if (legendView != null)
+                    // The colours are already committed; a rolled-back legend must not fail the command.
+                    if (!StingTx.TryCommit(ltx, null, out string legendWhy))
+                        TaskDialog.Show("Legend Not Created", $"The elements were coloured, but the legend was not created.\n\n{legendWhy}");
+                    else if (legendView != null)
                         TaskDialog.Show("Legend Created", $"Legend view: '{legendView.Name}'\nPlace on a sheet for documentation.");
                 }
             }

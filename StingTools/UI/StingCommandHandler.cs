@@ -173,6 +173,14 @@ namespace StingTools.UI
                     if (CommandRegistry.Instance.TryHandle(tag, app))
                         return;
                 }
+                catch (StingTools.Core.TransactionRolledBackException rbEx)
+                {
+                    // The module ran and Revit undid its work: say so and stop. Falling back
+                    // to the switch would log it silently and could run the command again.
+                    StingLog.Warn($"CommandRegistry tag '{tag}': {rbEx.Message}");
+                    TaskDialog.Show("STING Tools", rbEx.Message);
+                    return;
+                }
                 catch (Exception regEx)
                 {
                     StingLog.Warn($"CommandRegistry tag '{tag}' threw, falling back to switch: {regEx.Message}");
@@ -2410,6 +2418,8 @@ namespace StingTools.UI
                             catch (Exception exA)
                             {
                                 Core.StingLog.Warn($"Acoustic txn fallback: {exA.Message}");
+                                // No transaction is open on this path, so nothing is written.
+                                aaRolledBack = $"ACO_RW_DB NOT stamped — the analysis failed inside its transaction ({exA.Message}) and was re-run read-only.";
                                 results = Model.AcousticAnalysisOrchestrator.AnalyseModel(aaDoc);
                             }
                             int fails = results.Count(r => !r.Pass);
@@ -4479,9 +4489,16 @@ namespace StingTools.UI
 
                 StingLog.Info($"Sheet Manager live op '{operation}' completed.");
             }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+            {
+                // User cancelled — silent
+            }
             catch (Exception ex)
             {
                 StingLog.Warn($"Sheet Manager live op '{tag}' failed: {ex.Message}");
+                // An operation that throws (e.g. a rolled-back commit) has not reported
+                // itself; a log line alone would leave the user believing it worked.
+                TaskDialog.Show("Sheet Manager", $"Operation failed: {ex.Message}");
             }
             finally
             {

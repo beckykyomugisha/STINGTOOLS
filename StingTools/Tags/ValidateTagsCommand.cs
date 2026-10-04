@@ -747,7 +747,9 @@ namespace StingTools.Tags
                             Footer = "STING Tools — ISO 19650 Validation",
                         };
                         LegendBuilder.CreateLegendView(doc, legendEntries, legendConfig);
-                        StingTx.Commit(ltx);
+                        // The validation report has been shown; a rolled-back legend must not fail the command.
+                        if (!StingTx.TryCommit(ltx, null, out string legendWhy))
+                            TaskDialog.Show("Legend Not Created", $"The validation legend was not created.\n\n{legendWhy}");
                     }
                 }
             }

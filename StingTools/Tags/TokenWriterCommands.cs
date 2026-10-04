@@ -248,7 +248,14 @@ namespace StingTools.Tags
                                     ParameterHelpers.SetString(el, ParamRegistry.FUNC, newFunc, overwrite: true);
                                 updated++;
                             }
-                            StingTx.Commit(tx);
+                            // DISC is already committed; a rolled-back follow-up must be reported, not
+                            // swallowed by the catch below (which only logs).
+                            if (!StingTx.TryCommit(tx, null, out string sysWhy))
+                            {
+                                TaskDialog.Show("STING — Update SYS/FUNC",
+                                    $"The discipline was set, but SYS/FUNC were not updated.\n\n{sysWhy}");
+                                return result;
+                            }
                             StingLog.Info($"SetDisc: updated SYS/FUNC on {updated} elements");
                             // TAG-M-02: Invalidate caches after SYS/FUNC downstream commit so the
                             // compliance dashboard and auto-tagger see the updated tokens immediately.
@@ -663,7 +670,9 @@ namespace StingTools.Tags
                             Footer = "STING Tools — ISO 19650 Completeness Dashboard",
                         };
                         LegendBuilder.CreateLegendView(doc, legendEntries, legendConfig);
-                        StingTx.Commit(ltx);
+                        // The dashboard has been shown; a rolled-back legend must not fail the command.
+                        if (!StingTx.TryCommit(ltx, null, out string legendWhy))
+                            TaskDialog.Show("Legend Not Created", $"The compliance legend was not created.\n\n{legendWhy}");
                     }
                 }
             }

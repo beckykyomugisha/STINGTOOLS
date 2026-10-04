@@ -2772,6 +2772,9 @@ namespace StingTools.Tags
             int skipped = 0;
             var legendProgress = StingProgressDialog.Show("Place Legend on Sheets", sheets.Count);
 
+            // try/finally: a rolled-back commit throws, and the progress window must still close.
+            try
+            {
             using (Transaction tx = new Transaction(doc, "STING Place Legend on All Sheets"))
             {
                 tx.Start();
@@ -2793,7 +2796,11 @@ namespace StingTools.Tags
 
                 if (legendProgress.IsCancelled) tx.RollBack(); else StingTx.Commit(tx);
             }
+            }
+            finally
+            {
             try { legendProgress.Close(); } catch (Exception ex) { StingLog.Warn($"Legend progress close: {ex.Message}"); }
+            }
 
             TaskDialog.Show("Place Legend on All Sheets",
                 $"Placed '{selectedLegend.Name}' on {placed} sheets.\n" +
@@ -2870,6 +2877,9 @@ namespace StingTools.Tags
             int sheetIdx = 0;
             var bscProgress = StingProgressDialog.Show("Batch Sheet Legends", sheets.Count);
 
+            // try/finally: a rolled-back commit throws, and the progress window must still close.
+            try
+            {
             using (Transaction tx = new Transaction(doc, "STING Batch Sheet Context Legends"))
             {
                 tx.Start();
@@ -2915,7 +2925,11 @@ namespace StingTools.Tags
 
                 if (cancelled) tx.RollBack(); else StingTx.Commit(tx);
             }
+            }
+            finally
+            {
             try { bscProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchSheetLegends progress close: {ex.Message}"); }
+            }
 
             string legendMsg = cancelled ? $"CANCELLED — created {created} of {sheets.Count} legends.\n" :
                 $"Created {created} sheet-specific legends.\n";
@@ -7263,6 +7277,9 @@ namespace StingTools.Tags
             int tmplIdx = 0;
             var btlProgress = StingProgressDialog.Show("Batch Template Legends", templates.Count);
 
+            // try/finally: a rolled-back commit throws, and the progress window must still close.
+            try
+            {
             using (Transaction tx = new Transaction(doc, "STING Batch Template Legends"))
             {
                 tx.Start();
@@ -7322,7 +7339,11 @@ namespace StingTools.Tags
 
                 if (cancelled) tx.RollBack(); else StingTx.Commit(tx);
             }
+            }
+            finally
+            {
             try { btlProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchTemplateLegends progress close: {ex.Message}"); }
+            }
 
             string btlMsg = cancelled ? $"CANCELLED — created {created} of {templates.Count} template legends.\n" :
                 $"Created {created} template legends.\n";

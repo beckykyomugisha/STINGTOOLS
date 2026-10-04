@@ -1063,9 +1063,10 @@ namespace StingTools.Organise
                 {
                     ltx.Start();
                     var legendView = Tags.LegendBuilder.CreateLegendView(doc, entries, config);
-                    StingTx.Commit(ltx);
-
-                    if (legendView != null)
+                    // The highlight is already committed; a rolled-back legend must not fail the command.
+                    if (!StingTx.TryCommit(ltx, null, out string legendWhy))
+                        TaskDialog.Show("Legend Not Created", $"The highlight overrides were applied, but the legend was not created.\n\n{legendWhy}");
+                    else if (legendView != null)
                         TaskDialog.Show("Legend Created", $"Legend view: '{legendView.Name}'\nPlace on a sheet for documentation.");
                 }
             }
@@ -1769,9 +1770,10 @@ namespace StingTools.Organise
                 {
                     ltx.Start();
                     var legendView = Tags.LegendBuilder.CreateLegendView(doc, entries, config);
-                    StingTx.Commit(ltx);
-
-                    if (legendView != null)
+                    // The tag colours are already committed; a rolled-back legend must not fail the command.
+                    if (!StingTx.TryCommit(ltx, null, out string legendWhy))
+                        TaskDialog.Show("Legend Not Created", $"The tags were coloured, but the legend was not created.\n\n{legendWhy}");
+                    else if (legendView != null)
                         TaskDialog.Show("Legend Created", $"Legend view: '{legendView.Name}'\nPlace on a sheet for documentation.");
                 }
             }

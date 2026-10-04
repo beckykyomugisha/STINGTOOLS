@@ -1852,6 +1852,9 @@ namespace StingTools.Tags
             var distribution = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
             var batchStyleProgress = StingProgressDialog.Show("Batch Param-Driven Styles", allElements.Count);
+            // try/finally: a rolled-back commit throws, and the progress window must still close.
+            try
+            {
             using (Transaction tx = new Transaction(doc, "STING Batch Param-Driven Styles"))
             {
                 tx.Start();
@@ -1889,7 +1892,11 @@ namespace StingTools.Tags
 
                 if (batchStyleProgress.IsCancelled) tx.RollBack(); else StingTx.Commit(tx);
             }
+            }
+            finally
+            {
             try { batchStyleProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchStyle progress close: {ex.Message}"); }
+            }
 
             TaskDialog.Show("Batch Apply Param-Driven Styles",
                 ParamDrivenStyleEngine.FormatStyleReport(

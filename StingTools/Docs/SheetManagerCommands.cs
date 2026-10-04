@@ -628,6 +628,7 @@ namespace StingTools.Docs
                     StingTx.RollBackIfOpen(tx);
                     StingLog.Warn($"PlaceViewOnSheet failed: {ex.Message}");
                     TaskDialog.Show("Sheet Manager", $"Cannot place view: {ex.Message}");
+                    return Result.Failed;
                 }
             }
             return Result.Succeeded;
@@ -670,6 +671,7 @@ namespace StingTools.Docs
                 {
                     StingTx.RollBackIfOpen(tx);
                     TaskDialog.Show("Sheet Manager", $"Error: {ex.Message}");
+                    return Result.Failed;
                 }
             }
             return Result.Succeeded;
@@ -711,6 +713,7 @@ namespace StingTools.Docs
                 {
                     StingTx.RollBackIfOpen(tx);
                     TaskDialog.Show("Sheet Manager", $"Cannot move viewport: {ex.Message}");
+                    return Result.Failed;
                 }
             }
             return Result.Succeeded;
@@ -776,6 +779,9 @@ namespace StingTools.Docs
             int total = 0;
             bool cancelled = false;
             var arrangeProgress = StingProgressDialog.Show("Batch Arrange Viewports", sheets.Count);
+            // try/finally: a rolled-back commit throws, and the progress window must still close.
+            try
+            {
             using (var tx = new Transaction(doc, "STING Batch Arrange"))
             {
                 tx.Start();
@@ -788,7 +794,11 @@ namespace StingTools.Docs
                 }
                 if (cancelled) tx.RollBack(); else StingTx.Commit(tx);
             }
+            }
+            finally
+            {
             try { arrangeProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchArrange progress close: {ex.Message}"); }
+            }
             TaskDialog.Show("Sheet Manager", $"Arranged {total} viewports across {sheets.Count} sheets.");
             return Result.Succeeded;
         }
@@ -820,8 +830,10 @@ namespace StingTools.Docs
             catch (Exception ex)
             {
                 StingLog.Warn($"RenumberSheets failed: {ex.Message}");
-                TaskDialog.Show("Sheet Manager", "Renumber requires navigating to a sheet first.");
-                return Result.Succeeded;
+                TaskDialog.Show("Sheet Manager", ex is TransactionRolledBackException
+                    ? ex.Message
+                    : "Renumber requires navigating to a sheet first.");
+                return Result.Failed;
             }
         }
 
