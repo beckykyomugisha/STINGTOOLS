@@ -140,7 +140,7 @@ This is the section people will come back to. Print it.
 ## 3.1 The container name — every file, model, drawing and document
 
 ```
-KUT - PLN - 01 - GF - M3 - A - 0001
+KUT - SMB - 01 - GF - M3 - A - 0001
  │     │     │    │    │    │    └── Number       4 digits, sequential within its set
  │     │     │    │    │    └─────── Role         1 letter — the discipline (§3.3)
  │     │     │    │    └──────────── Type         2 chars — what kind of thing it is (§3.4)
@@ -293,8 +293,8 @@ Either way, **place rooms before the first coordination share.** Rooms are the s
 | Meetinghouse mechanical model | `KUT-XXX-02-ZZ-M3-M-0001` |
 | Temple ground-floor GA plan sheet | `KUT-XXX-01-GF-DR-A-0100` |
 | Site-wide drainage drawing | `KUT-XXX-00-ZZ-DR-P-0050` |
-| Federated coordination model | `KUT-PLN-ZZ-ZZ-M3-Z-0001` |
-| Clash report, cycle 07 | `KUT-PLN-ZZ-ZZ-CR-Z-0007` |
+| Federated coordination model | `KUT-SMB-ZZ-ZZ-M3-Z-0001` |
+| Clash report, cycle 07 | `KUT-SMB-ZZ-ZZ-CR-Z-0007` |
 | Temple level 2 room data sheet | `KUT-XXX-01-02-RD-A-0210` |
 
 ---

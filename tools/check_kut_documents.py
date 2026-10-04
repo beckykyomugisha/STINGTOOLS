@@ -553,7 +553,7 @@ def check_references(root: Path, f: Findings, verbose: bool):
         t = re.search(r"Document reference\s*(KUT-[A-Z0-9\-]+)", text)
         if not t:
             # The .docx tables put the label and value in separate cells.
-            t = re.search(r"(KUT-PLN-[A-Z0-9\-]+)", text)
+            t = re.search(r"(KUT-[A-Z0-9]{%d}-[A-Z0-9\-]+)" % N.ORIGINATOR_LENGTH, text)
         if t:
             claimed[name] = t.group(1)
         else:
@@ -576,9 +576,19 @@ def check_references(root: Path, f: Findings, verbose: bool):
                    % (ref, parts[5]))
         f.ok(2)   # type and role, per document -- counted so the headline moves
 
+    # References the delivery plan allocates to documents not yet in the pack
+    # (its notes read "Reference RP-Z-0005"). Citing one of those is a citation
+    # of a planned document, not a dangling reference.
+    allocated = set(re.findall(r"Reference ([A-Z]{2}-[A-Z]-\d{4})",
+                               read_text(K.issued_path(root, MIDP))))
+
     for name in K.ISSUED:
         text = read_text(K.issued_path(root, name))
-        for ref in set(re.findall(r"KUT-PLN-[A-Z0-9\-]{10,}", text)):
+        # Any originator, not one spelled-out code. This read KUT-PLN- until the
+        # PLN -> SMB rename, after which it matched nothing and the check passed
+        # over every document without examining a single reference.
+        for ref in set(re.findall(r"KUT-[A-Z0-9]{%d}-[A-Z0-9\-]{10,}"
+                                  % N.ORIGINATOR_LENGTH, text)):
             owners = [n for n, c in claimed.items() if c == ref]
             if ref == claimed.get(name):
                 continue
@@ -587,7 +597,7 @@ def check_references(root: Path, f: Findings, verbose: bool):
                 # playbook cites container names as worked examples. Only a
                 # reference in the report/schedule series is expected to
                 # resolve; the rest are illustrations.
-                if re.search(r"-(RP|SH)-", ref):
+                if re.search(r"-(RP|SH)-", ref) and ref.split("-", 4)[4] not in allocated:
                     f.fail(name, "cites %s, which no document in the pack "
                                  "claims as its own reference" % ref)
                 continue
@@ -595,6 +605,67 @@ def check_references(root: Path, f: Findings, verbose: bool):
     if verbose:
         print("  document references: %s"
               % ", ".join("%s=%s" % (n.split("_")[1], r) for n, r in claimed.items()))
+
+
+# Placeholder originators an example may use instead of a registered code.
+EXAMPLE_ORIGINATORS = {"XXX", "ZZZ"}
+
+_CONTAINER_RX = re.compile(
+    r"KUT\s*-\s*([A-Z0-9]+)\s*-\s*([A-Z0-9]{2})\s*-\s*([A-Z0-9]{2})\s*-\s*"
+    r"([A-Z0-9]{2})\s*-\s*([A-Z]{1,2})\s*-\s*(\d{4})\b")
+
+
+def check_container_examples(root: Path, f: Findings, verbose: bool):
+    """Every container name an issued document prints must be a valid one.
+
+    check_references only follows names that a document claims as its own, and
+    _check_withdrawn only reads the markdown sources. Neither saw the generated
+    playbook print `KUT - PLN - …` (the originator before the register moved to
+    SMB, in the spaced form no hyphen-only pattern matches) or a ground-floor
+    general arrangement SHEET typed SH, which is a schedule. A worked example is
+    what a drafter copies, so a wrong one is a wrong container name multiplied.
+    """
+    types = {c for c, _ in N.TYPES}
+    roles = {c for c, _ in N.ALL_ROLES}
+    originators = {N.EXAMPLE_ORIGINATOR} | EXAMPLE_ORIGINATORS
+    seen = 0
+    for name in K.ISSUED:
+        text = read_text(K.issued_path(root, name))
+        for m in _CONTAINER_RX.finditer(text):
+            orig, _vol, _lvl, typ, role, _num = m.groups()
+            shown = re.sub(r"\s+", "", m.group(0))
+            seen += 1
+            if orig not in originators:
+                f.fail(name, "prints %s, whose originator %r is neither the pack's example "
+                             "code %s nor a placeholder (%s)"
+                       % (shown, orig, N.EXAMPLE_ORIGINATOR, ", ".join(sorted(EXAMPLE_ORIGINATORS))))
+            if typ not in types:
+                f.fail(name, "prints %s, whose type code %r is not in the adopted set" % (shown, typ))
+            if role not in roles:
+                f.fail(name, "prints %s, whose role code %r is not in the adopted set" % (shown, role))
+            f.ok()
+        # The worked-example tables: a sheet or a drawing is DR, never SH.
+        if not name.endswith(".docx"):
+            continue
+        for t in K.docx_tables(K.issued_path(root, name)):
+            for row in t[1:]:
+                if len(row) < 2:
+                    continue
+                label, value = row[0].lower(), row[-1]
+                m = _CONTAINER_RX.search(value)
+                if not m:
+                    continue
+                if re.search(r"\b(sheet|drawing)\b", label) and "data sheet" not in label \
+                        and m.group(4) != "DR":
+                    f.fail(name, "gives %r the container %s; a sheet or drawing is type DR "
+                                 "(SH is a schedule)" % (row[0], value))
+                f.ok()
+    if seen == 0:
+        # An instrument that finds nothing is not evidence of anything.
+        f.fail("container examples", "no container name found in any issued document; "
+                                     "the pattern no longer matches the pack")
+    if verbose:
+        print("  container-name examples checked: %d" % seen)
 
 
 def check_roles(bep_t, pb_t, midp, f: Findings, verbose: bool):
@@ -1369,6 +1440,7 @@ def main() -> int:
     check_suitability(bep_t, pb_t, midp_path, f, args.verbose)
     check_volumes(bep_t, pb_t, f, args.verbose)
     check_references(root, f, args.verbose)
+    check_container_examples(root, f, args.verbose)
     check_roles(bep_t, pb_t, midp_path, f, args.verbose)
     check_tiers(root, bep_t, pb_t, f, args.verbose)
     check_draft_on_every_sheet(root, f, args.verbose)

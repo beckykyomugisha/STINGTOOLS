@@ -34,13 +34,20 @@ namespace StingTools.Tags
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            // Find existing config
+            // Find existing config: beside the model, else the project overlay. Save always
+            // writes beside the model (savePath); reload reads whichever is in force.
             string projectDir = Path.GetDirectoryName(doc.PathName);
-            string configPath = null;
-            if (!string.IsNullOrEmpty(projectDir))
-                configPath = Path.Combine(projectDir, "project_config.json");
+            string savePath = string.IsNullOrEmpty(projectDir) ? null : Path.Combine(projectDir, "project_config.json");
+            var located = TagConfig.LocateProjectConfig(doc);
+            string configPath = located.Path ?? savePath;
 
-            bool configExists = configPath != null && File.Exists(configPath);
+            bool configExists = located.Path != null;
+            string foundNote = configExists
+                ? $"Config file found ({located.Source}): {configPath}" +
+                  (located.Shadowed != null
+                      ? $"\nNOT in force — shadowed by the file above and different from it:\n{located.Shadowed}"
+                      : "")
+                : "No project_config.json found (beside the model or in _BIM_COORD).";
 
             TaskDialog td = new TaskDialog("Tag Configuration Editor");
             td.MainInstruction = "Tag Configuration";
@@ -53,9 +60,7 @@ namespace StingTools.Tags
                 $"Functions:     {TagConfig.FuncMap.Count} function codes\n" +
                 $"Locations:     {string.Join(", ", TagConfig.LocCodes)}\n" +
                 $"Zones:         {string.Join(", ", TagConfig.ZoneCodes)}\n\n" +
-                (configExists
-                    ? $"Config file found: {configPath}"
-                    : "No project_config.json found.");
+                foundNote;
 
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
                 "View Full Configuration",
@@ -85,7 +90,7 @@ namespace StingTools.Tags
                     break;
 
                 case TaskDialogResult.CommandLink2:
-                    SaveConfig(configPath, doc);
+                    SaveConfig(savePath, doc);
                     break;
 
                 case TaskDialogResult.CommandLink3:

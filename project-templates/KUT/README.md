@@ -53,7 +53,7 @@ that reads it — start there when building a pack for a different owner.
 | `_BIM_COORD/owner_standards.json` | Enables the `KUT-ZZZ-XX-XX-M3-A-0001` sheet-number rule; narrows discipline codes to the temple team (A/S/M/E/P/FP/LV/G); enables the `ffe-fohlio-ref` FF&E link check at severity **WARN** (non-blocking — it reports FF&E not yet linked to Fohlio, it does not fail a gate) |
 | `_BIM_COORD/lod_matrix.json` | The confirmed 6-milestone matrix, plus the tiered asset data schedule at rung 500 across 17 pinned categories. **Generated** by `tools/build_kut_lod_overlay.py` — see below |
 | `_BIM_COORD/tag_schemes.json` | Enables the KUT element identifier (`KUT-…`) with the six-building volume map (BLD1 Temple→01 … BLD6 Guard→06, EXT→00) |
-| `_BIM_COORD/project_config.json` | Six-building `LOC_CODES` (`BLD1..BLD6` + `EXT`) + per-building sequence grouping. **The tag scheme's volume map depends on these codes existing** — this is why the file is in the same pack |
+| `_BIM_COORD/project_config.json` | Six-building `LOC_CODES` (`BLD1..BLD6` + `EXT`) + per-building sequence grouping. **The tag scheme's volume map depends on these codes existing** — this is why the file is in the same pack. Read from `_BIM_COORD/` on document open; a `project_config.json` **beside the .rvt** takes precedence and shadows it (Project Cfg names both). Delete a stale one beside the model rather than editing this copy |
 | `_BIM_COORD/fohlio_map.json` | FF&E ↔ Fohlio mapping (`ASS_TAG_1_TXT` ↔ Item Tag; `FOHLIO_REF_TXT` link key). Used by ExLink `Fohlio_Export` / `Fohlio_Import`. Pairs with the enabled `ffe-fohlio-ref` check in `owner_standards.json`. |
 | `_BIM_COORD/sting_classification.json` | Sets CSI MasterFormat as the leading classification standard (the Owner mandates RIB SpecLink) |
 | `_BIM_COORD/climate_data.json` | **Optional.** The corporate baseline already carries Kampala; deploy this only to replace it with engineer-confirmed ASHRAE 2021 Entebbe (HUEN / 636800) values |
@@ -67,7 +67,7 @@ checklist in §5 refers to presets by their picker name.
 
 | Preset | name | Proposal ref | Rhythm |
 |---|---|---|---|
-| `WORKFLOW_KUT_Mobilisation.json` | **KUT Mobilisation** | §4.1 | Once at kick-off — params, worksets, filters, BEP, CDE register |
+| `WORKFLOW_KUT_Mobilisation.json` | **KUT Mobilisation** | §4.1 | Once at kick-off — params, worksets, filters, CDE register (no BEP step: the BEP is the generated document) |
 | `WORKFLOW_KUT_CoordinationCycle.json` | **KUT Coordination Cycle** | §4.2 | Fortnightly — federate, clash, BCF→ACC Issues, model health, completeness |
 | `WORKFLOW_KUT_GateAudit.json` | **KUT Gate Audit** | A1 gates | **Read-only pre-gate check, any milestone** — run before declaring a deliverable ready. Writes nothing |
 | `WORKFLOW_KUT_DeliverableA.json` | **KUT Deliverable A** | A1 Phase 1 | Gate — LOD 200 schematic; tokens, tags, program audit |

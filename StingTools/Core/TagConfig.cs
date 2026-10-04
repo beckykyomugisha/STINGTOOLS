@@ -760,6 +760,42 @@ namespace StingTools.Core
             return map;
         }
 
+        /// <summary>
+        /// The project's own <c>project_config.json</c>: beside the model, else the project
+        /// overlay at <c>_BIM_COORD/project_config.json</c> (consolidated or legacy sibling).
+        /// See <see cref="ProjectConfigLocator"/>. A shadowed overlay whose content differs
+        /// is logged, because it means a deployed owner pack is not the config in force.
+        /// </summary>
+        internal static ProjectConfigLocator.Choice LocateProjectConfig(Document doc)
+        {
+            string beside = null, overlay = null;
+            try
+            {
+                if (doc != null && !doc.IsFamilyDocument && !string.IsNullOrEmpty(doc.PathName))
+                {
+                    string dir = Path.GetDirectoryName(doc.PathName);
+                    if (!string.IsNullOrEmpty(dir)) beside = Path.Combine(dir, ProjectConfigLocator.FileName);
+                    overlay = ProjectFolderEngine.ResolveProjectOverridePath(doc, ProjectConfigLocator.OverlayRelativePath);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LocateProjectConfig: {ex.Message}"); }
+
+            var choice = ProjectConfigLocator.Choose(beside, overlay, File.Exists);
+            if (choice.Shadowed != null)
+            {
+                bool differs = true;
+                try { differs = File.ReadAllText(choice.Path) != File.ReadAllText(choice.Shadowed); }
+                catch (Exception ex) { StingLog.Warn($"LocateProjectConfig compare: {ex.Message}"); }
+                if (differs)
+                    StingLog.Warn($"project_config.json beside the model ({choice.Path}) shadows the project " +
+                                  $"overlay ({choice.Shadowed}), and the two differ. The overlay is NOT in force. " +
+                                  "If the overlay is the owner pack, delete or update the copy beside the model.");
+                else
+                    choice.Shadowed = null;   // identical: nothing is lost by loading either
+            }
+            return choice;
+        }
+
         /// <summary>Load from a JSON config file, falling back to defaults.</summary>
         public static void LoadFromFile(string path)
         {

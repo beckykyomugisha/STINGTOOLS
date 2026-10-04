@@ -1,13 +1,12 @@
 {
   "name": "KUT Mobilisation",
-  "description": "Kampala Uganda Temple — Stage 0 mobilisation from proposal Section 4.1 (months 1-2). One-pass environment setup: bind the STING + Owner shared parameters, create the per-building worksets (BLD1..BLD6 / EXT prefix per the Owner Standards Pack workset rule), create the discipline/phase view filters, generate the ISO 19650 BEP, and initialise the CDE state register. Run once at kick-off on the seed/federation host after the shared coordinate system is fixed from the site survey. CreateWorksets requires a workshared model; skip it if worksharing is enabled later. Deploy the _BIM_COORD overlay pack (owner_standards.json + lod_matrix.json + tag_schemes.json) into the project folder before running so every downstream gate audits against the confirmed Owner profile.",
+  "description": "Kampala Uganda Temple — Stage 0 mobilisation from proposal Section 4.1 (M0–M1, per the delivery playbook). One-pass environment setup: bind the STING + Owner shared parameters, create the per-building worksets (BLD1..BLD6 / EXT prefix per the Owner Standards Pack workset rule), create the discipline/phase view filters, and initialise the CDE state register. Run once at kick-off on the seed/federation host after the shared coordinate system is fixed from the site survey. CreateWorksets requires a workshared model; skip it if worksharing is enabled later. Deploy the _BIM_COORD overlay pack (owner_standards.json + lod_matrix.json + tag_schemes.json) into the project folder before running so every downstream gate audits against the confirmed Owner profile. There is deliberately no BEP step: the KUT BEP is the generated document KUT-SMB-ZZ-ZZ-RP-Z-0001 (tools/build_bep.py), and the in-Revit BEP wizard would register a second, competing BEP in the CDE register.",
   "rollback_on_failure": false,
   "rollback_on_optional_failure": false,
   "steps": [
     { "commandTag": "LoadSharedParams", "label": "1. Bind STING + Owner shared parameters" },
     { "commandTag": "CreateWorksets", "label": "2. Per-building worksets (BLD1..BLD6 / EXT prefix)", "optional": true },
     { "commandTag": "CreateFilters", "label": "3. Discipline / phase view filters", "optional": true },
-    { "commandTag": "GenerateBEP", "label": "4. Generate ISO 19650 BEP" },
-    { "commandTag": "CDEStatus", "label": "5. Initialise CDE state register", "optional": true }
+    { "commandTag": "CDEStatus", "label": "4. Initialise CDE state register", "optional": true }
   ]
 }
