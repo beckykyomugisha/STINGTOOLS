@@ -53,7 +53,7 @@ namespace StingTools.Commands.Electrical
                     // A board counts as synced only when at least one value landed; a
                     // refused write (unbound, read-only, wrong type) is tallied by parameter.
                     int landed = 0;
-                    void Put(string param, string value, bool overwrite)
+                    void SetStr(string param, string value, bool overwrite)
                     {
                         if (string.IsNullOrEmpty(value)) return;
                         if (ParameterHelpers.SetString(p, param, value, overwrite)) landed++;
@@ -64,10 +64,10 @@ namespace StingTools.Commands.Electrical
                     {
                         // The board's designation is its Panel Name. p.Name is the family TYPE
                         // name, shared by every board of that type — it stamped them all alike.
-                        Put(ParamRegistry.ELC_PNL_NAME,
+                        SetStr(ParamRegistry.ELC_PNL_NAME,
                             p.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)?.AsString(), overwrite: true);
 
-                        Put(ParamRegistry.ELC_PNL_FED_FROM,
+                        SetStr(ParamRegistry.ELC_PNL_FED_FROM,
                             p.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_SUPPLY_FROM_PARAM)?.AsString(), overwrite: true);
 
                         // Voltage / phase — Revit-derived. Read by display name to stay
@@ -83,7 +83,7 @@ namespace StingTools.Commands.Electrical
                                 double vDouble = StingTools.Core.Electrical.ElecUnits.ToSi(vp);
                                 // ELC_PNL_VOLTAGE is a NUMBER: "230V" was refused as not a number.
                                 if (vDouble > 0)
-                                    Put(ParamRegistry.ELC_PNL_VOLTAGE,
+                                    SetStr(ParamRegistry.ELC_PNL_VOLTAGE,
                                         vDouble.ToString("0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
                             }
                         }
@@ -94,18 +94,18 @@ namespace StingTools.Commands.Electrical
                         // kVA figure under the kW name (ELEC-27).
                         double? kw = StingTools.Core.Electrical.PanelConnectedLoad.BoardKw(p);
                         if (kw.HasValue)
-                            Put(ParamRegistry.ELC_PNL_LOAD, StingTools.Core.Electrical.PanelConnectedLoadMath.KwText(kw.Value), overwrite: true);
+                            SetStr(ParamRegistry.ELC_PNL_LOAD, StingTools.Core.Electrical.PanelConnectedLoadMath.KwText(kw.Value), overwrite: true);
 
                         // Location from spatial / project. Canonical: ASS_LOC_TXT
                         // (per MR_PARAMETERS — used by every other discipline's
                         // location stamp, no panel-specific param exists).
-                        Put("ASS_LOC_TXT", SpatialAutoDetect.DetectLoc(doc, p, roomIndex, projLoc), overwrite: false);
+                        SetStr("ASS_LOC_TXT", SpatialAutoDetect.DetectLoc(doc, p, roomIndex, projLoc), overwrite: false);
 
                         // Manufacturer / model from family-type native params.
                         // Canonical via ParamRegistry.MFR alias → ASS_MANUFACTURER_TXT.
                         try
                         {
-                            Put(ParamRegistry.MFR,
+                            SetStr(ParamRegistry.MFR,
                                 p.Symbol?.get_Parameter(BuiltInParameter.ALL_MODEL_MANUFACTURER)?.AsString(), overwrite: false);
                         }
                         catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
