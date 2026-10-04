@@ -60,10 +60,10 @@ namespace StingTools.Core
             months = 0;
             if (string.IsNullOrWhiteSpace(amount)) return false;
             string a = amount.Trim();
-            // tolerate a trailing unit word ("5 years", "18 months")
+            // tolerate a unit written with the number ("5 years", "18 months"); a bare number takes `unit`
             string u = (unit ?? "").Trim().ToLowerInvariant();
             var parts = a.Split(new[] { ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length == 2) { a = parts[0]; if (u.Length == 0) u = parts[1].Trim().ToLowerInvariant(); }
+            if (parts.Length == 2) { a = parts[0]; u = parts[1].Trim().ToLowerInvariant(); }   // a unit written with the number wins
             if (!double.TryParse(a, NumberStyles.Float, CultureInfo.InvariantCulture, out double v) || v <= 0 || v > 100)
                 return false;
             bool isMonths = u.StartsWith("month") || u == "m" || u == "mo";
@@ -113,6 +113,34 @@ namespace StingTools.Core
             p.Expiry = exp.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             p.Expired = exp.Date < today.Date;
             return p;
+        }
+    }
+
+    /// <summary>
+    /// The maintenance interval and next-due date an asset actually records. KUT deep review
+    /// MEP-14: the Maintenance Schedule wrote a per-category default interval (6 / 12 months)
+    /// and "next due = today + interval" onto every asset. Now the interval comes from
+    /// ASS_MAINTENANCE_FREQUENCY_MONTHS, else MNT_SERVICE_INTERVAL_TXT, and a next-due date is
+    /// computed only from a recorded last-service date.
+    /// </summary>
+    public static class ServiceDue
+    {
+        /// <returns>Months, or null when nothing usable is recorded.</returns>
+        public static int? IntervalMonths(string frequencyMonths, string intervalText)
+        {
+            if (!string.IsNullOrWhiteSpace(frequencyMonths)
+                && double.TryParse(frequencyMonths.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double f)
+                && f > 0 && f <= 1200 && Math.Abs(f - Math.Round(f)) < 1e-6)
+                return (int)Math.Round(f);
+            if (WarrantyExpiry.TryParseDurationMonths(intervalText, "months", out int m)) return m;
+            return null;
+        }
+
+        /// <returns>yyyy-MM-dd, or "" when there is no recorded last service or interval.</returns>
+        public static string NextDue(string lastService, int? intervalMonths)
+        {
+            if (intervalMonths == null || !WarrantyExpiry.TryParseDate(lastService, out var last)) return "";
+            return last.AddMonths(intervalMonths.Value).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         }
     }
 }
