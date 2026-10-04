@@ -26798,3 +26798,25 @@ Gate OK (100 assertions); overlay `--check` current; 37 KUT tests pass. Not run 
   shared-identifier note no longer points at a ROADMAP item that did not exist.
 - **After deploy:** run Render Scheme Tags once — `ASS_TAG_SCHEME_TXT` is derived and is re-rendered.
 - **Tests.** `KutSchemeIdentifierTests`: 4/5 with the previous `tag_schemes.json`, 5/5 now.
+
+#### INT-12 closed: one ACC Issues v1 status mapping, unknown statuses reported
+
+- **The vocabulary.** Issues v1 (`construction/issues/v1`) defines nine statuses —
+  `draft, open, pending, in_progress, in_review, completed, not_approved, in_dispute, closed`
+  (`components.schemas.status` in the APS OpenAPI file
+  `autodesk-platform-services/aps-sdk-openapi/construction/issues/Issues.yaml`, commit `bbb74b00d`).
+  Which of them a project offers is configuration (`GET users/me` → `issue.new.permittedStatuses`);
+  `in_progress`, `completed`, `not_approved` and `in_dispute` are the optional 2023 additions.
+- **What was wrong.** `AccIssueSync.IsClosedStatus` substring-matched `closed`/`resolved`/`not_an_issue`/
+  `void` — three are not Issues v1 values — and called everything else open. A pulled issue with no
+  status became `"open"`. Pushes posted the STING status verbatim (`IN_PROGRESS`, `RESOLVED` …). The
+  server sent `answered` (a BIM 360 value) for RESOLVED and `open` for anything unrecognised.
+- **Fix.** `Planscape.Shared/Helpers/AccIssueStatusMap.cs` is the one mapping, used by the plugin
+  (through its Planscape.Shared reference) and the server, and linked into `StingTools.Acc.Tests`.
+  Every Issues v1 value maps on purpose; only `closed` is terminal; `completed` is "responded", still
+  open. Anything else is Unknown: ACC_SyncIssueStatus keeps it tracked, counts it, logs it and lists it
+  (`keep-unknown-status` in the CSV). Only an open STING issue is pushed, and it is created `open`;
+  a resolved, closed, void or unrecognised status is refused, not sent.
+- **Tests.** `StingTools.Acc.Tests`: 167/180 with the previous `AccIssueSync.cs`, 180/180 now.
+  `Planscape.Tests` `AccIssueStatusMapServerTests`: 8/13 with the previous `MapStatus` (made
+  `internal` for the run), 13/13 now; full server suite 1,047 passed, 19 skipped.

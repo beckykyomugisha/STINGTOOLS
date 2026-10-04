@@ -6,6 +6,7 @@ using Newtonsoft.Json.Linq;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Shared.Helpers;
 
 namespace Planscape.Infrastructure.Services;
 
@@ -207,11 +208,14 @@ public class AccSyncService
         // APS Issues v1 create. NOTE: a real container requires issueSubtypeId from
         // the container's type catalogue; we send it when configured and let ACC
         // reject (with a clear message) when it's absent so the gap is visible.
+        string? accStatus = MapStatus(issue.Status);
+        if (accStatus == null)
+            return (false, null, $"status '{issue.Status}' is not an open state; there is no ACC status to create it with.");
         var body = new JObject
         {
             ["title"] = Truncate(issue.Title, 250),
             ["description"] = issue.Description ?? "",
-            ["status"] = MapStatus(issue.Status),
+            ["status"] = accStatus,
         };
         if (!string.IsNullOrWhiteSpace(subtypeId))
             body["issueSubtypeId"] = subtypeId;
@@ -315,13 +319,11 @@ public class AccSyncService
         catch { return new JObject(); }
     }
 
-    private static string MapStatus(string s) => s switch
-    {
-        "RESOLVED" => "answered",
-        "CLOSED"   => "closed",
-        "IN_PROGRESS" => "open",
-        _ => "open",
-    };
+    /// <summary>The ACC Issues v1 status a Planscape issue is created with, or null when it
+    /// must not be pushed. INT-12: this used to send "answered" for RESOLVED (a BIM 360 value,
+    /// not an Issues v1 one) and "open" for anything it did not recognise. The one mapping now
+    /// lives in Planscape.Shared and the Revit plugin uses the same code.</summary>
+    internal static string? MapStatus(string? s) => AccIssueStatusMap.ToAccCreateStatus(s);
 
     private static string Truncate(string? s, int n)
         => string.IsNullOrEmpty(s) ? "" : (s!.Length > n ? s.Substring(0, n) : s);

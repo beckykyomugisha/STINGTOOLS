@@ -25,6 +25,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
+using Planscape.Shared.Helpers;
 using StingTools.Core;
 
 namespace StingTools.V6
@@ -219,6 +220,16 @@ namespace StingTools.V6
         /// <summary>Push a STING-originated issue to ACC.</summary>
         public static async Task<string> PushIssueAsync(AccCredentials creds, AccIssue issue)
         {
+            // INT-12: only a still-open issue is raised, and it is created with a status the
+            // Issues v1 API defines. STING's own spellings (IN_PROGRESS, RESOLVED …) used to be
+            // posted verbatim; ACC rejects anything outside its enum.
+            string accStatus = AccIssueStatusMap.ToAccCreateStatus(issue?.Status);
+            if (accStatus == null)
+            {
+                StingLog.Warn($"AccIssueSync.PushIssue: not pushed — STING status '{issue?.Status}' is not an open " +
+                              "state, so there is no ACC status to create it with.");
+                return null;
+            }
             if (!await EnsureAuthAsync(creds).ConfigureAwait(false)) return null;
             string issueType = !string.IsNullOrEmpty(issue.IssueType) ? issue.IssueType : creds.IssueTypeId;
             if (string.IsNullOrEmpty(issueType))
@@ -230,7 +241,7 @@ namespace StingTools.V6
             {
                 ["title"]               = issue.Title,
                 ["description"]         = issue.Description,
-                ["status"]              = issue.Status,
+                ["status"]              = accStatus,
                 ["location_description"]= issue.LocationDescription,
             };
             // ACC requires a valid issue_type_id. Only send it when we have one;
@@ -373,7 +384,8 @@ namespace StingTools.V6
                         Id                  = (string)t["id"] ?? string.Empty,
                         Title               = (string)t["title"] ?? string.Empty,
                         Description         = (string)t["description"] ?? string.Empty,
-                        Status              = (string)t["status"] ?? "open",
+                        // No status is not "open" — it is reported as unknown (INT-12).
+                        Status              = (string)t["status"] ?? string.Empty,
                         IssueType           = (string)t["issue_type_id"] ?? string.Empty,
                         AssignedToUserId    = (string)t["assigned_to"] ?? string.Empty,
                         LocationDescription = (string)t["location_description"] ?? string.Empty,
@@ -391,13 +403,11 @@ namespace StingTools.V6
                 "page — the container holds more issues than this read covered, so the set is INCOMPLETE");
         }
 
-        /// <summary>True when an ACC issue status represents a closed/resolved state.</summary>
-        public static bool IsClosedStatus(string status)
-        {
-            if (string.IsNullOrEmpty(status)) return false;
-            string s = status.ToLowerInvariant();
-            return s.Contains("closed") || s.Contains("resolved") || s.Contains("not_an_issue") || s.Contains("void");
-        }
+        /// <summary>True only when ACC says the issue is closed — "closed", the one terminal
+        /// Issues v1 status. This used to substring-match "closed" / "resolved" /
+        /// "not_an_issue" / "void", three of which are not Issues v1 values, and called every
+        /// other string open. See <see cref="AccIssueStatusMap"/> (INT-12).</summary>
+        public static bool IsClosedStatus(string status) => AccIssueStatusMap.IsClosed(status);
 
         public static string CredentialsPath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
