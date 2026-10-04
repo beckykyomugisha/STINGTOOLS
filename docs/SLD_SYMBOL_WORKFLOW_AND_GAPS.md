@@ -382,7 +382,7 @@ var dt = DrawingDispatcher.Resolve(doc, "Electrical", "*", "RISER");
 if (dt != null) DrawingTypePresentation.Apply(doc, result.SLDView, dt);
 // Then place on sheet via SheetManagerEngine.AutoPlaceViewport
 ```
-The `elec-riser-A2-1to100` drawing type already exists in
+The `elec-riser-A3-1to200` drawing type already exists in
 `STING_DRAWING_TYPES.json`. Wire it up.
 
 ---
