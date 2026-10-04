@@ -26610,3 +26610,21 @@ Build 0/0; Tags.Tests 5,530; `run_ci_gates.py --quick` 36/36; checksums OK. Not 
 
 Build 0/0; Tags.Tests 5,626; `run_ci_gates.py --quick` 36/36; checksums OK.
 
+
+#### Completed (Tag Family Audit counts, branch `fix/tagfam-audit-counts`)
+
+- **The audit no longer says loaded families are missing.** It printed "210 .rfa files exist on disk
+  but only 121 loaded", comparing the file count of one folder with the number of *categories*
+  covered. A project that held the whole library still read as ~90 short. It now compares the
+  library with the project family by family, across every root Load Tag Families reads (backups
+  skipped, legacy names folded into their canonical name), reports "Library families in this
+  project: N of M" and names any that are not loaded.
+- **The paragraph BOOL warning follows the declared type.** It called Yes/No storage of
+  `TAG_PARA_STATE_*_BOOL` "legacy" and told users to re-bind, while `MR_PARAMETERS.txt` declares all
+  ten YESNO, so it fired on every correctly bound project. Storage is now judged against the type
+  the file declares; a mismatch or a type holding both storages is still flagged.
+- Revit-free logic in `Tags/TagFamilyAuditCounts.cs`; 13 tests in `TagFamilyAuditCountsTests`,
+  including a check that all ten shipped paragraph BOOLs share one declared type (the audit judges
+  them by the first). The legacy-name test was confirmed to fail with the alias folding removed.
+
+Build 0/0; Tags.Tests 5,639; `run_ci_gates.py --quick` 36/36.
