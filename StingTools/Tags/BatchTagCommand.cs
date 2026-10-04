@@ -101,6 +101,18 @@ namespace StingTools.Tags
                 return Result.Succeeded;
             }
 
+            // TAGACC-27: refuse at once when no category can hold a tag, instead of
+            // deriving every token and reporting thousands of "could not be written".
+            var binding = ProbeTokenBindings(taggableElements);
+            if (binding.Verdict == TokenBindingVerdict.NothingBound)
+            {
+                StingLog.Warn("Batch Tag refused: " + binding.Summary);
+                TaskDialog.Show("Batch Tag — STING parameters not loaded", binding.RefusalText);
+                return Result.Failed;
+            }
+            if (binding.Verdict == TokenBindingVerdict.SomeCategoriesUnbound)
+                StingLog.Warn("Batch Tag pre-flight: " + binding.Summary);
+
             // Step 2: Choose collision handling mode (with pre-flight counts)
             var modeOptions = new List<UI.StingModePicker.ModeOption>
             {
@@ -124,6 +136,7 @@ namespace StingTools.Tags
                 : "  |  Moved elements: tags fixed";
             if (skippedWorkset > 0) statusLine += $"  |  Skipped (workset): {skippedWorkset:N0}";
             if (skippedDemolished > 0) statusLine += $"  |  Skipped (demolished): {skippedDemolished:N0}";
+            if (binding.Verdict == TokenBindingVerdict.SomeCategoriesUnbound) statusLine += "  |  ⚠ " + binding.Summary;
             string modeResult = UI.StingModePicker.Show(
                 "Batch Tag — Collision Mode",
                 $"Batch tag {totalTaggable:N0} elements",
@@ -311,6 +324,35 @@ namespace StingTools.Tags
         internal static void ClearLevelElevationCache()
         {
             _levelElevationCache = default;
+        }
+
+        /// <summary>
+        /// TAGACC-27: probe one element per category for the token parameters, using
+        /// the scope SetString writes through (instance LookupParameter, writable).
+        /// </summary>
+        internal static TokenBindingResult ProbeTokenBindings(List<Element> elements)
+        {
+            var tokens = ParamRegistry.AllTokenParams;
+            if (tokens == null || tokens.Length == 0)
+            {
+                StingLog.Warn("Batch Tag pre-flight: no token parameter list loaded — binding not probed");
+                return TokenBindingPreflight.Evaluate(null);
+            }
+            var probes = new List<TokenBindingProbe>();
+            foreach (var group in elements.GroupBy(e => ParameterHelpers.GetCategoryName(e) ?? ""))
+            {
+                var sample = group.First();
+                var missing = new List<string>();
+                foreach (string name in tokens)
+                {
+                    Parameter p = null;
+                    try { p = sample.LookupParameter(name); }
+                    catch (Exception ex) { StingLog.Warn($"Batch Tag pre-flight: lookup {name} on {sample.Id}: {ex.Message}"); }
+                    if (p == null || p.IsReadOnly) missing.Add(name);
+                }
+                probes.Add(new TokenBindingProbe(group.Key, group.Count(), missing));
+            }
+            return TokenBindingPreflight.Evaluate(probes);
         }
 
         internal static List<Element> SmartSortElements(Document doc, List<Element> elements)

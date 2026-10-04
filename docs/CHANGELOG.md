@@ -2,6 +2,12 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGACC-27 Batch Tag refuses at once when no token parameter is bound, 2026-10-04)
+
+- Found on the live KUT build: Batch Tag on `Kampala Uganda - Interior_v26_detached.rvt`, a model Load Shared Parameters had never run on, spent 99 s and reported *Tagged 0 of 3,121*, a NOT WRITTEN block per category and token, and 100 "malformed tag '-------'" warnings. The cause was one line at the bottom of the report.
+- `BatchTagCommand.ProbeTokenBindings` checks one element per category for every token parameter, before the mode picker. `Core/TokenBindingPreflight` decides: no category can hold a tag → refused in one dialog ("run Load Shared Parameters on THIS model"); some categories cannot → named, largest first, in the picker status line and the log; nothing probed → the run is not blocked on the pre-flight's own lack of information.
+- Tests: `TokenBindingPreflightTests` (6). The wiring test fails against the previous `BatchTagCommand.cs` and passes with the change. Build 0/0. **Not run in Revit** — check: open a model without STING parameters and run Batch Tag; expect the refusal dialog within a second.
+
 #### Completed (TAGFAM-9 measured in Revit 2025: 163 → 36 parameters per door tag, 2026-10-01)
 
 - `tools/pyrevit/headless/time_add_shared_params.py` on main `6710ad2c1` (TAGFAM-9 merged), headless Revit 2025:
