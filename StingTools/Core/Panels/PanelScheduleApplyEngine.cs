@@ -283,14 +283,13 @@ namespace StingTools.Core.Panels
             int wrote = 0;
             try
             {
-                wrote += Try(panel, ParamRegistry.ELC_PNL_NAME, psv.Name);
+                // The board's designation is its Panel Name — not the schedule VIEW's name.
+                wrote += Try(panel, ParamRegistry.ELC_PNL_NAME, StingTools.Core.Drawing.BoardNames.Of(panel));
                 wrote += Try(panel, ParamRegistry.ELC_PNL_VOLTAGE, ReadString(panel, "Panel Voltage"));
-                // Thousands of the native load (VA → kVA), as Param Sync writes it; the
-                // target is named kW but the source is apparent load — ROADMAP ELEC-27.
-                string va = ReadString(panel, "Total Connected");
+                // Connected TRUE power in kW over the circuits the board feeds (ELEC-27).
+                double? kw = StingTools.Core.Electrical.PanelConnectedLoad.BoardKw(panel);
                 wrote += Try(panel, ParamRegistry.ELC_PNL_LOAD,
-                    double.TryParse(va, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double vaNum)
-                        ? (vaNum / 1000.0).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) : null);
+                    kw.HasValue ? StingTools.Core.Electrical.PanelConnectedLoadMath.KwText(kw.Value) : null);
                 wrote += Try(panel, ParamRegistry.ELC_PNL_FED_FROM, ReadString(panel, "Panel Source") ?? ReadString(panel, "Source"));
                 wrote += Try(panel, ParamRegistry.ELC_MAIN_BRK, ReadString(panel, "Mains") ?? ReadString(panel, "Main Disconnect"));
                 wrote += Try(panel, ParamRegistry.ELC_WAYS, ReadInt(panel, "Number Of Circuits") ?? ReadInt(panel, "Number of Slots"));

@@ -89,16 +89,12 @@ namespace StingTools.Commands.Electrical
                         }
                         catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
-                        // Connected load. RBS_ELEC_PANEL_TOTALLOAD_PARAM is APPARENT load (VA);
-                        // the target is named kW — see ROADMAP ELEC-27.
-                        try
-                        {
-                            var loadVA = StingTools.Core.Electrical.ElecUnits.Read(p, BuiltInParameter.RBS_ELEC_PANEL_TOTALLOAD_PARAM);
-                            if (loadVA > 0)
-                                Put(ParamRegistry.ELC_PNL_LOAD,
-                                    (loadVA / 1000.0).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
-                        }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        // Connected load in kW: TRUE power summed over the circuits the board
+                        // feeds. RBS_ELEC_PANEL_TOTALLOAD_PARAM is apparent power (VA) and put a
+                        // kVA figure under the kW name (ELEC-27).
+                        double? kw = StingTools.Core.Electrical.PanelConnectedLoad.BoardKw(p);
+                        if (kw.HasValue)
+                            Put(ParamRegistry.ELC_PNL_LOAD, StingTools.Core.Electrical.PanelConnectedLoadMath.KwText(kw.Value), overwrite: true);
 
                         // Location from spatial / project. Canonical: ASS_LOC_TXT
                         // (per MR_PARAMETERS — used by every other discipline's

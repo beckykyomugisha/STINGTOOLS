@@ -5223,8 +5223,12 @@ namespace StingTools.Core
                 // Panel-specific params
                 if (catUpper.Contains("EQUIPMENT"))
                 {
-                    written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_PANEL_TOTALLOAD_PARAM,
-                        ParamRegistry.ELC_PNL_LOAD);
+                    // kW = true power over the circuits the board feeds; the apparent-power
+                    // built-in (VA) used to land here as kVA under the kW name (ELEC-27).
+                    double? boardKw = StingTools.Core.Electrical.PanelConnectedLoad.BoardKw(el);
+                    if (boardKw.HasValue && ParameterHelpers.SetString(el, ParamRegistry.ELC_PNL_LOAD,
+                            StingTools.Core.Electrical.PanelConnectedLoadMath.KwText(boardKw.Value), overwrite: false))
+                        written++;
                     written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_PANEL_FEED_PARAM,
                         ParamRegistry.ELC_PNL_FED_FROM);
                     written += MapStringParam(el, "Mains", ParamRegistry.ELC_MAIN_BRK);
