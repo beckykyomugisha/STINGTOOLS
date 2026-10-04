@@ -26781,3 +26781,20 @@ Gate OK (100 assertions); overlay `--check` current; 37 KUT tests pass. Not run 
   Playbook called it "the authoritative source" although the issued Document Control Standard
   (`RP-Z-0003`) states that it supersedes it. Its header and both Managing Playbook references now
   point at the Document Control Standard. In the project folder its June `.docx` was retired.
+
+#### KUTDR-1 closed: the KUT scheme identifier carries SYS
+
+- **Why SYS was missing.** The `kut-temple-example` scheme (`36039b52d`, Phase 191) was modelled on the
+  ISO 19650 container-name fields (project-originator-volume-level) plus discipline and SEQ. Container
+  names have no system field, so the identifier never had one. No KUT document asks for that form: BEP
+  4.2.2 (`tools/build_bep.py`) names three identifiers — the 7-field container name, the 8-field element
+  tag (with System) and the Appointing Party's asset reference (not yet issued) — and this scheme is
+  none of them. The 8-field tag in `ASS_TAG_1_TXT` always kept SYS.
+- **What it broke.** SEQ is numbered per `DISC_LOC_SYS_LVL` on KUT (`SEQ_INCLUDE_LOC`), so an HVAC
+  `0001` and a CHW `0001` on one level of one building rendered the same identifier.
+- **Fix.** The scheme renders `KUT-<orig>-<volume>-<level>-<discipline>-<system>-<number>`; SYS falls
+  back to `GEN`, the value the SEQ group uses for an element with no system. New
+  `TagSchemeUniqueness.MissingSeqGroupTokens` names any SEQ-group field a scheme drops. The audit's
+  shared-identifier note no longer points at a ROADMAP item that did not exist.
+- **After deploy:** run Render Scheme Tags once — `ASS_TAG_SCHEME_TXT` is derived and is re-rendered.
+- **Tests.** `KutSchemeIdentifierTests`: 4/5 with the previous `tag_schemes.json`, 5/5 now.

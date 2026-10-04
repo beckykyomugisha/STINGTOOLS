@@ -374,8 +374,9 @@ namespace StingTools.Tags
                 report.AppendLine("Shared identifiers (an identifier must name one element):");
                 foreach (var d in duplicates.Take(10))
                     report.AppendLine($"  {d.Key.value}: elements {string.Join(", ", d.Value.Take(6))}{(d.Value.Count > 6 ? " …" : "")}");
-                report.AppendLine("  Usually two systems share a level and discipline: SEQ is numbered per system and the");
-                report.AppendLine("  scheme carries no system field. Re-rendering does not fix this — see ROADMAP KUTDR-1.");
+                report.AppendLine("  SEQ is unique only within its group (discipline, system, level, and building/zone when");
+                report.AppendLine("  configured). A scheme that drops one of those, or maps two locations to one value, can");
+                report.AppendLine("  repeat. Re-rendering does not fix this — add the field to the scheme.");
             }
             if (firstMismatches.Count > 0)
             {

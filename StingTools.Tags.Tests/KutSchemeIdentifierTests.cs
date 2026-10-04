@@ -38,17 +38,45 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
-        public void TwoSystemsOnOneLevelCanShareAnIdentifierAndTheAuditMustSayIt()
+        public void TheKutIdentifierCarriesEveryFieldSeqIsNumberedBy()
         {
-            // The KUT identifier carries no SYS segment, while SEQ is numbered per SYS
-            // (SeqAssigner.BuildSeqKey: DISC_LOC_SYS_LVL). Both facts are pinned here, so the day
-            // either changes this test says the duplicate check may no longer be needed.
-            var tokens = KutScheme()["segments"].Where(s => (string)s["kind"] == "token").Select(s => (string)s["token"]).ToList();
-            Assert.DoesNotContain("SYS", tokens);
+            // KUTDR-1. SEQ is unique only within its counter group (SeqAssigner.BuildSeqKey:
+            // DISC_LOC_SYS_LVL on KUT, which sets SEQ_INCLUDE_LOC). The identifier had no SYS, so
+            // an HVAC 0001 and a CHW 0001 on one level of one building rendered the same string.
             string seq = File.ReadAllText(Path.Combine(Repo(), "StingTools", "Core", "SeqAssigner.cs"));
             Assert.Contains("{disc}_{locPart}_{sys}_{lvl}", seq);
 
-            // HVAC 0001 and CHW 0001 on L01 of BLD1 render the same KUT identifier.
+            var cfg = JObject.Parse(File.ReadAllText(Path.Combine(Repo(), "project-templates", "KUT", "_BIM_COORD", "project_config.json")));
+            bool includeLoc = (bool?)cfg["SEQ_INCLUDE_LOC"] ?? false;
+            bool includeZone = (bool?)cfg["SEQ_INCLUDE_ZONE"] ?? false;
+            Assert.True(includeLoc, "KUT numbers SEQ per building; if that changes, revisit this test");
+
+            var tokens = KutScheme()["segments"].Where(s => (string)s["kind"] == "token").Select(s => (string)s["token"]).ToList();
+            Assert.Empty(TagSchemeUniqueness.MissingSeqGroupTokens(tokens, includeLoc, includeZone));
+
+            // An empty SYS keys the counter as GEN, so the identifier must print GEN too —
+            // a blank segment would be a different string for the same counter group.
+            var sys = KutScheme()["segments"].First(s => (string)s["token"] == "SYS");
+            Assert.Equal("GEN", (string)sys["fallback"]);
+        }
+
+        [Fact]
+        public void MissingSeqGroupTokensNamesWhatAnIdentifierDrops()
+        {
+            var old = new[] { "LOC", "LVL", "DISC", "SEQ" };
+            Assert.Equal(new[] { "SYS" }, TagSchemeUniqueness.MissingSeqGroupTokens(old, seqIncludesLoc: true, seqIncludesZone: false));
+            Assert.Equal(new[] { "ZONE", "SYS" }, TagSchemeUniqueness.MissingSeqGroupTokens(old, true, true));
+            Assert.Equal(new[] { "LOC", "SYS" }, TagSchemeUniqueness.MissingSeqGroupTokens(new[] { "DISC", "LVL", "SEQ" }, true, false));
+            // No SEQ: not a per-element identifier, nothing to check.
+            Assert.Empty(TagSchemeUniqueness.MissingSeqGroupTokens(new[] { "DISC", "LOC" }, true, true));
+            Assert.Empty(TagSchemeUniqueness.MissingSeqGroupTokens(new[] { "disc", "loc", "sys", "lvl", "seq" }, true, false));
+        }
+
+        [Fact]
+        public void TheAuditStillReportsSharedIdentifiers()
+        {
+            // An unmapped LOC still falls back to one value (XX), so two buildings outside the
+            // map can share an identifier. The audit reports every shared value.
             var dupes = TagSchemeUniqueness.FindDuplicates(new[]
             {
                 ("kut-temple-example", "KUT-SMB-01-L01-M-0001", 101L),
