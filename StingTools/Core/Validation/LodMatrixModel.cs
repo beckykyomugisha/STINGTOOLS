@@ -251,4 +251,34 @@ namespace StingTools.Core.Validation
                            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         }
     }
+
+    public enum LodStampAction { Keep, Write, Clear }
+
+    /// <summary>
+    /// What LOD_Stamp does to ASS_LOD_VERIFIED_TXT for one element (KUT deep review API-5).
+    /// It wrote the milestone id with overwrite for every passing element and never touched a
+    /// failing one, so stamping a lower milestone after a higher one DOWNGRADED every element,
+    /// and an element that later failed kept a claim it no longer met — while the dialog said
+    /// the parameter "records the highest milestone each element has passed".
+    /// </summary>
+    public static class LodStampRule
+    {
+        public static LodStampAction Decide(string existingId, LodMilestone target, bool passed,
+                                            IEnumerable<LodMilestone> milestones)
+        {
+            if (target == null) return LodStampAction.Keep;
+            LodMilestone existing = string.IsNullOrWhiteSpace(existingId) ? null
+                : milestones?.FirstOrDefault(m => string.Equals(m.Id, existingId.Trim(), StringComparison.OrdinalIgnoreCase));
+
+            if (passed)
+            {
+                if (string.IsNullOrWhiteSpace(existingId)) return LodStampAction.Write;
+                if (existing == null) return LodStampAction.Write;          // an id the matrix no longer knows
+                return existing.Lod <= target.Lod ? LodStampAction.Write : LodStampAction.Keep;
+            }
+            // Failed the target: any recorded claim at or above it is now false.
+            if (existing != null && existing.Lod >= target.Lod) return LodStampAction.Clear;
+            return LodStampAction.Keep;
+        }
+    }
 }
