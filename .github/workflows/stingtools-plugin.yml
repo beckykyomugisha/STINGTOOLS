@@ -165,6 +165,12 @@ jobs:
       - name: No new catch that lies about the outcome
         run: python3 tools/find_lying_catches.py --check
 
+      # Transaction.Commit() returns RolledBack when Revit undoes the work; code that
+      # ignores it reports counts for work that is not in the model (ELEC-32). Every
+      # commit goes through StingTx or reads the status - zero tolerance, no baseline.
+      - name: No Transaction.Commit() discards its status
+        run: python3 tools/check_unchecked_commits.py --check
+
       - name: Command doc-acquisition discipline
         shell: pwsh
         run: ./tools/check_command_doc_acquisition.ps1
