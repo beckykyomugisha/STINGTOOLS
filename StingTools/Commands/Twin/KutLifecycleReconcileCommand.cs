@@ -36,14 +36,7 @@ namespace StingTools.Commands.Twin
     [Regeneration(RegenerationOption.Manual)]
     public class KutLifecycleReconcileCommand : IExternalCommand
     {
-        // Categories that typically carry a BMS / IoT point — the scope for the
-        // PRICED_NO_BMS_POINT handover gap.
-        private static readonly HashSet<string> Monitorable = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "Mechanical Equipment", "Electrical Equipment", "Lighting Fixtures", "Lighting Devices",
-            "Air Terminals", "Duct Accessory", "Plumbing Fixtures", "Fire Alarm Devices",
-            "Security Devices", "Communication Devices", "Data Devices", "Nurse Call Devices", "Sprinklers"
-        };
+        // Monitorable scope (PRICED_NO_BMS_POINT): StingTools.Core.Twin.BmsValuation.MonitorableCategories.
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
         {
@@ -94,7 +87,7 @@ namespace StingTools.Commands.Twin
                 string cat = it.Category ?? (el != null ? ParameterHelpers.GetCategoryName(el) : "");
                 bool priced = it.TotalUGX > 0;
                 bool ffe = fmap != null && fmap.IsFfeCategory(cat);
-                bool monitorable = Monitorable.Contains(cat ?? "");
+                bool monitorable = StingTools.Core.Twin.BmsValuation.IsMonitorable(cat ?? "");
 
                 devByElem.TryGetValue(it.RevitElementId, out var dev);
                 string devId = dev?.DeviceId ?? "";

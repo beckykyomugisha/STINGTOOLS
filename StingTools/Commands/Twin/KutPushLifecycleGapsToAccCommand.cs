@@ -36,14 +36,7 @@ namespace StingTools.Commands.Twin
     [Regeneration(RegenerationOption.Manual)]
     public class KutPushLifecycleGapsToAccCommand : IExternalCommand
     {
-        // Categories that typically carry a BMS / IoT point — the scope for the
-        // PRICED_NO_BMS_POINT gap (mirrors KutLifecycleReconcileCommand.Monitorable).
-        private static readonly HashSet<string> Monitorable = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "Mechanical Equipment", "Electrical Equipment", "Lighting Fixtures", "Lighting Devices",
-            "Air Terminals", "Duct Accessory", "Plumbing Fixtures", "Fire Alarm Devices",
-            "Security Devices", "Communication Devices", "Data Devices", "Nurse Call Devices", "Sprinklers"
-        };
+        // Monitorable scope (PRICED_NO_BMS_POINT): StingTools.Core.Twin.BmsValuation.MonitorableCategories.
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
         {
@@ -101,7 +94,7 @@ namespace StingTools.Commands.Twin
                     });
 
                 // PRICED_NO_BMS_POINT — priced monitorable asset with no BMS endpoint.
-                if (Monitorable.Contains(cat) && it.TotalUGX >= valueFloor)
+                if (StingTools.Core.Twin.BmsValuation.IsMonitorable(cat) && it.TotalUGX >= valueFloor)
                 {
                     devByElem.TryGetValue(it.RevitElementId, out var dev);
                     bool noPoint = dev == null || string.IsNullOrEmpty(dev.DeviceId) || string.IsNullOrEmpty(dev.EndpointAddress);

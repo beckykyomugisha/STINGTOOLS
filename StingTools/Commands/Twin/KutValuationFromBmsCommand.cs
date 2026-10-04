@@ -28,13 +28,6 @@ namespace StingTools.Commands.Twin
     [Transaction(TransactionMode.ReadOnly)]
     public class KutValuationFromBmsCommand : IExternalCommand
     {
-        // Same monitorable scope as the lifecycle reconcile (PRICED_NO_BMS_POINT).
-        private static readonly HashSet<string> Monitorable = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "Mechanical Equipment", "Electrical Equipment", "Lighting Fixtures", "Lighting Devices",
-            "Air Terminals", "Duct Accessory", "Plumbing Fixtures", "Fire Alarm Devices",
-            "Security Devices", "Communication Devices", "Data Devices", "Nurse Call Devices", "Sprinklers"
-        };
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
         {
@@ -84,7 +77,7 @@ namespace StingTools.Commands.Twin
                 if (it == null || it.RevitElementId < 0 || it.TotalUGX <= 0) continue;
                 if (it.FfeOwnerProcured) continue;                         // owner-procured, not contractor commissioning
                 string cat = it.Category ?? "";
-                if (!Monitorable.Contains(cat)) continue;
+                if (!StingTools.Core.Twin.BmsValuation.IsMonitorable(cat)) continue;
 
                 devByElem.TryGetValue(it.RevitElementId, out var dev);
                 string devId = dev?.DeviceId ?? "";
